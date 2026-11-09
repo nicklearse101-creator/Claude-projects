@@ -8,7 +8,7 @@ from PIL import Image, ImageTk
 import skingen
 
 APP_NAME = skingen.APP_NAME
-VERSION = '1.3.0'
+VERSION = '1.3.1'
 DATA_DIR = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'Rattys4SkinGenerator')
 LOGO_DIR = os.path.join(DATA_DIR, 'logos')
 SETTINGS = os.path.join(DATA_DIR, 'settings.json')
@@ -417,32 +417,51 @@ class App(tk.Tk):
         if not self.vars['car'].get() or not os.path.isdir(car):
             messagebox.showerror(APP_NAME, 'Pick a car first (Car tab).'); return
         name = self.vars['skin_name'].get().strip() or 'My Skin'
+        replace = None
         if save:
-            sid = re.sub(r'[^a-z0-9_]+', '_', name.lower()).strip('_')
-            if os.path.exists(os.path.join(car, 'skins', sid)):
-                messagebox.showerror(APP_NAME, f'The car already has a skin folder "{sid}".\nChoose another skin name.')
-                return
+            sid = re.sub(r'[^a-z0-9_]+', '_', name.lower()).strip('_') or 'custom'
+            target = os.path.join(car, 'skins', sid)
+            if os.path.exists(target) and os.listdir(target):
+                if not os.path.isfile(os.path.join(target, 'generator_preview.png')):
+                    # not made by this app (stock or downloaded skin): never overwrite it
+                    messagebox.showerror(APP_NAME, f'The car already has a skin folder "{sid}" that was not made by '
+                                                   f'{APP_NAME}.\n\nIt will not be overwritten - choose another skin name.')
+                    return
+                if not messagebox.askyesno(APP_NAME, f'You already made a skin called "{sid}" for this car.\n\n'
+                                                     'Replace it with the new one?\n(The old one is only removed once '
+                                                     'the new one has been built.)', icon='warning'):
+                    return
+                replace = target
         self.save_cfg()
         self.busy = True
         for b in (self.btn_prev, self.btn_save): b.state(['disabled'])
         self.log_box.delete('1.0', 'end')
         self.set_progress(0, 'Starting…')
-        threading.Thread(target=self.work, args=(car, name, save), daemon=True).start()
+        threading.Thread(target=self.work, args=(car, name, save, replace), daemon=True).start()
 
     def set_progress(self, frac, text):
         self.after(0, lambda: (self.prog.configure(value=frac * 100), self.status.configure(text=text)))
 
-    def work(self, car, name, save):
+    def work(self, car, name, save, replace=None):
         tmp = tempfile.mkdtemp(prefix='r4skin_')
         views = {}
         try:
-            out, sheet, *_ = skingen.generate(car, self.design(), name, out_root=None if save else tmp,
+            # a replacement is built next to the old skin first; the old one goes only when this succeeded
+            build_root = os.path.join(car, 'skins', '_r4skin_building') if replace else (None if save else tmp)
+            if replace: shutil.rmtree(build_root, ignore_errors=True)
+            out, sheet, *_ = skingen.generate(car, self.design(), name, out_root=build_root,
                                               resolution=4096 if self.vars['hires'].get() else None,
                                               log=self.log, copy_other_from=self.vars['copy_from'].get() or None,
                                               progress=self.set_progress, views=views)
             views['all'] = self.compose(views)
             if save:
                 views['all'].save(os.path.join(out, 'generator_preview.png'))
+            if replace:
+                shutil.rmtree(replace)
+                shutil.move(out, replace)
+                shutil.rmtree(build_root, ignore_errors=True)
+                self.log(f'replaced the old skin: {replace}')
+            if save:
                 self.log('Done. In Content Manager pick the car and skin, then click "Update preview".')
             self.set_progress(1.0, 'Done - skin saved in the car' if save else 'Preview ready')
             self.after(0, lambda: self.show_views(views))
@@ -456,6 +475,8 @@ class App(tk.Tk):
                 self.log(traceback.format_exc())
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
+            if replace:   # never leave a half-built folder in the car's skins
+                shutil.rmtree(os.path.join(car, 'skins', '_r4skin_building'), ignore_errors=True)
             self.after(0, self.done)
 
     @staticmethod

@@ -40,7 +40,9 @@ Tabs on the left, preview on the right.
 
 **Preview** renders left, right, front, rear and top views (1600 px) without writing anything; pick a
 view or "Open full size". A progress bar shows each stage; closing mid-build asks first.
-**Create skin in car** writes a new skin folder (never overwrites one). In Content Manager
+**Create skin in car** writes a new skin folder. If you already made a skin with that name, it asks
+whether to replace it (the old one goes only once the new one is built); skins the app didn't make are
+never overwritten. In Content Manager
 pick the skin and click "Update preview".
 
 ## How it works (`skingen.py`)
