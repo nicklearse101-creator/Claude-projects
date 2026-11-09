@@ -11,4 +11,4 @@
 # GitHub saving
 
 - Save all work to the Claude- repository at D:\Claude\Claude- (main branch, one folder per project, e.g. escort-dtm, sunbeam-lotus, nova-gte, tools). Commit and push after each meaningful step. Never commit secrets or files over 100 MB (.kn5, .blend, textures and renders are gitignored; use Git LFS if they must be tracked). Keep the repo on D:, never C:.
-- A cleaned PUBLIC copy of the Claude- repo is github.com/nicklearse101-creator/claude-projects (D:\Claude\claude-projects). Keep saving to Claude- as normal; after meaningful changes run `python tools/publish_public.py` in Claude- to refresh the public copy. Never commit to the public repo directly.
+- A cleaned PUBLIC copy of the Claude- repo is github.com/nicklearse101-creator/claude-projects (D:\Claude\claude-projects). Keep saving to Claude- as normal; a global Stop hook refreshes the public copy automatically (sensitive info removed) via `tools/publish_public.py --auto`. Never commit to the public repo directly.

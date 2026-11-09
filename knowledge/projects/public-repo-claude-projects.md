@@ -12,7 +12,7 @@ Nik asked to hide the email and the server info only. He chose to keep everythin
 
 **How to apply:**
 - Keep saving to Claude- as normal.
-- Refresh the public copy with `python tools/publish_public.py` (`--dry-run` first) after meaningful steps or when Nik wants to show something.
+- The public copy updates AUTOMATICALLY. Nik asked for this on 2026-11-09. A global Stop hook in ~/.claude/settings.json runs `publish_public.py --auto` after every turn. It skips if HEAD was already published, and logs to claude-projects/.git/publish.log. Run it by hand only to publish immediately.
 - Never commit to claude-projects by hand.
 - Add any new decrypted game-data folder to the EXCLUDE list in the script.
 

@@ -51,4 +51,4 @@ Other confirmed write-ups in this repo: `tools/ac-wiper/` (wiper report + proven
 - [Ratty's4Skin Generator](projects/ac-skin-generator-project.md) - no-AI livery app for any AC car + installer (D:/Claude/Claude-/ac-skin-generator, 2026-11-09); verify writing with the 3D preview; heredoc backslash gotcha
 - [3D texel preview technique](pc-setup/technique-3d-texel-preview.md) - see/render cars from Python (kn5 reader, texel->3D map, quick ortho render); reuse for Blender work (UV/texture checks, photo comparisons)
 - [Blender work project / kn5 study](projects/blender-work-kn5-study.md) — Claude- repo blender/ (2026-11-09): 112 AC cars (incl. single-seaters) + Nova reverse-engineered, spec dimension checks, silhouette compare, Kunos target numbers, kn5 tools
-- [Public repo claude-projects](projects/public-repo-claude-projects.md) — cleaned public mirror of Claude-; refresh with tools/publish_public.py, never commit to it directly
+- [Public repo claude-projects](projects/public-repo-claude-projects.md) — cleaned public mirror of Claude-; auto-updated by a Stop hook (publish_public.py --auto), never commit to it directly
