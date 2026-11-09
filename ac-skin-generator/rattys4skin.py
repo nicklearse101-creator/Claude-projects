@@ -8,13 +8,16 @@ from PIL import Image, ImageTk
 import skingen
 
 APP_NAME = skingen.APP_NAME
-VERSION = '1.1.0'
+VERSION = '1.2.0'
 DATA_DIR = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'Rattys4SkinGenerator')
 LOGO_DIR = os.path.join(DATA_DIR, 'logos')
 SETTINGS = os.path.join(DATA_DIR, 'settings.json')
 LIBRARY = os.path.join(DATA_DIR, 'logos.json')
 PLACE_NAMES = {'': 'Not used'}; PLACE_NAMES.update(skingen.PLACES)
 BG_MODES = {'auto': 'Auto', 'remove': 'Remove background', 'keep': 'Keep whole picture'}
+TEXT_PLACES = ['front_wings', 'lower_doors', 'doors', 'rear_quarters', 'bonnet', 'roof', 'boot', 'rear', 'front']
+TEAM_DEFAULT = ['front_wings', 'boot', 'rear', 'front']
+NAME_DEFAULT = ['front_wings']
 NUMBER_STYLES = {'board': 'Number board', 'plain': 'Plain number', 'none': 'No number'}
 
 
@@ -71,6 +74,7 @@ class App(tk.Tk):
         self.build()
         self.refresh_cars()
         self.refresh_library()
+        self.protocol('WM_DELETE_WINDOW', self.on_close)
 
     # ---------------------------------------------------------------- settings / library
     def load_cfg(self):
@@ -83,7 +87,13 @@ class App(tk.Tk):
         return d
 
     def save_cfg(self):
-        try: json.dump({k: v.get() for k, v in self.vars.items()}, open(SETTINGS, 'w', encoding='utf8'), indent=2)
+        d = {k: v.get() for k, v in self.vars.items()}
+        d['pattern'] = next((k for k, v in skingen.PATTERNS.items() if v == self.vars['pattern_name'].get()), 'sweep')
+        d['number_style'] = next((k for k, v in NUMBER_STYLES.items() if v == self.vars['number_style_name'].get()), 'board')
+        d['team_places'] = [p for p, v in self.tp_vars.items() if v.get()]
+        d['name_places'] = [p for p, v in self.np_vars.items() if v.get()]
+        try:
+            with open(SETTINGS, 'w', encoding='utf8') as f: json.dump(d, f, indent=2)
         except Exception: pass
 
     def load_library(self):
@@ -144,8 +154,11 @@ class App(tk.Tk):
         for key, label in (('base', 'Base colour'), ('accent', 'Accent colour'), ('accent2', 'Highlight colour'),
                            ('text', 'Text colour')):
             row('livery', label, lambda f, k=key: self.colour_button(f, k))
-        row('livery', 'Pattern', lambda f: ttk.Combobox(f, textvariable=self.var('pattern'), state='readonly',
-                                                       values=['sweep', 'stripes', 'split', 'none'], width=12))
+        self.vars['pattern_name'] = tk.StringVar(value=skingen.PATTERNS.get(self.cfg.get('pattern'), skingen.PATTERNS['sweep']))
+        row('livery', 'Pattern', lambda f: ttk.Combobox(f, textvariable=self.vars['pattern_name'], state='readonly',
+                                                       values=list(skingen.PATTERNS.values()), width=32, height=16))
+        note('livery', 'Patterns are inspired by classic and modern racing liveries; they use your accent, '
+                       'highlight and text colours.')
         row('livery', '', lambda f: ttk.Checkbutton(f, text='Halftone dots', variable=self.var('halftone', tk.BooleanVar)))
 
         # --- number & names
@@ -156,8 +169,21 @@ class App(tk.Tk):
         row('number', 'Show number on', lambda f: self.checks(f, (('number_doors', 'Doors'), ('number_roof', 'Roof'))))
         row('number', 'Team / wordmark', lambda f: ttk.Entry(f, textvariable=self.var('team')))
         row('number', 'Driver name', lambda f: ttk.Entry(f, textvariable=self.var('name')))
-        note('number', 'The wordmark goes on the front wings, boot, rear and front bumper; the driver name '
-                       'under it on the wings. A logo placed on the front wings moves them to the lower doors.')
+        ttk.Label(tabs['number'], text='Where to write them:').pack(anchor='w', pady=(8, 2))
+        grid = ttk.Frame(tabs['number']); grid.pack(fill='x')
+        ttk.Label(grid, text='').grid(row=0, column=0)
+        ttk.Label(grid, text='Team').grid(row=0, column=1, padx=6)
+        ttk.Label(grid, text='Driver').grid(row=0, column=2, padx=6)
+        tp = self.cfg.get('team_places') or TEAM_DEFAULT
+        np_ = self.cfg.get('name_places') or NAME_DEFAULT
+        self.tp_vars, self.np_vars = {}, {}
+        for r, pl in enumerate(TEXT_PLACES, 1):
+            ttk.Label(grid, text=skingen.PLACES[pl]).grid(row=r, column=0, sticky='w')
+            self.tp_vars[pl] = tk.BooleanVar(value=pl in tp); self.np_vars[pl] = tk.BooleanVar(value=pl in np_)
+            ttk.Checkbutton(grid, variable=self.tp_vars[pl]).grid(row=r, column=1)
+            ttk.Checkbutton(grid, variable=self.np_vars[pl]).grid(row=r, column=2)
+        note('number', 'Where both are ticked, the driver name goes under the team name. A logo placed '
+                       'at the same spot takes priority.')
 
         # --- logos
         lt = tabs['logos']
@@ -216,12 +242,25 @@ class App(tk.Tk):
         self.btn_prev.pack(side='left', expand=True, fill='x', padx=2, ipady=4)
         self.btn_save = ttk.Button(bf, text='Create skin in car', command=lambda: self.run(save=True))
         self.btn_save.pack(side='left', expand=True, fill='x', padx=2, ipady=4)
-        self.log_box = tk.Text(left, height=12, width=60, font=('Consolas', 8))
-        self.log_box.pack(fill='both', expand=True, pady=(8, 0))
+        self.prog = ttk.Progressbar(left, mode='determinate', maximum=100)
+        self.prog.pack(fill='x', pady=(8, 0))
+        self.status = ttk.Label(left, text='Ready', foreground='#444')
+        self.status.pack(anchor='w')
+        self.log_box = tk.Text(left, height=10, width=60, font=('Consolas', 8))
+        self.log_box.pack(fill='both', expand=True, pady=(6, 0))
 
+        vb = ttk.Frame(right); vb.pack(fill='x', pady=(0, 6))
+        ttk.Label(vb, text='View:').pack(side='left')
+        self.view_var = tk.StringVar(value='all')
+        for key, label in (('all', 'All sides'), ('left', 'Left'), ('right', 'Right'), ('front', 'Front'),
+                           ('rear', 'Rear'), ('top', 'Top')):
+            ttk.Radiobutton(vb, text=label, value=key, variable=self.view_var, command=self.redraw).pack(side='left', padx=4)
+        ttk.Button(vb, text='Open full size', command=self.open_full).pack(side='right')
         self.canvas = tk.Label(right, background='#ebecf0', anchor='center',
                                text=f'{APP_NAME}\n\nPick a car and press Preview', font=('Segoe UI', 13))
         self.canvas.pack(fill='both', expand=True)
+        self.canvas.bind('<Configure>', lambda e: self.after_idle(self.redraw))
+        self.views = {}
 
     def checks(self, parent, items):
         fr = ttk.Frame(parent)
@@ -334,6 +373,9 @@ class App(tk.Tk):
         d['logos'] = [dict(path=os.path.join(LOGO_DIR, l['file']), place=l['place'], tint=l.get('tint'), bg=l.get('bg', 'auto'))
                       for l in self.library if l.get('place')]
         d['number_style'] = next((k for k, v in NUMBER_STYLES.items() if v == self.vars['number_style_name'].get()), 'board')
+        d['pattern'] = next((k for k, v in skingen.PATTERNS.items() if v == self.vars['pattern_name'].get()), 'sweep')
+        d['team_places'] = [p for p, v in self.tp_vars.items() if v.get()] or ['none']
+        d['name_places'] = [p for p, v in self.np_vars.items() if v.get()] or ['none']
         d['wheel_colour'] = self.vars['wheel_colour'].get() if self.vars['use_wheels'].get() else None
         d['lens_colour'] = self.vars['lens_colour'].get() if self.vars['use_lens'].get() else None
         d['beam_colour'] = self.vars['beam_colour'].get() if self.vars['use_beam'].get() else None
@@ -354,20 +396,29 @@ class App(tk.Tk):
         self.busy = True
         for b in (self.btn_prev, self.btn_save): b.state(['disabled'])
         self.log_box.delete('1.0', 'end')
+        self.set_progress(0, 'Starting…')
         threading.Thread(target=self.work, args=(car, name, save), daemon=True).start()
+
+    def set_progress(self, frac, text):
+        self.after(0, lambda: (self.prog.configure(value=frac * 100), self.status.configure(text=text)))
 
     def work(self, car, name, save):
         tmp = tempfile.mkdtemp(prefix='r4skin_')
+        views = {}
         try:
             out, sheet, *_ = skingen.generate(car, self.design(), name, out_root=None if save else tmp,
                                               resolution=4096 if self.vars['hires'].get() else None,
-                                              log=self.log, copy_other_from=self.vars['copy_from'].get() or None)
+                                              log=self.log, copy_other_from=self.vars['copy_from'].get() or None,
+                                              progress=self.set_progress, views=views)
+            views['all'] = self.compose(views)
             if save:
-                sheet.save(os.path.join(out, 'generator_preview.png'))
+                views['all'].save(os.path.join(out, 'generator_preview.png'))
                 self.log('Done. In Content Manager pick the car and skin, then click "Update preview".')
-            self.after(0, lambda: self.show(sheet))
+            self.set_progress(1.0, 'Done - skin saved in the car' if save else 'Preview ready')
+            self.after(0, lambda: self.show_views(views))
         except Exception as e:
             self.log('ERROR: ' + str(e))
+            self.set_progress(0, 'Stopped - see the message')
             if isinstance(e, (ValueError, FileNotFoundError, FileExistsError, RuntimeError)):
                 msg = str(e)                       # a known problem: say it plainly
                 self.after(0, lambda: messagebox.showerror(APP_NAME, msg))
@@ -377,15 +428,50 @@ class App(tk.Tk):
             shutil.rmtree(tmp, ignore_errors=True)
             self.after(0, self.done)
 
+    @staticmethod
+    def compose(v):
+        L, R, F, B, T = v['left'], v['right'], v['front'], v['rear'], v['top']
+        w = L.width
+        fh = int(F.height * (w / 2) / F.width)
+        F2, B2 = F.resize((w // 2, fh), Image.LANCZOS), B.resize((w // 2, fh), Image.LANCZOS)
+        T2 = T.resize((w, int(T.height * w / T.width)), Image.LANCZOS)
+        sheet = Image.new('RGB', (w, L.height + R.height + fh + T2.height), (235, 236, 240))
+        y = 0
+        for im in (L, R):
+            sheet.paste(im, (0, y)); y += im.height
+        sheet.paste(F2, (0, y)); sheet.paste(B2, (w // 2, y)); y += fh
+        sheet.paste(T2, (0, y))
+        return sheet
+
     def done(self):
         self.busy = False
         for b in (self.btn_prev, self.btn_save): b.state(['!disabled'])
 
-    def show(self, sheet):
+    def show_views(self, views):
+        self.views = views
+        self.redraw()
+
+    def redraw(self):
+        im = self.views.get(self.view_var.get()) if self.views else None
+        if im is None: return
         w, h = max(200, self.canvas.winfo_width() - 10), max(200, self.canvas.winfo_height() - 10)
-        im = sheet.copy(); im.thumbnail((w, h), Image.LANCZOS)
+        im = im.copy(); im.thumbnail((w, h), Image.LANCZOS)
         self.preview_img = ImageTk.PhotoImage(im)
         self.canvas.configure(image=self.preview_img, text='')
+
+    def open_full(self):
+        im = self.views.get(self.view_var.get()) if self.views else None
+        if im is None:
+            messagebox.showinfo(APP_NAME, 'Make a preview first.'); return
+        path = os.path.join(tempfile.gettempdir(), f'r4skin_preview_{self.view_var.get()}.png')
+        im.save(path)
+        os.startfile(path)
+
+    def on_close(self):
+        if self.busy and not messagebox.askyesno(APP_NAME, 'A skin is still being built.\n\nClose anyway? '
+                                                 'The skin will not be finished.'):
+            return
+        self.destroy()
 
 
 def selftest(car_dir):

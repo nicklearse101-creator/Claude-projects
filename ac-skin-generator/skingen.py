@@ -252,36 +252,48 @@ class TexelMap:
         ida = draw(keep)
         idb = draw(keep[::-1])
         self.covered = ida >= 0
-        self.shared = self.covered & (ida != idb)               # two triangles use the same texels
-        tid = ida
+
+        def locate(t, xx, yy):
+            """3D point and normal of texel centres (xx, yy) on triangles t."""
+            a, b, c = px[t, 0], px[t, 1], px[t, 2]
+            p = np.stack([xx, yy], -1).astype(np.float64)
+            v0, v1, v2 = b - a, c - a, p - a
+            den = v0[:, 0] * v1[:, 1] - v1[:, 0] * v0[:, 1]
+            den[np.abs(den) < 1e-12] = 1e-12
+            w1 = (v2[:, 0] * v1[:, 1] - v1[:, 0] * v2[:, 1]) / den
+            w2 = (v0[:, 0] * v2[:, 1] - v2[:, 0] * v0[:, 1]) / den
+            w0 = 1 - w1 - w2
+            out = (w0 < 0) | (w1 < 0) | (w2 < 0)
+            if out.any():
+                # texel centre outside its (edge-pass) triangle: use the closest point on the triangle
+                o = np.nonzero(out)[0]
+                pts = p[o]; A_, B_, C_ = a[o], b[o], c[o]
+                best_d = np.full(len(o), np.inf); bw = np.zeros((len(o), 3))
+                for (P0, P1, i0, i1) in ((A_, B_, 0, 1), (B_, C_, 1, 2), (C_, A_, 2, 0)):
+                    e = P1 - P0; l2 = np.maximum((e ** 2).sum(1), 1e-12)
+                    tt = np.clip(((pts - P0) * e).sum(1) / l2, 0, 1)
+                    q = P0 + e * tt[:, None]; dd = ((pts - q) ** 2).sum(1)
+                    better = dd < best_d
+                    best_d[better] = dd[better]
+                    ww = np.zeros((len(o), 3)); ww[np.arange(len(o)), i0] = 1 - tt; ww[np.arange(len(o)), i1] += tt
+                    bw[better] = ww[better]
+                w0[o], w1[o], w2[o] = bw[:, 0], bw[:, 1], bw[:, 2]
+            P = pos[t, 0] * w0[:, None] + pos[t, 1] * w1[:, None] + pos[t, 2] * w2[:, None]
+            N = nrm[t, 0] * w0[:, None] + nrm[t, 1] * w1[:, None] + nrm[t, 2] * w2[:, None]
+            N /= np.maximum(np.linalg.norm(N, axis=1, keepdims=True), 1e-9)
+            return P, N
+
         yy, xx = np.nonzero(self.covered)
-        t = tid[yy, xx]
-        a, b, c = px[t, 0], px[t, 1], px[t, 2]
-        p = np.stack([xx, yy], -1).astype(np.float64)
-        v0, v1, v2 = b - a, c - a, p - a
-        den = v0[:, 0] * v1[:, 1] - v1[:, 0] * v0[:, 1]
-        den[np.abs(den) < 1e-12] = 1e-12
-        w1 = (v2[:, 0] * v1[:, 1] - v1[:, 0] * v2[:, 1]) / den
-        w2 = (v0[:, 0] * v2[:, 1] - v2[:, 0] * v0[:, 1]) / den
-        w0 = 1 - w1 - w2
-        out = (w0 < 0) | (w1 < 0) | (w2 < 0)
-        if out.any():
-            # texel centre outside its (edge-pass) triangle: use the closest point on the triangle
-            o = np.nonzero(out)[0]
-            pts = p[o]; A_, B_, C_ = a[o], b[o], c[o]
-            best_d = np.full(len(o), np.inf); bw = np.zeros((len(o), 3))
-            for (P0, P1, i0, i1) in ((A_, B_, 0, 1), (B_, C_, 1, 2), (C_, A_, 2, 0)):
-                e = P1 - P0; l2 = np.maximum((e ** 2).sum(1), 1e-12)
-                tt = np.clip(((pts - P0) * e).sum(1) / l2, 0, 1)
-                q = P0 + e * tt[:, None]; dd = ((pts - q) ** 2).sum(1)
-                better = dd < best_d
-                best_d[better] = dd[better]
-                ww = np.zeros((len(o), 3)); ww[np.arange(len(o)), i0] = 1 - tt; ww[np.arange(len(o)), i1] += tt
-                bw[better] = ww[better]
-            w0[o], w1[o], w2[o] = bw[:, 0], bw[:, 1], bw[:, 2]
-        P = pos[t, 0] * w0[:, None] + pos[t, 1] * w1[:, None] + pos[t, 2] * w2[:, None]
-        N = nrm[t, 0] * w0[:, None] + nrm[t, 1] * w1[:, None] + nrm[t, 2] * w2[:, None]
-        N /= np.maximum(np.linalg.norm(N, axis=1, keepdims=True), 1e-9)
+        t = ida[yy, xx]
+        P, N = locate(t, xx, yy)
+        # "shared" = the same texels really are used by two different places on the car (mirrored /
+        # overlapping UVs). Neighbouring triangles always overlap on their edges: that is not sharing.
+        cand = np.nonzero(idb[yy, xx] != t)[0]
+        self.shared = np.zeros((H, W), bool)
+        if len(cand):
+            Pb, _ = locate(idb[yy[cand], xx[cand]], xx[cand], yy[cand])
+            far = np.linalg.norm(P[cand] - Pb, axis=1) > 0.05
+            self.shared[yy[cand[far]], xx[cand[far]]] = True
         self.yy, self.xx, self.P, self.N, self.tri = yy, xx, P, N, t
         a3 = 0.5 * np.linalg.norm(np.cross(pos[:, 1] - pos[:, 0], pos[:, 2] - pos[:, 0]), axis=1).sum()
         self.texel_m = float(np.sqrt(a3 / max(1, len(yy))))     # metres per texel (average)
@@ -387,10 +399,116 @@ DEFAULT_DESIGN = dict(
     pattern='sweep', halftone=True, carbon=False,
     logo=None, tint_logo=True, logos=None, number='101', number_style='board', number_doors=True, number_roof=True,
     name='', team='RATTY RACING', wheel_colour=None, lens_colour=None, beam_colour=None,
+    team_places=None, name_places=None,
     win_enable=False, win_clear=True, win_banner='RATTY RACING', win_banner_colour='#111111', win_text_colour='#ffffff',
     win_number=True, win_name=True,
     font=DEFAULT_FONT,
 )
+
+
+PATTERNS = {
+    'sweep': 'Sweep (rising band + dots)',
+    'stripes': 'Twin centre stripes',
+    'split': 'Two-tone split',
+    'triple': 'Triple side stripes (classic 70s)',
+    'centre_band': 'Centre band over the top',
+    'chevron': 'Chevron nose',
+    'hockey': 'Hockey stick',
+    'tricolour': 'Tricolour diagonal bands',
+    'fade': 'Front-to-rear fade',
+    'chequer': 'Chequered flag fade',
+    'shards': 'Geometric shards',
+    'hex': 'Hexagon fade',
+    'camo': 'Digital camo',
+    'none': 'Plain (no pattern)',
+}
+
+
+def _hash(*ints):
+    h = np.zeros_like(ints[0], dtype=np.int64)
+    for k, v in zip((73856093, 19349663, 83492791, 2654435761), ints):
+        h = h ^ (v.astype(np.int64) * k)
+    return (h & 0x7fffffff) % 1000 / 1000.0
+
+
+def extra_pattern(pat, col, P, N, car, sill, belt, base, acc, acc2, txt):
+    """Patterns made from 3D functions of the car's surface (so they wrap round it seamlessly)."""
+    x, y, z = P[:, 0], P[:, 1], P[:, 2]
+    L = car.length; sh = belt - sill
+    s = (car.hi[2] - z) / L                       # 0 front .. 1 rear
+    hn = (y - sill) / max(sh, 1e-3)               # 0 sill .. 1 window line
+    half = (car.hi[0] - car.lo[0]) / 2
+    side = np.abs(N[:, 0]) > 0.45
+    put = lambda m, c: np.where(m[:, None], np.asarray(c, np.float32), col)
+
+    if pat == 'triple':
+        # three parallel stripes along the side, lifting towards the nose
+        c0 = 0.55 + 0.18 * np.clip(0.35 - s, 0, 1)
+        for off, c in ((0.0, acc), (0.075, acc2), (0.15, txt)):
+            d = hn - (c0 - off)
+            col = put(side & (d > 0) & (d < 0.055), c)
+    elif pat == 'centre_band':
+        w = 0.3 * half
+        col = put(np.abs(x) < w, acc)
+        col = put((np.abs(x) >= w + 0.02) & (np.abs(x) < w + 0.045), acc2)
+        col = put(side & (hn > 0.42) & (hn < 0.52), acc)
+    elif pat == 'chevron':
+        q = np.where(side, np.abs(hn - 0.5) * 1.1, np.abs(x) / half)
+        edge = 0.42 - 0.3 * q
+        col = put(s < edge, acc)
+        col = put((s >= edge) & (s < edge + 0.025), acc2)
+    elif pat == 'hockey':
+        # band low along the side that kicks up to the window line in front of the rear wheel
+        t = np.clip((s - 0.62) / 0.12, 0, 1)
+        lo_, hi_ = 0.12 + 0.6 * t ** 2, 0.38 + 0.62 * t ** 2
+        band = side & (hn > lo_) & (hn < hi_) & (s < 0.8)
+        col = put(band, acc)
+        col = put(side & (hn >= hi_) & (hn < hi_ + 0.05) & (s < 0.8), acc2)
+    elif pat == 'tricolour':
+        u = hn - 0.9 * (0.75 - s)
+        for k, c in enumerate((acc, acc2, txt)):
+            col = put(side & (u > 0.05 + 0.13 * k) & (u < 0.15 + 0.13 * k), c)
+        col = put(~side & (np.abs(x) < 0.2 * half) & (np.abs(x) > 0.14 * half), acc)
+    elif pat == 'fade':
+        t = np.clip((s - 0.25) / 0.6, 0, 1)[:, None]
+        col = col * (1 - t) + np.asarray(acc, np.float32) * t
+        g = 0.03; gz = np.round(z / g); gy = np.round(y / g); gx = np.round(x / g)
+        d = np.sqrt((z - gz * g) ** 2 + np.where(side, (y - gy * g) ** 2, (x - gx * g) ** 2))
+        r = g * 0.45 * np.clip(1 - np.abs(s - 0.25) / 0.18, 0, 1)
+        col = put((d < r) & (s < 0.25), acc)
+    elif pat == 'chequer':
+        g = 0.07
+        cu = np.floor(z / g); cv = np.floor(np.where(side, y, x) / g)
+        dark = ((cu + cv) % 2) == 0
+        keep = _hash(cu, cv) < np.clip((s - 0.45) / 0.45, 0, 1) * 1.2
+        col = put(dark & keep, acc)
+    elif pat == 'shards':
+        a = np.radians(28)
+        u = z * np.cos(a) + np.where(side, y, x) * np.sin(a)
+        cell = np.floor(u / 0.11)
+        r = _hash(cell, np.floor(np.where(side, y, x) / 0.35))
+        zone = np.clip((s - 0.35) / 0.4, 0, 1)
+        col = put((r < 0.22 * zone + 0.02) & (s > 0.35), acc)
+        col = put((r > 1 - 0.12 * zone) & (s > 0.35), acc2)
+    elif pat == 'hex':
+        g = 0.05
+        su = z / (g * 1.5); col_i = np.floor(su)
+        sv = (np.where(side, y, x) / (g * np.sqrt(3))) - 0.5 * (col_i % 2)
+        row_i = np.floor(sv)
+        fu, fv = su - col_i - 0.5, sv - row_i - 0.5
+        d = np.maximum(np.abs(fv), (np.abs(fu) * 1.5 + np.abs(fv)) / 2)
+        size = np.clip((s - 0.4) / 0.5, 0, 1) * 0.45
+        col = put(d < size, acc)
+    elif pat == 'camo':
+        g = 0.09
+        c1 = _hash(np.floor(x / g), np.floor(y / g), np.floor(z / g))
+        c2 = _hash(np.floor(x / (g * 2.3)) + 7, np.floor(y / (g * 2.3)), np.floor(z / (g * 2.3)))
+        v = 0.6 * c2 + 0.4 * c1
+        mid = (np.asarray(base, np.float32) + np.asarray(acc, np.float32)) / 2
+        col = put(v > 0.55, mid)
+        col = put(v > 0.72, acc)
+        col = put(v < 0.18, acc2)
+    return col
 
 
 def side_profile(car, tm, paint):
@@ -506,6 +624,9 @@ def render_design(car, tm, paint, design, log=print):
         e = (y >= sill + (belt - sill) * 0.55) & (y < sill + (belt - sill) * 0.55 + 0.02)
         col = np.where(e[:, None], acc2, col)
 
+    if pat not in ('sweep', 'stripes', 'split', 'none'):
+        col = extra_pattern(pat, col, P, N, car, sill, belt, base, acc, acc2, txt)
+
     # ---- decals
     decals = place_decals(car, tm, paint, design, prof, base, acc, acc2, txt, log)
     col = apply_decals(col, tm, paint, decals, log)
@@ -615,18 +736,26 @@ def place_decals(car, tm, paint, design, prof, base, acc, acc2, txt, log):
             decals.append(Decal(text_image(num, 300, t_txt, fnt, stroke=0.04, stroke_color=base), 'roof_l',
                                 -zc_n, 0.0, min(wd * 0.45, ln * 0.45), region=lambda P: P[:, 1] > car.hi[1] - 0.3))
 
-    # team wordmark + driver name
+    # team wordmark + driver name, at the places chosen
     team, name = (design.get('team') or '').strip(), (design.get('name') or '').strip()
-    wing = 'front_wings' if 'front_wings' not in taken else ('lower_doors' if 'lower_doors' not in taken else None)
-    if wing == 'front_wings':
-        if team: put(wing, text_image(team, 200, t_txt, fnt), scale=0.62, b_shift=0.16 if name else 0)
-        if name: put(wing, text_image(name, 200, t_acc2, fnt, style='SemiBold Condensed', track=0.12), scale=0.32, b_shift=-0.42)
-    elif wing == 'lower_doors':
-        if team: put(wing, text_image(team + (f'  |  {name}' if name else ''), 200, t_txt, fnt))
-    if team:
-        if 'boot' not in taken: put('boot', text_image(team, 200, t_txt, fnt), scale=0.4)
-        if 'rear' not in taken: put('rear', text_image(team, 200, t_txt, fnt), scale=0.7)
-        if 'front' not in taken: put('front', text_image(team, 200, t_acc2, fnt), scale=0.65)
+    tplaces = design.get('team_places') or ['front_wings', 'boot', 'rear', 'front']
+    nplaces = design.get('name_places') or ['front_wings']
+    scale = {'front_wings': 0.62, 'lower_doors': 1.0, 'rear_quarters': 0.55, 'doors': 0.3, 'bonnet': 0.3,
+             'roof': 0.5, 'boot': 0.4, 'rear': 0.7, 'front': 0.65}
+    for p in PLACES:
+        if p in taken or p in ('windscreen', 'rear_window', 'side_windows'): continue
+        t_on, n_on = bool(team) and p in tplaces, bool(name) and p in nplaces
+        if not (t_on or n_on): continue
+        sc = scale.get(p, 0.5)
+        tc = t_acc2 if p == 'front' else t_txt
+        ol = dict(stroke=0.045, stroke_color=base)     # outline: stays readable where it crosses a pattern band
+        if t_on and n_on:
+            put(p, text_image(team, 200, tc, fnt, **ol), scale=sc, b_shift=0.16)
+            put(p, text_image(name, 200, t_acc2, fnt, style='SemiBold Condensed', track=0.12, **ol), scale=sc * 0.52, b_shift=-0.42 * min(1, sc / 0.62))
+        elif t_on:
+            put(p, text_image(team, 200, tc, fnt, **ol), scale=sc)
+        else:
+            put(p, text_image(name, 200, t_acc2 if p != 'front' else t_txt, fnt, style='SemiBold Condensed', track=0.1, **ol), scale=sc * 0.8)
     return decals
 
 
@@ -816,6 +945,8 @@ def tint_lenses(car, lights, colour, made, copy_from=None, log=print):
         m = (np.asarray(mask) > 0)
         a = np.asarray(img).astype(np.float32)
         rgbv = a[..., :3]
+        colourless = (rgbv.max(-1) - rgbv.min(-1)) < 45
+        m = m & colourless
         lum = rgbv.mean(-1, keepdims=True)
         tinted = np.clip(lum * col * 1.15 + np.clip(lum - 200, 0, 55) * 0.8, 0, 255)   # bright glints stay bright
         mix = 0.6
@@ -921,7 +1052,7 @@ def merge_ini(path, text):
 
 # ------------------------------------------------------------------ window stickers
 GLASS_RE = re.compile(r'window|windscreen|windshield|glass|(?<![a-z])win_|_win(?![a-z])|parabrezza|vetr|lunotto|scheibe', re.I)
-NOT_GLASS_RE = re.compile(r'light|lamp|head|lens|emissive|faro|mirror|gauge|dial|display|screen_|lcd|visor|helmet|mold|mould|trim|seal|rubber|frame|gasket|wiper', re.I)
+NOT_GLASS_RE = re.compile(r'damage|crack|broken|light|lamp|head|lens|emissive|faro|mirror|gauge|dial|display|screen_|lcd|visor|helmet|mold|mould|trim|seal|rubber|frame|gasket|wiper', re.I)
 INSIDE_RE = re.compile(r'int_|_int\b|interior|inside|cockpit|inner', re.I)
 
 
@@ -1004,8 +1135,13 @@ def make_window_stickers(car, design, made, copy_from=None, log=print):
         reg = lambda Q, top=top: (Q[:, 2] > mid) & (Q[:, 1] > top - 0.35)
         if 'windscreen' in logos:
             lg = prep_logo(logos['windscreen']['path'], acc2 if logos['windscreen'].get('tint') else None, logos['windscreen'].get('bg', 'auto'))
-            decals.append(Decal(banner_image('', band, txt, fnt, wd / bh), 'front', 0.0, top - bh / 2, bh, region=reg))
-            decals.append(Decal(lg, 'front', 0.0, top - bh / 2, bh * 0.85, region=reg))
+            asp = lg.width / lg.height
+            if asp > 2.5:     # a wide picture is the banner itself, across the top of the glass
+                hh = min(0.18, wd * 0.96 / asp) if not bn else min(bh, wd * 0.98 / asp)
+                decals.append(Decal(lg, 'front', 0.0, top - hh / 2 - 0.005, hh, region=reg))
+            else:
+                decals.append(Decal(banner_image('', band, txt, fnt, wd / bh), 'front', 0.0, top - bh / 2, bh, region=reg))
+                decals.append(Decal(lg, 'front', 0.0, top - bh / 2, bh * 0.85, region=reg))
         else:
             decals.append(Decal(banner_image(design.get('win_banner', '').strip(), band, txt, fnt, wd / bh), 'front',
                                 0.0, top - bh / 2, bh, region=reg))
@@ -1063,9 +1199,16 @@ def make_window_stickers(car, design, made, copy_from=None, log=print):
     for tex in by_tex:
         img = current_texture(car, tex, made, copy_from)
         if img is None: continue
-        if max(img.size) < 64:
-            log(f'windows: {tex} is only {img.size[0]}x{img.size[1]} (plain glass, no room for stickers) - skipped')
-            continue
+        if min(img.size) < 512:
+            uv = np.concatenate([m.uv[m.idx].reshape(-1, 2) for g in by_tex[tex].values() for m in g])
+            uv = uv - np.floor(uv.min(0))
+            span = np.percentile(uv, 98, axis=0) - np.percentile(uv, 2, axis=0)
+            if span.min() > 0.3 and uv.max() <= 1.05:
+                log(f'windows: {tex} is only {img.size[0]}x{img.size[1]} - the skin gets a 2048x2048 version so stickers fit')
+                img = img.convert('RGBA').resize((2048, 2048), Image.LANCZOS)
+            else:
+                log(f'windows: {tex} is only {img.size[0]}x{img.size[1]} and its glass is tiled - no room for stickers, skipped')
+                continue
         arrs[tex] = np.asarray(img.convert('RGBA')).copy()
     # pass 1 outside, pass 2 inside (only the backs of stickers that landed outside; outside wins shared texels)
     hit, touched, changed = set(), {}, set()
@@ -1120,6 +1263,7 @@ def apply_decals_rgba(col, alp, tm, decals, inside=False, back=None):
         vdir, fa, fb = VIEWS[dc.view]
         f = tm.N @ vdir
         facing = (f < -0.2) if inside else (f > 0.2)
+        if dc.view in ('left', 'right'): facing &= ~tm.shared[tm.yy, tm.xx]
         if dc.region is not None: facing &= dc.region(tm.P)
         img = dc.img.rotate(dc.rot, expand=True, resample=Image.BICUBIC) if dc.rot else dc.img
         aspect = img.width / img.height
@@ -1218,6 +1362,12 @@ def render_view(car, view, tex_imgs, tms, width=1000, bg=(235, 236, 240)):
     return img
 
 
+def preview_views(car, tex_imgs, tms, width=1600):
+    v = {k: render_view(car, k, tex_imgs, tms, width) for k in ('left', 'right', 'front', 'rear')}
+    v['top'] = render_view(car, 'top', tex_imgs, tms, width).rotate(90, expand=True)
+    return v
+
+
 def preview_sheet(car, tex_imgs, tms, width=900):
     views = [render_view(car, v, tex_imgs, tms, width) for v in ('left', 'right')]
     tv = [render_view(car, v, tex_imgs, tms, width // 2) for v in ('front', 'rear')]
@@ -1232,7 +1382,9 @@ def preview_sheet(car, tex_imgs, tms, width=900):
 
 # ------------------------------------------------------------------ the whole job
 def generate(car_dir, design, skin_name, out_root=None, resolution=None, log=print, preview_path=None,
-             copy_other_from=None):
+             copy_other_from=None, progress=None, views=None):
+    step = progress or (lambda f, t: None)
+    step(0.02, 'Reading the car model')
     car = Car(car_dir, log)
     skin_id = re.sub(r'[^a-z0-9_]+', '_', skin_name.lower()).strip('_') or 'custom'
     out = os.path.join(out_root or os.path.join(car_dir, 'skins'), skin_id)
@@ -1253,8 +1405,12 @@ def generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pri
             k = resolution / max(W, H); W, H = int(W * k), int(H * k)
             log(f'making {tex} {W}x{H} for sharper writing and logos')
         log(f'--- {tex}')
+        k_ = car.body_textures.index(tex) / len(car.body_textures)
+        step(0.1 + 0.55 * k_, f'Mapping {tex} onto the car')
         tm = TexelMap(car.meshes_for(tex), W, H, log)
+        step(0.1 + 0.55 * (k_ + 0.3 / len(car.body_textures)), 'Comparing the stock skins')
         base, alpha, paint, shade = stock_analysis(car, tex, W, H, tm, log)
+        step(0.1 + 0.55 * (k_ + 0.6 / len(car.body_textures)), 'Painting the livery')
         cols = render_design(car, tm, paint, design, log)
         canvas = base.copy()
         sel = paint[tm.yy, tm.xx]
@@ -1268,6 +1424,7 @@ def generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pri
         out_rgb[paint] = painted[paint]
         img = Image.fromarray(np.dstack([np.clip(out_rgb, 0, 255).astype(np.uint8), alpha]), 'RGBA')
         tex_out[tex] = img; tms[tex] = tm
+    step(0.68, 'Wheels, windows and lights')
     wheel_out = {}
     if design.get('wheel_colour'):
         for tex in car.wheel_textures:
@@ -1287,6 +1444,7 @@ def generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pri
                 continue
             if os.path.isfile(os.path.join(src, f)):
                 shutil.copyfile(os.path.join(src, f), os.path.join(out, f))
+    step(0.8, 'Writing the textures')
     for tex, img in made.items():
         name = os.path.splitext(tex)[0] + '.dds'
         for s_ in car.skins:     # use the file-name spelling the car's own skins use
@@ -1315,7 +1473,10 @@ def generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pri
               outline=tuple(int(v) for v in rgb(design['accent2'])) + (255,), width=3)
     d.pieslice([2, 2, 61, 61], 200, 340, fill=tuple(int(v) for v in rgb(design['accent'])) + (255,))
     lv.save(os.path.join(out, 'livery.png'))
+    step(0.9, 'Drawing the preview')
     sheet = preview_sheet(car, tex_out, tms)
+    if views is not None: views.update(preview_views(car, tex_out, tms))
+    step(1.0, 'Done')
     if preview_path: sheet.save(preview_path)
     log(f'skin saved: {out}')
     return out, sheet, car, tms, tex_out

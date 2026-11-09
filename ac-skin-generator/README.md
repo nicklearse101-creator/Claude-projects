@@ -17,10 +17,15 @@ Settings and the logo library live in `%APPDATA%\Rattys4SkinGenerator` (kept on 
 Tabs on the left, preview on the right.
 - **Car** - the AC cars folder (found automatically through Steam), the car, the skin name,
   and optionally a skin to copy the other files from.
-- **Livery** - base / accent / highlight / text colours, pattern (sweep, stripes, split, none),
-  halftone dots.
+- **Livery** - base / accent / highlight / text colours and a pattern: sweep, twin centre stripes,
+  two-tone split, triple side stripes, centre band over the top, chevron nose, hockey stick, tricolour
+  diagonal bands, front-to-rear fade, chequered flag fade, geometric shards, hexagon fade, digital camo,
+  plain. Inspired by classic liveries (Martini, Gulf, Marlboro, Porsche/Ford, BMW M) and modern wraps;
+  all patterns are 3D functions, so they wrap round the car without seams.
 - **Number & names** - racing number, number style (board, plain, none), where it shows
-  (doors, roof), team wordmark, driver name.
+  (doors, roof), team wordmark, driver name, and a grid to choose where each is written (front wings,
+  lower doors, doors, rear quarters, bonnet, roof, boot, rear, front). Writing switches to a readable
+  colour and gets a thin outline, so it shows over any pattern.
 - **Logos** - your library of logos and pictures. Add images once; give each a place:
   doors, bonnet, front wings, rear quarters, lower doors, roof, boot lid, rear panel,
   front bumper, windscreen banner, rear window, rear side windows. Optional glow tint.
@@ -31,7 +36,8 @@ Tabs on the left, preview on the right.
   glow change), headlight beam colour (Custom Shaders Patch, written to the skin's
   `ext_config.ini`), wheel colour.
 
-**Preview** renders left, right, front and rear views without writing anything.
+**Preview** renders left, right, front, rear and top views (1600 px) without writing anything; pick a
+view or "Open full size". A progress bar shows each stage; closing mid-build asks first.
 **Create skin in car** writes a new skin folder (never overwrites one). In Content Manager
 pick the skin and click "Update preview".
 
