@@ -61,3 +61,8 @@ Replica work (2026-11-09, REPLICA_PLAN.md). Nik's rule: build from scratch, usin
   - It was tested on the AE86 door sections: as accurate as our own loft (1.7 mm, 91 % within 3 mm).
   - Plan: use it as the surfacing engine for builder v2, then sample the surfaces into quads for Blender.
   - OpenSCAD 2021 and truescad are CSG/SDF tools, not useful for car bodies.
+- Nik (2026-11-09): nothing should use C:. Run FreeCAD via blender/kn5-study/fcrun.sh.
+  - It sets TEMP and FREECAD_USER_HOME/DATA to D:\ClaudeData; the CurvesWB copy is in D:\ClaudeData\FreeCAD\Mod.
+- First CAD body: one B-spline surface over the whole body looks like draped cloth.
+  - Avoid dense-curve lofts (OCC hangs) and 0.4 mm meshing.
+  - Next step is panel-by-panel Gordon patches.

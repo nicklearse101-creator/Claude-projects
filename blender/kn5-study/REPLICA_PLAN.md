@@ -263,3 +263,22 @@ Single-seaters split into many more parts (the SF70H has 34).
 - hatch
 - bumpers
 - nose and tail panels
+
+### Panel-by-panel CAD build, first full car (`cad_panels.py` → `cad_panels_freecad.py` → `score_panels.py`)
+1. Split into panels: the car's real panels (Kunos meshes, outer skin only; underside and inner glass dropped), each split by facing and into connected pieces. That gives 68 panels.
+2. Cut sections every 50 mm across each panel.
+3. Find creases automatically and chain them across sections (kept if they span 40 % of the panel). Split every section at the creases, giving 90 feature-aligned strips.
+4. FreeCAD fits one exact B-spline surface per strip (0.4 s for the whole car), sampled straight into quads.
+   - 14 strips overshot (sections that jump) and fall back to straight lines between their sections.
+
+| | Median | p90 | Within 3 mm |
+|---|---|---|---|
+| CAD → real | **1.61 mm** | 4.5 mm | **82 %** |
+| real → CAD | 4.86 mm | 20 mm | 28 %: parts of the real skin not covered yet |
+
+- **In grey: the first crisp build.** Bonnet, roof, pop-up lamps, front bumper and grille, door, glass and hatch read as real panels.
+- **Still to do:**
+  - Coverage: rear quarters, tail panel and sills are missing pieces, because small panels are dropped and sections stop 4 mm short of panel ends.
+  - Seams between neighbouring panels.
+  - Panel gaps and turned-in returns.
+  - Lamps, grille and trims as their own parts.
