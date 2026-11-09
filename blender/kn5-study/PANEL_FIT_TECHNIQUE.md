@@ -28,7 +28,10 @@ by construction. No smoothing step anywhere.
      outline projected on the plane IS the trim curve in parameter space.
    - **Control count and fairing by 5-fold cross-validation** (predict vertices the fit has not seen),
      searching **both directions independently** (4..14 each); simplest model within 5 % of the best.
-     Tying the counts to the panel's proportions was a bug (door lower skin: 4x4 1.7 mm -> 5x11 0.08 mm).
+     Tying the counts to the panel's proportions was a bug (door lower skin: 4x4 1.7 mm -> 4x11 0.09 mm).
+   - **Folds must be BLOCKED** (hold out whole 40 mm patches, checkerboard), not random vertices: with random
+     hold-outs every vertex still has close neighbours on its own mesh row, so grids that ripple BETWEEN the
+     data pass the test (zebra showed wood-grain swirls). Blocked folds removed the ripples.
 3. **Trim.** Outline = the mesh's boundary loops (largest = outside, others = openings); corners where
    the polygon turns > 35 deg; each side a 2D B-spline pinned to its corners (fewest poles within 0.4 mm,
    light fairing). In FreeCAD: 2D curves -> edges on the surface -> `Part.Face(srf, wire)`, `cutHoles`.
@@ -42,7 +45,7 @@ by construction. No smoothing step anywhere.
 
 ## Results (AE86, method test)
 - Glass: 4 pieces, 20-40 controls each, areas match (door glass 0.349 = 0.349 m2), within 3 mm everywhere.
-- Door: 8 faces, areas match (0.474/0.287/0.062 vs 0.469/0.286/0.061 m2); lower skin 0.08 mm,
+- Door: 8 faces (image: `D:/Claude/_scratch_research/kn5_study/images/door_panelfit_vs_original_zebra.png`, ours left), areas match (0.474/0.287/0.062 vs 0.469/0.286/0.061 m2); lower skin 0.08 mm,
   groove bands 0.03-0.2 mm; zebra as smooth as, or smoother than, the original.
 - Still weaker: the window frame band and the shoulder roll (~1.5 mm p95) - next to refine.
 

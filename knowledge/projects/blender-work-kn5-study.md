@@ -66,3 +66,14 @@ Replica work (2026-11-09, REPLICA_PLAN.md). Nik's rule: build from scratch, usin
 - First CAD body: one B-spline surface over the whole body looks like draped cloth.
   - Avoid dense-curve lofts (OCC hangs) and 0.4 mm meshing.
   - Next step is panel-by-panel Gordon patches.
+
+**THE WORKING METHOD (2026-11-09 evening; Nik: "a really good door, save that technique")**: `blender/kn5-study/PANEL_FIT_TECHNIQUE.md`.
+- One smooth B-spline per surface, fitted to the vertices; control counts chosen by cross-validation, searched in both directions independently.
+- Trimmed to the real outline in FreeCAD.
+- Character lines are fair curves, with bands cut exactly on them (prism common).
+- Even mesh plus exact normals; zebra check.
+- Tools: panel_fit.py -> panel_fit_freecad.py (fcrun.sh) -> exact normals -> Blender collection AE86_door_fit.
+- Proven on the AE86 door and glass.
+- Scoring: score_exact.py. The old point-sample scorer added about 1 mm of fake error.
+- The v5 strip build (cad_panels.py) is superseded.
+- Next: the window-frame and shoulder-roll bands (about 1.5 mm), then the rest of the car panel by panel, then shut-line returns.

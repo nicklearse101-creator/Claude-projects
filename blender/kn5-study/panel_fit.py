@@ -144,7 +144,9 @@ def select_fit(S, dom, folds=5, seed=0):
     best predicts vertices it has not seen (an over-fitted surface wiggles between them and loses).
     A simpler model is preferred when it is within 5 % of the best."""
     Lu, Lv = dom[1] - dom[0], dom[3] - dom[2]
-    rng = np.random.default_rng(seed); fold = rng.integers(0, folds, len(S))
+    # blocked folds: hold out whole 40 mm patches (checkerboard), not single vertices - a vertex always has
+    # near neighbours on its own mesh row, so random hold-outs never see ripples BETWEEN the data
+    fold = ((np.floor(S[:, 0] / 0.04) + 2 * np.floor(S[:, 1] / 0.04)) % folds).astype(int)
     cands = []
     # control counts searched independently in both directions (tying them to the panel's proportions
     # missed the 6x5 the lower door skin needs)
