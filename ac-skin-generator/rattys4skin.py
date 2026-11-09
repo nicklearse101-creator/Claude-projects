@@ -8,12 +8,13 @@ from PIL import Image, ImageTk
 import skingen
 
 APP_NAME = skingen.APP_NAME
-VERSION = '1.0.0'
+VERSION = '1.1.0'
 DATA_DIR = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'Rattys4SkinGenerator')
 LOGO_DIR = os.path.join(DATA_DIR, 'logos')
 SETTINGS = os.path.join(DATA_DIR, 'settings.json')
 LIBRARY = os.path.join(DATA_DIR, 'logos.json')
 PLACE_NAMES = {'': 'Not used'}; PLACE_NAMES.update(skingen.PLACES)
+BG_MODES = {'auto': 'Auto', 'remove': 'Remove background', 'keep': 'Keep whole picture'}
 NUMBER_STYLES = {'board': 'Number board', 'plain': 'Plain number', 'none': 'No number'}
 
 
@@ -91,7 +92,8 @@ class App(tk.Tk):
         return [l for l in lib if os.path.isfile(os.path.join(LOGO_DIR, l.get('file', '')))]
 
     def save_library(self):
-        json.dump(self.library, open(LIBRARY, 'w', encoding='utf8'), indent=2)
+        with open(LIBRARY, 'w', encoding='utf8') as f:
+            json.dump(self.library, f, indent=2)
 
     def var(self, key, kind=tk.StringVar):
         v = kind(value=self.cfg.get(key, False if kind is tk.BooleanVar else ''))
@@ -135,6 +137,8 @@ class App(tk.Tk):
         row('car', 'Skin name', lambda f: ttk.Entry(f, textvariable=self.var('skin_name')))
         self.copy_box = row('car', 'Windows etc. from', lambda f: ttk.Combobox(f, textvariable=self.var('copy_from'), width=36))
         note('car', 'Optional: copies the other files (windows, interior…) from one of the car\'s skins.')
+        row('car', '', lambda f: ttk.Checkbutton(f, text='Sharper textures (4K) - crisper writing and logos, bigger files',
+                                                 variable=self.var('hires', tk.BooleanVar)))
 
         # --- livery
         for key, label in (('base', 'Base colour'), ('accent', 'Accent colour'), ('accent2', 'Highlight colour'),
@@ -159,10 +163,10 @@ class App(tk.Tk):
         lt = tabs['logos']
         note('logos', 'Add your logos and pictures here; they stay in the library for next time. '
                       'Pick each one\'s place on the car. PNGs with transparency work best; a plain background is removed.')
-        cols = ('place', 'tint')
+        cols = ('place', 'bg', 'tint')
         self.tree = ttk.Treeview(lt, columns=cols, height=7, selectmode='browse')
-        self.tree.heading('#0', text='Logo'); self.tree.heading('place', text='Place on car'); self.tree.heading('tint', text='Tint')
-        self.tree.column('#0', width=180); self.tree.column('place', width=130); self.tree.column('tint', width=50, anchor='center')
+        self.tree.heading('#0', text='Logo'); self.tree.heading('place', text='Place on car'); self.tree.heading('tint', text='Tint'); self.tree.heading('bg', text='Background')
+        self.tree.column('#0', width=180); self.tree.column('place', width=120); self.tree.column('bg', width=95); self.tree.column('tint', width=50, anchor='center')
         ttk.Style(self).configure('Treeview', rowheight=44)
         self.tree.pack(fill='x')
         self.tree.bind('<<TreeviewSelect>>', self.on_logo_select)
@@ -174,6 +178,12 @@ class App(tk.Tk):
         self.place_var = tk.StringVar(value='Not used')
         self.place_box = ttk.Combobox(pf, textvariable=self.place_var, values=list(PLACE_NAMES.values()), state='readonly', width=20)
         self.place_box.pack(side='left'); self.place_box.bind('<<ComboboxSelected>>', self.on_place)
+        bgf = ttk.Frame(lt); bgf.pack(fill='x', pady=2)
+        ttk.Label(bgf, text='Background', width=18).pack(side='left')
+        self.bg_var = tk.StringVar(value='Auto')
+        bgb = ttk.Combobox(bgf, textvariable=self.bg_var, values=list(BG_MODES.values()), state='readonly', width=20)
+        bgb.pack(side='left'); bgb.bind('<<ComboboxSelected>>', self.on_place)
+        note('logos', 'Auto removes a plain one-colour background and keeps pictures with busy backgrounds whole.')
         self.tint_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(pf, text='Tint glow to highlight colour', variable=self.tint_var, command=self.on_place).pack(side='left', padx=6)
 
@@ -267,7 +277,8 @@ class App(tk.Tk):
                 except Exception: self.thumbs[path] = None
             kw = {'image': self.thumbs[path]} if self.thumbs[path] else {}
             self.tree.insert('', 'end', iid=str(i), text='  ' + lg.get('name', lg['file']),
-                             values=(PLACE_NAMES.get(lg.get('place', ''), 'Not used'), 'yes' if lg.get('tint') else ''), **kw)
+                             values=(PLACE_NAMES.get(lg.get('place', ''), 'Not used'), BG_MODES.get(lg.get('bg', 'auto'), 'Auto'),
+                                     'yes' if lg.get('tint') else ''), **kw)
 
     def add_logos(self):
         files = filedialog.askopenfilenames(title='Add logos or pictures',
@@ -301,12 +312,14 @@ class App(tk.Tk):
         if i is None: return
         self.place_var.set(PLACE_NAMES.get(self.library[i].get('place', ''), 'Not used'))
         self.tint_var.set(bool(self.library[i].get('tint')))
+        self.bg_var.set(BG_MODES.get(self.library[i].get('bg', 'auto'), 'Auto'))
 
     def on_place(self, e=None):
         i = self.selected_logo()
         if i is None: return
         key = next((k for k, v in PLACE_NAMES.items() if v == self.place_var.get()), '')
         self.library[i]['place'] = key; self.library[i]['tint'] = bool(self.tint_var.get())
+        self.library[i]['bg'] = next((k for k, v in BG_MODES.items() if v == self.bg_var.get()), 'auto')
         self.save_library(); self.refresh_library(); self.tree.selection_set(str(i))
 
     # ---------------------------------------------------------------- run
@@ -318,7 +331,7 @@ class App(tk.Tk):
         for k in d:
             if k in self.vars: d[k] = self.vars[k].get()
         d['logo'] = None
-        d['logos'] = [dict(path=os.path.join(LOGO_DIR, l['file']), place=l['place'], tint=l.get('tint'))
+        d['logos'] = [dict(path=os.path.join(LOGO_DIR, l['file']), place=l['place'], tint=l.get('tint'), bg=l.get('bg', 'auto'))
                       for l in self.library if l.get('place')]
         d['number_style'] = next((k for k, v in NUMBER_STYLES.items() if v == self.vars['number_style_name'].get()), 'board')
         d['wheel_colour'] = self.vars['wheel_colour'].get() if self.vars['use_wheels'].get() else None
@@ -347,6 +360,7 @@ class App(tk.Tk):
         tmp = tempfile.mkdtemp(prefix='r4skin_')
         try:
             out, sheet, *_ = skingen.generate(car, self.design(), name, out_root=None if save else tmp,
+                                              resolution=4096 if self.vars['hires'].get() else None,
                                               log=self.log, copy_other_from=self.vars['copy_from'].get() or None)
             if save:
                 sheet.save(os.path.join(out, 'generator_preview.png'))

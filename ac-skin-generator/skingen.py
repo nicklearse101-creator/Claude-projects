@@ -25,6 +25,24 @@ DEFAULT_FONT = next((f for f in (os.path.join(FONT_DIR, n) for n in ("bahnschrif
                      if os.path.isfile(f)), "arial.ttf")
 
 # ------------------------------------------------------------------ helpers
+def _lum(c):
+    c = np.asarray(c, np.float64) / 255.0
+    c = np.where(c <= 0.03928, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+
+
+def contrast(a, b):
+    la, lb = _lum(a), _lum(b)
+    return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+
+
+def readable(colour, background, *alternatives):
+    """`colour` if it stands out on `background`, else the best of the alternatives / black / white."""
+    if contrast(colour, background) >= 2.5: return np.asarray(colour, np.float32)
+    cands = [np.asarray(c, np.float32) for c in alternatives] + [np.array([15, 15, 18], np.float32), np.array([245, 245, 245], np.float32)]
+    return max(cands, key=lambda c: contrast(c, background))
+
+
 def rgb(c):
     return np.array(ImageColor.getrgb(c)[:3], np.float32) if isinstance(c, str) else np.array(c[:3], np.float32)
 
@@ -142,7 +160,10 @@ class Car:
             overridable = {max(cand, key=cand.get): 0}     # only the main paint texture
             self.log('no stock skin overrides the body texture - using the one inside the model')
         best = max(area[t] for t in overridable)
-        self.body_textures = sorted([t for t in overridable if area[t] > 0.15 * best], key=lambda t: -area[t])
+        cands = sorted([t for t in overridable if area[t] > 0.15 * best], key=lambda t: -area[t])
+        self.body_textures = cands[:1] + [t for t in cands[1:] if self._tex_size(t) >= 256]
+        for t in cands[1:]:
+            if t not in self.body_textures: self.log(f'{t}: only a small colour swatch - left as it is')
         self.tex_area = area
         self.log('body textures: ' + ', '.join(f'{t} ({area[t]:.1f} m²)' for t in self.body_textures))
         body = [m for m in self.kn5.meshes if m.mat is not None and m.mat.samplers.get('txDiffuse') in self.body_textures]
@@ -161,6 +182,20 @@ class Car:
         if self.wheels:
             self.log('wheels found: ' + ', '.join(f'{w} z={c[2]:+.2f}' for w, c in self.wheels.items()))
         self.log(f'body size: {hi[0]-lo[0]:.2f} m wide, {hi[1]-lo[1]:.2f} m tall, {self.length:.2f} m long')
+
+    def _tex_size(self, tex):
+        for s in self.skins:
+            f = find_skin_file(os.path.join(self.dir, 'skins', s), tex)
+            if f:
+                try:
+                    h = open(f, 'rb').read(20)
+                    if h[:4] == b'DDS ': return max(struct.unpack_from('<II', h, 12))
+                    return max(Image.open(f).size)
+                except Exception: pass
+        if tex in self.kn5.textures:
+            try: return max(load_image(self.kn5.textures[tex]).size)
+            except Exception: pass
+        return 0
 
     def meshes_for(self, tex):
         return [m for m in self.kn5.meshes if m.mat is not None and m.mat.samplers.get('txDiffuse') == tex and len(m.idx)]
@@ -288,15 +323,23 @@ def text_image(text, px_height, color, font_path=DEFAULT_FONT, style='Bold Conde
     return im.crop(bb) if bb else im
 
 
-def prep_logo(path, tint=None):
+def prep_logo(path, tint=None, bg='auto'):
     """Key out the logo's background (colour taken from its border) and optionally re-tint its glow."""
     im = Image.open(path).convert('RGBA')
     a = np.asarray(im).astype(np.float32)
+    rgbv = a[..., :3]
+    border = np.concatenate([rgbv[0], rgbv[-1], rgbv[:, 0], rgbv[:, -1]])
+    plain_bg = border.std(0).mean() < 22            # one flat background colour?
+    if bg == 'auto': bg = 'remove' if plain_bg else 'keep'
+    mode = bg
     if a[..., 3].min() < 250:            # already has transparency
         out = a
+    elif bg == 'keep':                    # a picture: keep all of it, with softly rounded corners
+        m = Image.new('L', im.size, 0)
+        r = int(min(im.size) * 0.06)
+        ImageDraw.Draw(m).rounded_rectangle([0, 0, im.width - 1, im.height - 1], radius=r, fill=255)
+        out = np.dstack([rgbv, np.asarray(m.filter(ImageFilter.GaussianBlur(1.2))).astype(np.float32)])
     else:
-        rgbv = a[..., :3]
-        border = np.concatenate([rgbv[0], rgbv[-1], rgbv[:, 0], rgbv[:, -1]])
         bg = np.median(border, 0)
         dist = np.sqrt(((rgbv - bg) ** 2).sum(-1))
         alpha = np.clip((dist - 28) / 40, 0, 1) * 255
@@ -325,6 +368,9 @@ def prep_logo(path, tint=None):
                         .filter(ImageFilter.GaussianBlur(1.5))).astype(np.float32)
     out[..., 3] = np.maximum(out[..., 3], inside)
     img = Image.fromarray(np.clip(out, 0, 255).astype(np.uint8), 'RGBA')
+    if mode == 'keep':
+        img.info['picture'] = True
+        return img
     bb = img.getchannel('A').point(lambda v: 255 if v > 20 else 0).getbbox()
     return img.crop(bb) if bb else img
 
@@ -482,6 +528,9 @@ def place_decals(car, tm, paint, design, prof, base, acc, acc2, txt, log):
     fnt = design.get('font') or DEFAULT_FONT
     door_len = prof['door_front'] - prof['door_rear']
     pan = top_panels(car, tm, paint, belt)
+    t_txt = readable(txt, base, acc2, acc)            # writing straight on the paint
+    t_acc2 = readable(acc2, base, acc, txt)
+    edge = readable(acc2, txt, acc, base)             # number-board outline vs the board
     fw = [c for w, c in car.wheels.items() if w.endswith('F')]
     rw = [c for w, c in car.wheels.items() if w.endswith('R')]
     side_reg = {'left': lambda P: P[:, 0] > 0.1, 'right': lambda P: P[:, 0] < -0.1}
@@ -541,10 +590,11 @@ def place_decals(car, tm, paint, design, prof, base, acc, acc2, txt, log):
         p = lg.get('place')
         if p not in PLACES or not lg.get('path') or not os.path.isfile(lg['path']): continue
         try:
-            img = prep_logo(lg['path'], acc2 if lg.get('tint') else None)
+            img = prep_logo(lg['path'], acc2 if lg.get('tint') else None, lg.get('bg', 'auto'))
         except Exception as e:
             log(f'logo {os.path.basename(lg["path"])}: cannot read it ({e})'); continue
-        put(p, img, glow=acc2 if p in ('doors', 'bonnet') else None)
+        is_pic = bool(img.info.get('picture'))
+        put(p, img, glow=acc2 if p in ('doors', 'bonnet') and not is_pic else None)
         taken.add(p)
 
     # racing number
@@ -554,29 +604,29 @@ def place_decals(car, tm, paint, design, prof, base, acc, acc2, txt, log):
         if design.get('number_doors', True):
             z = prof['door_rear'] + 0.7 * door_len
             if style == 'board':
-                img = number_board(num, txt, base, acc2, fnt)
+                img = number_board(num, txt, readable(base, txt, acc, acc2), edge, fnt)
             else:
-                img = text_image(num, 300, txt, fnt, stroke=0.05, stroke_color=base, track=-0.02)
+                img = text_image(num, 300, t_txt, fnt, stroke=0.05, stroke_color=base, track=-0.02)
             for view, a, b, h, reg, facing, rot in sides(z, sill + 0.55 * sh, min(0.42, sh * 0.62)):
                 decals.append(Decal(img, view, a, b, h, region=reg))
         if design.get('number_roof', True) and 'roof' in pan:
             zc, ln, wd = pan['roof']
             zc_n = zc + (0.12 * ln if 'roof' in taken else 0)
-            decals.append(Decal(text_image(num, 300, txt, fnt, stroke=0.04, stroke_color=base), 'roof_l',
+            decals.append(Decal(text_image(num, 300, t_txt, fnt, stroke=0.04, stroke_color=base), 'roof_l',
                                 -zc_n, 0.0, min(wd * 0.45, ln * 0.45), region=lambda P: P[:, 1] > car.hi[1] - 0.3))
 
     # team wordmark + driver name
     team, name = (design.get('team') or '').strip(), (design.get('name') or '').strip()
     wing = 'front_wings' if 'front_wings' not in taken else ('lower_doors' if 'lower_doors' not in taken else None)
     if wing == 'front_wings':
-        if team: put(wing, text_image(team, 200, txt, fnt), scale=0.62, b_shift=0.16 if name else 0)
-        if name: put(wing, text_image(name, 200, acc2, fnt, style='SemiBold Condensed', track=0.12), scale=0.32, b_shift=-0.42)
+        if team: put(wing, text_image(team, 200, t_txt, fnt), scale=0.62, b_shift=0.16 if name else 0)
+        if name: put(wing, text_image(name, 200, t_acc2, fnt, style='SemiBold Condensed', track=0.12), scale=0.32, b_shift=-0.42)
     elif wing == 'lower_doors':
-        if team: put(wing, text_image(team + (f'  |  {name}' if name else ''), 200, txt, fnt))
+        if team: put(wing, text_image(team + (f'  |  {name}' if name else ''), 200, t_txt, fnt))
     if team:
-        if 'boot' not in taken: put('boot', text_image(team, 200, txt, fnt), scale=0.4)
-        if 'rear' not in taken: put('rear', text_image(team, 200, txt, fnt), scale=0.7)
-        if 'front' not in taken: put('front', text_image(team, 200, acc2, fnt), scale=0.65)
+        if 'boot' not in taken: put('boot', text_image(team, 200, t_txt, fnt), scale=0.4)
+        if 'rear' not in taken: put('rear', text_image(team, 200, t_txt, fnt), scale=0.7)
+        if 'front' not in taken: put('front', text_image(team, 200, t_acc2, fnt), scale=0.65)
     return decals
 
 
@@ -752,8 +802,8 @@ def tint_lenses(car, lights, colour, made, copy_from=None, log=print):
         a = np.asarray(img).astype(np.float32)
         rgbv = a[..., :3]
         lum = rgbv.mean(-1, keepdims=True)
-        tinted = np.clip(lum * col * 1.25, 0, 255)
-        mix = 0.9
+        tinted = np.clip(lum * col * 1.15 + np.clip(lum - 200, 0, 55) * 0.8, 0, 255)   # bright glints stay bright
+        mix = 0.6
         if m.mean() < 0.0005: continue           # nothing of the lamps lands in this texture
         rgbv[m] = rgbv[m] * (1 - mix) + tinted[m] * mix
         a[..., :3] = rgbv
@@ -938,7 +988,7 @@ def make_window_stickers(car, design, made, copy_from=None, log=print):
             wd = Q[:, 0].max() - Q[:, 0].min()
         reg = lambda Q, top=top: (Q[:, 2] > mid) & (Q[:, 1] > top - 0.35)
         if 'windscreen' in logos:
-            lg = prep_logo(logos['windscreen']['path'], acc2 if logos['windscreen'].get('tint') else None)
+            lg = prep_logo(logos['windscreen']['path'], acc2 if logos['windscreen'].get('tint') else None, logos['windscreen'].get('bg', 'auto'))
             decals.append(Decal(banner_image('', band, txt, fnt, wd / bh), 'front', 0.0, top - bh / 2, bh, region=reg))
             decals.append(Decal(lg, 'front', 0.0, top - bh / 2, bh * 0.85, region=reg))
         else:
@@ -951,7 +1001,7 @@ def make_window_stickers(car, design, made, copy_from=None, log=print):
         decals.append(Decal(banner_image(design.get('win_banner', '').strip(), band, txt, fnt, wd / (bh * 0.8)), 'rear',
                             0.0, top - bh * 0.4, bh * 0.8, region=reg))
         if 'rear_window' in logos:
-            lg = prep_logo(logos['rear_window']['path'], acc2 if logos['rear_window'].get('tint') else None)
+            lg = prep_logo(logos['rear_window']['path'], acc2 if logos['rear_window'].get('tint') else None, logos['rear_window'].get('bg', 'auto'))
             decals.append(Decal(lg, 'rear', 0.0, bot + (top - bot) * 0.6, (top - bot) * 0.38, region=reg))
         elif design.get('win_number', True) and num:
             decals.append(Decal(text_image(num, 300, txt, fnt, stroke=0.05, stroke_color=band), 'rear', 0.0,
@@ -977,7 +1027,7 @@ def make_window_stickers(car, design, made, copy_from=None, log=print):
                 a = -zc_d if view == 'left' else zc_d
                 reg = (lambda Q2, sg=sg, z0_=z0_, z1_=z1_: (Q2[:, 0] * sg > 0.1) & (Q2[:, 2] > z0_ - 0.05) & (Q2[:, 2] < z1_ + 0.05))
             if 'side_windows' in logos:
-                lg = prep_logo(logos['side_windows']['path'], acc2 if logos['side_windows'].get('tint') else None)
+                lg = prep_logo(logos['side_windows']['path'], acc2 if logos['side_windows'].get('tint') else None, logos['side_windows'].get('bg', 'auto'))
                 decals.append(Decal(lg, view, a, yc, hgt * 0.6, region=reg))
             else:
                 if design.get('win_number', True) and num:
@@ -1184,8 +1234,9 @@ def generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pri
         if max(W, H) < 1024:
             log(f'{tex} is only {W}x{H}; making the new texture 2048 wide')
             k = 2048 / max(W, H); W, H = int(W * k), int(H * k)
-        if resolution:
+        if resolution and max(W, H) < resolution:
             k = resolution / max(W, H); W, H = int(W * k), int(H * k)
+            log(f'making {tex} {W}x{H} for sharper writing and logos')
         log(f'--- {tex}')
         tm = TexelMap(car.meshes_for(tex), W, H, log)
         base, alpha, paint, shade = stock_analysis(car, tex, W, H, tm, log)
