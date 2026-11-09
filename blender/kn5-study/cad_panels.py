@@ -19,7 +19,7 @@ import step3b_panels as S3b
 from kn5full import KN5
 from section import cut
 
-FRAMES = {'side': (2, 1, 0, 1), 'top': (2, 0, 1, 1), 'front': (0, 1, 2, 1), 'rear': (0, 1, 2, -1)}
+FRAMES = {'side': (2, 1, 0, 1), 'top': (2, 0, 1, 1), 'front': (0, 1, 2, 1), 'rear': (0, 1, 2, -1), 'bottom': (2, 0, 1, -1)}
 BINV = 0.003
 
 
@@ -64,6 +64,7 @@ def classify(n):
     cls = np.full(len(n), '', object); ax = np.abs(n).argmax(1)
     cls[(ax == 0) & (n[:, 0] > 0)] = 'side'; cls[(ax == 1) & (n[:, 1] > 0)] = 'top'
     cls[(ax == 2) & (n[:, 2] > 0)] = 'front'; cls[(ax == 2) & (n[:, 2] < 0)] = 'rear'
+    cls[(ax == 1) & (n[:, 1] < 0)] = 'bottom'
     return cls
 
 
@@ -101,7 +102,7 @@ def section_profile(Tp, frame, u):
     order = np.lexsort((-h, vb)); vb, h = vb[order], h[order]
     first = np.r_[True, vb[1:] != vb[:-1]]
     vv, hh = vb[first] * BINV, h[first]
-    if len(vv) < 12: return None
+    if len(vv) < 4: return None
     full = np.arange(vv[0], vv[-1] + BINV / 2, BINV)
     return np.c_[full, np.interp(full, vv, hh)]          # (v, h), gaps bridged
 
@@ -125,13 +126,13 @@ def peaks(a, thr=12, sep=7):
 def build_panel(Tp, frame, du):
     ua, va, ha, hs = FRAMES[frame]
     U = Tp[:, :, ua]
-    u0, u1 = U.min() + 0.004, U.max() - 0.004
-    if u1 - u0 < 0.03: return None
-    ns = max(int(round((u1 - u0) / du)) + 1, 5)
+    u0, u1 = U.min() + 0.0008, U.max() - 0.0008
+    if u1 - u0 < 0.008: return None
+    ns = max(int(round((u1 - u0) / du)) + 1, 3)
     us = np.linspace(u0, u1, ns)
     profs = [(u, section_profile(Tp, frame, u)) for u in us]
     profs = [(u, p) for u, p in profs if p is not None]
-    if len(profs) < 4: return None
+    if len(profs) < 2: return None
     # creases: chain section peaks across sections by v
     chains = []
     for si, (u, p) in enumerate(profs):
@@ -181,11 +182,11 @@ def main():
     for m in np.unique(mid):
         for frame in FRAMES:
             sel = np.where((mid == m) & (cls == frame))[0]
-            if len(sel) < 20: continue
+            if len(sel) < 4: continue
             for comp in components(T, sel):
                 Tp = T[comp]
                 area = 0.5 * np.linalg.norm(np.cross(Tp[:, 1] - Tp[:, 0], Tp[:, 2] - Tp[:, 0]), axis=1).sum()
-                if area < 0.003: continue
+                if area < 0.0004: continue
                 r = build_panel(Tp, frame, a.du)
                 if r is None: continue
                 pid = len(info)

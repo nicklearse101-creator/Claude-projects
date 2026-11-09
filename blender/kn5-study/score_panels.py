@@ -8,8 +8,8 @@ d = np.load(sys.argv[1])
 G = []
 for k in d.files:
     P = d[k]
-    for a in (0, 0.5):
-        for b in (0, 0.5):   # densify between grid points
+    for a in (0, 0.25, 0.5, 0.75):
+        for b in (0, 0.25, 0.5, 0.75):   # densify between grid points
             Q = P[:-1, :-1] * (1 - a) * (1 - b) + P[1:, :-1] * a * (1 - b) + P[:-1, 1:] * (1 - a) * b + P[1:, 1:] * a * b
             G.append(Q.reshape(-1, 3))
 G = np.concatenate(G)
