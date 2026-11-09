@@ -282,3 +282,19 @@ Single-seaters split into many more parts (the SF70H has 34).
   - Seams between neighbouring panels.
   - Panel gaps and turned-in returns.
   - Lamps, grille and trims as their own parts.
+
+### Panel CAD build v3–v4 (2026-11-09 night)
+- **v3: panel regions grown across smooth edges and stopped at creases (> 20°),** instead of splitting by facing triangle by triangle. Only regions that turn more than 70° are split by facing.
+  - This gave the cleanest build so far: a clean rear (tail panel and lamps) and a crisp front.
+  - 366 panels, 399 strips, 96 % of the skin covered.
+- **Tried and dropped:** a 12 mm overlap margin using neighbouring triangles. It crumpled panels with mixed surfaces.
+- **v4: clean fitted panel edges** (robust cubic fit of section start and end along each panel). Only a small change.
+- **Close-up check (door, glass, B-pillar):**
+  - The lower door skin is clean and crisp.
+  - The side glass and upper door look draped, with wrinkles and a wavy beltline edge.
+- **Likely causes:**
+  1. The glass is several overlapping meshes: outer glass, mask layer and frame.
+  2. Sections near the glass-to-seal transition mix surfaces.
+  3. Regions that span the window frame plus the glass.
+
+  Glass needs its own handling: one layer, built as a near-flat patch from its outline.

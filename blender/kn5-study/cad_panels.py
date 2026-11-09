@@ -166,6 +166,25 @@ def build_panel(Tp, frame, du, Tctx=None, margin=0.0):
                 if m.sum() >= 4: p = pc[m]
         if p is not None: profs.append((u, p))
     if len(profs) < 2: return None
+    # clean panel edges: the section start/end positions along u as smooth robust curves; trim to them
+    if len(profs) >= 6 and os.environ.get('CLEAN_EDGES', '1') == '1':
+        uu = np.array([u for u, _ in profs]); st = np.array([p[0, 0] for _, p in profs]); en = np.array([p[-1, 0] for _, p in profs])
+        def fit(y):
+            keep = np.ones(len(y), bool); deg = min(3, len(y) - 3)
+            for _ in range(4):
+                c = np.polyfit(uu[keep], y[keep], deg); r = np.abs(np.polyval(c, uu) - y)
+                new = r < max(0.004, 2.5 * np.median(r[keep]) + 1e-4)
+                if new.sum() < deg + 2 or (new == keep).all(): break
+                keep = new
+            return np.polyval(c, uu)
+        fs, fe = fit(st), fit(en)
+        newp = []
+        for (u, p), a_, b_ in zip(profs, fs, fe):
+            a_, b_ = max(a_, p[0, 0]), min(b_, p[-1, 0])
+            if b_ - a_ < 0.006: continue
+            vq = np.arange(a_, b_ + 1e-9, BINV); vq = np.r_[vq[vq < b_ - 1e-6], b_]
+            newp.append((u, np.c_[vq, np.interp(vq, p[:, 0], p[:, 1])]))
+        if len(newp) >= 2: profs = newp
     # creases: chain section peaks across sections by v
     chains = []
     for si, (u, p) in enumerate(profs):
