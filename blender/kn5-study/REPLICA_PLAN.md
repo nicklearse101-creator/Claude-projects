@@ -238,3 +238,28 @@ Single-seaters split into many more parts (the SF70H has 34).
   - **Accuracy:** CAD → real 1.66 mm median, 92.8 % within 3 mm. Real → CAD 2.31 mm, 67 % within 3 mm, mostly at the patch edges.
   - **In grey:** a clean door panel with a crisp crease line. The faint wobbles come from the raw cut sections, so clean the input curves next.
 - **Builder v2 uses FreeCAD as the surfacing engine:** Gordon patches per panel, bounded by feature lines, with shared curves so there are no seams. Then sample into quads for Blender.
+
+### First CAD-built car body (FreeCAD, 2026-11-09 evening)
+- **Pipeline:**
+  - `cad_build_curves.py`: exact body cross-sections every 100 mm, plus horizontal nose and tail slices.
+  - `cad_feature_grid.py`: splits each section at the sill, crease, beltline and roof edge so edge rows follow the features.
+  - `cad_build_freecad.py`, run through `fcrun.sh`: builds one B-spline surface through the grid, cuts the arches with cylinder booleans, and meshes it.
+  - **Everything runs on D:** temp files, FreeCAD user data and the CurvesWB copy are in `D:\ClaudeData`.
+  - The CAD step takes about 6 s.
+- **Lessons:**
+  - Lofts through dense curves (about 150 points) hang OpenCASCADE: 7 GB of RAM and no result. Use light curves (about 60 points) or grid interpolation.
+  - Meshing at 0.4 mm deflection never finishes; 1.5 mm is fine.
+  - Nose and tail lofts through slices that don't all start on the centre line explode, because the B-spline overshoots into 30 m fans. Lamps and grille break the slices, so the ends need their own patch layout.
+  - **One surface for the whole body looks like a cloth draped over the car,** even with feature-aligned rows. The creases are soft, and the sills and arches flap where the sections reach into the wells.
+- **Conclusion:** the CAD engine is fast and reliable. Accuracy and crispness come from the patch layout, not from one big surface; the door built as 2 Gordon patches was crisp.
+
+**Next:** build panel by panel, Kunos-style, each as Gordon patches bounded by their feature curves:
+- door and door frame
+- front wing
+- rear quarter (split around the arch)
+- sill
+- roof and pillars
+- bonnet
+- hatch
+- bumpers
+- nose and tail panels
