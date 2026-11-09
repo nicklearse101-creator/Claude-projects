@@ -114,7 +114,7 @@ def truth_lines(k, g, half_w):
         # boundary vertices: on an edge used by one face only
         uniq, uc = np.unique(e, axis=0, return_counts=True)
         bnd = np.zeros(len(V), bool); bnd[uniq[uc == 1].ravel()] = True
-        crease = np.zeros(len(V), bool); crease[pe[ang > 12].ravel()] = True
+        crease = np.zeros(len(V), bool); crease[pe[ang > float(os.environ.get("CREASE_DEG", 12))].ravel()] = True
         is_glass = m.mat.shader == 'ksWindscreen' or 'glass' in m.mat.name.lower()
         sel = bnd if is_glass else (crease & ~bnd)
         pts.append(V[sel])

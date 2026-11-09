@@ -151,6 +151,46 @@ def truth_boundary(ctx):
     return np.c_[X0 + x * RES, y0 + y * RES, zs[i]], i
 
 
+def truth_skin_dense(ctx, car_dir, spacing=0.003, cache=True):
+    """true outer skin sampled from the REAL triangles (~3 mm apart): exterior triangles whose centre lies
+    within 8 mm of the voxel outer skin (so inner returns, cabin and wells are left out)"""
+    cf = os.path.join(os.path.dirname(os.path.abspath(ctx.get('cache_dir', '.'))), f"{ctx['car']}_skin_dense.npz")
+    cf = os.path.join('.', f"{ctx['car']}_skin_dense.npz")
+    if cache and os.path.exists(cf):
+        z = np.load(cf); return z['P'], z['I']
+    kn5 = sorted(glob.glob(os.path.join(car_dir, '*.kn5')), key=os.path.getsize, reverse=True)[0]
+    k = KN5(kn5, load_textures=False)
+    P, I = B.exterior(k, ctx['ground'], ctx['meas']['width'] / 2000)
+    TB, TI = truth_boundary(ctx)
+    T = P[I]; cen = T.mean(1)
+    zs = ctx['zs']
+    near = np.zeros(len(cen), bool)
+    qi = np.clip(np.round((cen[:, 2] - zs[0]) / (zs[1] - zs[0])).astype(int), 0, len(zs) - 1)
+    order = np.argsort(TI); TBs, TIs = TB[order], TI[order]; starts = np.searchsorted(TIs, np.arange(len(zs) + 1))
+    for st in np.unique(qi):
+        sel = np.where(qi == st)[0]; a, b = starts[max(st - 1, 0)], starts[min(st + 2, len(zs))]
+        C = TBs[a:b]
+        if not len(C): continue
+        best = np.full(len(sel), np.inf)
+        for s in range(0, len(C), 6000):
+            best = np.minimum(best, ((cen[sel, None, :] - C[None, s:s + 6000, :]) ** 2).sum(-1).min(1))
+        near[sel] = best < 0.008 ** 2
+    T = T[near]
+    # sample each kept triangle on a barycentric grid ~spacing apart
+    pts = []
+    L = np.maximum(np.linalg.norm(T[:, 1] - T[:, 0], axis=1), np.linalg.norm(T[:, 2] - T[:, 0], axis=1))
+    for nseg in np.unique(np.clip(np.ceil(L / spacing).astype(int), 1, 40)):
+        sel = np.clip(np.ceil(L / spacing).astype(int), 1, 40) == nseg
+        ab = [(i / nseg, j / nseg) for i in range(nseg + 1) for j in range(nseg + 1 - i)]
+        for u, v in ab:
+            pts.append(T[sel, 0] + u * (T[sel, 1] - T[sel, 0]) + v * (T[sel, 2] - T[sel, 0]))
+    Pd = np.concatenate(pts)
+    Pd = Pd[np.unique(np.floor(Pd / (spacing / 2)).astype(np.int64), axis=0, return_index=True)[1]]
+    Id = np.clip(np.round((Pd[:, 2] - zs[0]) / (zs[1] - zs[0])).astype(int), 0, len(zs) - 1)
+    if cache: np.savez(cf, P=Pd, I=Id)
+    return Pd, Id
+
+
 def score3d(X, ctx, TB, TI):
     """unsigned 3D distance from each of our points to the true outer skin (mm); same exclusions"""
     zs = ctx['zs']; g = ctx['ground']; tin = ctx['meas']['track_f'] / 2000 - 0.13
@@ -165,7 +205,7 @@ def score3d(X, ctx, TB, TI):
     starts = np.searchsorted(TIs, np.arange(len(zs) + 1))
     for st in np.unique(qi[keep]):
         sel = np.where(keep & (qi == st))[0]
-        a, b = starts[max(st - 3, 0)], starts[min(st + 4, len(zs))]
+        a, b = starts[max(st - 2, 0)], starts[min(st + 3, len(zs))]
         C = TBs[a:b]
         if not len(C): continue
         best = np.full(len(sel), np.inf)
@@ -224,7 +264,7 @@ def main():
         report[name] = dict(cells=int(M.sum()), pinned=int(npin))
     X = np.concatenate(out_pts)
     X = np.concatenate([X, X * [-1, 1, 1]])                # mirror to the right side
-    TB, TI = truth_boundary(ctx)
+    TB, TI = truth_skin_dense(ctx, a.car)
     rep, d = score3d(X, ctx, TB, TI)
     rep.update(panels=report, lines=a.lines, res=res)
     np.savez(os.path.join(a.out, f"{ctx['car']}_step3b_{a.lines}.npz"), X=X, d=d,

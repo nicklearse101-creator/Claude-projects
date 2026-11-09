@@ -147,3 +147,23 @@ Soft pins (strength 0.01–0.3) were no better; a weaker pull to the outline bui
 3. **Ends:** the pop-up lamps, grille and tail recesses aren't modelled. These are detail parts, built as separate meshes like Kunos.
 4. **Panel-edge recipe** (5 mm return and holding loops) and the separate panel meshes: not yet added.
 5. **Scoring gap:** the score only looks from our surface to the truth. It should also check the other way, true skin to our surface, so coverage holes count.
+
+### Step 3, third try, and a change of technique (2026-11-09 afternoon)
+- **Quad-sphere generator (`step3c_quadsphere.py`):** one seamless quad mesh fitted with thin-plate smoothing.
+  - It removed the seams: 2.9 mm median, 51 % within 3 mm.
+  - It still looks lumpy: ripples and terraces, and ribs on the tail.
+- **Panel generator re-scored** with the fair dense-skin metric: 2.4 mm median, 60 % within 3 mm, 86 % within 10 mm. It still has seams and ripples.
+- **Nik's verdict:** smoothing-based building never gives crisp edges or flat surfaces. **Agreed, and dropped.** Every method so far was "rough blob, then smooth towards the lines".
+- **New technique, CAD/professional surfacing:** curves first, then patches computed exactly from their curves.
+  - **Coons patch** (4 edge curves, `coons_test.py`): it can't bulge beyond its own edges. The AE86 door skin bows out about 70 mm past its tucked-in edges, so Coons alone fails.
+  - **Gordon surface** (edge curves plus sections across the panel, `gordon.py`):
+    - The door skin as 2 patches split at the body-side crease, each with 5 waterlines × 5 verticals.
+    - **2.3 mm median, worst 10 % 3.7 mm, 87 % within 3 mm.** Nothing is smoothed, and the surface passes exactly through every curve.
+  - **Not yet robust:** results swing with network density, and the trimmed mesh had holes. The causes were my numpy curve tracing and trimming, where sections ran past the panel outline, not the method.
+- **Lesson on scoring:** always score both ways (truth → build and build → truth) and look in grey. A folded Coons patch scored "3 mm" one way and was garbage.
+
+**Next: build in Blender itself with native patch tools instead of numpy height fields.**
+- Clean Bezier curves per panel: outline, crease and sections. These are traced; in the method test they come from the model.
+- Resample each curve to a matching point count, then loft or Bridge Edge Loops through the sections, so edge loops lie exactly on the curves.
+- Panel edges as their own loops, with the 5 mm return and holding loops.
+- Score both ways and check in grey after every panel.
