@@ -691,6 +691,13 @@ def stock_analysis(car, tex, W, H, tm, log=print):
     for s in car.skins:
         im = car.stock_texture(tex, s)
         if im is not None: imgs.append(im.resize((W, H), Image.LANCZOS))
+    missing = sum(1 for s in car.skins if not find_skin_file(os.path.join(car.dir, 'skins', s), tex))
+    if imgs and missing and tex in car.kn5.textures:
+        # skins without this file show the model's own copy: it is one more look to compare against
+        try:
+            imgs.append(load_image(car.kn5.textures[tex]).resize((W, H), Image.LANCZOS))
+            log(f'{missing} skin(s) use the model\'s own {tex}: included in the comparison')
+        except Exception: pass
     if not imgs and tex in car.kn5.textures:
         imgs = [load_image(car.kn5.textures[tex]).resize((W, H), Image.LANCZOS)]
     A = np.stack([np.asarray(i.convert('RGB')).astype(np.float32) for i in imgs])
@@ -711,6 +718,14 @@ def stock_analysis(car, tex, W, H, tm, log=print):
         lum = np.asarray(li).astype(np.float32)
         ref = np.percentile(lum[paint], 90) if paint.any() else 255
         shade = np.clip(lum / ref, 0.6, 1.0) ** 0.8
+        frac = paint.sum() / max(1, tm.covered.sum())
+        if frac < 0.5:
+            # skins differ only in decals (colour comes from elsewhere, e.g. Kunos' detail texture):
+            # light, colourless texels are bare paint too
+            mean = A.mean(0)
+            light = (mean.mean(-1) > 110) & ((mean.max(-1) - mean.min(-1)) < 35) & tm.covered
+            paint |= light
+            log(f'stock skins only differ in decals ({frac * 100:.0f}%); light bare paint added')
         log(f'paint area from {len(A)} stock skins: {paint.sum() / tm.covered.sum() * 100:.0f}% of the body texels')
     else:
         # few skins: everything on the body except light/glass/grille-looking meshes
@@ -1279,6 +1294,15 @@ def generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pri
             if f_: name = os.path.splitext(os.path.basename(f_))[0] + '.dds'; break
         write_dds(img, os.path.join(out, name))
         log(f'wrote {name}')
+    # Kunos-style paint: the colour lives in the body material's detail texture (e.g. metal_detail.dds),
+    # multiplied over the diffuse. Give the new skin a plain white one so the livery shows its own colours.
+    for tex in car.body_textures:
+        for m in car.meshes_for(tex):
+            det = m.mat.samplers.get('txDetail')
+            if det and det not in made and any(find_skin_file(os.path.join(car_dir, 'skins', s_), det) for s_ in car.skins):
+                write_dds(Image.new('RGBA', (64, 64), (255, 255, 255, 255)), os.path.join(out, os.path.splitext(det)[0] + '.dds'))
+                made[det] = None
+                log(f'wrote a plain white {det} (this car takes its paint colour from it)')
     if design.get('beam_colour'):
         txt = beam_config(car, lights, design['beam_colour'], log)
         if txt: merge_ini(os.path.join(out, 'ext_config.ini'), txt); log('wrote ext_config.ini (beam colour, needs CSP)')

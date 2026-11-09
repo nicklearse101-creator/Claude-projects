@@ -10,9 +10,9 @@ Format notes (from the AC wiper toolkit's reader, extended for UVs/normals/sampl
      class 2 = mesh, 3 = skinned mesh: 3 bytes flags, [class 3: bones], vertices
              (class 2: 44 bytes pos3 nrm3 uv2 tan3; class 3: 76 bytes, + weights4 + indices4),
              int index count + uint16 indices, int material, int layer, 2 floats lod,
-             4 floats bounding sphere, byte renderable
+             [class 2 only: 4 floats bounding sphere, byte renderable]
 """
-import struct
+import os, struct
 import numpy as np
 
 
@@ -34,8 +34,19 @@ class KN5:
     def __init__(self, path, load_textures=True):
         self.d = open(path, 'rb').read()
         self.p = 0
+        name = os.path.basename(path)
+        if not self.d:
+            raise ValueError(f"{name} is empty (0 bytes) - this car's install is broken; reinstall the car")
         if self.d[:6] != b'sc6969':
-            raise ValueError(f'{path}: not a kn5 file')
+            raise ValueError(f'{name} is not a normal AC model file')
+        try:
+            self._read(load_textures)
+        except (struct.error, ValueError, IndexError, MemoryError, OverflowError) as e:
+            raise ValueError(f"cannot read {name}: the car maker has protected (locked) this model, "
+                             f"so skins can't be generated for it") from e
+        del self.d
+
+    def _read(self, load_textures):
         self.p = 6
         ver, = self.r('<i')
         if ver > 5: self.r('<i')
@@ -56,7 +67,6 @@ class KN5:
             self.materials.append(Material(name=name, shader=shader, samplers=samplers, props=props))
         self.meshes = []
         self._node(np.eye(4), ())
-        del self.d
 
     def r(self, f):
         v = struct.unpack_from(f, self.d, self.p); self.p += struct.calcsize(f); return v
@@ -80,7 +90,8 @@ class KN5:
             ic, = self.r('<i')
             idx = np.frombuffer(self.d, dtype=np.uint16, count=ic, offset=self.p).astype(np.int64)
             self.p += ic * 2
-            mid, = self.r('<i'); self.r('<iff'); self.r('<4f'); self.r('<b')
+            mid, = self.r('<i'); self.r('<iff')
+            if cls == 2: self.r('<4f'); self.r('<b')     # bounding sphere + renderable: static meshes only
             pos = raw[:, 0:3].astype(np.float64); nrm = raw[:, 3:6].astype(np.float64)
             if cls == 2:   # skinned meshes are already in model space
                 pos = pos @ parent[:3, :3] + parent[3, :3]

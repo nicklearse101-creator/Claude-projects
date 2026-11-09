@@ -367,7 +367,12 @@ class App(tk.Tk):
                 self.log('Done. In Content Manager pick the car and skin, then click "Update preview".')
             self.after(0, lambda: self.show(sheet))
         except Exception as e:
-            self.log('ERROR: ' + str(e)); self.log(traceback.format_exc())
+            self.log('ERROR: ' + str(e))
+            if isinstance(e, (ValueError, FileNotFoundError, FileExistsError, RuntimeError)):
+                msg = str(e)                       # a known problem: say it plainly
+                self.after(0, lambda: messagebox.showerror(APP_NAME, msg))
+            else:
+                self.log(traceback.format_exc())
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
             self.after(0, self.done)
