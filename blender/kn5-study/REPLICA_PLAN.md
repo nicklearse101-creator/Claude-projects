@@ -233,3 +233,8 @@ Single-seaters split into many more parts (the SF70H has 34).
 - **OpenSCAD 2021.01:** solid CSG only (boxes, cylinders, booleans). No freeform surfaces, so not for car bodies.
 - **truescad** (source in `D:\Claude\truescad`): a browser implicit/SDF CAD toy. Not suited.
 - `D:\Claude\FreeCAD` and `D:\Claude\openscad` are source checkouts, not needed to run anything.
+- **Curves workbench (CurvesWB):** already installed in `%APPDATA%\FreeCAD\v1-1\Mod\CurvesWB` (12 Oct 2026). `Curves.gordon.InterpolateCurveNetwork(profiles, guides).surface()` works headless (`freecad_gordon_test.py`).
+  - **AE86 door as 2 Gordon patches** meeting on the crease line: profiles are the 8 vertical sections, guides are the bottom edge, crease, beltline and mid-lines. It takes 1.6 s.
+  - **Accuracy:** CAD → real 1.66 mm median, 92.8 % within 3 mm. Real → CAD 2.31 mm, 67 % within 3 mm, mostly at the patch edges.
+  - **In grey:** a clean door panel with a crisp crease line. The faint wobbles come from the raw cut sections, so clean the input curves next.
+- **Builder v2 uses FreeCAD as the surfacing engine:** Gordon patches per panel, bounded by feature lines, with shared curves so there are no seams. Then sample into quads for Blender.

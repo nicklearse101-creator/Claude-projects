@@ -57,3 +57,7 @@ Replica work (2026-11-09, REPLICA_PLAN.md). Nik's rule: build from scratch, usin
   - New direction is CAD-style curves -> exact patches. A Gordon network on the AE86 door gave 2.3 mm median and 87 % within 3 mm, but my numpy tracing/trimming was buggy.
   - Next: build panels in Blender natively (Bezier curves -> lofted or bridged loops through the sections), score both ways, check in grey.
   - Always score both ways: a one-way score hid a folded patch.
+- CAD on the PC: FreeCAD 1.1.4 at D:\FreeCAD\bin\freecadcmd.exe runs headless Python with OpenCASCADE (loft, BSpline interpolate, makeFilledFace, STEP).
+  - It was tested on the AE86 door sections: as accurate as our own loft (1.7 mm, 91 % within 3 mm).
+  - Plan: use it as the surfacing engine for builder v2, then sample the surfaces into quads for Blender.
+  - OpenSCAD 2021 and truescad are CSG/SDF tools, not useful for car bodies.
