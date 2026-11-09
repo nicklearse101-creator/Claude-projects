@@ -116,3 +116,34 @@ Soft pins (strength 0.01–0.3) were no better; a weaker pull to the outline bui
 - Each panel is a quad patch whose **edge loops are the character lines** (curves resampled into loops) with a smooth fill inside.
 - Arches and windows are boundaries with concentric loops.
 - Then the panel-edge recipe: a 5 mm return, a 5 mm holding loop and a 10 mm loop.
+
+### Step 3, second try: panel-based generator (`step3b_panels.py`)
+- **Panels by facing direction:**
+  - side `x=f(z,y)`, the left half built and mirrored, as Kunos does
+  - top `y=f(z,x)`
+  - front end `z=f(x,y)`
+  - rear end `z=f(x,y)`
+- **Mesh:** each panel is our own 10 mm quad grid. A cell belongs to a panel where its surface faces that way (slope under 45°). Arches are cut out.
+- **Lines:** taken from the true model, drawn into each panel's grid.
+- **Fill:** thin-plate, with a weak pull to the outline build.
+- **Score:** 3D distance to the true outer skin, including the end faces.
+
+| Generator | Median | Worst 10 % | Within 3 mm | Within 10 mm |
+|---|---|---|---|---|
+| panels, outline build only | 6.8 mm | 27 mm | 27 % | 62 % |
+| panels + model lines (pull 0.002) | 3.9 | 18 | 41 | 79 |
+| panels + model lines (pull 0.0001) | **3.5** | **14.5** | **45** | **83** |
+
+| Panel (pull 0.002) | Median | Within 10 mm |
+|---|---|---|
+| side | 3.0 mm | 83 % |
+| top | 3.1 mm | 78 % |
+| front | 6.0 mm | 69 % |
+| rear | 5.1 mm | 72 % |
+
+**Still to fix:**
+1. **Seams:** panels meet at a jagged 45° boundary. They need stitching into one mesh, or proper patch boundaries along the shoulder and end lines, as Kunos uses.
+2. **Ripples:** lines are drawn as separate points, which leaves ripples. They should be drawn as continuous polylines and used as edge loops.
+3. **Ends:** the pop-up lamps, grille and tail recesses aren't modelled. These are detail parts, built as separate meshes like Kunos.
+4. **Panel-edge recipe** (5 mm return and holding loops) and the separate panel meshes: not yet added.
+5. **Scoring gap:** the score only looks from our surface to the truth. It should also check the other way, true skin to our surface, so coverage holes count.
