@@ -224,3 +224,12 @@ Single-seaters split into many more parts (the SF70H has 34).
 2. Each patch is a Coons/Gordon surface from its boundary curves, plus sections only on soft panels, written into BMesh with shared boundary vertices.
 3. Panel edges: 3–5 mm gap and turned-in return, with support loops.
 4. Zebra (stripe) check in Blender plus the two-way score.
+
+### CAD tools on Nik's PC (checked 2026-11-09)
+- **FreeCAD 1.1.4** (`D:\FreeCAD\bin\freecadcmd.exe`): **works and is the right engine.**
+  - It runs headless from Python (a 3 s job) and gives us OpenCASCADE: B-spline curves, lofts through sections, interpolated B-spline surfaces, filled N-sided faces (`Part.makeFilledFace`) and STEP export (`freecad_surface_test.py`).
+  - **AE86 door test:** a loft through the same 8 sections gives a true CAD surface 1.7 mm from the real door (91 % within 3 mm), and the real door is 2.1 mm from it (79 % within 3 mm). That's on a par with our own loft, but it's exact CAD geometry we can sample into a clean quad grid at any density.
+  - **Optional:** the Curves workbench add-on adds Gordon surfaces (curve networks). It would need installing through FreeCAD's Addon Manager.
+- **OpenSCAD 2021.01:** solid CSG only (boxes, cylinders, booleans). No freeform surfaces, so not for car bodies.
+- **truescad** (source in `D:\Claude\truescad`): a browser implicit/SDF CAD toy. Not suited.
+- `D:\Claude\FreeCAD` and `D:\Claude\openscad` are source checkouts, not needed to run anything.
