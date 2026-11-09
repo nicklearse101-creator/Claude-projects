@@ -306,3 +306,7 @@ Single-seaters split into many more parts (the SF70H has 34).
 - v4's cubic edge trim removed 6 % of the skin (wing behind the arch, pillars). Replaced in v5 by a running median.
   v5 raw: real->panels 87.2 % within 3 mm (91 % by area); what's left is shut-line returns, lamp surrounds, suspension.
 - The FreeCAD B-spline stage costs accuracy (cad->real 95.2 % -> 92.2 % within 3 mm, 38 fallbacks).
+
+## 2026-11-09 night: panel-fit method works (crisp door) - see PANEL_FIT_TECHNIQUE.md
+Glass (4 pieces) and the door (8 faces) rebuilt as fitted, trimmed B-spline surfaces with character lines cut
+exactly. Nik: "that's a really good door". This replaces the strip build for everything from here on.
