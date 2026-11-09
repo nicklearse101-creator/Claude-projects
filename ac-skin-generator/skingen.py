@@ -77,6 +77,12 @@ def load_image(path_or_bytes):
     data = path_or_bytes if isinstance(path_or_bytes, (bytes, bytearray)) else open(path_or_bytes, 'rb').read()
     im = fast_dds(data)
     if im is not None: return im
+    if data[:4] == b'DDS ' and data[84:88] == b'DX10' and len(data) > 132:
+        # sRGB variants hold the same pixel data as the plain formats Pillow knows: relabel them
+        fmt = struct.unpack_from('<I', data, 128)[0]
+        plain = {72: 71, 75: 74, 78: 77, 99: 98, 29: 28, 91: 87, 93: 88}.get(fmt)
+        if plain:
+            data = bytearray(data); struct.pack_into('<I', data, 128, plain); data = bytes(data)
     path_or_bytes = data
     im = Image.open(io.BytesIO(path_or_bytes) if isinstance(path_or_bytes, (bytes, bytearray)) else path_or_bytes)
     return im.convert('RGBA')
@@ -161,7 +167,12 @@ class Car:
 
     def stock_texture(self, tex, skin):
         f = find_skin_file(os.path.join(self.dir, 'skins', skin), tex)
-        return load_image(f) if f else None
+        if not f: return None
+        try:
+            return load_image(f)
+        except Exception as e:      # one odd file must not stop the whole skin
+            self.log(f'skipped {skin}/{os.path.basename(f)}: cannot read it ({e})')
+            return None
 
 
 # ------------------------------------------------------------------ texture-space rasteriser
@@ -845,7 +856,7 @@ def merge_ini(path, text):
 
 # ------------------------------------------------------------------ window stickers
 GLASS_RE = re.compile(r'window|windscreen|windshield|glass|(?<![a-z])win_|_win(?![a-z])|parabrezza|vetr|lunotto|scheibe', re.I)
-NOT_GLASS_RE = re.compile(r'light|lamp|head|lens|emissive|faro|mirror|gauge|dial|display|screen_|lcd|visor|helmet', re.I)
+NOT_GLASS_RE = re.compile(r'light|lamp|head|lens|emissive|faro|mirror|gauge|dial|display|screen_|lcd|visor|helmet|mold|mould|trim|seal|rubber|frame|gasket|wiper', re.I)
 INSIDE_RE = re.compile(r'int_|_int\b|interior|inside|cockpit|inner', re.I)
 
 
