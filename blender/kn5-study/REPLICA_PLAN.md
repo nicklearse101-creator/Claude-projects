@@ -298,3 +298,11 @@ Single-seaters split into many more parts (the SF70H has 34).
   3. Regions that span the window frame plus the glass.
 
   Glass needs its own handling: one layer, built as a near-flat patch from its outline.
+
+## 2026-11-09 evening: exact scoring and the v4 regression
+- New `exact_dist.py` / `score_exact.py`: point -> true surface distance (no sampling). The old point-to-point
+  scorer (4 mm samples) added about 1 mm of fake error to every number.
+- Exact scores: our surfaces sit a median of 0.11 mm from the real skin (95 % within 3 mm, raw strips).
+- v4's cubic edge trim removed 6 % of the skin (wing behind the arch, pillars). Replaced in v5 by a running median.
+  v5 raw: real->panels 87.2 % within 3 mm (91 % by area); what's left is shut-line returns, lamp surrounds, suspension.
+- The FreeCAD B-spline stage costs accuracy (cad->real 95.2 % -> 92.2 % within 3 mm, 38 fallbacks).

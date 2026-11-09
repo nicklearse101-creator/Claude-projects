@@ -170,13 +170,11 @@ def build_panel(Tp, frame, du, Tctx=None, margin=0.0):
     if len(profs) >= 6 and os.environ.get('CLEAN_EDGES', '1') == '1':
         uu = np.array([u for u, _ in profs]); st = np.array([p[0, 0] for _, p in profs]); en = np.array([p[-1, 0] for _, p in profs])
         def fit(y):
-            keep = np.ones(len(y), bool); deg = min(3, len(y) - 3)
-            for _ in range(4):
-                c = np.polyfit(uu[keep], y[keep], deg); r = np.abs(np.polyval(c, uu) - y)
-                new = r < max(0.004, 2.5 * np.median(r[keep]) + 1e-4)
-                if new.sum() < deg + 2 or (new == keep).all(): break
-                keep = new
-            return np.polyval(c, uu)
+            # running median (5): removes single-section spikes only; real shape changes (arches, steps)
+            # are kept - a global cubic trimmed whole chunks off (v4: -6 % coverage)
+            yp = np.r_[y[:1], y[:1], y, y[-1:], y[-1:]]
+            med = np.median(np.lib.stride_tricks.sliding_window_view(yp, 5), axis=1)
+            return np.where(np.abs(med - y) < 0.010, med, y)
         fs, fe = fit(st), fit(en)
         newp = []
         for (u, p), a_, b_ in zip(profs, fs, fe):
