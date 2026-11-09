@@ -1,0 +1,38 @@
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor and temp files
+*.swp
+*~
+*.tmp
+
+# Blender backup files
+*.blend1
+*.blend2
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Node
+node_modules/
+
+# Large/binary game and model assets (GitHub limit 100 MB; mod files may not be ours to publish)
+*.kn5
+*.blend
+*.dds
+*.png
+*.jpg
+*.psd
+*.zip
+*.7z
+*.mp4
+*.ksanim
+
+# Secrets
+.env
+*.key
+*.pem

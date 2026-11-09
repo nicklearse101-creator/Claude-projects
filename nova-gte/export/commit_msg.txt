@@ -1,0 +1,9 @@
+Phase 1: placeholder scene, skeleton physics, kn5 export and deploy
+
+- Blender scene at real scale (wheelbase, tracks, overhangs, 175/65 R14) with AC helper nodes
+- tools/build_car.py writes data/ from spec-sheet values, each tagged SOURCED/ESTIMATE/PLACEHOLDER
+- blender/scripts/export_car.py reuses the Sunbeam kn5 writer; tools/deploy.py copies to AC safely
+- Haynes figures merged into SPEC_SHEET.md; BUILD_PLAN.md drafted
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01FcVLhoEzkmgzWPo9Vw9sqX

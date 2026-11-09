@@ -1,0 +1,962 @@
+{
+ "centre_bonnet": {
+  "wobble_mm": 5.5,
+  "wobble_rms_mm": 1.09,
+  "wiggles_per_m": 0.3,
+  "out_of_plane_mm": 0.0,
+  "length_m": 1.175,
+  "corners": 2,
+  "group": "centre",
+  "src": "line blueprint side: bonnet_top+bonnet_top_b"
+ },
+ "centre_screen": {
+  "wobble_mm": 5.6,
+  "wobble_rms_mm": 2.3,
+  "wiggles_per_m": 10.3,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.645,
+  "corners": 1,
+  "group": "centre",
+  "src": "line blueprint side: screen"
+ },
+ "centre_roof": {
+  "wobble_mm": 8.4,
+  "wobble_rms_mm": 1.46,
+  "wiggles_per_m": 5.4,
+  "out_of_plane_mm": 0.0,
+  "length_m": 1.675,
+  "corners": 1,
+  "group": "centre",
+  "src": "line blueprint side: roof+roof_b"
+ },
+ "centre_backlight": {
+  "wobble_mm": 1.3,
+  "wobble_rms_mm": 0.45,
+  "wiggles_per_m": 20.0,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.1,
+  "corners": 0,
+  "group": "centre",
+  "src": "line blueprint side: backlight"
+ },
+ "belt#1": {
+  "wobble_mm": 1.5,
+  "wobble_rms_mm": 0.36,
+  "wiggles_per_m": 4.3,
+  "out_of_plane_mm": 0.2,
+  "length_m": 0.92,
+  "corners": 0,
+  "group": "body",
+  "src": "line blueprint side: belt+belt_b"
+ },
+ "belt#2": {
+  "wobble_mm": 8.8,
+  "wobble_rms_mm": 1.22,
+  "wiggles_per_m": 7.8,
+  "out_of_plane_mm": 7.0,
+  "length_m": 1.46,
+  "corners": 7,
+  "group": "body",
+  "src": "line blueprint side: belt+belt_b"
+ },
+ "crease_front": {
+  "wobble_mm": 7.4,
+  "wobble_rms_mm": 1.42,
+  "wiggles_per_m": 8.1,
+  "out_of_plane_mm": 1.1,
+  "length_m": 0.74,
+  "corners": 0,
+  "group": "crease",
+  "src": "line blueprint side: crease_front+crease_front_b"
+ },
+ "crease_rear": {
+  "wobble_mm": 1.9,
+  "wobble_rms_mm": 0.92,
+  "wiggles_per_m": 10.9,
+  "out_of_plane_mm": 4.3,
+  "length_m": 0.92,
+  "corners": 0,
+  "group": "crease",
+  "src": "line blueprint side: crease_rear+crease_rear_b"
+ },
+ "moulding_top#1": {
+  "wobble_mm": 0.0,
+  "wobble_rms_mm": 0.01,
+  "wiggles_per_m": 21.1,
+  "out_of_plane_mm": 0.1,
+  "length_m": 0.095,
+  "corners": 0,
+  "group": "body",
+  "src": "line blueprint side: moulding_top+moulding_top_b"
+ },
+ "moulding_top#2": {
+  "wobble_mm": 0.4,
+  "wobble_rms_mm": 0.17,
+  "wiggles_per_m": 5.7,
+  "out_of_plane_mm": 1.0,
+  "length_m": 1.54,
+  "corners": 1,
+  "group": "body",
+  "src": "line blueprint side: moulding_top+moulding_top_b"
+ },
+ "moulding_bot": {
+  "wobble_mm": 7.4,
+  "wobble_rms_mm": 1.37,
+  "wiggles_per_m": 5.1,
+  "out_of_plane_mm": 1.0,
+  "length_m": 1.66,
+  "corners": 1,
+  "group": "body",
+  "src": "line blueprint side: moulding_bot+moulding_bot_b"
+ },
+ "door_bottom#1": {
+  "wobble_mm": 0.0,
+  "wobble_rms_mm": 0.01,
+  "wiggles_per_m": 12.5,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.08,
+  "corners": 0,
+  "group": "shut",
+  "src": "line blueprint side: door_bottom+door_bottom_b"
+ },
+ "door_bottom#2": {
+  "wobble_mm": 4.5,
+  "wobble_rms_mm": 0.92,
+  "wiggles_per_m": 2.1,
+  "out_of_plane_mm": 0.7,
+  "length_m": 1.22,
+  "corners": 1,
+  "group": "shut",
+  "src": "line blueprint side: door_bottom+door_bottom_b"
+ },
+ "door_bottom#3": {
+  "wobble_mm": 0.3,
+  "wobble_rms_mm": 0.08,
+  "wiggles_per_m": 15.4,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.325,
+  "corners": 0,
+  "group": "shut",
+  "src": "line blueprint side: door_bottom+door_bottom_b"
+ },
+ "sill": {
+  "wobble_mm": 2.3,
+  "wobble_rms_mm": 0.55,
+  "wiggles_per_m": 6.2,
+  "out_of_plane_mm": 0.6,
+  "length_m": 1.625,
+  "corners": 0,
+  "group": "body",
+  "src": "line blueprint side: sill+sill_b"
+ },
+ "arch_front": {
+  "wobble_mm": 2.5,
+  "wobble_rms_mm": 1.26,
+  "wiggles_per_m": 4.7,
+  "out_of_plane_mm": 1.4,
+  "length_m": 0.635,
+  "corners": 0,
+  "group": "arch",
+  "src": "line blueprint side: arch_front+arch_front_b"
+ },
+ "arch_rear": {
+  "wobble_mm": 5.7,
+  "wobble_rms_mm": 1.59,
+  "wiggles_per_m": 2.7,
+  "out_of_plane_mm": 3.3,
+  "length_m": 0.845,
+  "corners": 2,
+  "group": "arch",
+  "src": "line blueprint side: arch_rear+arch_rear_b"
+ },
+ "shut_door_front#1": {
+  "wobble_mm": 9.6,
+  "wobble_rms_mm": 2.05,
+  "wiggles_per_m": 5.3,
+  "out_of_plane_mm": 2.9,
+  "length_m": 0.38,
+  "corners": 0,
+  "group": "shut",
+  "src": "line blueprint side: shut_door_front"
+ },
+ "shut_door_front#2": {
+  "wobble_mm": 0.2,
+  "wobble_rms_mm": 0.1,
+  "wiggles_per_m": 0.0,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.15,
+  "corners": 0,
+  "group": "shut",
+  "src": "line blueprint side: shut_door_front"
+ },
+ "shut_door_rear#1": {
+  "wobble_mm": 0.0,
+  "wobble_rms_mm": 0.0,
+  "wiggles_per_m": 0.0,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.02,
+  "corners": 0,
+  "group": "shut",
+  "src": "line blueprint side: shut_door_rear"
+ },
+ "shut_door_rear#2": {
+  "wobble_mm": 3.2,
+  "wobble_rms_mm": 1.02,
+  "wiggles_per_m": 12.5,
+  "out_of_plane_mm": 1.8,
+  "length_m": 0.32,
+  "corners": 0,
+  "group": "shut",
+  "src": "line blueprint side: shut_door_rear"
+ },
+ "tailgate_shut#1": {
+  "wobble_mm": 6.2,
+  "wobble_rms_mm": 2.18,
+  "wiggles_per_m": 5.6,
+  "out_of_plane_mm": 7.9,
+  "length_m": 0.485,
+  "corners": 2,
+  "group": "shut",
+  "src": "line blueprint side: tailgate_shut"
+ },
+ "glass_base#1": {
+  "wobble_mm": 1.7,
+  "wobble_rms_mm": 0.56,
+  "wiggles_per_m": 0.0,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.3,
+  "corners": 1,
+  "group": "dlo",
+  "src": "line blueprint side: glass_base"
+ },
+ "glass_base#2": {
+  "wobble_mm": 5.2,
+  "wobble_rms_mm": 1.8,
+  "wiggles_per_m": 4.9,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.875,
+  "corners": 5,
+  "group": "dlo",
+  "src": "line blueprint side: glass_base"
+ },
+ "glass_base#3": {
+  "wobble_mm": 1.4,
+  "wobble_rms_mm": 0.42,
+  "wiggles_per_m": 0.9,
+  "out_of_plane_mm": 1.9,
+  "length_m": 0.51,
+  "corners": 2,
+  "group": "dlo",
+  "src": "line blueprint side: glass_base"
+ },
+ "dlo_top#1": {
+  "wobble_mm": 4.0,
+  "wobble_rms_mm": 0.98,
+  "wiggles_per_m": 3.2,
+  "out_of_plane_mm": 1.2,
+  "length_m": 0.89,
+  "corners": 2,
+  "group": "dlo",
+  "src": "line blueprint side: dlo_top"
+ },
+ "dlo_top#2": {
+  "wobble_mm": 0.5,
+  "wobble_rms_mm": 0.33,
+  "wiggles_per_m": 42.9,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.07,
+  "corners": 0,
+  "group": "dlo",
+  "src": "line blueprint side: dlo_top"
+ },
+ "window_door": {
+  "wobble_mm": 4.1,
+  "wobble_rms_mm": 1.23,
+  "wiggles_per_m": 11.6,
+  "out_of_plane_mm": 5.7,
+  "length_m": 2.01,
+  "corners": 4,
+  "group": "dlo",
+  "src": "windows.json (traced, fitted to BA corners)"
+ },
+ "window_quarter": {
+  "wobble_mm": 5.5,
+  "wobble_rms_mm": 1.64,
+  "wiggles_per_m": 3.1,
+  "out_of_plane_mm": 6.0,
+  "length_m": 2.245,
+  "corners": 2,
+  "group": "dlo",
+  "src": "windows.json (traced, fitted to BA corners)"
+ },
+ "roof_edge": {
+  "wobble_mm": 0.0,
+  "wobble_rms_mm": 0.01,
+  "wiggles_per_m": 1.8,
+  "out_of_plane_mm": 1.2,
+  "length_m": 1.65,
+  "corners": 0,
+  "group": "roof",
+  "src": "body_profile cant (photo)"
+ },
+ "plan_widest": {
+  "wobble_mm": 2.7,
+  "wobble_rms_mm": 0.98,
+  "wiggles_per_m": 1.4,
+  "out_of_plane_mm": 0.0,
+  "length_m": 3.66,
+  "corners": 0,
+  "group": "plan",
+  "src": "GA plan half-width (plan_profile halfw_merged)"
+ },
+ "bonnet_shut": {
+  "wobble_mm": 5.6,
+  "wobble_rms_mm": 2.1,
+  "wiggles_per_m": 6.1,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.985,
+  "corners": 0,
+  "group": "shut",
+  "src": "shut_bonnet_wing.json"
+ },
+ "bonnet_v": {
+  "wobble_mm": 0.0,
+  "wobble_rms_mm": 0.0,
+  "wiggles_per_m": 34.4,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.61,
+  "corners": 0,
+  "group": "front",
+  "src": "body_profile bonnet_v"
+ },
+ "screen_base": {
+  "wobble_mm": 0.1,
+  "wobble_rms_mm": 0.07,
+  "wiggles_per_m": 5.0,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.605,
+  "corners": 0,
+  "group": "dlo",
+  "src": "body_profile scuttle_curve + BA WS_B"
+ },
+ "screen_header": {
+  "wobble_mm": 0.0,
+  "wobble_rms_mm": 0.0,
+  "wiggles_per_m": 0.0,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.5,
+  "corners": 0,
+  "group": "dlo",
+  "src": "BA WS_T, header straight in plan"
+ },
+ "a_pillar": {
+  "wobble_mm": 0.0,
+  "wobble_rms_mm": 0.0,
+  "wiggles_per_m": 92.9,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.56,
+  "corners": 0,
+  "group": "dlo",
+  "src": "BA WS_B -> WS_T"
+ },
+ "rear_lamp": {
+  "wobble_mm": 2.9,
+  "wobble_rms_mm": 0.56,
+  "wiggles_per_m": 8.9,
+  "out_of_plane_mm": 2.4,
+  "length_m": 0.77,
+  "corners": 3,
+  "group": "rear",
+  "src": "GA 1990 sheet, rear view trace"
+ },
+ "rear_panel_recess": {
+  "wobble_mm": 3.3,
+  "wobble_rms_mm": 0.82,
+  "wiggles_per_m": 0.0,
+  "out_of_plane_mm": 0.1,
+  "length_m": 0.43,
+  "corners": 1,
+  "group": "rear",
+  "src": "GA 1990 sheet, rear view trace"
+ },
+ "rear_tailgate_bottom#1": {
+  "wobble_mm": 0.2,
+  "wobble_rms_mm": 0.05,
+  "wiggles_per_m": 9.3,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.215,
+  "corners": 0,
+  "group": "rear",
+  "src": "GA 1990 sheet, rear view trace"
+ },
+ "rear_tailgate_bottom#2": {
+  "wobble_mm": 0.0,
+  "wobble_rms_mm": 0.01,
+  "wiggles_per_m": 0.0,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.045,
+  "corners": 0,
+  "group": "rear",
+  "src": "GA 1990 sheet, rear view trace"
+ },
+ "rear_glass#1": {
+  "wobble_mm": 1.4,
+  "wobble_rms_mm": 0.42,
+  "wiggles_per_m": 2.5,
+  "out_of_plane_mm": 2.3,
+  "length_m": 0.86,
+  "corners": 1,
+  "group": "rear",
+  "src": "GA 1990 sheet, rear view trace"
+ },
+ "rear_glass#2": {
+  "wobble_mm": 0.2,
+  "wobble_rms_mm": 0.12,
+  "wiggles_per_m": 2.6,
+  "out_of_plane_mm": 0.7,
+  "length_m": 0.38,
+  "corners": 0,
+  "group": "rear",
+  "src": "GA 1990 sheet, rear view trace"
+ },
+ "tail_centre#1": {
+  "wobble_mm": 0.0,
+  "wobble_rms_mm": 0.0,
+  "wiggles_per_m": 0.0,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.03,
+  "corners": 0,
+  "group": "centre",
+  "src": "GA 1990 sheet, side view trace"
+ },
+ "tail_centre#2": {
+  "wobble_mm": 11.4,
+  "wobble_rms_mm": 5.06,
+  "wiggles_per_m": 8.8,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.565,
+  "corners": 0,
+  "group": "centre",
+  "src": "GA 1990 sheet, side view trace"
+ },
+ "rear_c_pillar": {
+  "wobble_mm": 2.6,
+  "wobble_rms_mm": 0.95,
+  "wiggles_per_m": 5.0,
+  "out_of_plane_mm": 1.9,
+  "length_m": 0.605,
+  "corners": 0,
+  "group": "rear",
+  "src": "GA 1990 sheet, rear view trace"
+ },
+ "rear_spoiler_top": {
+  "wobble_mm": 1.1,
+  "wobble_rms_mm": 0.27,
+  "wiggles_per_m": 0.0,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.49,
+  "corners": 0,
+  "group": "rear",
+  "src": "GA 1990 sheet, rear view trace"
+ },
+ "rear_spoiler_bottom": {
+  "wobble_mm": 0.5,
+  "wobble_rms_mm": 0.17,
+  "wiggles_per_m": 8.9,
+  "out_of_plane_mm": 0.6,
+  "length_m": 0.45,
+  "corners": 0,
+  "group": "rear",
+  "src": "GA 1990 sheet, rear view trace"
+ },
+ "rear_bumper_top#1": {
+  "wobble_mm": 0.2,
+  "wobble_rms_mm": 0.06,
+  "wiggles_per_m": 0.0,
+  "out_of_plane_mm": 0.1,
+  "length_m": 0.19,
+  "corners": 0,
+  "group": "rear",
+  "src": "GA 1990 sheet, rear view trace"
+ },
+ "rear_bumper_top#2": {
+  "wobble_mm": 0.2,
+  "wobble_rms_mm": 0.08,
+  "wiggles_per_m": 0.0,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.185,
+  "corners": 0,
+  "group": "rear",
+  "src": "GA 1990 sheet, rear view trace"
+ },
+ "rear_bumper_top#3": {
+  "wobble_mm": 0.1,
+  "wobble_rms_mm": 0.06,
+  "wiggles_per_m": 5.4,
+  "out_of_plane_mm": 0.2,
+  "length_m": 0.185,
+  "corners": 0,
+  "group": "rear",
+  "src": "GA 1990 sheet, rear view trace"
+ },
+ "rear_bumper_bottom#1": {
+  "wobble_mm": 0.8,
+  "wobble_rms_mm": 0.38,
+  "wiggles_per_m": 6.0,
+  "out_of_plane_mm": 1.7,
+  "length_m": 0.665,
+  "corners": 0,
+  "group": "rear",
+  "src": "GA 1990 sheet, rear view trace"
+ },
+ "plan_rear_bumper#1": {
+  "wobble_mm": 0.0,
+  "wobble_rms_mm": 0.02,
+  "wiggles_per_m": 0.0,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.045,
+  "corners": 0,
+  "group": "plan",
+  "src": "GA 1990 sheet, plan view trace"
+ },
+ "plan_rear_bumper#2": {
+  "wobble_mm": 0.1,
+  "wobble_rms_mm": 0.03,
+  "wiggles_per_m": 0.0,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.105,
+  "corners": 0,
+  "group": "plan",
+  "src": "GA 1990 sheet, plan view trace"
+ },
+ "front_bumper_top": {
+  "wobble_mm": 1.4,
+  "wobble_rms_mm": 0.61,
+  "wiggles_per_m": 6.0,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.5,
+  "corners": 0,
+  "group": "front",
+  "src": "GA 1990 sheet, front view trace"
+ },
+ "plan_front_bumper": {
+  "wobble_mm": 0.4,
+  "wobble_rms_mm": 0.2,
+  "wiggles_per_m": 7.3,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.545,
+  "corners": 0,
+  "group": "plan",
+  "src": "GA 1990 sheet, plan view trace"
+ },
+ "front_grille": {
+  "wobble_mm": 0.8,
+  "wobble_rms_mm": 0.27,
+  "wiggles_per_m": 0.0,
+  "out_of_plane_mm": 4.1,
+  "length_m": 0.705,
+  "corners": 3,
+  "group": "front",
+  "src": "GA 1990 sheet, front view trace"
+ },
+ "front_headlamp#1": {
+  "wobble_mm": 0.0,
+  "wobble_rms_mm": 0.02,
+  "wiggles_per_m": 0.0,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.045,
+  "corners": 0,
+  "group": "front",
+  "src": "GA 1990 sheet, front view trace"
+ },
+ "front_headlamp#2": {
+  "wobble_mm": 3.4,
+  "wobble_rms_mm": 0.92,
+  "wiggles_per_m": 2.4,
+  "out_of_plane_mm": 7.9,
+  "length_m": 0.35,
+  "corners": 4,
+  "group": "front",
+  "src": "GA 1990 sheet, front view trace"
+ },
+ "front_headlamp#3": {
+  "wobble_mm": 2.3,
+  "wobble_rms_mm": 0.5,
+  "wiggles_per_m": 0.0,
+  "out_of_plane_mm": 0.8,
+  "length_m": 0.25,
+  "corners": 1,
+  "group": "front",
+  "src": "GA 1990 sheet, front view trace"
+ },
+ "front_screen_header#1": {
+  "wobble_mm": 0.0,
+  "wobble_rms_mm": 0.01,
+  "wiggles_per_m": 0.0,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.27,
+  "corners": 0,
+  "group": "dlo",
+  "src": "GA 1990 sheet, front view trace"
+ },
+ "front_a_pillar": {
+  "wobble_mm": 4.2,
+  "wobble_rms_mm": 1.51,
+  "wiggles_per_m": 7.5,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.4,
+  "corners": 0,
+  "group": "dlo",
+  "src": "GA 1990 sheet, front view trace"
+ },
+ "front_roof_crown": {
+  "wobble_mm": 3.7,
+  "wobble_rms_mm": 0.78,
+  "wiggles_per_m": 0.0,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.585,
+  "corners": 0,
+  "group": "envelope",
+  "src": "GA 1990 sheet, front view trace"
+ },
+ "front_body_sil": {
+  "wobble_mm": 2.3,
+  "wobble_rms_mm": 0.82,
+  "wiggles_per_m": 3.2,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.625,
+  "corners": 0,
+  "group": "envelope",
+  "src": "GA 1990 sheet, front view trace"
+ },
+ "rear_body_sil": {
+  "wobble_mm": 2.2,
+  "wobble_rms_mm": 1.18,
+  "wiggles_per_m": 8.7,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.575,
+  "corners": 0,
+  "group": "envelope",
+  "src": "GA 1990 sheet, rear view trace"
+ },
+ "part_bumper_f_1": {
+  "wobble_mm": 5.3,
+  "wobble_rms_mm": 1.43,
+  "wiggles_per_m": 2.3,
+  "out_of_plane_mm": 64.7,
+  "length_m": 2.1,
+  "corners": 6,
+  "group": "model_parts",
+  "src": "model part outline (front_end.py (photo-measured swept section) - outline 1 (4275 mm, closed))"
+ },
+ "part_bumper_f_lip_1#1": {
+  "wobble_mm": 1.6,
+  "wobble_rms_mm": 0.32,
+  "wiggles_per_m": 0.0,
+  "out_of_plane_mm": 3.7,
+  "length_m": 0.74,
+  "corners": 1,
+  "group": "model_parts",
+  "src": "model part outline (front_end.py - outline 1 (3743 mm, closed))"
+ },
+ "part_bumper_f_lip_1#2": {
+  "wobble_mm": 3.9,
+  "wobble_rms_mm": 1.53,
+  "wiggles_per_m": 3.1,
+  "out_of_plane_mm": 16.9,
+  "length_m": 1.02,
+  "corners": 4,
+  "group": "model_parts",
+  "src": "model part outline (front_end.py - outline 1 (3743 mm, closed))"
+ },
+ "part_lamp_panel_1": {
+  "wobble_mm": 3.0,
+  "wobble_rms_mm": 0.47,
+  "wiggles_per_m": 4.3,
+  "out_of_plane_mm": 9.3,
+  "length_m": 2.085,
+  "corners": 4,
+  "group": "model_parts",
+  "src": "model part outline (front_end.py - outline 1 (4209 mm, closed))"
+ },
+ "part_lamp_panel_2": {
+  "wobble_mm": 1.9,
+  "wobble_rms_mm": 0.25,
+  "wiggles_per_m": 5.7,
+  "out_of_plane_mm": 0.7,
+  "length_m": 0.885,
+  "corners": 2,
+  "group": "model_parts",
+  "src": "model part outline (front_end.py - outline 2 (1810 mm, closed))"
+ },
+ "part_grille_surround_1": {
+  "wobble_mm": 1.7,
+  "wobble_rms_mm": 0.22,
+  "wiggles_per_m": 3.4,
+  "out_of_plane_mm": 0.6,
+  "length_m": 0.83,
+  "corners": 2,
+  "group": "model_parts",
+  "src": "model part outline (front_end.py - outline 1 (1817 mm, closed))"
+ },
+ "part_grille_surround_2": {
+  "wobble_mm": 0.0,
+  "wobble_rms_mm": 0.0,
+  "wiggles_per_m": 0.0,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.07,
+  "corners": 0,
+  "group": "model_parts",
+  "src": "model part outline (front_end.py - outline 2 (1817 mm, closed))"
+ },
+ "part_grille_surround_3": {
+  "wobble_mm": 0.8,
+  "wobble_rms_mm": 0.2,
+  "wiggles_per_m": 4.6,
+  "out_of_plane_mm": 0.7,
+  "length_m": 0.68,
+  "corners": 3,
+  "group": "model_parts",
+  "src": "model part outline (front_end.py - outline 3 (692 mm))"
+ },
+ "part_grille_surround_4": {
+  "wobble_mm": 0.0,
+  "wobble_rms_mm": 0.0,
+  "wiggles_per_m": 0.0,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.08,
+  "corners": 0,
+  "group": "model_parts",
+  "src": "model part outline (front_end.py - outline 4 (83 mm))"
+ },
+ "part_headlamp_glass_l_1": {
+  "wobble_mm": 0.9,
+  "wobble_rms_mm": 0.23,
+  "wiggles_per_m": 4.3,
+  "out_of_plane_mm": 0.9,
+  "length_m": 0.685,
+  "corners": 3,
+  "group": "model_parts",
+  "src": "model part outline (front_end.py (BA HL_*) - outline 1 (693 mm, closed))"
+ },
+ "part_indicator_f_l_1": {
+  "wobble_mm": 0.7,
+  "wobble_rms_mm": 0.22,
+  "wiggles_per_m": 6.2,
+  "out_of_plane_mm": 3.2,
+  "length_m": 0.47,
+  "corners": 3,
+  "group": "model_parts",
+  "src": "model part outline (front_end.py (BA IND_*) - outline 1 (479 mm, closed))"
+ },
+ "part_plate_f_1": {
+  "wobble_mm": 6.5,
+  "wobble_rms_mm": 1.86,
+  "wiggles_per_m": 10.7,
+  "out_of_plane_mm": 0.1,
+  "length_m": 0.625,
+  "corners": 2,
+  "group": "model_parts",
+  "src": "model part outline (front_end.py (plate 520 x 111) - outline 1 (1263 mm, closed))"
+ },
+ "part_hood_panel_1": {
+  "wobble_mm": 2.4,
+  "wobble_rms_mm": 0.24,
+  "wiggles_per_m": 3.0,
+  "out_of_plane_mm": 18.0,
+  "length_m": 3.035,
+  "corners": 3,
+  "group": "model_parts",
+  "src": "model part outline (rebuild_bonnet_drawn.py - outline 1 (3054 mm, closed))"
+ },
+ "part_scuttle_panel_1": {
+  "wobble_mm": 1.7,
+  "wobble_rms_mm": 0.26,
+  "wiggles_per_m": 1.1,
+  "out_of_plane_mm": 6.3,
+  "length_m": 1.495,
+  "corners": 5,
+  "group": "model_parts",
+  "src": "model part outline (rebuild_scuttle_drawn.py - outline 1 (1520 mm, closed))"
+ },
+ "part_wing_front_left_1#1": {
+  "wobble_mm": 7.2,
+  "wobble_rms_mm": 1.09,
+  "wiggles_per_m": 3.3,
+  "out_of_plane_mm": 27.3,
+  "length_m": 2.22,
+  "corners": 5,
+  "group": "model_parts",
+  "src": "model part outline (rebuild_wing_drawn.py - outline 1 (3946 mm, closed))"
+ },
+ "part_wing_front_left_1#2": {
+  "wobble_mm": 4.3,
+  "wobble_rms_mm": 1.95,
+  "wiggles_per_m": 4.6,
+  "out_of_plane_mm": 1.9,
+  "length_m": 0.87,
+  "corners": 0,
+  "group": "model_parts",
+  "src": "model part outline (rebuild_wing_drawn.py - outline 1 (3946 mm, closed))"
+ },
+ "part_wing_front_left_1#3": {
+  "wobble_mm": 1.0,
+  "wobble_rms_mm": 0.42,
+  "wiggles_per_m": 2.6,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.24,
+  "corners": 1,
+  "group": "model_parts",
+  "src": "model part outline (rebuild_wing_drawn.py - outline 1 (3946 mm, closed))"
+ },
+ "part_skirt_left_1#1": {
+  "wobble_mm": 4.5,
+  "wobble_rms_mm": 0.63,
+  "wiggles_per_m": 7.2,
+  "out_of_plane_mm": 1.5,
+  "length_m": 1.73,
+  "corners": 1,
+  "group": "model_parts",
+  "src": "model part outline (rebuild_sill.py (skirt traced on cS) - outline 1 (3791 mm, closed))"
+ },
+ "part_skirt_left_1#2": {
+  "wobble_mm": 7.9,
+  "wobble_rms_mm": 1.55,
+  "wiggles_per_m": 1.1,
+  "out_of_plane_mm": 0.9,
+  "length_m": 1.765,
+  "corners": 0,
+  "group": "model_parts",
+  "src": "model part outline (rebuild_sill.py (skirt traced on cS) - outline 1 (3791 mm, closed))"
+ },
+ "part_panel_r_l_1": {
+  "wobble_mm": 4.6,
+  "wobble_rms_mm": 0.77,
+  "wiggles_per_m": 7.9,
+  "out_of_plane_mm": 31.3,
+  "length_m": 3.81,
+  "corners": 7,
+  "group": "model_parts",
+  "src": "model part outline (rear_panel.py (tailgate on the rear-face curve, BA TL_*/HG_*) - outline 1 (3859 mm, closed))"
+ },
+ "part_taillamp_l_1": {
+  "wobble_mm": 1.4,
+  "wobble_rms_mm": 0.31,
+  "wiggles_per_m": 2.2,
+  "out_of_plane_mm": 3.3,
+  "length_m": 0.56,
+  "corners": 3,
+  "group": "model_parts",
+  "src": "model part outline (tail_lamps.py (GA heights 800/745/685/635) - outline 1 (567 mm, closed))"
+ },
+ "part_taillamp_l_2": {
+  "wobble_mm": 4.1,
+  "wobble_rms_mm": 0.82,
+  "wiggles_per_m": 2.0,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.49,
+  "corners": 1,
+  "group": "model_parts",
+  "src": "model part outline (tail_lamps.py (GA heights 800/745/685/635) - outline 2 (510 mm, closed))"
+ },
+ "part_taillamp_l_3": {
+  "wobble_mm": 5.2,
+  "wobble_rms_mm": 1.18,
+  "wiggles_per_m": 2.0,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.49,
+  "corners": 1,
+  "group": "model_parts",
+  "src": "model part outline (tail_lamps.py (GA heights 800/745/685/635) - outline 3 (509 mm, closed))"
+ },
+ "part_taillamp_l_4": {
+  "wobble_mm": 1.0,
+  "wobble_rms_mm": 0.31,
+  "wiggles_per_m": 0.0,
+  "out_of_plane_mm": 3.5,
+  "length_m": 0.435,
+  "corners": 3,
+  "group": "model_parts",
+  "src": "model part outline (tail_lamps.py (GA heights 800/745/685/635) - outline 4 (443 mm, closed))"
+ },
+ "part_taillamp_l_5": {
+  "wobble_mm": 1.4,
+  "wobble_rms_mm": 0.35,
+  "wiggles_per_m": 0.0,
+  "out_of_plane_mm": 3.4,
+  "length_m": 0.425,
+  "corners": 3,
+  "group": "model_parts",
+  "src": "model part outline (tail_lamps.py (GA heights 800/745/685/635) - outline 5 (433 mm, closed))"
+ },
+ "part_taillamp_l_6": {
+  "wobble_mm": 6.9,
+  "wobble_rms_mm": 1.42,
+  "wiggles_per_m": 5.1,
+  "out_of_plane_mm": 4.2,
+  "length_m": 0.395,
+  "corners": 1,
+  "group": "model_parts",
+  "src": "model part outline (tail_lamps.py (GA heights 800/745/685/635) - outline 6 (408 mm, closed))"
+ },
+ "part_taillamp_l_7": {
+  "wobble_mm": 7.1,
+  "wobble_rms_mm": 1.44,
+  "wiggles_per_m": 5.1,
+  "out_of_plane_mm": 4.2,
+  "length_m": 0.395,
+  "corners": 1,
+  "group": "model_parts",
+  "src": "model part outline (tail_lamps.py (GA heights 800/745/685/635) - outline 7 (408 mm, closed))"
+ },
+ "part_taillamp_l_8": {
+  "wobble_mm": 2.5,
+  "wobble_rms_mm": 0.57,
+  "wiggles_per_m": 3.2,
+  "out_of_plane_mm": 2.1,
+  "length_m": 0.315,
+  "corners": 1,
+  "group": "model_parts",
+  "src": "model part outline (tail_lamps.py (GA heights 800/745/685/635) - outline 8 (333 mm, closed))"
+ },
+ "part_bumper_r_1": {
+  "wobble_mm": 6.4,
+  "wobble_rms_mm": 1.71,
+  "wiggles_per_m": 1.8,
+  "out_of_plane_mm": 75.6,
+  "length_m": 2.22,
+  "corners": 4,
+  "group": "model_parts",
+  "src": "model part outline (rear_end.py - outline 1 (4554 mm, closed))"
+ },
+ "part_bumper_r_valance_1#1": {
+  "wobble_mm": 1.8,
+  "wobble_rms_mm": 0.43,
+  "wiggles_per_m": 0.5,
+  "out_of_plane_mm": 4.7,
+  "length_m": 0.77,
+  "corners": 2,
+  "group": "model_parts",
+  "src": "model part outline (rear_end.py - outline 1 (3771 mm, closed))"
+ },
+ "part_bumper_r_valance_1#2": {
+  "wobble_mm": 4.4,
+  "wobble_rms_mm": 1.62,
+  "wiggles_per_m": 0.2,
+  "out_of_plane_mm": 13.6,
+  "length_m": 1.01,
+  "corners": 4,
+  "group": "model_parts",
+  "src": "model part outline (rear_end.py - outline 1 (3771 mm, closed))"
+ },
+ "part_bonnet_crease": {
+  "wobble_mm": 1.6,
+  "wobble_rms_mm": 0.27,
+  "wiggles_per_m": 0.0,
+  "out_of_plane_mm": 0.0,
+  "length_m": 0.855,
+  "corners": 0,
+  "group": "model_parts",
+  "src": "model part outline (body_profile bonnet_creases (redgte_20) on the bonnet surface)"
+ }
+}

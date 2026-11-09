@@ -1,0 +1,559 @@
+{
+ "groups": {
+  "kunos": {
+   "n": 67,
+   "cars": [
+    "ks_toyota_ae86",
+    "Peugeot_205_EVO1_GrB",
+    "bmw_m3_e30",
+    "ks_ford_escort_mk1",
+    "ks_abarth_595ss",
+    "ks_mazda_mx5_nd",
+    "ks_audi_sport_quattro",
+    "ks_alfa_33_stradale",
+    "ks_alfa_giulia_qv",
+    "ks_alfa_mito_qv",
+    "ks_alfa_romeo_155_v6",
+    "ks_alfa_romeo_4c",
+    "ks_alfa_romeo_gta",
+    "ks_audi_a1s1",
+    "ks_audi_r8_plus",
+    "ks_bmw_m4",
+    "ks_corvette_c7_stingray",
+    "ks_ferrari_250_gto",
+    "ks_ferrari_288_gto",
+    "ks_ferrari_488_gtb",
+    "ks_ferrari_812_superfast",
+    "ks_ford_gt40",
+    "ks_ford_mustang_2015",
+    "ks_lamborghini_aventador_sv",
+    "ks_lamborghini_countach",
+    "ks_lamborghini_huracan_performante",
+    "ks_lamborghini_miura_sv",
+    "ks_maserati_levante",
+    "ks_maserati_quattroporte",
+    "ks_mazda_miata",
+    "ks_mazda_rx7_spirit_r",
+    "ks_mclaren_570s",
+    "ks_mclaren_p1",
+    "ks_mclaren_f1_gtr",
+    "ks_mercedes_190_evo2",
+    "ks_nissan_370z",
+    "ks_nissan_gtr",
+    "ks_nissan_skyline_r34",
+    "ks_pagani_huayra_bc",
+    "ks_porsche_718_cayman_s",
+    "ks_porsche_911_gt3_rs",
+    "ks_porsche_918_spyder",
+    "ks_porsche_991_carrera_s",
+    "ks_porsche_cayenne",
+    "ks_porsche_panamera",
+    "ks_toyota_celica_st185",
+    "ks_toyota_gt86",
+    "ks_toyota_supra_mkiv",
+    "ks_porsche_917_k",
+    "ks_mazda_787b",
+    "bmw_1m",
+    "bmw_m3_e92",
+    "bmw_z4",
+    "ferrari_458",
+    "ferrari_f40",
+    "ferrari_laferrari",
+    "lotus_elise_sc",
+    "lotus_evora_s",
+    "mclaren_mp412c",
+    "mercedes_sls",
+    "pagani_zonda_r",
+    "shelby_cobra_427sc",
+    "alfa_romeo_giulietta_qv",
+    "abarth500",
+    "streetcarpack_mitsubishi_lancer_evo_gsr",
+    "rw_citroenbx_4tc_grb",
+    "alfa_romeo_75_gruppo_a_s1"
+   ],
+   "tris": [
+    158114.0,
+    225658.0,
+    263815.0
+   ],
+   "paint_tris": [
+    22734.5,
+    27983.0,
+    34467.5
+   ],
+   "paint_edge_mm": [
+    19.9,
+    24.0,
+    26.8
+   ],
+   "quad_pct_main": [
+    86.8,
+    89.0,
+    90.8
+   ],
+   "paint_hard_pct": [
+    3.2,
+    4.8,
+    7.4
+   ],
+   "paint_texel_px_m": [
+    222.0,
+    336.0,
+    427.5
+   ],
+   "bend_p90_deg": [
+    23.9,
+    29.7,
+    37.2
+   ],
+   "texture_mb": [
+    30.9,
+    33.7,
+    35.7
+   ],
+   "pct_plain_normals": 100.0,
+   "pct_unique_uv_lr": 93.0,
+   "pct_lods": 96.0,
+   "pct_windscreen": 97.0,
+   "pct_broken_glass": 94.0,
+   "pct_rim_blur": 99.0,
+   "pct_alpha": 97.0,
+   "pct_paint_nm": 100.0,
+   "pct_skin_1024": 37.0,
+   "pct_skin_2048": 54.0,
+   "dummies_med": 15.0,
+   "root_kind": {
+    "FBX": 65,
+    "_$$3DSimED$$_": 2
+   }
+  },
+  "mod": {
+   "n": 29,
+   "cars": [
+    "clio_williams_p",
+    "opel_kadett",
+    "renault_5_turbo_r",
+    "lotus_esprit_race",
+    "talbot_sunbeam_lotus_lhd_stock",
+    "ford_escort_mk2_rally_spec",
+    "bdb_volvo_850r",
+    "bdb_mazda_rx7_fc3s",
+    "bdb_chevrolet_corvette_c6",
+    "bg_lotus_carlton",
+    "chevy_belair_1957",
+    "citroen_saxo_cup",
+    "cup_dacia_sandero",
+    "ford_anglia_1966_s1",
+    "ford_sierra_cosworth_rs500_dtm_90s",
+    "j8_honda_nsx_na1_type_r",
+    "j8_mitsubishi_gto_twin_turbo_91",
+    "streetcarpack_honda_s2000_ap2",
+    "streetcarpack_toyota_mr2_sw20",
+    "streetcarpack_subaru_impreza_22b",
+    "streetcarpack_mazda_rx7_fd3s",
+    "tg_beetle_cup",
+    "vaz2106club",
+    "volvo_745_malaska",
+    "rr_phantom",
+    "pb_shb_gt500_68",
+    "opelmanta_400",
+    "ddm_daihatsu_copen_street",
+    "adc_mazda_mx5_na"
+   ],
+   "tris": [
+    191353.0,
+    282615.0,
+    420771.0
+   ],
+   "paint_tris": [
+    32382.2,
+    51020.5,
+    80036.2
+   ],
+   "paint_edge_mm": [
+    14.4,
+    18.5,
+    29.4
+   ],
+   "quad_pct_main": [
+    84.9,
+    91.0,
+    92.7
+   ],
+   "paint_hard_pct": [
+    1.2,
+    4.9,
+    12.4
+   ],
+   "paint_texel_px_m": [
+    217.8,
+    376.5,
+    489.8
+   ],
+   "bend_p90_deg": [
+    12.9,
+    17.2,
+    26.3
+   ],
+   "texture_mb": [
+    39.9,
+    68.8,
+    99.7
+   ],
+   "pct_plain_normals": 93.0,
+   "pct_unique_uv_lr": 76.0,
+   "pct_lods": 59.0,
+   "pct_windscreen": 86.0,
+   "pct_broken_glass": 10.0,
+   "pct_rim_blur": 21.0,
+   "pct_alpha": 72.0,
+   "pct_paint_nm": 97.0,
+   "pct_skin_1024": 0.0,
+   "pct_skin_2048": 59.0,
+   "dummies_med": 7.0,
+   "root_kind": {
+    "FBX": 27,
+    "ford_anglia_1966_s1": 1,
+    "_$$3DSimED$$_": 1
+   }
+  },
+  "open": {
+   "n": 12,
+   "cars": [
+    "ks_lotus_25",
+    "ks_lotus_72d",
+    "lotus_49",
+    "lotus_98t",
+    "ferrari_312t",
+    "ks_ferrari_312_67",
+    "ks_ferrari_f2004",
+    "ks_ferrari_sf70h",
+    "ks_maserati_250f_6cyl",
+    "tatuusfa1",
+    "ks_lotus_3_eleven",
+    "ktm_xbow_r"
+   ],
+   "tris": [
+    111695.0,
+    170878.5,
+    202274.5
+   ],
+   "paint_tris": [
+    13015.5,
+    17520.0,
+    30861.5
+   ],
+   "paint_edge_mm": [
+    15.3,
+    17.9,
+    19.5
+   ],
+   "quad_pct_main": [
+    86.1,
+    88.5,
+    90.2
+   ],
+   "paint_hard_pct": [
+    10.1,
+    12.6,
+    15.8
+   ],
+   "paint_texel_px_m": [
+    252.0,
+    363.5,
+    554.8
+   ],
+   "bend_p90_deg": [
+    24.9,
+    30.1,
+    35.3
+   ],
+   "texture_mb": [
+    30.1,
+    32.1,
+    36.5
+   ],
+   "pct_plain_normals": 100.0,
+   "pct_unique_uv_lr": 83.0,
+   "pct_lods": 100.0,
+   "pct_windscreen": 50.0,
+   "pct_broken_glass": 75.0,
+   "pct_rim_blur": 100.0,
+   "pct_alpha": 92.0,
+   "pct_paint_nm": 100.0,
+   "pct_skin_1024": 17.0,
+   "pct_skin_2048": 58.0,
+   "dummies_med": 10.0,
+   "root_kind": {
+    "FBX": 12
+   }
+  },
+  "traffic": {
+   "n": 3,
+   "cars": [
+    "traffic_volvo_v70",
+    "nohesi_traffic_tesla_model_3",
+    "traffic_aegis_suzuki_alto_works"
+   ],
+   "tris": [
+    22312.5,
+    25261.0,
+    25635.5
+   ],
+   "paint_tris": [
+    2904.5,
+    3723.0,
+    4541.5
+   ],
+   "paint_edge_mm": [
+    64.3,
+    67.8,
+    71.2
+   ],
+   "quad_pct_main": [
+    64.5,
+    69.8,
+    75.0
+   ],
+   "paint_hard_pct": [
+    9.6,
+    14.1,
+    18.6
+   ],
+   "paint_texel_px_m": [
+    50.0,
+    91.0,
+    132.0
+   ],
+   "bend_p90_deg": [
+    30.5,
+    42.1,
+    53.7
+   ],
+   "texture_mb": [
+    0.0,
+    0.0,
+    1.2
+   ],
+   "pct_plain_normals": 33.0,
+   "pct_unique_uv_lr": 33.0,
+   "pct_lods": 100.0,
+   "pct_windscreen": 0.0,
+   "pct_broken_glass": 0.0,
+   "pct_rim_blur": 0.0,
+   "pct_alpha": 67.0,
+   "pct_paint_nm": 67.0,
+   "pct_skin_1024": 33.0,
+   "pct_skin_2048": 0.0,
+   "dummies_med": 2.0,
+   "root_kind": {
+    "FBX": 3
+   }
+  },
+  "ours": {
+   "n": 1,
+   "cars": [
+    "vauxhall_nova_gte_1989"
+   ],
+   "tris": [
+    1442325.0,
+    1442325.0,
+    1442325.0
+   ],
+   "paint_tris": [
+    747655.0,
+    747655.0,
+    747655.0
+   ],
+   "paint_edge_mm": [
+    5.5,
+    5.5,
+    5.5
+   ],
+   "quad_pct_main": [
+    60.1,
+    60.1,
+    60.1
+   ],
+   "paint_hard_pct": [
+    2.2,
+    2.2,
+    2.2
+   ],
+   "paint_texel_px_m": [
+    31.0,
+    31.0,
+    31.0
+   ],
+   "bend_p90_deg": [
+    8.6,
+    8.6,
+    8.6
+   ],
+   "texture_mb": [
+    0.1,
+    0.1,
+    0.1
+   ],
+   "pct_plain_normals": 100.0,
+   "pct_unique_uv_lr": 0.0,
+   "pct_lods": 0.0,
+   "pct_windscreen": 0.0,
+   "pct_broken_glass": 0.0,
+   "pct_rim_blur": 0.0,
+   "pct_alpha": 0.0,
+   "pct_paint_nm": 100.0,
+   "pct_skin_1024": 0.0,
+   "pct_skin_2048": 0.0,
+   "dummies_med": 5.0,
+   "root_kind": {
+    "ROOT": 1
+   }
+  }
+ },
+ "spec": {
+  "kunos": {
+   "length": {
+    "n": 60,
+    "median_abs": 14.0,
+    "p90_abs": 102.0,
+    "bias": 3.0
+   },
+   "width": {
+    "n": 39,
+    "median_abs": 7.0,
+    "p90_abs": 45.0,
+    "bias": -3.0
+   },
+   "height": {
+    "n": 55,
+    "median_abs": 20.0,
+    "p90_abs": 59.0,
+    "bias": -11.0
+   },
+   "wheelbase": {
+    "n": 63,
+    "median_abs": 2.0,
+    "p90_abs": 16.0,
+    "bias": 0.0
+   },
+   "track_f": {
+    "n": 4,
+    "median_abs": 10.0,
+    "p90_abs": 28.0,
+    "bias": 10.0
+   },
+   "track_r": {
+    "n": 4,
+    "median_abs": 4.0,
+    "p90_abs": 5.0,
+    "bias": -3.0
+   }
+  },
+  "mod": {
+   "length": {
+    "n": 28,
+    "median_abs": 56.0,
+    "p90_abs": 116.0,
+    "bias": 22.0
+   },
+   "width": {
+    "n": 16,
+    "median_abs": 22.0,
+    "p90_abs": 78.0,
+    "bias": 8.0
+   },
+   "height": {
+    "n": 25,
+    "median_abs": 49.0,
+    "p90_abs": 80.0,
+    "bias": -32.0
+   },
+   "wheelbase": {
+    "n": 28,
+    "median_abs": 8.0,
+    "p90_abs": 26.0,
+    "bias": -0.0
+   },
+   "track_f": {
+    "n": 2,
+    "median_abs": 47.0,
+    "p90_abs": 64.0,
+    "bias": 21.0
+   },
+   "track_r": {
+    "n": 2,
+    "median_abs": 40.0,
+    "p90_abs": 47.0,
+    "bias": 10.0
+   }
+  },
+  "open": {
+   "length": {
+    "n": 5,
+    "median_abs": 18.0,
+    "p90_abs": 325.0,
+    "bias": 2.0
+   },
+   "width": {
+    "n": 2,
+    "median_abs": 11.0,
+    "p90_abs": 19.0,
+    "bias": -10.0
+   },
+   "height": {
+    "n": 2,
+    "median_abs": 17.0,
+    "p90_abs": 24.0,
+    "bias": 17.0
+   },
+   "wheelbase": {
+    "n": 10,
+    "median_abs": 6.0,
+    "p90_abs": 32.0,
+    "bias": -2.0
+   }
+  },
+  "traffic": {
+   "length": {
+    "n": 2,
+    "median_abs": 90.0,
+    "p90_abs": 110.0,
+    "bias": 90.0
+   },
+   "height": {
+    "n": 2,
+    "median_abs": 117.0,
+    "p90_abs": 193.0,
+    "bias": 117.0
+   },
+   "wheelbase": {
+    "n": 3,
+    "median_abs": 45.0,
+    "p90_abs": 49.0,
+    "bias": 45.0
+   }
+  },
+  "ours": {
+   "length": {
+    "n": 1,
+    "median_abs": 0.0,
+    "p90_abs": 0.0,
+    "bias": 0.0
+   },
+   "height": {
+    "n": 1,
+    "median_abs": 3.0,
+    "p90_abs": 3.0,
+    "bias": 3.0
+   },
+   "wheelbase": {
+    "n": 1,
+    "median_abs": 0.0,
+    "p90_abs": 0.0,
+    "bias": 0.0
+   }
+  }
+ },
+ "tech": {}
+}

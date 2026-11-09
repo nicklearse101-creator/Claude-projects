@@ -1,0 +1,46 @@
+{
+ "_doc": "New two-view photo marks (2026-10-27), triangulated with the BA cameras -> blender/data/cad/marks_v2.json.",
+ "frame": "model (photo z + 0.0193)",
+ "points": {
+  "LOCK_R": {
+   "xyz_model": [
+    -0.0172,
+    1.7156,
+    0.7804
+   ],
+   "ray_gap_mm": 1.2,
+   "angle_deg": 49,
+   "marks": {
+    "c24": [
+     629.0,
+     476.0
+    ],
+    "cAR": [
+     1149.0,
+     512.0
+    ]
+   },
+   "what": "tailgate lock barrel recess, centre (on the grey bar)"
+  },
+  "BADGE_R": {
+   "xyz_model": [
+    -0.0182,
+    1.6608,
+    0.8669
+   ],
+   "ray_gap_mm": 7.5,
+   "angle_deg": 49,
+   "marks": {
+    "c24": [
+     627.8,
+     408.8
+    ],
+    "cAR": [
+     1128.0,
+     465.0
+    ]
+   },
+   "what": "Vauxhall griffin badge on the tailgate, centre"
+  }
+ }
+}

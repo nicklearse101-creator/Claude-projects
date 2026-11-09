@@ -1,0 +1,1572 @@
+Title: Building Nova Cockpit
+URL: https://chatgpt.com/share/6ae30fbb-a594-83ed-bf75-882c1b28f14d
+Source element: <main>
+---
+This is a copy of a shared ChatGPT chat. It won't be added to memory.
+
+Report conversation
+How to make Claude much better at 3D modelling your 1989 Nova GTE
+
+I think you've identified a genuine weakness in a text-first workflow: Claude can help plan and write the code for a 3D model, but it needs other tools to generate visual references, create geometry, inspect the results and correct modelling mistakes.
+
+The good news is that you don't need to replace Claude. You can turn it into the central controller of a much more capable 3D workflow.
+
+For your 1989 right-hand-drive Vauxhall Nova GTE project for Assetto Corsa, I'd combine Claude Code, Blender, image-generation tools, 3D reconstruction tools and automated testing.
+
+The principle is simple:
+
+Claude plans and coordinates. Image-generation tools create visual references. Blender creates and edits the actual model. 3D reconstruction tools provide starting geometry. Automated checks and screenshots let Claude inspect and improve the results.
+
+You want Claude to work on the real project files, not merely tell you how you could model something.
+
+1. The tools I'd recommend
+
+Here is the toolchain I'd build around Claude, ranked by how useful I think each tool would be for your Nova.
+
+Essential tools
+A. Blender — the modelling environment
+12
+
+Official download: Blender
+
+Blender should remain the main environment for the entire project.
+
+Claude can use Blender's Python API to:
+
+Create and modify meshes.
+
+Import reference images and align them to the correct views.
+
+Build dashboards, gauge housings and interior trim.
+
+Set up materials and UV maps.
+
+Create object hierarchies and pivots.
+
+Generate and adjust animations.
+
+Check object names and dimensions.
+
+Export assets for Assetto Corsa.
+
+The important change is to stop treating Blender as something you operate manually while Claude gives you instructions.
+
+Connect Claude directly to Blender so it can work on your actual scene.
+
+That brings us to the most important tool in this list.
+
+B. Blender MCP — give Claude direct access to Blender
+8
+
+Start with the official Blender MCP Server
+.
+
+MCP stands for Model Context Protocol. It provides a way for an AI assistant to communicate with an external application.
+
+Blender's developers provide an MCP integration that allows compatible AI clients to interact with Blender's Python API. Anthropic also documents the Blender connector and its use with Claude. 
+blender.org
++1
+
+This is more valuable than simply giving Claude a 3D modelling tutorial.
+
+For example, you could ask Claude:
+
+Inspect my current Blender scene. Identify the dashboard, steering wheel, instrument cluster and pedal objects. Report their dimensions and positions, identify any missing components, and suggest corrections without modifying the scene.
+
+After reviewing the report, you could ask:
+
+Create the missing instrument binnacle using the existing dashboard geometry as the reference. Keep the model in the correct right-hand-drive position. Use separate objects for the housing, dial faces, glass and needles. Do not modify the exterior bodywork.
+
+Claude can use the connection to inspect the scene and perform supported operations directly.
+
+How to connect it
+
+The official integration has installation instructions, including the Blender add-on and MCP server requirements. Follow the current instructions for your installed versions rather than mixing instructions from different integrations. 
+blender.org
++1
+
+Start here:
+
+Blender's official MCP instructions
+
+Claude's Blender connector
+
+One important distinction: Claude Code and Claude Desktop are different clients, but the Blender MCP approach can support Claude Code too. You don't have to abandon your coding workflow to connect the modelling environment. 
+Claude Academy
++1
+
+Security warning: Blender's MCP server can execute AI-generated code in Blender without built-in safeguards. Use version control, backups and a dedicated project environment. Don't give an experimental integration unrestricted access to sensitive files. 
+blender.org
+
+C. ChatGPT Images — compensate for Claude's image-generation limitation
+
+Official access: ChatGPT Images
+
+You can use ChatGPT to generate or edit images, including using existing images as references. Its image tools support iterative editing and reference-guided changes. 
+OpenAI Help Center
+
+For your project, I would use image generation for three specific purposes.
+
+1. Concept development
+
+Generate a proposed view of the Nova's dashboard, instrument binnacle or centre console when you need to explore a visual detail.
+
+2. Reference interpretation
+
+Give ChatGPT photographs of the original interior and ask for help identifying the visible components, comparing views and planning how to model them.
+
+3. Visual guides
+
+Generate simplified component illustrations, exploded-view concepts or material references that help you communicate a modelling task to Claude.
+
+However, there is an important limitation.
+
+An AI-generated picture of a 1989 Nova GTE dashboard is not evidence that the dashboard actually looked that way.
+
+For historical accuracy, use real photographs as your primary references. Use generated images to fill gaps in your visual planning, not to invent supposedly original details.
+
+Also, an image generated by ChatGPT is not automatically a working 3D model. You will still need Blender or a 3D reconstruction tool to create geometry.
+
+D. Meshy — generate individual 3D components
+
+Official website: Meshy
+
+7
+
+Meshy supports text-to-3D and image-to-3D workflows, with options for generating textured models and optimising topology. 
+Meshy Help Center
++1
+
+I would use it to produce starting geometry for individual components, rather than trying to generate the entire Nova interior in one go.
+
+Good candidates include:
+
+A generic dashboard vent.
+
+A gear knob.
+
+A plastic switch.
+
+A rubber pedal pad.
+
+A seat component.
+
+A small trim component whose exact shape is difficult to model manually.
+
+You could generate a component from a photograph or a prepared reference image, export the result and import it into Blender.
+
+Claude could then help you clean up the geometry, place the object and integrate it into the main scene.
+
+Where Meshy is less suitable
+
+I wouldn't trust a single AI-generated mesh to reproduce an exact historical dashboard.
+
+Image-to-3D tools infer unseen geometry. They may create incorrect depths, hidden surfaces, proportions or topology even when the visible image looks convincing.
+
+For a Nova interior, those errors matter because components must fit together and align with the actual dashboard.
+
+Use Meshy to accelerate modelling, not to replace accurate reference-based construction.
+
+Also check the licensing terms for your chosen plan before using generated assets in a distributed mod. Meshy's published documentation distinguishes between licensing options. 
+Meshy Docs
+
+E. Tripo — another route from image to geometry
+
+Official website: Tripo
+
+Tripo offers a Blender extension for generating models from text or images, including multi-view workflows. Generated assets can be imported into Blender for further editing. 
+GitHub
++1
+
+Its Blender integration is attractive because it reduces the number of manual steps between generating a component and getting it into your scene.
+
+I would test Tripo and Meshy on the same simple object before paying for either.
+
+For example, use a reference photograph of a dashboard air vent. Compare the results for:
+
+Shape accuracy.
+
+Mesh quality.
+
+Ease of editing.
+
+Texture quality.
+
+Amount of cleanup required.
+
+Pick whichever produces the most useful starting geometry for your particular objects.
+
+My advice: Don't subscribe to both immediately. Start with one, evaluate the results, and only add the second if it offers a clear advantage.
+
+2. The biggest upgrade: make Claude work in a visual feedback loop
+
+Giving Claude access to Blender is only half the solution.
+
+The next step is to let it inspect what it has built, compare it against your references and correct the result.
+
+Without that loop, Claude might write a script that runs successfully but creates a dashboard that's too wide, has the wrong proportions or puts the steering wheel in the wrong place.
+
+I'd build the workflow like this:
+
+12
+The workflow
+
+Step 1 — Gather reference images
+
+Collect genuine photographs of the original Nova GTE interior.
+
+Prioritise:
+
+Straight-on dashboard photographs.
+
+Direct views of the instrument cluster.
+
+Steering wheel close-ups.
+
+Driver's-side pedal photographs.
+
+Centre console and gear lever photographs.
+
+Keep the original images unchanged. Create separate working copies for cropping, alignment and annotation.
+
+Step 2 — Have Claude analyse the references
+
+Ask Claude to produce a component inventory and a modelling plan.
+
+It should identify:
+
+Which components are visible.
+
+Which dimensions are known.
+
+Which proportions can be estimated.
+
+Which features remain uncertain.
+
+Which parts should be separate objects.
+
+Do not let it invent measurements and present them as facts. Label estimates explicitly.
+
+Step 3 — Ask Claude to build one component
+
+Start with the dashboard blockout, not the entire cockpit.
+
+Have Claude create a simple model using Blender's Python API. Request separate objects for the dashboard, instrument housing and centre console.
+
+Step 4 — Render the result
+
+Ask Claude to create a repeatable render from the same camera angle as your reference.
+
+If the MCP integration doesn't expose the image in a way Claude can inspect, use a script to save a screenshot or render and then provide that image to Claude.
+
+Step 5 — Compare and correct
+
+Ask Claude to identify the largest visible discrepancies and make a small, targeted correction.
+
+For example:
+
+Compare the Blender render against the original dashboard photograph. Concentrate on the overall proportions, the instrument binnacle, steering-wheel position and centre-console width. Identify the three largest discrepancies. Correct only those discrepancies and render again.
+
+Step 6 — Repeat
+
+Keep repeating the process until the major shapes are correct.
+
+Only then add small switches, textures, seams and other details.
+
+Why this works
+
+You are converting an open-ended task into a sequence of measurable improvements.
+
+Instead of asking Claude to make something that merely looks like a Nova, you are giving it a reference, a specific target and a way to evaluate the result.
+
+For a historically accurate car interior, that is far more useful than generating a complete model from a text prompt.
+
+3. Teach Claude how your specific project works
+
+This is where Claude Code becomes particularly useful.
+
+I would create a dedicated project folder containing your Blender file, reference images, modelling scripts, Assetto Corsa configuration files and a set of instructions that Claude reads when working on the project.
+
+For example:
+
+nova-gte-project/
+│
+├── CLAUDE.md
+│
+├── references/
+│   ├── exterior/
+│   ├── dashboard/
+│   ├── instruments/
+│   ├── steering/
+│   ├── pedals/
+│   └── materials/
+│
+├── blender/
+│   ├── nova_gte.blend
+│   ├── scripts/
+│   │   ├── inspect_scene.py
+│   │   ├── build_dashboard.py
+│   │   ├── create_gauges.py
+│   │   └── validate_scene.py
+│   └── renders/
+│
+├── assetto_corsa/
+│   ├── config/
+│   ├── animations/
+│   └── tests/
+│
+└── documentation/
+    ├── reference_log.md
+    ├── dimensions.md
+    ├── modelling_decisions.md
+    └── known_issues.md
+
+This is a proposed organisation, not a required Assetto Corsa folder structure. The development assets can be organised however you prefer, while the finished game files must follow the conventions required by the game and your export tools.
+
+What belongs in CLAUDE.md?
+
+Use it to establish permanent project rules.
+
+For example, tell Claude:
+
+The project is a standard 1989 UK-market, right-hand-drive Nova GTE.
+
+The original road-car specification takes priority over modified or competition cars.
+
+Blender is the source of truth for the 3D geometry.
+
+Real photographs take priority over AI-generated concept images.
+
+Never change the exterior geometry when working on the interior unless explicitly requested.
+
+Use metres consistently in the modelling workflow.
+
+Keep major components as separate, sensibly named objects.
+
+Preserve the existing object hierarchy unless a change is necessary.
+
+Record uncertain dimensions rather than inventing them.
+
+Make incremental changes and save checkpoints.
+
+Render the result after significant geometry changes.
+
+Do not claim that an Assetto Corsa feature works until it has been tested in-game.
+
+You can also document your export process, Blender version, Assetto Corsa version, CSP version and any naming conventions you've already established.
+
+This avoids having to explain the same constraints every time you start a new Claude Code session.
+
+Make Claude build reusable tools
+
+Don't just ask Claude to model the car. Ask it to create small tools that make subsequent modelling easier.
+
+For example:
+
+A scene inspector
+
+A script that reports object names, dimensions, transforms, materials and missing components.
+
+A reference-image manager
+
+A script that imports reference photographs into Blender and places them in the correct orthographic views.
+
+A dashboard builder
+
+A reusable script that creates basic dashboard geometry from configurable dimensions.
+
+A gauge builder
+
+A tool that creates a gauge face, markings, needle geometry and a correctly positioned pivot.
+
+A validation tool
+
+A script that checks for missing materials, incorrect object names, unexpected scale changes and other common problems.
+
+These tools turn repeated work into repeatable operations.
+
+Once Claude has written and tested a good gauge builder, for example, you can reuse it for the speedometer, rev counter and other instruments rather than reinventing the process for every dial.
+
+4. Use procedural modelling for the accurate parts
+
+This is one of the most important techniques I would use for your Nova.
+
+AI-generated geometry is useful for getting a starting point, but procedural modelling is often better when you need predictable dimensions and repeatable construction.
+
+Procedural modelling means using parameters and code to create geometry.
+
+For example, a gauge builder might accept:
+
+Gauge diameter
+Housing depth
+Face thickness
+Number of markings
+Minimum displayed value
+Maximum displayed value
+Needle length
+Needle pivot position
+
+Claude writes the script once. You can then adjust those parameters to produce different gauges.
+
+The same idea works for other parts of the cockpit.
+
+Component	Recommended method	Why
+Dashboard blockout	Parameterised Blender geometry	Easy to adjust proportions
+Instrument housing	Procedural geometry plus manual refinement	Predictable shape and depth
+Gauge faces	Procedural layout and reference-based textures	Accurate markings and spacing
+Gauge needles	Simple mesh construction	Easy to animate
+Air vents	Procedural or manually modelled geometry	Repeated shapes are easy to generate
+Pedals	Simple mesh geometry with defined pivots	Predictable movement
+Switches	Reusable component templates	Avoids modelling each switch from scratch
+Seat	Manual modelling, optionally assisted by image-to-3D	Complex shape, but must fit the car
+Upholstery	UV mapping and texture work	Better control over fabric appearance
+Fine dashboard grain	Texture maps	More efficient than modelling every detail
+An example: the instrument cluster
+
+Suppose your reference photographs show that the instrument cluster has a central rev counter and speedometer, with smaller secondary gauges.
+
+You could ask Claude to create a configurable instrument-cluster generator.
+
+It would:
+
+Create the outer housing.
+
+Position the gauge faces.
+
+Generate markings around each dial.
+
+Create separate needles.
+
+Place the needle pivots.
+
+Assign materials.
+
+Name the objects consistently.
+
+Produce a test render.
+
+You would then compare the output against the original photographs and adjust the parameters.
+
+The benefit is that you can change the diameter, spacing or depth of the gauges without rebuilding the entire assembly.
+
+For the Nova, I would favour a hybrid approach: procedural geometry for precise, repeated elements and manual refinement for the complex dashboard surfaces.
+
+That gives you much more control than asking an image-to-3D service to guess the entire interior.
+
+5. Use AI-generated images as modelling references, not finished geometry
+
+This is where I would make the most of image generation.
+
+Rather than asking an image generator to create an entire Nova interior and hoping the result is accurate, use it to produce specific visual aids for your modelling workflow.
+
+Three useful image-generation techniques
+Technique A: Generate a component study
+
+Ask for a clear visual study of one component, such as a dashboard air vent or steering-wheel centre.
+
+Use the image to explore shape, surface finish and how the component might be constructed.
+
+Then give Claude the image and ask it to build a similar component in Blender.
+
+For historically accurate components, supply real photographs as well. Otherwise, the generated design may be visually plausible but wrong for the car.
+
+Technique B: Create a material reference sheet
+
+Generate a sheet of material samples showing different types of period-correct dashboard plastic, rubber, seat fabric and carpet.
+
+Use this as a visual guide when creating Blender materials.
+
+It can help you communicate the intended finish to Claude, but you should still use appropriate texture maps and physically plausible material settings.
+
+Technique C: Annotate a real photograph
+
+This is probably the most useful technique for your particular project.
+
+Start with a real photograph of the dashboard. Use an image editor or image-generation tool to produce a working copy with clearly identified components.
+
+For example, label:
+
+Instrument binnacle.
+
+Dashboard top.
+
+Main dashboard fascia.
+
+Centre console.
+
+Steering column.
+
+Heater controls.
+
+Air vents.
+
+Give that annotated reference to Claude and ask it to create a component inventory and proposed Blender object hierarchy.
+
+Keep an unaltered copy of every original photograph. AI editing can change details, so don't use an edited reference as proof of the car's original specification.
+
+For image generation and editing, you can use ChatGPT Images
+. The image-generation documentation also explains reference-guided editing and iterative refinement. 
+OpenAI Help Center
+
+6. Make Claude Code a 3D modelling assistant, not just a coding assistant
+
+I'd organise your work into three different types of task.
+
+Task type 1: Research and planning
+
+Claude examines the references and produces a written plan.
+
+It should establish:
+
+What needs modelling.
+
+Which dimensions are known.
+
+Which components can be generated procedurally.
+
+Which components might benefit from image-to-3D.
+
+What needs manual refinement.
+
+How each component will work in Assetto Corsa.
+
+Nothing gets modelled until the plan is clear enough to proceed.
+
+Task type 2: Geometry creation
+
+Claude works in Blender, creating one component or a small group of related components.
+
+It should:
+
+Use the actual reference images.
+
+Work within the existing coordinate system.
+
+Preserve the established object hierarchy.
+
+Create separate objects for interactive components.
+
+Save a checkpoint.
+
+Render the result.
+
+Task type 3: Testing and correction
+
+Claude inspects the result and compares it against the requirements.
+
+It should check:
+
+Whether the geometry matches the references.
+
+Whether components intersect unexpectedly.
+
+Whether dimensions have changed.
+
+Whether materials have been assigned.
+
+Whether pivots are correctly positioned.
+
+Whether the scene still exports correctly.
+
+This is where automated scripts can save you a lot of time.
+
+For example, a Blender script could check whether every gauge needle has a corresponding pivot and whether each expected instrument object exists.
+
+The script cannot necessarily determine whether a needle is visually accurate, but it can catch structural problems before you test the model in Assetto Corsa.
+
+Give Claude measurable objectives
+
+Avoid instructions like:
+
+Make the dashboard look more realistic.
+
+Instead, use instructions like:
+
+Compare the current dashboard against the supplied reference photographs. Identify the largest three differences in the dashboard's overall shape and the instrument cluster's position. Correct the geometry without changing the exterior model or driver's eye position. Render front and driver's-eye views, and report what remains inaccurate.
+
+This is more actionable because it gives Claude a clear target and constraints.
+
+7. Make the final 3D model suitable for Assetto Corsa
+
+There is a difference between generating an attractive 3D asset and building a working game asset.
+
+A model can look excellent in a render but be unsuitable for a simulator because it has poor topology, incorrect scale, unsuitable materials or no usable object hierarchy.
+
+For your project, I'd establish an Assetto Corsa validation process from the beginning.
+
+Geometry checks
+
+Ask Claude to check:
+
+Overall dimensions.
+
+Object scale and transforms.
+
+Face normals.
+
+Unexpected holes.
+
+Unwanted internal geometry.
+
+Material assignments.
+
+UV mapping.
+
+Object naming.
+
+Polygon counts where relevant.
+
+Interactive-object checks
+
+For components that need to work in-game, also check:
+
+Steering-wheel pivot and rotation axis.
+
+Pedal pivots.
+
+Gear-lever pivot.
+
+Gauge needle pivots.
+
+Correct object hierarchy.
+
+Correct configuration references.
+
+In-game checks
+
+Finally, export and test the model in Assetto Corsa.
+
+A successful Blender render does not prove that the cockpit will work correctly in the game.
+
+For example, a needle may rotate correctly in Blender but fail to respond in Assetto Corsa because its object name or configuration is wrong.
+
+Similarly, a steering wheel can be modelled correctly but rotate around the wrong axis after export.
+
+Claude should help you diagnose these issues, but the actual in-game test remains essential.
+
+8. Give Claude a reusable master prompt for the Nova
+
+I'd create a project-specific instruction that you can reuse whenever you want Claude to work on the cockpit.
+
+Here is the starting prompt I'd use.
+
+Nova GTE modelling instructions
+PROJECT
+Create an accurate, interactive 3D interior for a standard 1989
+UK-market, right-hand-drive Vauxhall Nova GTE for Assetto Corsa.
+
+YOUR ROLE
+Act as an automotive 3D modelling specialist, Blender Python
+developer and Assetto Corsa modding assistant.
+
+TOOLS
+- Use Blender for the actual 3D geometry.
+- Use the available Blender MCP connection to inspect and
+  modify the open scene where appropriate.
+- Use Python scripts for repeatable modelling and validation.
+- Use reference photographs as the primary source of truth.
+- Use image-to-3D tools only when they offer a practical
+  advantage over procedural or manual modelling.
+
+ACCURACY
+- Preserve the original road-car specification.
+- Do not substitute later Nova GSi components without evidence.
+- Preserve right-hand-drive configuration.
+- Do not invent dimensions and present them as measurements.
+- Record estimated dimensions and unresolved uncertainties.
+- Keep AI-generated concept images separate from verified
+  historical reference photographs.
+
+MODELLING
+- Work in logical, separately named components.
+- Preserve the existing exterior geometry.
+- Maintain consistent scale and object transforms.
+- Use procedural modelling for repeated or parameterised parts.
+- Use appropriate geometry for visible mechanical components.
+- Keep steering, pedals, gauge needles and switches separate
+  when they require animation.
+- Avoid unnecessary polygon density.
+
+WORKFLOW
+1. Inspect the existing project before making changes.
+2. Identify the relevant references.
+3. Report the proposed changes.
+4. Create one component or small group at a time.
+5. Save a checkpoint before significant modifications.
+6. Render consistent views for comparison.
+7. Identify discrepancies and correct them iteratively.
+8. Validate geometry and object relationships.
+9. Test exported components in Assetto Corsa.
+10. Report remaining issues honestly.
+
+SAFETY
+- Never overwrite the only copy of a project file.
+- Do not modify unrelated objects.
+- Do not delete project files without explicit permission.
+- Do not execute unrelated system commands.
+- Request confirmation before destructive operations.
+
+FIRST TASK
+Inspect the existing Blender scene and project files.
+
+Do not modify anything yet.
+
+Report:
+- Existing object names and dimensions.
+- Current model organisation.
+- Available reference images.
+- Missing interior components.
+- Potential problems with scale or orientation.
+- Recommended next steps, in priority order.
+
+Put the permanent version of these instructions in CLAUDE.md in your project root. Adapt it to the tools and conventions you actually have installed.
+
+The most important part is the instruction to inspect first and modify second. You don't want Claude rebuilding parts of your existing Nova because it hasn't understood how the scene is organised.
+
+9. My recommended setup, in priority order
+
+If I were setting this up from scratch, I would proceed as follows.
+
+Priority	Tool or technique	Purpose
+1	Blender	Create and manage the actual 3D model
+2	Claude Code	Plan the work, write scripts and coordinate changes
+3	Blender MCP	Let Claude interact with the Blender scene
+4	Reference photographs	Ensure historical and dimensional accuracy
+5	Render-and-review loop	Allow Claude to inspect and correct its work
+6	ChatGPT Images	Generate supporting images and edit visual references
+7	Meshy or Tripo	Generate starting geometry for selected components
+8	Reusable Blender Python scripts	Automate repeated modelling tasks
+9	Automated validation	Catch structural and export problems
+10	Assetto Corsa testing	Verify the finished cockpit in-game
+
+You don't need to install everything immediately.
+
+Start with Blender, Claude Code, the Blender MCP connection and your existing Nova model. That combination is the foundation. Add image generation and 3D reconstruction when you reach components where they genuinely save time.
+
+The single biggest improvement I'd make
+
+Don't try to make Claude generate the whole cockpit in one operation.
+
+Build a workflow in which Claude can:
+
+Inspect the existing model.
+
+Read the reference photographs.
+
+Create a component.
+
+Render it.
+
+Compare the render against the reference.
+
+Correct the geometry.
+
+Save the result.
+
+Verify that it hasn't broken anything else.
+
+That is how you turn an AI assistant into a practical modelling partner.
+
+And remember that an image-to-3D service isn't a substitute for accurate geometry. A generated dashboard might look convincing from one angle while being entirely wrong from another. For a historically accurate Nova, you will get the best results by combining real references, procedural modelling and targeted AI-generated geometry.
+
+One question that would help me tailor this properly
+
+How are you currently running Claude?
+
+A. Claude Code in a Windows terminal, with Blender open separately.
+
+B. Claude Code through VS Code.
+
+C. Claude Desktop.
+
+D. Claude Code with another editor or development environment.
+
+Tell me which one you're using, and I can give you a practical setup for connecting it to Blender, integrating image generation and automating the modelling workflow for your Nova GTE.
+
+Sources
+It's not just the cockpit. I'm struggling to create the 3d model of the car body.  Claude has many references, including accurate diagrams, but struggles to recreate the correct shapes for the panels/body. It already uses Blender fine, it's just the car model never looks very much like the real car. Claude says it all lines up over reference photos, which the dimensions do, but the model looks very different. 
+
+That changes my recommendation quite significantly. If Claude already operates Blender successfully and has accurate Nova GTE reference photographs, diagrams and dimensions, the problem isn't connecting Claude to more tools. It's how Claude is constructing and evaluating the car's geometry.
+
+What you're describing is a common problem with AI-assisted 3D modelling: the dimensions and reference alignment can be correct, but the resulting object still doesn't look like the real car.
+
+A model can line up with front, side and top reference images while having the wrong visual character. The bonnet might be too flat, the wheel arches too circular, the roof too tall, or the transitions between the wings, doors and rear quarters too smooth.
+
+For your 1989 Vauxhall Nova GTE, I would change the modelling method rather than simply giving Claude more reference images.
+
+1. Why Claude can match the diagrams but still get the car wrong
+
+There are five main reasons.
+
+A. Orthographic alignment doesn't guarantee the correct surface
+
+Imagine you have a side-view drawing of the Nova.
+
+Claude builds a body shell and checks it against that drawing. The silhouette lines up perfectly.
+
+Now imagine looking at the car from the front three-quarter angle.
+
+The bonnet might be too wide at the windscreen and too narrow at the nose. The front wings might have the wrong curvature. The shoulders above the wheel arches might be too flat.
+
+None of those errors necessarily shows up in the side-view silhouette.
+
+The same applies to the top view. A body can match the roof outline but have the wrong cross-sectional curvature, window recesses and shoulder lines.
+
+A reference drawing constrains the silhouette, but it doesn't uniquely define the three-dimensional surface between those silhouettes.
+
+This is particularly important for a car body, where relatively subtle changes in curvature can dramatically alter the perceived shape.
+
+B. Claude may be creating the right outline using the wrong geometry
+
+There are several ways to construct a car body in Blender:
+
+Extruding a side profile.
+
+Modelling a collection of individual panels.
+
+Building a surface from cross-sections.
+
+Creating a continuous surface from carefully positioned curves.
+
+Using a subdivision surface workflow.
+
+Constructing surfaces from a network of boundary curves.
+
+These approaches can all produce a model with the correct overall dimensions, but they produce very different surfaces.
+
+For an angular late-1980s hatchback such as the Nova, simply extruding the side profile and smoothing the result is unlikely to produce a convincing body.
+
+The real car has a particular combination of flat-ish panels, subtle curvature, creases, rounded transitions and sharply defined edges.
+
+The modelling method needs to preserve those characteristics.
+
+C. The surface curvature is probably wrong
+
+This is the issue I'd investigate first.
+
+The human eye recognises cars partly through the way light travels across their bodywork.
+
+Consider the Nova's bonnet, front wings, doors and rear quarters. Their identity comes from more than their boundaries. It comes from how their surfaces transition between those boundaries.
+
+If Claude produces a bonnet that is 1,100 mm wide, for example, that doesn't establish whether its centre is flat, crowned or excessively domed.
+
+Likewise, a door can have the correct length and height but still look wrong because its surface curvature and shoulder line are inaccurate.
+
+This explains why a model can pass dimensional checks yet look noticeably unlike the reference.
+
+D. The model may be too smooth or too uniformly rounded
+
+A late-1980s car body isn't a collection of perfectly smooth, inflated surfaces.
+
+It has specific changes in curvature, including:
+
+Relatively flat areas of bonnet and door skin.
+
+Defined transitions around the wheel arches.
+
+Subtle crowns in broad panels.
+
+Changes in surface direction around the wings.
+
+Distinct window frames and recesses.
+
+Sharp or semi-sharp transitions between panels.
+
+If Claude uses subdivision surfaces indiscriminately, it can soften the exact features that make the Nova recognisable.
+
+Conversely, using entirely flat surfaces can make the body look like a low-poly approximation.
+
+The objective is not simply to make the model smooth. It's to make the right parts smooth, the right parts flat, and the right edges sharp.
+
+E. Claude may be judging its own work using the wrong criteria
+
+If Claude reports that the dimensions and reference alignment are correct, it may be evaluating what is easiest to measure rather than what matters most visually.
+
+A useful validation system needs to check more than bounding boxes and silhouette overlays.
+
+It must also examine cross-sections, surface normals, curvature transitions, highlights and three-quarter views.
+
+That's where I'd make the biggest change to your workflow.
+
+2. Change how Claude constructs the body shell
+
+For your Nova, I would move away from a workflow where Claude builds the body, overlays the reference images and declares it correct.
+
+Instead, have it build a surface-driven body model using controlled cross-sections and explicit feature lines.
+
+This is a more technical approach, but it gives Claude much better control over the shapes that determine whether the car looks right.
+
+Method A: Build the body from cross-sections
+15
+
+Think of the Nova body as a series of carefully shaped cross-sections running along its length.
+
+At each longitudinal position, you define the body profile from the centreline outwards, describing the height and width of the body at different vertical levels.
+
+For example, you might establish sections at:
+
+Front bumper.
+
+Front of bonnet.
+
+Front axle.
+
+Rear of bonnet.
+
+Windscreen base.
+
+Dashboard and bulkhead region.
+
+B-pillar.
+
+Rear axle.
+
+Rear hatch.
+
+Rear bumper.
+
+These are starting locations, not a claim that the original body has a structural seam at every position.
+
+Each section defines the body shape at that location. A controlled surface is then generated between neighbouring sections.
+
+Why this works better
+
+Suppose the front wing looks wrong.
+
+With a conventional mesh built through extrusion and repeated smoothing, changing the wing's curvature may affect the bonnet, wheel arch and front bumper.
+
+With a cross-section-based approach, you can adjust the relevant sections and the surface between them.
+
+You can also specify additional sections where the geometry changes quickly, such as around the front wheel arch or the transition into the bumper.
+
+The key is that the cross-sections must be derived from the actual car, not generated as evenly spaced generic profiles.
+
+A Nova-specific body needs Nova-specific sections.
+
+Method B: Define the important feature lines first
+8
+
+Before generating the complete body surface, have Claude identify the major feature lines of the original car.
+
+These include:
+
+Bonnet perimeter.
+
+Front wing and bonnet boundaries.
+
+Headlamp and grille boundaries.
+
+Front bumper profile.
+
+Wheel-arch lips.
+
+Door shut lines.
+
+Window apertures.
+
+Shoulder and waist lines.
+
+Rear-quarter transitions.
+
+Hatch perimeter.
+
+Rear bumper profile.
+
+These lines establish the character of the car.
+
+They should be modelled as explicit curves or edges rather than left to emerge accidentally from a smoothed mesh.
+
+For example, if the Nova's front wing has a defined transition around the wheel arch, that transition should be represented deliberately. Don't expect a subdivision modifier to discover it.
+
+A useful distinction
+
+There are two separate modelling problems:
+
+Primary form: the bonnet, roof, doors, wings and rear quarters that establish the overall shape.
+
+Secondary form: wheel-arch lips, panel shut lines, bumper seams, trim and other smaller details.
+
+Get the primary form correct first. If the primary surfaces are wrong, adding more panel lines will only make the incorrect model more detailed.
+
+3. Use a hybrid surface workflow, not subdivision everywhere
+
+For your project, I would use different modelling methods for different parts of the body.
+
+Component	Preferred approach	Main reason
+Roof	Controlled surface with transverse sections	Maintains the correct crown and roof profile
+Bonnet	Surface guided by perimeter curves and cross-sections	Controls the subtle curvature of the panel
+Front wings	Cross-sections combined with wheel-arch geometry	Preserves the relationship between the wing and arch
+Doors	Defined perimeter and surface profiles	Prevents the panels becoming excessively rounded
+Rear quarters	Controlled surfaces between wheel arch, roof and hatch	Maintains the distinctive rear body shape
+Bumpers	Separate surfaces or meshes	Makes their shape and attachment easier to control
+Wheel arches	Explicit arch curves and surrounding surfaces	Prevents generic, overly circular arches
+Window apertures	Defined curves and carefully controlled surrounding geometry	Keeps glass openings and pillars accurate
+Door shut lines	Separate curves, grooves or carefully defined edges	Allows adjustment without rebuilding the whole body
+
+This doesn't mean every panel must be a separate, disconnected mesh.
+
+A production-quality body can use multiple connected surfaces, with continuity carefully controlled at the boundaries.
+
+The important thing is to avoid letting a single generic smoothing operation dictate the shape of the whole car.
+
+What about NURBS?
+
+NURBS surfaces and curves are useful because they allow precise control over smooth surface shape using relatively few control points.
+
+However, Blender's NURBS support is not a complete automotive surfacing CAD system. It doesn't automatically solve the problems of maintaining surface continuity, joining panels or producing a clean game-ready mesh.
+
+For your project, a sensible workflow is:
+
+Use curves and cross-sections to establish the intended shape.
+
+Generate or construct controlled surfaces.
+
+Refine the surfaces where necessary.
+
+Convert the result into an appropriate mesh.
+
+Inspect the mesh, normals, topology and shading.
+
+Export and test it in Assetto Corsa.
+
+Use NURBS where they help, not simply because they sound more advanced.
+
+4. The missing ingredient: curvature analysis
+
+This is the technique I would introduce first if Claude is already good at building dimensionally accurate geometry.
+
+Instead of asking, "Does the model line up with the reference?", ask, "Does the surface bend in the same way as the real car?"
+
+Use a moving highlight to inspect the body
+12
+
+In automotive design, reflected highlights reveal the quality of a surface.
+
+A broad highlight travelling smoothly across a bonnet tells you something about its curvature. A sudden kink, unexpected bulge or wavering reflection can reveal a surface defect that is difficult to see in a flat-shaded viewport.
+
+You can use this principle in Blender.
+
+Set up a surface-inspection scene
+
+Ask Claude to create a dedicated inspection setup with:
+
+A dark, neutral material.
+
+A large rectangular area light.
+
+A long, narrow strip light.
+
+A reflective studio environment.
+
+A fixed three-quarter camera.
+
+Front, side and rear inspection cameras.
+
+The purpose is to reveal the shape, not to create a beautiful render.
+
+Render the Nova from the same camera positions after every significant change.
+
+What Claude should look for
+
+Bonnet: Does the highlight travel smoothly across the surface, and does the bonnet have the correct amount of crown?
+
+Front wings: Do the reflections describe the intended curvature around the wheel arches without making the wings look inflated?
+
+Doors: Are the broad surfaces appropriately restrained, or do they look like bulging panels?
+
+Roof: Does the roof profile transition correctly into the windscreen, pillars and rear hatch?
+
+Rear quarters: Does the surface connect the roof, side windows, wheel arches and rear bodywork convincingly?
+
+Bumpers: Are the transitions consistent with the original shape, rather than generic rounded corners?
+
+A warning: a perfectly smooth highlight isn't always the goal. Real bodywork includes changes in curvature and defined edges. The target is the correct surface behaviour, not maximum smoothness.
+
+Can Claude automate this?
+
+To a useful extent, yes.
+
+Claude can create the inspection lights, camera positions, materials and repeatable renders through Blender's Python API.
+
+It can also inspect rendered images when those images are made available to its vision capabilities.
+
+You can ask it to compare two renders and identify where the highlight pattern differs.
+
+However, don't expect it to calculate the exact original surface from a few photographs. It can help identify discrepancies, but accurate reconstruction still depends on the quality of the source evidence and your modelling constraints.
+
+5. Make the references do more than constrain the silhouette
+
+You mentioned that Claude already has accurate diagrams and reference photographs.
+
+I would keep those, but change how they're used.
+
+Give each reference a specific purpose
+Reference	What Claude should extract
+Side elevation	Overall length, roofline, bonnet profile, wheelbase and side silhouette
+Front elevation	Overall width, bonnet outline, wing positions and lamp arrangement
+Rear elevation	Rear width, hatch outline, lamp positions and bumper profile
+Top view	Bonnet, roof, hatch and body-width transitions
+Front three-quarter photograph	Front-wing curvature, bonnet crown and bumper transitions
+Rear three-quarter photograph	Rear-quarter curvature, hatch relationship and bumper shape
+Wheel-arch close-up	Arch profile, lip shape and surrounding panel curvature
+Window close-up	Aperture shape, pillar thickness and surrounding body transitions
+
+The important change is that Claude should no longer use every image as an interchangeable alignment reference.
+
+Each image should constrain specific properties.
+
+For example, the side elevation constrains the roofline, but a three-quarter photograph helps establish the roof's cross-sectional curvature.
+
+Use multiple views to solve different unknowns
+
+Suppose the bonnet matches the side and top views but looks too flat in a three-quarter render.
+
+Don't tell Claude to change the bonnet until it looks better.
+
+Instead, ask it to identify which dimension is wrong:
+
+Is the centreline height incorrect?
+
+Is the edge height incorrect?
+
+Is the cross-sectional crown too shallow?
+
+Is the transition into the front wings incorrect?
+
+Is the front-to-rear curvature changing too abruptly?
+
+Then have it adjust the relevant cross-sections and render the result again.
+
+That approach produces controlled, explainable improvements rather than repeated guesses.
+
+Important limitation
+
+If you only have a front elevation, side elevation and top view, some surface details remain underdetermined. Multiple different three-dimensional shapes can satisfy those views.
+
+Additional three-quarter photographs, close-ups, measurements or scans can reduce that uncertainty.
+
+If a particular area cannot be established from the available evidence, Claude should record the uncertainty rather than pretending the geometry is exact.
+
+6. The workflow I would actually use for your Nova
+
+I would not rebuild the entire car immediately.
+
+I'd start with the existing model and establish whether its primary surfaces are fundamentally wrong or whether the problem is concentrated in particular panels.
+
+Phase 1: Diagnose the existing model
+
+Have Claude render:
+
+Front orthographic.
+
+Rear orthographic.
+
+Left-side orthographic.
+
+Right-side orthographic.
+
+Top orthographic.
+
+Front three-quarter.
+
+Rear three-quarter.
+
+Use the same camera positions and comparable lighting for every iteration.
+
+Compare the orthographic renders against the diagrams and the three-quarter renders against genuine photographs.
+
+Then ask Claude to produce a discrepancy report, ranking the five most significant errors in the primary body surfaces.
+
+Do not let it modify the model yet.
+
+Phase 2: Fix the primary geometry
+
+Work in this order:
+
+Overall body silhouette.
+
+Roof and window apertures.
+
+Bonnet and front wings.
+
+Doors and side panels.
+
+Rear quarters and hatch.
+
+Bumpers and front/rear transitions.
+
+Wheel arches.
+
+The precise order can change depending on the errors identified in Phase 1.
+
+Keep a copy of the original model so you can compare the results and revert if necessary.
+
+Phase 3: Refine the surfaces
+
+Introduce cross-sections and controlled feature curves wherever the existing geometry doesn't reproduce the intended shape.
+
+Pay particular attention to:
+
+The crown of broad panels.
+
+Changes in curvature around the wheel arches.
+
+Transitions between the bonnet and wings.
+
+The roof-to-pillar relationships.
+
+The rear-quarter shape.
+
+Don't add small details until the primary surfaces look right.
+
+Phase 4: Validate the shading
+
+Use the reflective inspection setup to identify unwanted bulges, pinches and kinks.
+
+Correct the underlying geometry where possible rather than hiding problems with materials or smoothing modifiers.
+
+Phase 5: Add the panel details
+
+Once the body looks correct, refine the shut lines, lights, grille, window seals, trim and other details.
+
+This prevents you wasting time detailing surfaces that will later need rebuilding.
+
+7. Give Claude a new modelling brief
+
+I'd replace the current instruction to align the model against references with a brief that explicitly prioritises three-dimensional shape.
+
+You can paste this into Claude Code as your next task.
+
+Nova GTE Body-Surface Reconstruction Brief
+Objective
+
+Improve the existing Blender model of a standard 1989 UK-market Vauxhall Nova GTE so that its three-dimensional body shape closely matches the real vehicle.
+
+The existing model has access to reference photographs, technical diagrams and dimensional information. Although its dimensions and orthographic alignment may be correct, the finished model does not convincingly resemble the real car.
+
+The priority is correcting the actual surface geometry, not merely improving reference-image alignment.
+
+Stage 1: Audit the existing model
+
+Do not modify the model initially.
+
+Inspect the existing geometry, modifiers, object hierarchy, dimensions, normals and surface construction.
+
+Produce consistent renders from:
+
+Front orthographic.
+
+Rear orthographic.
+
+Left-side orthographic.
+
+Right-side orthographic.
+
+Top orthographic.
+
+Front three-quarter.
+
+Rear three-quarter.
+
+Compare the renders with the supplied reference material.
+
+Identify the five most significant discrepancies affecting the vehicle's recognisable shape.
+
+Distinguish between:
+
+Silhouette errors.
+
+Cross-sectional shape errors.
+
+Surface-curvature errors.
+
+Incorrect feature-line positions.
+
+Shading or topology defects.
+
+Do not assume that correct dimensions imply correct surface geometry.
+
+Stage 2: Analyse the reference material
+
+For each major body panel, identify which reference images constrain its shape.
+
+Establish the available evidence for:
+
+Bonnet.
+
+Roof.
+
+Front wings.
+
+Doors.
+
+Rear quarters.
+
+Hatch.
+
+Bumpers.
+
+Wheel arches.
+
+Window apertures.
+
+Pillars.
+
+Record known measurements separately from estimated measurements.
+
+Do not invent dimensions or claim that a surface is accurate when the available references cannot establish its shape.
+
+Stage 3: Recommend a better surface construction
+
+Evaluate whether the existing geometry should be repaired or whether particular panels need rebuilding.
+
+Where appropriate, use controlled cross-sections, boundary curves, explicit feature lines and surface construction methods that provide predictable control over curvature.
+
+Do not apply subdivision smoothing indiscriminately.
+
+Preserve the relatively restrained surfaces and defined transitions characteristic of the original car.
+
+Avoid replacing the existing model wholesale unless the audit demonstrates that doing so is justified.
+
+Stage 4: Improve the geometry incrementally
+
+Work on one major body region at a time.
+
+For every change:
+
+Save a recoverable checkpoint.
+
+Record which geometry is being changed and why.
+
+Make the smallest useful modification.
+
+Render the same views used for the initial audit.
+
+Compare the result against the references.
+
+Check that other panels have not been unintentionally altered.
+
+Prioritise the overall shape and surface curvature over small details.
+
+Stage 5: Introduce visual surface inspection
+
+Create a repeatable Blender inspection scene with controlled studio lighting and reflective materials.
+
+Use the resulting highlights to identify unwanted bulges, pinches, waviness and abrupt curvature changes.
+
+Evaluate the bonnet, wings, doors, roof and rear quarters individually.
+
+Do not treat perfectly smooth reflections as the objective. Reproduce the intended shape and curvature transitions of the actual car.
+
+Stage 6: Validate the result
+
+Produce a final set of consistent orthographic and three-quarter renders.
+
+Report:
+
+Which discrepancies were corrected.
+
+Which discrepancies remain.
+
+Which dimensions are verified.
+
+Which dimensions are estimated.
+
+Which surfaces still need additional reference evidence.
+
+Whether the mesh is suitable for subsequent detailing and Assetto Corsa export.
+
+Do not claim that the body is accurate simply because the dimensions and silhouettes align.
+
+Constraints
+
+Preserve the existing exterior model wherever possible.
+
+Do not modify unrelated components.
+
+Keep verified geometry and reference information intact.
+
+Do not introduce unsupported styling features.
+
+Do not begin detailed panel-line work until the primary surfaces are satisfactory.
+
+Do not overwrite the only copy of the project.
+
+Begin with the audit and discrepancy report. Wait for approval before making substantial geometry changes.
+
+8. Would another AI or 3D tool solve the problem?
+
+Possibly, but I wouldn't make another text-to-3D generator your first investment.
+
+Here's how I'd choose between the options.
+
+Approach	Potential benefit	Limitation for your Nova
+Better Blender scripting	Precise, repeatable geometry construction	Requires good surface-construction logic
+Blender MCP	Lets Claude inspect and manipulate the real scene	Doesn't automatically make its modelling decisions better
+Meshy or Tripo	Can provide starting geometry	May produce inaccurate surfaces and difficult-to-edit topology
+Photogrammetry	Can recover real geometry from suitable photographs	Requires appropriate overlapping images; reflective car paint and glass are challenging
+Multi-view reconstruction	Can infer geometry from several views	Accuracy depends on camera calibration, image coverage and reconstruction method
+CAD or automotive surfacing tools	Better control over curves and surfaces	Additional learning, integration and potentially licensing costs
+Manual surface refinement	Direct control over the final shape	Requires modelling skill and time
+
+If you can obtain a real Nova body scan or a suitable collection of photographs, reconstruction tools may help. But a random collection of internet photographs is not equivalent to a calibrated scan.
+
+For an existing model that is dimensionally correct but visually wrong, I'd first improve the geometry-generation method and the visual evaluation process.
+
+9. One more thing: I would investigate whether Claude can measure its own errors
+
+There is an opportunity to go beyond visual inspection.
+
+You can build a Blender tool that automatically generates cross-sectional comparisons between the model and reference data.
+
+For example, at a selected longitudinal position, it could report the body's width and height at several vertical levels.
+
+That helps identify whether the front wing, roof or rear quarter is too wide or too tall in a particular region.
+
+You can also compare silhouette masks against reference images, provided the camera and image alignment are controlled.
+
+These measurements won't establish the exact curvature of every surface, but they will give Claude more useful feedback than a simple bounding-box check.
+
+The ideal system combines:
+
+Geometric measurements to constrain dimensions.
+
+Silhouette comparisons to constrain the outline.
+
+Cross-sections to constrain surface shape.
+
+Reflective renders to reveal curvature errors.
+
+Three-quarter photographs to validate the overall visual identity.
+
+That combination is much more powerful than asking Claude whether the model looks right.
+
+My recommendation
+
+For your particular problem, I'd concentrate on three improvements before spending money on more AI tools:
+
+Change the body construction method so Claude has explicit control over cross-sections, feature lines and surface curvature.
+
+Introduce reflective surface inspection so it can identify why dimensionally correct panels still look wrong.
+
+Build an automated comparison workflow that measures actual geometric discrepancies and produces consistent renders for review.
+
+I would keep Claude and Blender as the main tools. The weakness you've described is primarily in the way the geometry is being constructed and evaluated, not in Claude's ability to operate Blender.
+
+One question that would help me narrow this down
+
+How is Claude currently constructing the body shell?
+
+For example, is it:
+
+A. Creating a mesh by extruding the side profile and adding subdivision.
+
+B. Generating vertices and faces with Python scripts.
+
+C. Building surfaces from curves or cross-sections.
+
+D. Importing AI-generated geometry and modifying it.
+
+E. A combination of these approaches.
+
+If you're unsure, ask Claude to explain how the existing body mesh was constructed, including its modifiers and surface-generation method.
+
+That answer will help determine whether the best next step is to repair the existing geometry, rebuild particular panels or change the entire body-surface workflow.
+
+I have CAD tools installed it can use. What other image related tools are available that would help? Can you please give as many options as possible and create a document with all the info in this chat that i can send to Claude? 
+
+I’d approach this as a reference-image analysis and precision-surfacing problem, rather than simply trying to generate a better-looking car model.
+
+For your 1989 Vauxhall Nova GTE, the most useful tools are those that help Claude do four things:
+
+Find and organize accurate photographs and drawings of the original car.
+
+Extract measurable information from those images, including silhouettes, wheel centres, panel lines and dimensions.
+
+Reconstruct or guide 3D geometry from multiple views.
+
+Inspect the body’s curvature so that the bonnet, roof, doors, wings and rear quarters have the right shape—not just the right overall dimensions.
+
+My strongest recommendations
+Priority	Tool	What it could contribute
+1	OpenCV + Python	Automated image alignment, landmark measurement, silhouette masks and comparisons between reference photos and Blender renders.
+2	Blender Python + controlled lighting	Repeatable views and reflective-light tests that expose incorrect surface curvature.
+3	Your installed CAD software	Controlled cross-sections, surface construction and geometric measurements, depending on its capabilities.
+4	COLMAP	Photogrammetry from a suitable collection of overlapping photographs.
+5	Meshroom	A graphical, open-source photogrammetry workflow.
+6	Image search and reverse-image search	Finding better views, alternate photographs and original sources.
+7	Image editing and segmentation tools	Preparing reference images, isolating the car, marking feature lines and creating comparison overlays.
+8	Meshy, Tripo and similar image-to-3D services	Experimental starting geometry and separate components, rather than a dependable final body shell.
+
+COLMAP and Meshroom are worth considering because they attempt to reconstruct 3D structure from multiple images, rather than merely generating a plausible object from a prompt. However, both depend on the quality and coverage of the photographs, and shiny car bodies are particularly challenging reconstruction subjects. 
+COLMAP
++2
+COLMAP
++2
+
+The important distinction: a model can match the side elevation and overall dimensions but still have the wrong cross-sections and surface transitions. For that reason, I would combine image analysis with CAD surfacing and Blender’s reflective-light inspection, rather than expect one AI tool to solve the entire problem.
+
+I've also prepared a document containing the project context, a broad catalogue of image-related tools, recommended priorities, body-construction principles, a reference checklist, and a set of instructions you can give Claude Code.
+
+Download the document for Claude
+
+Download the complete Nova GTE image-tools and body-reconstruction brief (.docx)
+
+The document is written so you can send it directly to Claude Code. It includes:
+
+A catalogue of image-related tools, with explanations of what each is useful for.
+
+Photogrammetry, AI image-to-3D, image generation, image restoration, segmentation and computer-vision tools.
+
+Image alignment, silhouette comparison, landmark measurement and batch image processing.
+
+CAD and Blender workflows for correcting body curvature.
+
+A practical order of operations for improving the Nova's exterior.
+
+A checklist of reference photographs to collect.
+
+A repeatable workflow for rendering, comparing, correcting and validating the model.
+
+A copy-and-send instruction section for Claude, telling it to audit the existing project before changing anything.
+
+Additional resources
+
+These are useful starting points for the most promising tools:
+
+OpenCV documentation
+ — computer vision, camera calibration, feature detection and image comparison. 
+OpenCV Documentation
+
+COLMAP
+ — open-source photogrammetry and multi-view 3D reconstruction. 
+COLMAP
+
+Meshroom
+ — a graphical photogrammetry workflow. 
+GitHub
+
+Blender manual: Curves and surfaces
+ — useful for understanding controlled curves and surface construction. 
+cdn-img.online
+
+Blender manual: Studio lighting
+ — useful for setting up repeatable lighting to inspect the body's shape. 
+Blender Documentation
+
+One important recommendation
+
+I would not install every tool in the document immediately. First, give the document to Claude and ask it to inspect your existing setup. It should identify which image-processing libraries and CAD capabilities are already available, and which would fill genuine gaps.
+
+The first practical goal should be to produce a set of repeatable body-shell comparison images and identify exactly where the Nova's shape is wrong. That will tell you whether you need better reference photographs, more accurate surface construction, automated image analysis or some combination of all three.
+
+If you want, I can:
+
+Ask Claude how it currently constructs the body shell
+
+Request Claude to audit existing model geometry
+
+Instruct Claude to set up reflective surface inspection scene
+
+Sources
+ChatGPT is AI and can make mistakes.

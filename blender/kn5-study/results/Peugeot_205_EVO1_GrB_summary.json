@@ -1,0 +1,109 @@
+{
+ "car": "Peugeot_205_EVO1_GrB",
+ "kn5": "Peugeot_205_EVO1_GrB.kn5",
+ "version": 6,
+ "nodes": 373,
+ "transforms": 203,
+ "meshes": 170,
+ "tris": 118821,
+ "verts": 91371,
+ "materials": 43,
+ "textures": 52,
+ "texture_mb": 85.1,
+ "tris_by_shader": {
+  "ksPerPixel": 45122,
+  "ksPerPixelMultiMap": 35758,
+  "ksPerPixelMultiMap_damage_dirt": 15365,
+  "ksPerPixelNM": 11984,
+  "ksPerPixelReflection": 6718,
+  "ksTyres": 3792,
+  "ksPerPixelAT_NM": 46,
+  "ksWindscreen": 36
+ },
+ "texture_formats": {
+  "DXT1": [
+   "assettogarage_work.dds 4096x4096",
+   "20b_main.dds 4096x4096",
+   "int_20b_main.dds 2048x2048",
+   "int_20b_nm.dds 2048x2048",
+   "suspension.dds 512x512",
+   "goma.dds 256x256",
+   "int_20b_dials.dds 1024x1024",
+   "int_indicator.dds 128x128",
+   "int_gen_sp2.dds 32x32",
+   "chrom.dds 128x128",
+   "BIFAROS.dds 2048x2048",
+   "intermitentes.dds 1024x1024",
+   "Plate_SMOLL.dds 2048x2048",
+   "SKINMAP2.dds 800x800",
+   "disc.dds 512x512"
+  ],
+  "DXT5": [
+   "20b_main_nm.dds 2048x2048",
+   "map.dds 8x8",
+   "metal_detail.dds 512x512",
+   "damage.dds 2048x2048",
+   "dust.dds 2048x2048",
+   "damage_mask.dds 2048x2048",
+   "MAT_detail1.dds 256x256",
+   "grills.dds 256x256",
+   "grills_nm.dds 256x256",
+   "20b_lights.dds 512x512",
+   "20b_lights_nm.dds 512x512",
+   "20b_cabin.dds 1024x1024",
+   "20b_glass.dds 2048x1024",
+   "flat_nm.dds 32x32",
+   "negro.dds 2048x2048",
+   "int_20b_glass.dds 2048x2048",
+   "luces.dds 800x800",
+   "body_flat.dds 32x32",
+   "llantas.dds 1024x1024",
+   "20x_wheel_nm.dds 1024x1024",
+   "20x_wheel.dds 1024x1024",
+   "20x_wheel_blur.dds 1024x1024",
+   "20x_wheel_blur_nm.dds 1024x1024",
+   "tread.dds 1024x512",
+   "tread_nm1.dds 1024x512",
+   "tread_blur.dds 1024x512",
+   "tread_blur_nm1.dds 1024x512"
+  ],
+  "PNG": [
+   "MIRROR_PLACEMENT.png 512x256",
+   "Plate_SMOLL_nm.png 2048x2048",
+   "blaxck.dds 800x800"
+  ],
+  "RGB32": [
+   "GLASS_ext.dds 16x16",
+   "rgbaffffff99.dds 32x32"
+  ],
+  "RGB16": [
+   "black.dds 32x32"
+  ],
+  "RGB8": [
+   "mat_grey.dds 32x32"
+  ],
+  "DX10:98": [
+   "rtint_colors_001_diff.dds 32x32"
+  ],
+  "DXT3": [
+   "REVERSE.dds 115x147",
+   "BRAKE.dds 115x147"
+  ]
+ },
+ "lods": {
+  "Peugeot_205_EVO1_GrB.kn5": {
+   "meshes": 170,
+   "tris": 118821,
+   "materials": 43,
+   "textures": 52,
+   "mb": 89.9
+  },
+  "collider.kn5": {
+   "meshes": 1,
+   "tris": 96,
+   "materials": 1,
+   "textures": 0,
+   "mb": 0.0
+  }
+ }
+}

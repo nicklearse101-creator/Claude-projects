@@ -1,0 +1,33 @@
+centre_bonnet      190 pts ->  52 poles in 4 pieces (3 corners), worst  4.3 mm of 5.4
+centre_screen       67 pts ->  27 poles in 2 pieces (1 corners), worst  6.8 mm of 5.4  OVER
+centre_roof        301 pts ->  59 poles in 4 pieces (3 corners), worst  4.5 mm of 5.4
+centre_backlight    13 pts ->   7 poles (knots  30 mm), worst  5.0 mm of 5.4
+centre_top_photo    54 pts ->  26 poles in 3 pieces (2 corners), worst 11.4 mm of 3.0  OVER
+belt               355 pts ->  99 poles in 10 pieces (9 corners), worst  4.6 mm of 5.4
+crease_front       138 pts ->  18 poles in 2 pieces (1 corners), worst  4.7 mm of 5.4
+crease_rear        171 pts ->  11 poles (knots 120 mm), worst  5.0 mm of 5.4
+moulding_top       302 pts ->  24 poles in 3 pieces (2 corners), worst  4.9 mm of 5.4
+moulding_bot       292 pts ->  32 poles in 4 pieces (3 corners), worst  5.3 mm of 5.4
+door_bottom        291 pts ->  97 poles in 4 pieces (3 corners), worst  3.6 mm of 5.4
+sill               283 pts ->  59 poles (knots  30 mm), worst  3.8 mm of 5.4
+arch_front         103 pts ->  37 poles (knots  15 mm), worst  5.1 mm of 5.4
+arch_rear          111 pts ->  45 poles in 4 pieces (3 corners), worst  4.5 mm of 5.4
+shut_door_front     89 pts ->  32 poles in 3 pieces (2 corners), worst  5.4 mm of 5.4
+shut_door_rear      62 pts ->  23 poles in 3 pieces (2 corners), worst  4.8 mm of 5.4
+tailgate_shut       62 pts ->  29 poles in 5 pieces (4 corners), worst  5.5 mm of 5.4  OVER
+glass_base         248 pts ->  71 poles in 13 pieces (12 corners), worst  6.2 mm of 5.4  OVER
+dlo_top            140 pts ->  31 poles in 5 pieces (4 corners), worst  5.4 mm of 5.4
+window_door        157 pts ->  50 poles in 5 pieces (4 corners), worst  2.7 mm of 3.0
+window_quarter     157 pts ->  45 poles in 3 pieces (2 corners), worst  2.3 mm of 3.0
+roof_edge            6 pts ->   4 poles (knots  15 mm), worst 14.9 mm of 3.0  OVER
+plan_widest        258 pts ->  64 poles (knots  60 mm), worst  2.4 mm of 3.0
+bonnet_shut        100 pts ->  36 poles (knots  30 mm), worst  2.3 mm of 3.0
+bonnet_v            12 pts ->   6 poles (knots 120 mm), worst  0.2 mm of 3.0
+screen_base         16 pts ->   8 poles (knots 120 mm), worst  1.5 mm of 3.0
+screen_header       10 pts ->   6 poles (knots 120 mm), worst  0.2 mm of 3.0
+a_pillar             2 pts ->   2 poles (knots   0 mm), worst  0.0 mm of 3.0
+saved D:\Claude\vauxhall_nova_gte_1989\cad\nova_lines.FCStd and D:\Claude\vauxhall_nova_gte_1989\blender\data\cad\lines_v1_fit.json
+FreeCAD 1.1.4, Libs: 1.1.4R20260928 (Git shallow)
+(C) 2001-2026 FreeCAD contributors
+FreeCAD is free and open-source software licensed under the terms of LGPL2+ license.
+

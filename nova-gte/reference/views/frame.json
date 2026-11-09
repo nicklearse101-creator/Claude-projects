@@ -1,0 +1,144 @@
+{
+ "_doc": "The measurement foundation (REPLICA_PLAN step 3): every drawing view resampled into ONE world frame.",
+ "frame": "car faces -Y, Z up, +X = car's left, origin on the ground midway between the axles (y +-1.1715), unloaded tyres; photo/BA z + 0.0193 = model z",
+ "views": {
+  "ga_side": {
+   "file": "ga_side.png",
+   "rect": [
+    -2.0,
+    2.0,
+    -0.05,
+    1.45
+   ],
+   "ppm": 500.0,
+   "size": [
+    2000,
+    750
+   ],
+   "axes": "u = y (right = rearward), v = z (up)",
+   "source": "GA_rectified.png",
+   "calibration": {
+    "kind": "side",
+    "px_fa": 1114.0,
+    "mpp_u": 0.003497,
+    "ground": 521.0,
+    "mpp_v": 0.003934
+   }
+  },
+  "ga_plan": {
+   "file": "ga_plan.png",
+   "rect": [
+    -2.0,
+    2.0,
+    -1.0,
+    1.0
+   ],
+   "ppm": 500.0,
+   "size": [
+    2000,
+    1000
+   ],
+   "axes": "u = y (right = rearward), v = x (DOWN = +x, the car's left)",
+   "source": "GA_rectified.png",
+   "calibration": {
+    "kind": "plan",
+    "px_fa": 1114.0,
+    "mpp_u": 0.003497,
+    "row_c": 928.0,
+    "mpp_v": 0.004001
+   }
+  },
+  "ga_front": {
+   "file": "ga_front.png",
+   "rect": [
+    -1.0,
+    1.0,
+    -0.05,
+    1.45
+   ],
+   "ppm": 500.0,
+   "size": [
+    1000,
+    750
+   ],
+   "axes": "u = x (right = +x, seen from the front), v = z",
+   "source": "GA_rectified.png",
+   "calibration": {
+    "kind": "front",
+    "col_c": 2464.8,
+    "mpp_u": 0.003423,
+    "ground": 515.0,
+    "mpp_v": 0.003856
+   }
+  },
+  "ga_rear": {
+   "file": "ga_rear.png",
+   "rect": [
+    -1.0,
+    1.0,
+    -0.05,
+    1.45
+   ],
+   "ppm": 500.0,
+   "size": [
+    1000,
+    750
+   ],
+   "axes": "u = -x (right = -x, seen from behind), v = z",
+   "source": "GA_rectified.png",
+   "calibration": {
+    "kind": "rear",
+    "col_c": 440.5,
+    "mpp_u": 0.003474,
+    "ground": 513.5,
+    "mpp_v": 0.003889
+   }
+  },
+  "bp_side": {
+   "file": "bp_side.png",
+   "rect": [
+    -2.0,
+    2.0,
+    -0.05,
+    1.45
+   ],
+   "ppm": 500.0,
+   "size": [
+    2000,
+    750
+   ],
+   "axes": "u = y (right = rearward), v = z (up)",
+   "source": "corsa_a_4view_blueprint.gif",
+   "calibration": {
+    "kind": "side",
+    "px_fa": 145.0,
+    "mpp_u": 0.00536156,
+    "ground": 264.6,
+    "mpp_v": 0.00536156
+   }
+  },
+  "bp_front": {
+   "file": "bp_front.png",
+   "rect": [
+    -1.0,
+    1.0,
+    -0.05,
+    1.45
+   ],
+   "ppm": 500.0,
+   "size": [
+    1000,
+    750
+   ],
+   "axes": "u = x (right = +x, seen from the front), v = z",
+   "source": "corsa_a_4view_blueprint.gif",
+   "calibration": {
+    "kind": "front",
+    "col_c": 940.5,
+    "mpp_u": 0.00536156,
+    "ground": 270.0,
+    "mpp_v": 0.00536156
+   }
+  }
+ }
+}

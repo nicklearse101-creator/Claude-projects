@@ -1,0 +1,20 @@
+{
+  "name": "Vauxhall Nova GTE (1989) - WIP",
+  "brand": "Vauxhall",
+  "description": "1.6 GTE, 1989 model year, UK right-hand drive. Work in progress: Phase 1 placeholder model. Built from scratch for Ratty's Racing.",
+  "tags": ["#Street", "fwd", "manual", "hatchback", "#Vintage", "uk"],
+  "class": "street",
+  "specs": {
+    "bhp": "100bhp",
+    "torque": "135Nm",
+    "weight": "834kg",
+    "topspeed": "188km/h",
+    "acceleration": "9.1s 0-100",
+    "pwratio": "8.34kg/hp"
+  },
+  "torqueCurve": [["1000", "90"], ["2000", "115"], ["3000", "132"], ["3500", "135"], ["5000", "135"], ["5600", "126"], ["6000", "118"]],
+  "powerCurve": [["1000", "13"], ["2000", "32"], ["3000", "56"], ["4000", "76"], ["5000", "95"], ["5600", "99"], ["6000", "99"]],
+  "country": "Great Britain",
+  "year": 1989,
+  "author": "Nik"
+}

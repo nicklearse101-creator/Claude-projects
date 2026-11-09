@@ -1,0 +1,16 @@
+{
+ "_doc": "Acceptance targets for tools/regress/run_regression.py. Values and sources from docs/SPEC_SHEET.md. Tolerances were fixed on 2026-11-02 BEFORE the first run (master plan section 2.2) so they cannot be tuned to the result.",
+ "_tolerance_note": "ESTIMATE, chosen by Claude pending Nik's review. hard_point 3 mm: the model was built from these numbers, so it should match almost exactly. overall 10 mm: about 2 pixels of a 500 px/m drawing, and the spread between the GA front and rear views.",
+ "_frame": "model frame: car faces -Y, Z up, +X car left, origin on the ground midway between the axles, unloaded tyres. Overall width excludes door mirrors. Body set excludes tyres, rims, discs and mirrors.",
+ "targets": [
+  {"id": "wheelbase_mm", "value": 2343, "tol": 3, "class": "hard_point", "src": "FIA A-5375 p2 (SPEC_SHEET, resolved)"},
+  {"id": "track_front_mm", "value": 1320, "tol": 3, "class": "hard_point", "src": "SPEC_SHEET (SOURCED), as quoted in ASSESSMENT_2026-11-02"},
+  {"id": "track_rear_mm", "value": 1307, "tol": 3, "class": "hard_point", "src": "SPEC_SHEET (SOURCED), as quoted in ASSESSMENT_2026-11-02"},
+  {"id": "tyre_radius_mm", "value": 291, "tol": 3, "class": "hard_point", "src": "175/65 R14 unloaded radius, SPEC_SHEET (SOURCED)"},
+  {"id": "length_mm", "value": 3622, "tol": 10, "class": "overall", "src": "FIA p2 (SPEC_SHEET, resolved)"},
+  {"id": "width_mm", "value": 1535, "tol": 10, "class": "overall", "src": "FIA p2, measured at the front wing behind the axle"},
+  {"id": "height_mm", "value": 1365, "tol": 10, "class": "overall", "src": "BROCHURE p35"},
+  {"id": "overhang_front_mm", "value": 670, "tol": 10, "class": "overall", "src": "FIA p2"},
+  {"id": "overhang_rear_mm", "value": 609, "tol": 10, "class": "overall", "src": "FIA p2"}
+ ]
+}

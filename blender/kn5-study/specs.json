@@ -1,0 +1,851 @@
+{
+ "_note": "Published road-car figures (mm), best-supported value across sources found 2026-11-09. src = where; var = which variant the AC car is (race cars differ in width/track/height).",
+ "ks_toyota_ae86": {
+  "length": 4205,
+  "width": 1625,
+  "height": 1335,
+  "wheelbase": 2400,
+  "track_f": 1355,
+  "track_r": 1345,
+  "src": "toyota-global.com lineage (3-door GT APEX); track aeu86.org",
+  "var": "road car"
+ },
+ "Peugeot_205_EVO1_GrB": {
+  "length": 3825,
+  "width": 1674,
+  "height": 1354,
+  "wheelbase": 2540,
+  "track_f": 1430,
+  "track_r": 1430,
+  "src": "FIA Group B homologation 262",
+  "var": "rally car"
+ },
+ "bmw_m3_e30": {
+  "length": 4345,
+  "width": 1680,
+  "height": 1370,
+  "wheelbase": 2562,
+  "track_f": 1412,
+  "track_r": 1434,
+  "src": "Wikipedia / auto-data",
+  "var": "road car"
+ },
+ "ks_ford_escort_mk1": {
+  "length": 3978,
+  "width": 1569,
+  "height": 1346,
+  "wheelbase": 2400,
+  "track_f": 1245,
+  "track_r": 1270,
+  "src": "uniquecarsandparts Mk1 (standard body)",
+  "var": "RS1600 race car, flared arches: width/track not comparable"
+ },
+ "ks_abarth_595ss": {
+  "length": 2970,
+  "width": 1320,
+  "height": 1325,
+  "wheelbase": 1840,
+  "track_f": 1121,
+  "track_r": 1135,
+  "src": "Fiat 500 F figures (Wikipedia, enthusiast guide)",
+  "var": "595 SS on 500 body"
+ },
+ "ks_mazda_mx5_nd": {
+  "length": 3915,
+  "width": 1735,
+  "height": 1225,
+  "wheelbase": 2310,
+  "track_f": 1495,
+  "track_r": 1505,
+  "src": "cars-data / carexpert",
+  "var": "road car"
+ },
+ "ks_audi_sport_quattro": {
+  "length": 4160,
+  "width": 1780,
+  "height": 1344,
+  "wheelbase": 2224,
+  "track_f": 1465,
+  "track_r": 1502,
+  "src": "spec listings (supercars.net etc.)",
+  "var": "road car"
+ },
+ "clio_williams_p": {
+  "length": 3712,
+  "width": 1641,
+  "height": 1365,
+  "wheelbase": 2472,
+  "track_f": 1372,
+  "track_r": 1351,
+  "src": "cars-data / carsales",
+  "var": "road car"
+ },
+ "opel_kadett": {
+  "length": 4127,
+  "width": 1580,
+  "height": 1340,
+  "wheelbase": 2395,
+  "track_f": 1300,
+  "track_r": 1299,
+  "src": "auto-data Kadett C GT/E coupe",
+  "var": "GT/E2 rally-style mod"
+ },
+ "renault_5_turbo_r": {
+  "length": 3664,
+  "width": 1750,
+  "height": 1323,
+  "wheelbase": 2430,
+  "track_f": 1346,
+  "track_r": 1474,
+  "src": "Wikipedia / juwra",
+  "var": "road Turbo 1"
+ },
+ "vauxhall_nova_gte_1989": {
+  "length": 3622,
+  "width": 1535,
+  "height": 1364,
+  "wheelbase": 2343,
+  "track_f": 1320,
+  "track_r": 1300,
+  "src": "autohints Nova GSi 3dr; auto-data WB/track",
+  "var": "our 20 Oct block-out"
+ },
+ "abarth500": {
+  "length": 3546,
+  "width": 1627,
+  "height": 1488,
+  "wheelbase": 2300,
+  "src": "Wikipedia \"Fiat 500 (2007)\" infobox",
+  "var": "Fiat 500 base body; Abarth bumpers ~110 mm longer"
+ },
+ "adc_mazda_mx5_na": {
+  "length": 3950,
+  "width": 1675,
+  "height": 1230,
+  "wheelbase": 2265,
+  "src": "Wikipedia \"Mazda MX-5 (NA)\" infobox",
+  "var": "road car"
+ },
+ "alfa_romeo_75_gruppo_a_s1": {
+  "length": 4331,
+  "width": 1631,
+  "height": 1349,
+  "wheelbase": 2510,
+  "src": "Wikipedia \"Alfa Romeo 75\" infobox",
+  "var": "Group A race car"
+ },
+ "alfa_romeo_giulietta_qv": {
+  "length": 4351,
+  "width": 1798,
+  "height": 1465,
+  "wheelbase": 2634,
+  "src": "Wikipedia \"Alfa Romeo Giulietta (2010)\" infobox",
+  "var": "road car"
+ },
+ "bdb_chevrolet_corvette_c6": {
+  "length": 4435,
+  "width": 1844,
+  "height": 1245,
+  "wheelbase": 2682,
+  "src": "Wikipedia \"Chevrolet Corvette (C6)\" infobox",
+  "var": "road car (base C6)"
+ },
+ "bdb_mazda_rx7_fc3s": {
+  "length": 4290,
+  "width": 1689,
+  "height": 1265,
+  "wheelbase": 2431,
+  "src": "Wikipedia \"Mazda RX-7\" infobox",
+  "var": "road car"
+ },
+ "bdb_volvo_850r": {
+  "length": 4661,
+  "width": 1760,
+  "height": 1415,
+  "wheelbase": 2664,
+  "src": "Wikipedia \"Volvo 850\" infobox",
+  "var": "road car (saloon)"
+ },
+ "bg_lotus_carlton": {
+  "length": 4763,
+  "width": 1930,
+  "height": 1435,
+  "wheelbase": 2730,
+  "src": "Wikipedia \"Lotus Carlton\" infobox",
+  "var": "road car"
+ },
+ "bmw_z4": {
+  "length": 4090,
+  "width": 1780,
+  "height": 1300,
+  "wheelbase": 2495,
+  "src": "Wikipedia \"BMW Z4 (E85)\" infobox",
+  "var": "road car"
+ },
+ "chevy_belair_1957": {
+  "length": 4968,
+  "wheelbase": 2921,
+  "src": "Wikipedia \"Chevrolet Bel Air\" infobox",
+  "var": "1955-57 Bel Air"
+ },
+ "citroen_saxo_cup": {
+  "length": 3718,
+  "width": 1595,
+  "height": 1379,
+  "wheelbase": 2385,
+  "src": "Wikipedia \"Citroën Saxo\" infobox",
+  "var": "Saxo Cup race car"
+ },
+ "cup_dacia_sandero": {
+  "wheelbase": 2589,
+  "src": "Wikipedia \"Dacia Sandero\" infobox",
+  "var": "Sandero II cup car"
+ },
+ "ddm_daihatsu_copen_street": {
+  "length": 3395,
+  "width": 1475,
+  "height": 1245,
+  "wheelbase": 2230,
+  "src": "Wikipedia \"Daihatsu Copen\" infobox",
+  "var": "road car"
+ },
+ "ford_anglia_1966_s1": {
+  "length": 3912,
+  "width": 1422,
+  "height": 1422,
+  "wheelbase": 2299,
+  "src": "Wikipedia \"Ford Anglia\" infobox",
+  "var": "105E"
+ },
+ "ford_escort_mk2_rally_spec": {
+  "length": 3975,
+  "width": 1570,
+  "height": 1414,
+  "wheelbase": 2400,
+  "src": "Wikipedia \"Ford Escort (Europe)\" infobox",
+  "var": "Mk2 rally car (arches)"
+ },
+ "ford_sierra_cosworth_rs500_dtm_90s": {
+  "length": 4460,
+  "width": 1730,
+  "height": 1380,
+  "src": "Wikipedia \"Ford Sierra RS Cosworth\" infobox",
+  "var": "Group A/DTM race car"
+ },
+ "j8_honda_nsx_na1_type_r": {
+  "length": 4405,
+  "width": 1810,
+  "height": 1170,
+  "wheelbase": 2530,
+  "src": "Wikipedia \"Honda NSX (first generation)\" infobox",
+  "var": "road car"
+ },
+ "j8_mitsubishi_gto_twin_turbo_91": {
+  "length": 4600,
+  "width": 1840,
+  "height": 1285,
+  "wheelbase": 2470,
+  "src": "Wikipedia \"Mitsubishi GTO\" infobox",
+  "var": "road car"
+ },
+ "ks_alfa_33_stradale": {
+  "length": 3970,
+  "width": 1710,
+  "height": 991,
+  "wheelbase": 2350,
+  "src": "Wikipedia \"Alfa Romeo 33 Stradale\" infobox",
+  "var": "road car"
+ },
+ "ks_alfa_giulia_qv": {
+  "length": 4639,
+  "width": 1873,
+  "height": 1426,
+  "wheelbase": 2820,
+  "src": "Wikipedia \"Alfa Romeo Giulia (952)\" infobox",
+  "var": "road car (QV wider arches)"
+ },
+ "ks_alfa_mito_qv": {
+  "length": 4063,
+  "width": 1721,
+  "height": 1446,
+  "wheelbase": 2511,
+  "src": "Wikipedia \"Alfa Romeo MiTo\" infobox",
+  "var": "road car"
+ },
+ "ks_alfa_romeo_155_v6": {
+  "length": 4443,
+  "height": 1440,
+  "wheelbase": 2540,
+  "src": "Wikipedia \"Alfa Romeo 155\" infobox",
+  "var": "DTM race car (road 155 figures)"
+ },
+ "ks_alfa_romeo_4c": {
+  "length": 3989,
+  "width": 1864,
+  "height": 1183,
+  "wheelbase": 2380,
+  "src": "Wikipedia \"Alfa Romeo 4C\" infobox",
+  "var": "road car"
+ },
+ "ks_alfa_romeo_gta": {
+  "length": 4080,
+  "width": 1580,
+  "height": 1315,
+  "wheelbase": 2350,
+  "src": "Wikipedia \"Alfa Romeo 105/115 Series Coupés\" infobox",
+  "var": "Giulia Sprint GT body"
+ },
+ "ks_audi_a1s1": {
+  "length": 3954,
+  "width": 1740,
+  "height": 1416,
+  "wheelbase": 2469,
+  "src": "Wikipedia \"Audi A1\" infobox",
+  "var": "road car"
+ },
+ "ks_audi_r8_plus": {
+  "length": 4426,
+  "width": 1940,
+  "height": 1240,
+  "wheelbase": 2650,
+  "src": "Wikipedia \"Audi R8 (Type 4S)\" infobox",
+  "var": "road car"
+ },
+ "ks_bmw_m4": {
+  "length": 4671,
+  "width": 1870,
+  "height": 1383,
+  "wheelbase": 2812,
+  "src": "Wikipedia \"BMW M4\" infobox",
+  "var": "road car"
+ },
+ "ks_corvette_c7_stingray": {
+  "length": 4493,
+  "width": 1877,
+  "height": 1234,
+  "wheelbase": 2710,
+  "src": "Wikipedia \"Chevrolet Corvette (C7)\" infobox",
+  "var": "road car"
+ },
+ "ks_ferrari_250_gto": {
+  "length": 4325,
+  "width": 1600,
+  "height": 1210,
+  "wheelbase": 2400,
+  "src": "Wikipedia \"Ferrari 250 GTO\" infobox",
+  "var": "road car"
+ },
+ "ks_ferrari_288_gto": {
+  "length": 4290,
+  "width": 1910,
+  "height": 1120,
+  "wheelbase": 2450,
+  "src": "Wikipedia \"Ferrari 288 GTO\" infobox",
+  "var": "road car"
+ },
+ "ks_ferrari_488_gtb": {
+  "length": 4568,
+  "width": 1952,
+  "height": 1213,
+  "wheelbase": 2650,
+  "src": "Wikipedia \"Ferrari 488\" infobox",
+  "var": "road car"
+ },
+ "ks_ferrari_812_superfast": {
+  "length": 4657,
+  "width": 1971,
+  "height": 1276,
+  "wheelbase": 2720,
+  "src": "Wikipedia \"Ferrari 812 Superfast\" infobox",
+  "var": "road car"
+ },
+ "ks_ford_gt40": {
+  "length": 4064,
+  "width": 1778,
+  "height": 1029,
+  "wheelbase": 2413,
+  "src": "Wikipedia \"Ford GT40\" infobox",
+  "var": "race car"
+ },
+ "ks_ford_mustang_2015": {
+  "length": 4788,
+  "width": 1915,
+  "wheelbase": 2720,
+  "src": "Wikipedia \"Ford Mustang (sixth generation)\" infobox",
+  "var": "road car"
+ },
+ "ks_lamborghini_aventador_sv": {
+  "length": 4780,
+  "width": 2030,
+  "height": 1136,
+  "wheelbase": 2700,
+  "src": "Wikipedia \"Lamborghini Aventador\" infobox",
+  "var": "road car (SV)"
+ },
+ "ks_lamborghini_countach": {
+  "length": 4140,
+  "width": 2000,
+  "height": 1070,
+  "wheelbase": 2450,
+  "src": "Wikipedia \"Lamborghini Countach\" infobox",
+  "var": "5000 QV width"
+ },
+ "ks_lamborghini_huracan_performante": {
+  "length": 4459,
+  "width": 1924,
+  "wheelbase": 2620,
+  "src": "Wikipedia \"Lamborghini Huracán\" infobox",
+  "var": "Huracan base body; Performante ~45 mm longer"
+ },
+ "ks_lamborghini_miura_sv": {
+  "length": 4360,
+  "width": 1760,
+  "height": 1055,
+  "wheelbase": 2500,
+  "src": "Wikipedia \"Lamborghini Miura\" infobox",
+  "var": "road car"
+ },
+ "ks_maserati_levante": {
+  "length": 5003,
+  "width": 1968,
+  "height": 1679,
+  "wheelbase": 3004,
+  "src": "Wikipedia \"Maserati Levante\" infobox",
+  "var": "road car"
+ },
+ "ks_maserati_quattroporte": {
+  "length": 5262,
+  "width": 1948,
+  "height": 1481,
+  "wheelbase": 3171,
+  "src": "Wikipedia \"Maserati Quattroporte VI\" infobox",
+  "var": "road car"
+ },
+ "ks_mazda_miata": {
+  "length": 3950,
+  "width": 1675,
+  "height": 1230,
+  "wheelbase": 2265,
+  "src": "Wikipedia \"Mazda MX-5 (NA)\" infobox",
+  "var": "road car"
+ },
+ "ks_mazda_rx7_spirit_r": {
+  "length": 4285,
+  "width": 1760,
+  "height": 1230,
+  "wheelbase": 2446,
+  "src": "Wikipedia \"Mazda RX-7\" infobox",
+  "var": "road car"
+ },
+ "ks_mclaren_570s": {
+  "length": 4529,
+  "width": 1915,
+  "height": 1201,
+  "wheelbase": 2670,
+  "src": "Wikipedia \"McLaren 570S\" infobox",
+  "var": "road car"
+ },
+ "ks_mercedes_190_evo2": {
+  "length": 4420,
+  "width": 1678,
+  "height": 1390,
+  "wheelbase": 2665,
+  "src": "Wikipedia \"Mercedes-Benz W201\" infobox",
+  "var": "W201 base; Evo II wider arches"
+ },
+ "ks_nissan_370z": {
+  "length": 4240,
+  "width": 1850,
+  "height": 1320,
+  "wheelbase": 2550,
+  "src": "Wikipedia \"Nissan 370Z\" infobox",
+  "var": "road car"
+ },
+ "ks_nissan_gtr": {
+  "length": 4656,
+  "width": 1895,
+  "height": 1369,
+  "wheelbase": 2780,
+  "src": "Wikipedia \"Nissan GT-R\" infobox",
+  "var": "road car"
+ },
+ "ks_nissan_skyline_r34": {
+  "length": 4600,
+  "width": 1785,
+  "height": 1360,
+  "wheelbase": 2665,
+  "src": "Wikipedia \"Nissan Skyline GT-R\" infobox",
+  "var": "road car"
+ },
+ "ks_pagani_huayra_bc": {
+  "length": 4625,
+  "width": 2036,
+  "height": 1169,
+  "wheelbase": 2795,
+  "src": "Wikipedia \"Pagani Huayra\" infobox",
+  "var": "Huayra base; BC longer"
+ },
+ "ks_porsche_718_cayman_s": {
+  "length": 4379,
+  "width": 1801,
+  "height": 1281,
+  "wheelbase": 2475,
+  "src": "Wikipedia \"Porsche 718 Boxster/Cayman\" infobox",
+  "var": "road car"
+ },
+ "ks_porsche_911_gt3_rs": {
+  "length": 4545,
+  "width": 1852,
+  "height": 1269,
+  "wheelbase": 2457,
+  "src": "Wikipedia \"Porsche 911 GT3\" infobox",
+  "var": "991 GT3 (RS wider: 1880)"
+ },
+ "ks_porsche_917_k": {
+  "length": 4120,
+  "width": 1980,
+  "height": 940,
+  "wheelbase": 2300,
+  "src": "Wikipedia \"Porsche 917\" infobox",
+  "var": "917K"
+ },
+ "ks_porsche_991_carrera_s": {
+  "length": 4491,
+  "width": 1808,
+  "height": 1303,
+  "wheelbase": 2450,
+  "src": "Wikipedia \"Porsche 911 (991)\" infobox",
+  "var": "road car"
+ },
+ "ks_porsche_cayenne": {
+  "wheelbase": 2895,
+  "src": "Wikipedia \"Porsche Cayenne\" infobox",
+  "var": "road car"
+ },
+ "ks_porsche_panamera": {
+  "length": 5049,
+  "width": 1937,
+  "height": 1423,
+  "wheelbase": 2950,
+  "src": "Wikipedia \"Porsche Panamera\" infobox",
+  "var": "road car"
+ },
+ "ks_toyota_celica_st185": {
+  "length": 4420,
+  "width": 1745,
+  "height": 1300,
+  "wheelbase": 2525,
+  "src": "Wikipedia \"Toyota Celica (T180)\" infobox",
+  "var": "GT-Four"
+ },
+ "ks_toyota_gt86": {
+  "length": 4240,
+  "width": 1775,
+  "wheelbase": 2570,
+  "src": "Wikipedia \"Toyota 86\" infobox",
+  "var": "road car"
+ },
+ "ks_toyota_supra_mkiv": {
+  "width": 1810,
+  "height": 1275,
+  "wheelbase": 2550,
+  "src": "Wikipedia \"Toyota Supra (A80)\" infobox",
+  "var": "road car"
+ },
+ "ktm_xbow_r": {
+  "length": 3738,
+  "width": 1915,
+  "height": 1202,
+  "wheelbase": 2430,
+  "src": "Wikipedia \"KTM X-Bow\" infobox",
+  "var": "open road car"
+ },
+ "lotus_elise_sc": {
+  "length": 3785,
+  "width": 1719,
+  "height": 1143,
+  "wheelbase": 2300,
+  "src": "Wikipedia \"Lotus Elise\" infobox",
+  "var": "S2"
+ },
+ "lotus_esprit_race": {
+  "length": 4369,
+  "width": 1867,
+  "height": 1151,
+  "wheelbase": 2438,
+  "src": "Wikipedia \"Lotus Esprit\" infobox",
+  "var": "race car on S4 body?"
+ },
+ "lotus_evora_s": {
+  "length": 4395,
+  "width": 1848,
+  "height": 1229,
+  "wheelbase": 2575,
+  "src": "Wikipedia \"Lotus Evora\" infobox",
+  "var": "road car"
+ },
+ "mclaren_mp412c": {
+  "length": 4509,
+  "width": 1908,
+  "height": 1204,
+  "wheelbase": 2670,
+  "src": "Wikipedia \"McLaren 12C\" infobox",
+  "var": "road car"
+ },
+ "mercedes_sls": {
+  "length": 4638,
+  "width": 1939,
+  "height": 1252,
+  "wheelbase": 2680,
+  "src": "Wikipedia \"Mercedes-Benz SLS AMG\" infobox",
+  "var": "road car"
+ },
+ "opelmanta_400": {
+  "length": 4445,
+  "width": 1670,
+  "height": 1330,
+  "wheelbase": 2518,
+  "src": "Wikipedia \"Opel Manta\" infobox",
+  "var": "Manta B (400 has wide arches)"
+ },
+ "pagani_zonda_r": {
+  "width": 2055,
+  "wheelbase": 2730,
+  "src": "Wikipedia \"Pagani Zonda\" infobox",
+  "var": "Zonda family"
+ },
+ "pb_shb_gt500_68": {
+  "length": 4613,
+  "wheelbase": 2743,
+  "src": "Wikipedia \"Shelby Mustang\" infobox",
+  "var": "1965-68 Mustang WB"
+ },
+ "rr_phantom": {
+  "length": 5762,
+  "width": 2018,
+  "height": 1646,
+  "wheelbase": 3552,
+  "src": "Wikipedia \"Rolls-Royce Phantom VIII\" infobox",
+  "var": "road car (SWB)"
+ },
+ "rw_citroenbx_4tc_grb": {
+  "length": 4230,
+  "width": 1660,
+  "height": 1361,
+  "wheelbase": 2655,
+  "src": "Wikipedia \"Citroën BX\" infobox",
+  "var": "BX base; 4TC is longer"
+ },
+ "shelby_cobra_427sc": {
+  "length": 3962,
+  "width": 1727,
+  "height": 1219,
+  "wheelbase": 2286,
+  "src": "Wikipedia \"AC Cobra\" infobox",
+  "var": "MkIII"
+ },
+ "streetcarpack_honda_s2000_ap2": {
+  "length": 4120,
+  "width": 1750,
+  "height": 1285,
+  "wheelbase": 2400,
+  "src": "Wikipedia \"Honda S2000\" infobox",
+  "var": "road car"
+ },
+ "streetcarpack_mazda_rx7_fd3s": {
+  "length": 4285,
+  "width": 1760,
+  "height": 1230,
+  "wheelbase": 2446,
+  "src": "Wikipedia \"Mazda RX-7\" infobox",
+  "var": "road car"
+ },
+ "streetcarpack_mitsubishi_lancer_evo_gsr": {
+  "length": 4350,
+  "width": 1770,
+  "wheelbase": 2510,
+  "src": "Wikipedia \"Mitsubishi Lancer Evolution\" infobox",
+  "var": "Evo VI"
+ },
+ "streetcarpack_subaru_impreza_22b": {
+  "length": 4340,
+  "width": 1690,
+  "height": 1405,
+  "wheelbase": 2520,
+  "src": "Wikipedia \"Subaru Impreza (first generation)\" infobox",
+  "var": "GC8 base; 22B wider (1770)"
+ },
+ "streetcarpack_toyota_mr2_sw20": {
+  "length": 4170,
+  "width": 1695,
+  "wheelbase": 2400,
+  "src": "Wikipedia \"Toyota MR2\" infobox",
+  "var": "road car"
+ },
+ "talbot_sunbeam_lotus_lhd_stock": {
+  "length": 3829,
+  "width": 1603,
+  "height": 1395,
+  "wheelbase": 2413,
+  "src": "Wikipedia \"Talbot Sunbeam\" infobox",
+  "var": "road car"
+ },
+ "tg_beetle_cup": {
+  "length": 4278,
+  "width": 1808,
+  "height": 1486,
+  "wheelbase": 2537,
+  "src": "Wikipedia \"Volkswagen Beetle (A5)\" infobox",
+  "var": "Beetle Cup race car"
+ },
+ "traffic_aegis_suzuki_alto_works": {
+  "length": 3395,
+  "width": 1475,
+  "height": 1500,
+  "wheelbase": 2460,
+  "src": "Wikipedia \"Suzuki Alto\" infobox",
+  "var": "Alto Works (8th gen)"
+ },
+ "traffic_volvo_v70": {
+  "length": 4709,
+  "width": 1803,
+  "height": 1491,
+  "wheelbase": 2756,
+  "src": "Wikipedia \"Volvo V70\" infobox",
+  "var": "V70 II"
+ },
+ "vaz2106club": {
+  "length": 4090,
+  "width": 1610,
+  "height": 1372,
+  "wheelbase": 2425,
+  "src": "Wikipedia \"VAZ-2106\" infobox",
+  "var": "road car"
+ },
+ "volvo_745_malaska": {
+  "length": 4785,
+  "width": 1750,
+  "height": 1435,
+  "wheelbase": 2770,
+  "src": "Wikipedia \"Volvo 700 series\" infobox",
+  "var": "740 estate"
+ },
+ "bmw_1m": {
+  "length": 4380,
+  "width": 1803,
+  "height": 1420,
+  "wheelbase": 2660,
+  "src": "BMW press data (from memory, unverified)",
+  "var": "road car"
+ },
+ "ks_porsche_918_spyder": {
+  "length": 4643,
+  "width": 1940,
+  "height": 1167,
+  "wheelbase": 2730,
+  "src": "Wikipedia Porsche 918 Spyder",
+  "var": "road car"
+ },
+ "ks_mclaren_p1": {
+  "length": 4588,
+  "wheelbase": 2670,
+  "src": "Wikipedia McLaren P1",
+  "var": "road car"
+ },
+ "nohesi_traffic_tesla_model_3": {
+  "width": 1849,
+  "wheelbase": 2875,
+  "src": "Wikipedia Tesla Model 3",
+  "var": "traffic car"
+ },
+ "ks_mazda_787b": {
+  "length": 4782,
+  "width": 1994,
+  "height": 1003,
+  "wheelbase": 2662,
+  "src": "Wikipedia / Ultimatecarpage",
+  "var": "race car"
+ },
+ "ks_mclaren_f1_gtr": {
+  "length": 4287,
+  "width": 1820,
+  "wheelbase": 2718,
+  "track_f": 1558,
+  "track_r": 1488,
+  "src": "auto-data.net / McLaren 1995 GTR spec sheet",
+  "var": "1995 GTR"
+ },
+ "ks_lotus_25": {
+  "wheelbase": 2286,
+  "track_f": 1346,
+  "track_r": 1372,
+  "src": "supercars.net (motor-car.net says WB 2311)",
+  "var": "single-seater"
+ },
+ "ks_lotus_72d": {
+  "wheelbase": 2540,
+  "track_f": 1524,
+  "track_r": 1626,
+  "src": "supercars.net (1970 car; 72D tracks unverified)",
+  "var": "single-seater"
+ },
+ "lotus_49": {
+  "wheelbase": 2413,
+  "track_f": 1524,
+  "track_r": 1549,
+  "src": "Wikipedia Lotus 49",
+  "var": "single-seater"
+ },
+ "lotus_98t": {
+  "wheelbase": 2720,
+  "track_f": 1816,
+  "track_r": 1620,
+  "src": "Wikipedia Lotus 98T",
+  "var": "single-seater"
+ },
+ "ferrari_312t": {
+  "length": 4143,
+  "width": 2030,
+  "wheelbase": 2518,
+  "track_f": 1510,
+  "track_r": 1530,
+  "src": "f1technical / Ultimatecarpage",
+  "var": "single-seater"
+ },
+ "ks_ferrari_312_67": {
+  "wheelbase": 2400,
+  "src": "f1technical / flyinglap (tracks disputed)",
+  "var": "single-seater"
+ },
+ "ks_ferrari_f2004": {
+  "length": 4545,
+  "src": "Wikipedia Ferrari F2004",
+  "var": "single-seater"
+ },
+ "ks_ferrari_sf70h": {
+  "length": 5000,
+  "width": 2000,
+  "wheelbase": 3594,
+  "src": "Wikipedia Ferrari SF70H (lapmeta: WB 3581)",
+  "var": "single-seater"
+ },
+ "ks_maserati_250f_6cyl": {
+  "wheelbase": 2280,
+  "src": "Wikipedia Maserati 250F",
+  "var": "single-seater"
+ },
+ "tatuusfa1": {
+  "wheelbase": 2650,
+  "track_f": 1490,
+  "track_r": 1455,
+  "src": "Wikipedia Tatuus FA010",
+  "var": "single-seater"
+ },
+ "ks_lotus_3_eleven": {
+  "length": 4120,
+  "width": 1860,
+  "height": 1200,
+  "src": "Wikipedia Lotus 3-Eleven",
+  "var": "open road/race car"
+ }
+}

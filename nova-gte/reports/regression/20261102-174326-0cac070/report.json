@@ -1,0 +1,204 @@
+{
+ "provenance": {
+  "run_id": "20261102-174326-0cac070",
+  "started": "2026-11-02T17:43:26",
+  "commit": "0cac070d7f6177c0c27acb2cfb69392a44a257f8",
+  "branch": "master",
+  "tags_at_head": [
+   "checkpoint-2026-11-02-audit-baseline"
+  ],
+  "uncommitted": [
+   "?? blender/data/cad/sections_v3.json",
+   "?? blender/nova_sections_v3.blend",
+   "?? docs/ASSESSMENT_2026-11-02.md",
+   "?? docs/CURRENT_STATE.md",
+   "?? docs/NEXT_WEEK.md",
+   "?? docs/PROJECT_AUDIT.md",
+   "?? docs/SESSION_KNOWLEDGE_2026-10-26_to_29.md",
+   "?? docs/STATUS_FOR_CHAT.md",
+   "?? docs/fairness_triage_2026-11-02.csv",
+   "?? reports/regression/",
+   "?? tools/cad/blender_show_sections.py",
+   "?? tools/cad/sections_v3.py",
+   "?? tools/regress/"
+  ],
+  "blend": "blender/nova_proc.blend",
+  "blend_sha256_16": "b3d10132c59d7b26",
+  "inputs": {
+   "tools/photomatch/obs.json": "a2d93f3f2502ea80",
+   "tools/photomatch/ba_result.json": "cc1cbfb481707fe4",
+   "reference/views/frame.json": "85a46a979530ccbe",
+   "blender/data/cad/lines_v2_fit.json": "f798f4dd38b6dd1d",
+   "blender/data/cad/sections_v3.json": "9ff7b8af9d4bc725",
+   "docs/SPEC_SHEET.md": "a64041b72cce000b",
+   "tools/regress/spec_targets.json": "fcfb7b9464274db6",
+   "tools/regress/blender_measure_render.py": "045e0a1b47a06f78",
+   "tools/regress/run_regression.py": "3b2df65adcd7752c"
+  },
+  "blender": "Blender 5.2.1 LTS",
+  "freecad": "FreeCAD 1.1.4 Revision: 20260928 (Git shallow)",
+  "python": "3.13.13"
+ },
+ "elapsed_s": 11.4,
+ "checks": [
+  {
+   "id": "wheelbase_mm",
+   "target": 2343,
+   "measured": 2343.0,
+   "delta": 0.0,
+   "tol": 3,
+   "cls": "hard_point",
+   "status": "PASS",
+   "src": "FIA A-5375 p2 (SPEC_SHEET, resolved)",
+   "prev_measured": 2343.0
+  },
+  {
+   "id": "track_front_mm",
+   "target": 1320,
+   "measured": 1320.0,
+   "delta": 0.0,
+   "tol": 3,
+   "cls": "hard_point",
+   "status": "PASS",
+   "src": "SPEC_SHEET (SOURCED), as quoted in ASSESSMENT_2026-11-02",
+   "prev_measured": 1320.0
+  },
+  {
+   "id": "track_rear_mm",
+   "target": 1307,
+   "measured": 1307.0,
+   "delta": 0.0,
+   "tol": 3,
+   "cls": "hard_point",
+   "status": "PASS",
+   "src": "SPEC_SHEET (SOURCED), as quoted in ASSESSMENT_2026-11-02",
+   "prev_measured": 1307.0
+  },
+  {
+   "id": "tyre_radius_mm",
+   "target": 291,
+   "measured": 291.6,
+   "delta": 0.6,
+   "tol": 3,
+   "cls": "hard_point",
+   "status": "PASS",
+   "src": "175/65 R14 unloaded radius, SPEC_SHEET (SOURCED)",
+   "prev_measured": 291.6
+  },
+  {
+   "id": "length_mm",
+   "target": 3622,
+   "measured": 3596.8,
+   "delta": -25.2,
+   "tol": 10,
+   "cls": "overall",
+   "status": "FAIL",
+   "src": "FIA p2 (SPEC_SHEET, resolved)",
+   "prev_measured": 3596.8
+  },
+  {
+   "id": "width_mm",
+   "target": 1535,
+   "measured": 1568.7,
+   "delta": 33.7,
+   "tol": 10,
+   "cls": "overall",
+   "status": "FAIL",
+   "src": "FIA p2, measured at the front wing behind the axle",
+   "prev_measured": 1568.7
+  },
+  {
+   "id": "height_mm",
+   "target": 1365,
+   "measured": 1349.2,
+   "delta": -15.8,
+   "tol": 10,
+   "cls": "overall",
+   "status": "FAIL",
+   "src": "BROCHURE p35",
+   "prev_measured": 1349.2
+  },
+  {
+   "id": "overhang_front_mm",
+   "target": 670,
+   "measured": 643.3,
+   "delta": -26.7,
+   "tol": 10,
+   "cls": "overall",
+   "status": "FAIL",
+   "src": "FIA p2",
+   "prev_measured": 643.3
+  },
+  {
+   "id": "overhang_rear_mm",
+   "target": 609,
+   "measured": 610.5,
+   "delta": 1.5,
+   "tol": 10,
+   "cls": "overall",
+   "status": "PASS",
+   "src": "FIA p2",
+   "prev_measured": 610.5
+  }
+ ],
+ "drivers": {
+  "width": [
+   [
+    "Wing_Front_Left",
+    1568.7
+   ],
+   [
+    "SHUT_DOOR_FRONT",
+    1565.3
+   ],
+   [
+    "Skirt_Left",
+    1559.0
+   ],
+   [
+    "Body_Shell",
+    1535.0
+   ],
+   [
+    "SHUT_DOOR_REAR",
+    1532.6
+   ]
+  ],
+  "height": [
+   [
+    "Body_Shell",
+    1349.2
+   ],
+   [
+    "GLASS_SCREEN_L",
+    1296.1
+   ],
+   [
+    "GLASS_DOOR_L",
+    1280.2
+   ]
+  ],
+  "mirror_width_mm": 1725.0,
+  "n_objects": 53,
+  "total_tris": 126290
+ },
+ "blender_log": [
+  "measured {'wheelbase_mm': 2343.0, 'track_front_mm': 1320.0, 'track_rear_mm': 1307.0, 'tyre_radius_mm': 291.6, 'length_mm': 3596.8, 'width_mm': 1568.7, 'height_mm': 1349.2, 'overhang_front_mm': 643.3, 'overhang_rear_mm': 610.5}",
+  "clay views 1.0s",
+  "zebra views 5.7s"
+ ],
+ "vs_previous": {
+  "previous_run": "20261102-174306-0cac070",
+  "regressions": [],
+  "changed_1mm_or_more": []
+ },
+ "images": "D:\\Claude\\vauxhall_nova_gte_1989\\export\\regression\\20261102-174326-0cac070",
+ "not_covered": [
+  "reference-drawing overlays (tools/cad/overlay.py, render_rect.py exist separately)",
+  "renders through the 7 solved photo cameras (match_look.py, overlay_edges.py)",
+  "curvature comb / zebra on FreeCAD NURBS faces (no surfaces exist yet)",
+  "mesh health: non-manifold, holes, self-intersection, normals",
+  "feature positions (lamps, pillars, shut lines) - only overall and hard-point dimensions are checked",
+  "wheel arch gap / ride height / AC in-game check"
+ ]
+}

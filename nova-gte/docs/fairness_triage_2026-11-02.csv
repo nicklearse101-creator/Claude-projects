@@ -1,0 +1,97 @@
+curve,group,cls,wobble_mm,rms_mm,wiggles_per_m,length_m,out_of_plane_mm,src_kind,src
+tail_centre#2,centre,FAIL,11.4,5.06,8.8,0.565,0.0,GA,"GA 1990 sheet, side view trace"
+shut_door_front#1,shut,FAIL,9.6,2.05,5.3,0.38,2.9,line-blueprint,line blueprint side: shut_door_front
+belt#2,body,FAIL,8.8,1.22,7.8,1.46,7.0,line-blueprint,line blueprint side: belt+belt_b
+centre_roof,centre,FAIL,8.4,1.46,5.4,1.675,0.0,line-blueprint,line blueprint side: roof+roof_b
+crease_front,crease,FAIL,7.4,1.42,8.1,0.74,1.1,line-blueprint,line blueprint side: crease_front+crease_front_b
+moulding_bot,body,FAIL,7.4,1.37,5.1,1.66,1.0,line-blueprint,line blueprint side: moulding_bot+moulding_bot_b
+tailgate_shut#1,shut,FAIL,6.2,2.18,5.6,0.485,7.9,line-blueprint,line blueprint side: tailgate_shut
+arch_rear,arch,FAIL,5.7,1.59,2.7,0.845,3.3,line-blueprint,line blueprint side: arch_rear+arch_rear_b
+centre_screen,centre,FAIL,5.6,2.3,10.3,0.645,0.0,line-blueprint,line blueprint side: screen
+bonnet_shut,shut,FAIL,5.6,2.1,6.1,0.985,0.0,other,shut_bonnet_wing.json
+centre_bonnet,centre,FAIL,5.5,1.09,0.3,1.175,0.0,line-blueprint,line blueprint side: bonnet_top+bonnet_top_b
+window_quarter,dlo,FAIL,5.5,1.64,3.1,2.245,6.0,photo/BA,"windows.json (traced, fitted to BA corners)"
+glass_base#2,dlo,FAIL,5.2,1.8,4.9,0.875,0.0,line-blueprint,line blueprint side: glass_base
+door_bottom#2,shut,FAIL,4.5,0.92,2.1,1.22,0.7,line-blueprint,line blueprint side: door_bottom+door_bottom_b
+front_a_pillar,dlo,FAIL,4.2,1.51,7.5,0.4,0.0,GA,"GA 1990 sheet, front view trace"
+window_door,dlo,FAIL,4.1,1.23,11.6,2.01,5.7,photo/BA,"windows.json (traced, fitted to BA corners)"
+dlo_top#1,dlo,MARGINAL,4.0,0.98,3.2,0.89,1.2,line-blueprint,line blueprint side: dlo_top
+front_roof_crown,envelope,MARGINAL,3.7,0.78,0.0,0.585,0.0,GA,"GA 1990 sheet, front view trace"
+front_headlamp#2,front,MARGINAL,3.4,0.92,2.4,0.35,7.9,GA,"GA 1990 sheet, front view trace"
+rear_panel_recess,rear,MARGINAL,3.3,0.82,0.0,0.43,0.1,GA,"GA 1990 sheet, rear view trace"
+shut_door_rear#2,shut,MARGINAL,3.2,1.02,12.5,0.32,1.8,line-blueprint,line blueprint side: shut_door_rear
+rear_lamp,rear,MARGINAL,2.9,0.56,8.9,0.77,2.4,GA,"GA 1990 sheet, rear view trace"
+plan_widest,plan,MARGINAL,2.7,0.98,1.4,3.66,0.0,GA,GA plan half-width (plan_profile halfw_merged)
+rear_c_pillar,rear,MARGINAL,2.6,0.95,5.0,0.605,1.9,GA,"GA 1990 sheet, rear view trace"
+arch_front,arch,MARGINAL,2.5,1.26,4.7,0.635,1.4,line-blueprint,line blueprint side: arch_front+arch_front_b
+sill,body,MARGINAL,2.3,0.55,6.2,1.625,0.6,line-blueprint,line blueprint side: sill+sill_b
+front_headlamp#3,front,MARGINAL,2.3,0.5,0.0,0.25,0.8,GA,"GA 1990 sheet, front view trace"
+front_body_sil,envelope,MARGINAL,2.3,0.82,3.2,0.625,0.0,GA,"GA 1990 sheet, front view trace"
+rear_body_sil,envelope,MARGINAL,2.2,1.18,8.7,0.575,0.0,GA,"GA 1990 sheet, rear view trace"
+crease_rear,crease,MARGINAL,1.9,0.92,10.9,0.92,4.3,line-blueprint,line blueprint side: crease_rear+crease_rear_b
+centre_backlight,centre,MARGINAL,1.3,0.45,20.0,0.1,0.0,line-blueprint,line blueprint side: backlight
+front_grille,front,MARGINAL,0.8,0.27,0.0,0.705,4.1,GA,"GA 1990 sheet, front view trace"
+rear_spoiler_bottom,rear,ARTEFACT,0.5,0.17,8.9,0.45,0.6,GA,"GA 1990 sheet, rear view trace"
+door_bottom#3,shut,ARTEFACT,0.3,0.08,15.4,0.325,0.0,line-blueprint,line blueprint side: door_bottom+door_bottom_b
+rear_tailgate_bottom#1,rear,ARTEFACT,0.2,0.05,9.3,0.215,0.0,GA,"GA 1990 sheet, rear view trace"
+bonnet_v,front,ARTEFACT,0.0,0.0,34.4,0.61,0.0,other,body_profile bonnet_v
+a_pillar,dlo,ARTEFACT,0.0,0.0,92.9,0.56,0.0,photo/BA,BA WS_B -> WS_T
+dlo_top#2,dlo,FRAGMENT,0.5,0.33,42.9,0.07,0.0,line-blueprint,line blueprint side: dlo_top
+moulding_top#1,body,FRAGMENT,0.0,0.01,21.1,0.095,0.1,line-blueprint,line blueprint side: moulding_top+moulding_top_b
+door_bottom#1,shut,FRAGMENT,0.0,0.01,12.5,0.08,0.0,line-blueprint,line blueprint side: door_bottom+door_bottom_b
+shut_door_rear#1,shut,FRAGMENT,0.0,0.0,0.0,0.02,0.0,line-blueprint,line blueprint side: shut_door_rear
+rear_tailgate_bottom#2,rear,FRAGMENT,0.0,0.01,0.0,0.045,0.0,GA,"GA 1990 sheet, rear view trace"
+tail_centre#1,centre,FRAGMENT,0.0,0.0,0.0,0.03,0.0,GA,"GA 1990 sheet, side view trace"
+plan_rear_bumper#1,plan,FRAGMENT,0.0,0.02,0.0,0.045,0.0,GA,"GA 1990 sheet, plan view trace"
+front_headlamp#1,front,FRAGMENT,0.0,0.02,0.0,0.045,0.0,GA,"GA 1990 sheet, front view trace"
+glass_base#1,dlo,PASS,1.7,0.56,0.0,0.3,0.0,line-blueprint,line blueprint side: glass_base
+belt#1,body,PASS,1.5,0.36,4.3,0.92,0.2,line-blueprint,line blueprint side: belt+belt_b
+glass_base#3,dlo,PASS,1.4,0.42,0.9,0.51,1.9,line-blueprint,line blueprint side: glass_base
+rear_glass#1,rear,PASS,1.4,0.42,2.5,0.86,2.3,GA,"GA 1990 sheet, rear view trace"
+front_bumper_top,front,PASS,1.4,0.61,6.0,0.5,0.0,GA,"GA 1990 sheet, front view trace"
+rear_spoiler_top,rear,PASS,1.1,0.27,0.0,0.49,0.0,GA,"GA 1990 sheet, rear view trace"
+rear_bumper_bottom#1,rear,PASS,0.8,0.38,6.0,0.665,1.7,GA,"GA 1990 sheet, rear view trace"
+moulding_top#2,body,PASS,0.4,0.17,5.7,1.54,1.0,line-blueprint,line blueprint side: moulding_top+moulding_top_b
+plan_front_bumper,plan,PASS,0.4,0.2,7.3,0.545,0.0,GA,"GA 1990 sheet, plan view trace"
+shut_door_front#2,shut,PASS,0.2,0.1,0.0,0.15,0.0,line-blueprint,line blueprint side: shut_door_front
+rear_glass#2,rear,PASS,0.2,0.12,2.6,0.38,0.7,GA,"GA 1990 sheet, rear view trace"
+rear_bumper_top#1,rear,PASS,0.2,0.06,0.0,0.19,0.1,GA,"GA 1990 sheet, rear view trace"
+rear_bumper_top#2,rear,PASS,0.2,0.08,0.0,0.185,0.0,GA,"GA 1990 sheet, rear view trace"
+screen_base,dlo,PASS,0.1,0.07,5.0,0.605,0.0,photo/BA,body_profile scuttle_curve + BA WS_B
+rear_bumper_top#3,rear,PASS,0.1,0.06,5.4,0.185,0.2,GA,"GA 1990 sheet, rear view trace"
+plan_rear_bumper#2,plan,PASS,0.1,0.03,0.0,0.105,0.0,GA,"GA 1990 sheet, plan view trace"
+roof_edge,roof,PASS,0.0,0.01,1.8,1.65,1.2,photo/BA,body_profile cant (photo)
+screen_header,dlo,PASS,0.0,0.0,0.0,0.5,0.0,photo/BA,"BA WS_T, header straight in plan"
+front_screen_header#1,dlo,PASS,0.0,0.01,0.0,0.27,0.0,GA,"GA 1990 sheet, front view trace"
+part_skirt_left_1#2,model_parts,REFERENCE,7.9,1.55,1.1,1.765,0.9,other,"model part outline (rebuild_sill.py (skirt traced on cS) - outline 1 (3791 mm, closed))"
+part_wing_front_left_1#1,model_parts,REFERENCE,7.2,1.09,3.3,2.22,27.3,other,"model part outline (rebuild_wing_drawn.py - outline 1 (3946 mm, closed))"
+part_taillamp_l_7,model_parts,REFERENCE,7.1,1.44,5.1,0.395,4.2,other,"model part outline (tail_lamps.py (GA heights 800/745/685/635) - outline 7 (408 mm, closed))"
+part_taillamp_l_6,model_parts,REFERENCE,6.9,1.42,5.1,0.395,4.2,other,"model part outline (tail_lamps.py (GA heights 800/745/685/635) - outline 6 (408 mm, closed))"
+part_plate_f_1,model_parts,REFERENCE,6.5,1.86,10.7,0.625,0.1,other,"model part outline (front_end.py (plate 520 x 111) - outline 1 (1263 mm, closed))"
+part_bumper_r_1,model_parts,REFERENCE,6.4,1.71,1.8,2.22,75.6,other,"model part outline (rear_end.py - outline 1 (4554 mm, closed))"
+part_bumper_f_1,model_parts,REFERENCE,5.3,1.43,2.3,2.1,64.7,photo/BA,"model part outline (front_end.py (photo-measured swept section) - outline 1 (4275 mm, closed))"
+part_taillamp_l_3,model_parts,REFERENCE,5.2,1.18,2.0,0.49,0.0,other,"model part outline (tail_lamps.py (GA heights 800/745/685/635) - outline 3 (509 mm, closed))"
+part_panel_r_l_1,model_parts,REFERENCE,4.6,0.77,7.9,3.81,31.3,photo/BA,"model part outline (rear_panel.py (tailgate on the rear-face curve, BA TL_*/HG_*) - outline 1 (3859 mm, closed))"
+part_skirt_left_1#1,model_parts,REFERENCE,4.5,0.63,7.2,1.73,1.5,other,"model part outline (rebuild_sill.py (skirt traced on cS) - outline 1 (3791 mm, closed))"
+part_bumper_r_valance_1#2,model_parts,REFERENCE,4.4,1.62,0.2,1.01,13.6,other,"model part outline (rear_end.py - outline 1 (3771 mm, closed))"
+part_wing_front_left_1#2,model_parts,REFERENCE,4.3,1.95,4.6,0.87,1.9,other,"model part outline (rebuild_wing_drawn.py - outline 1 (3946 mm, closed))"
+part_taillamp_l_2,model_parts,REFERENCE,4.1,0.82,2.0,0.49,0.0,other,"model part outline (tail_lamps.py (GA heights 800/745/685/635) - outline 2 (510 mm, closed))"
+part_bumper_f_lip_1#2,model_parts,REFERENCE,3.9,1.53,3.1,1.02,16.9,other,"model part outline (front_end.py - outline 1 (3743 mm, closed))"
+part_lamp_panel_1,model_parts,REFERENCE,3.0,0.47,4.3,2.085,9.3,other,"model part outline (front_end.py - outline 1 (4209 mm, closed))"
+part_taillamp_l_8,model_parts,REFERENCE,2.5,0.57,3.2,0.315,2.1,other,"model part outline (tail_lamps.py (GA heights 800/745/685/635) - outline 8 (333 mm, closed))"
+part_hood_panel_1,model_parts,REFERENCE,2.4,0.24,3.0,3.035,18.0,other,"model part outline (rebuild_bonnet_drawn.py - outline 1 (3054 mm, closed))"
+part_lamp_panel_2,model_parts,REFERENCE,1.9,0.25,5.7,0.885,0.7,other,"model part outline (front_end.py - outline 2 (1810 mm, closed))"
+part_bumper_r_valance_1#1,model_parts,REFERENCE,1.8,0.43,0.5,0.77,4.7,other,"model part outline (rear_end.py - outline 1 (3771 mm, closed))"
+part_grille_surround_1,model_parts,REFERENCE,1.7,0.22,3.4,0.83,0.6,other,"model part outline (front_end.py - outline 1 (1817 mm, closed))"
+part_scuttle_panel_1,model_parts,REFERENCE,1.7,0.26,1.1,1.495,6.3,other,"model part outline (rebuild_scuttle_drawn.py - outline 1 (1520 mm, closed))"
+part_bumper_f_lip_1#1,model_parts,REFERENCE,1.6,0.32,0.0,0.74,3.7,other,"model part outline (front_end.py - outline 1 (3743 mm, closed))"
+part_bonnet_crease,model_parts,REFERENCE,1.6,0.27,0.0,0.855,0.0,other,model part outline (body_profile bonnet_creases (redgte_20) on the bonnet surface)
+part_taillamp_l_1,model_parts,REFERENCE,1.4,0.31,2.2,0.56,3.3,other,"model part outline (tail_lamps.py (GA heights 800/745/685/635) - outline 1 (567 mm, closed))"
+part_taillamp_l_5,model_parts,REFERENCE,1.4,0.35,0.0,0.425,3.4,other,"model part outline (tail_lamps.py (GA heights 800/745/685/635) - outline 5 (433 mm, closed))"
+part_wing_front_left_1#3,model_parts,REFERENCE,1.0,0.42,2.6,0.24,0.0,other,"model part outline (rebuild_wing_drawn.py - outline 1 (3946 mm, closed))"
+part_taillamp_l_4,model_parts,REFERENCE,1.0,0.31,0.0,0.435,3.5,other,"model part outline (tail_lamps.py (GA heights 800/745/685/635) - outline 4 (443 mm, closed))"
+part_headlamp_glass_l_1,model_parts,REFERENCE,0.9,0.23,4.3,0.685,0.9,photo/BA,"model part outline (front_end.py (BA HL_*) - outline 1 (693 mm, closed))"
+part_grille_surround_3,model_parts,REFERENCE,0.8,0.2,4.6,0.68,0.7,other,model part outline (front_end.py - outline 3 (692 mm))
+part_indicator_f_l_1,model_parts,REFERENCE,0.7,0.22,6.2,0.47,3.2,photo/BA,"model part outline (front_end.py (BA IND_*) - outline 1 (479 mm, closed))"
+part_grille_surround_2,model_parts,REFERENCE,0.0,0.0,0.0,0.07,0.0,other,"model part outline (front_end.py - outline 2 (1817 mm, closed))"
+part_grille_surround_4,model_parts,REFERENCE,0.0,0.0,0.0,0.08,0.0,other,model part outline (front_end.py - outline 4 (83 mm))

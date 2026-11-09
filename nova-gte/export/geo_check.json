@@ -1,0 +1,408 @@
+[
+ {
+  "pt": "MIR",
+  "dist_mm": 204.8,
+  "signed_mm": 194.1,
+  "on": "Body_Shell",
+  "kind": "part"
+ },
+ {
+  "pt": "MIR_R",
+  "dist_mm": 204.8,
+  "signed_mm": 194.1,
+  "on": "Body_Shell",
+  "kind": "part"
+ },
+ {
+  "pt": "DSR_B",
+  "dist_mm": 90.2,
+  "signed_mm": -56.3,
+  "on": "Skirt_Left",
+  "kind": "skin"
+ },
+ {
+  "pt": "DSR_B_R",
+  "dist_mm": 90.2,
+  "signed_mm": -56.3,
+  "on": "Skirt_Left",
+  "kind": "skin"
+ },
+ {
+  "pt": "PNL_B",
+  "dist_mm": 85.6,
+  "signed_mm": 85.6,
+  "on": "Body_Shell",
+  "kind": "skin"
+ },
+ {
+  "pt": "PNL_B_R",
+  "dist_mm": 85.6,
+  "signed_mm": 85.6,
+  "on": "Body_Shell",
+  "kind": "skin"
+ },
+ {
+  "pt": "BON_F",
+  "dist_mm": 71.4,
+  "signed_mm": 56.3,
+  "on": "Hood_Panel",
+  "kind": "skin"
+ },
+ {
+  "pt": "BON_F_R",
+  "dist_mm": 71.4,
+  "signed_mm": 48.2,
+  "on": "Hood_Panel",
+  "kind": "skin"
+ },
+ {
+  "pt": "TL_BI",
+  "dist_mm": 49.0,
+  "signed_mm": 49.0,
+  "on": "Body_Shell",
+  "kind": "part"
+ },
+ {
+  "pt": "TL_BI_R",
+  "dist_mm": 49.0,
+  "signed_mm": 49.0,
+  "on": "Body_Shell",
+  "kind": "part"
+ },
+ {
+  "pt": "HG_B",
+  "dist_mm": 29.3,
+  "signed_mm": -29.3,
+  "on": "Body_Shell",
+  "kind": "edge"
+ },
+ {
+  "pt": "HG_B_R",
+  "dist_mm": 29.3,
+  "signed_mm": -29.3,
+  "on": "Body_Shell",
+  "kind": "edge"
+ },
+ {
+  "pt": "QW_RB",
+  "dist_mm": 17.7,
+  "signed_mm": -17.7,
+  "on": "Body_Shell",
+  "kind": "edge"
+ },
+ {
+  "pt": "QW_RB_R",
+  "dist_mm": 17.7,
+  "signed_mm": -17.7,
+  "on": "Body_Shell",
+  "kind": "edge"
+ },
+ {
+  "pt": "DG_RB",
+  "dist_mm": 14.8,
+  "signed_mm": -13.8,
+  "on": "Body_Shell",
+  "kind": "edge"
+ },
+ {
+  "pt": "DG_RB_R",
+  "dist_mm": 14.8,
+  "signed_mm": -13.8,
+  "on": "Body_Shell",
+  "kind": "edge"
+ },
+ {
+  "pt": "QW_RT",
+  "dist_mm": 13.4,
+  "signed_mm": -12.8,
+  "on": "Body_Shell",
+  "kind": "edge"
+ },
+ {
+  "pt": "QW_RT_R",
+  "dist_mm": 13.4,
+  "signed_mm": -12.8,
+  "on": "Body_Shell",
+  "kind": "edge"
+ },
+ {
+  "pt": "QW_FB",
+  "dist_mm": 11.5,
+  "signed_mm": 11.5,
+  "on": "Body_Shell",
+  "kind": "edge"
+ },
+ {
+  "pt": "QW_FB_R",
+  "dist_mm": 11.5,
+  "signed_mm": 11.5,
+  "on": "Body_Shell",
+  "kind": "edge"
+ },
+ {
+  "pt": "TL_BO",
+  "dist_mm": 11.0,
+  "signed_mm": 11.0,
+  "on": "Body_Shell",
+  "kind": "skin"
+ },
+ {
+  "pt": "TL_BO_R",
+  "dist_mm": 11.0,
+  "signed_mm": 11.0,
+  "on": "Body_Shell",
+  "kind": "skin"
+ },
+ {
+  "pt": "WS_T",
+  "dist_mm": 8.4,
+  "signed_mm": -8.4,
+  "on": "Body_Shell",
+  "kind": "edge"
+ },
+ {
+  "pt": "WS_T_R",
+  "dist_mm": 8.4,
+  "signed_mm": -8.4,
+  "on": "Body_Shell",
+  "kind": "edge"
+ },
+ {
+  "pt": "TL_TO",
+  "dist_mm": 7.7,
+  "signed_mm": 7.7,
+  "on": "Body_Shell",
+  "kind": "skin"
+ },
+ {
+  "pt": "TL_TO_R",
+  "dist_mm": 7.7,
+  "signed_mm": 7.7,
+  "on": "Body_Shell",
+  "kind": "skin"
+ },
+ {
+  "pt": "DG_RT",
+  "dist_mm": 7.3,
+  "signed_mm": 7.3,
+  "on": "Body_Shell",
+  "kind": "edge"
+ },
+ {
+  "pt": "DG_RT_R",
+  "dist_mm": 7.3,
+  "signed_mm": 7.3,
+  "on": "Body_Shell",
+  "kind": "edge"
+ },
+ {
+  "pt": "TL_TI",
+  "dist_mm": 6.4,
+  "signed_mm": 6.4,
+  "on": "Body_Shell",
+  "kind": "part"
+ },
+ {
+  "pt": "TL_TI_R",
+  "dist_mm": 6.4,
+  "signed_mm": 6.4,
+  "on": "Body_Shell",
+  "kind": "part"
+ },
+ {
+  "pt": "HG_T",
+  "dist_mm": 4.3,
+  "signed_mm": -4.3,
+  "on": "Body_Shell",
+  "kind": "edge"
+ },
+ {
+  "pt": "HG_T_R",
+  "dist_mm": 4.3,
+  "signed_mm": -4.3,
+  "on": "Body_Shell",
+  "kind": "edge"
+ },
+ {
+  "pt": "WS_B",
+  "dist_mm": 4.3,
+  "signed_mm": 3.9,
+  "on": "Body_Shell",
+  "kind": "edge"
+ },
+ {
+  "pt": "WS_B_R",
+  "dist_mm": 4.3,
+  "signed_mm": 3.9,
+  "on": "Body_Shell",
+  "kind": "edge"
+ },
+ {
+  "pt": "QW_FT",
+  "dist_mm": 3.6,
+  "signed_mm": -3.6,
+  "on": "Body_Shell",
+  "kind": "edge"
+ },
+ {
+  "pt": "QW_FT_R",
+  "dist_mm": 3.6,
+  "signed_mm": -3.6,
+  "on": "Body_Shell",
+  "kind": "edge"
+ },
+ {
+  "pt": "HL_OT",
+  "dist_mm": 3.0,
+  "signed_mm": 0.0,
+  "on": "HEADLAMP_HOUSING_L",
+  "kind": "part"
+ },
+ {
+  "pt": "HL_OT_R",
+  "dist_mm": 3.0,
+  "signed_mm": -0.0,
+  "on": "HEADLAMP_HOUSING_R",
+  "kind": "part"
+ },
+ {
+  "pt": "HANDLE_F",
+  "dist_mm": 2.4,
+  "signed_mm": 2.4,
+  "on": "Body_Shell",
+  "kind": "skin"
+ },
+ {
+  "pt": "HANDLE_F_R",
+  "dist_mm": 2.4,
+  "signed_mm": 2.4,
+  "on": "Body_Shell",
+  "kind": "skin"
+ },
+ {
+  "pt": "GRO_B",
+  "dist_mm": 2.2,
+  "signed_mm": -2.2,
+  "on": "GRILLE_SURROUND",
+  "kind": "part"
+ },
+ {
+  "pt": "GRO_B_R",
+  "dist_mm": 2.2,
+  "signed_mm": -2.2,
+  "on": "GRILLE_SURROUND",
+  "kind": "part"
+ },
+ {
+  "pt": "HL_IB",
+  "dist_mm": 1.4,
+  "signed_mm": 1.4,
+  "on": "LAMP_PANEL",
+  "kind": "part"
+ },
+ {
+  "pt": "HL_IB_R",
+  "dist_mm": 1.4,
+  "signed_mm": 1.4,
+  "on": "LAMP_PANEL",
+  "kind": "part"
+ },
+ {
+  "pt": "IND_OB",
+  "dist_mm": 0.9,
+  "signed_mm": 0.8,
+  "on": "INDICATOR_F_L",
+  "kind": "skin"
+ },
+ {
+  "pt": "IND_OB_R",
+  "dist_mm": 0.9,
+  "signed_mm": 0.8,
+  "on": "INDICATOR_F_R",
+  "kind": "skin"
+ },
+ {
+  "pt": "IND_OT",
+  "dist_mm": 0.9,
+  "signed_mm": 0.9,
+  "on": "INDICATOR_F_L",
+  "kind": "skin"
+ },
+ {
+  "pt": "IND_OT_R",
+  "dist_mm": 0.9,
+  "signed_mm": 0.9,
+  "on": "INDICATOR_F_R",
+  "kind": "skin"
+ },
+ {
+  "pt": "HANDLE_R",
+  "dist_mm": 0.6,
+  "signed_mm": -0.6,
+  "on": "Body_Shell",
+  "kind": "skin"
+ },
+ {
+  "pt": "HANDLE_R_R",
+  "dist_mm": 0.6,
+  "signed_mm": -0.6,
+  "on": "Body_Shell",
+  "kind": "skin"
+ },
+ {
+  "pt": "HL_IT",
+  "dist_mm": 0.4,
+  "signed_mm": 0.4,
+  "on": "LAMP_PANEL",
+  "kind": "part"
+ },
+ {
+  "pt": "HL_IT_R",
+  "dist_mm": 0.4,
+  "signed_mm": 0.4,
+  "on": "LAMP_PANEL",
+  "kind": "part"
+ },
+ {
+  "pt": "GRO_T",
+  "dist_mm": 0.3,
+  "signed_mm": 0.3,
+  "on": "GRILLE_SURROUND",
+  "kind": "part"
+ },
+ {
+  "pt": "GRO_T_R",
+  "dist_mm": 0.3,
+  "signed_mm": 0.3,
+  "on": "GRILLE_SURROUND",
+  "kind": "part"
+ },
+ {
+  "pt": "SR",
+  "dist_mm": 0.2,
+  "signed_mm": 0.2,
+  "on": "Wing_Front_Left",
+  "kind": "skin"
+ },
+ {
+  "pt": "SR_R",
+  "dist_mm": 0.2,
+  "signed_mm": 0.2,
+  "on": "Wing_Front_Left",
+  "kind": "skin"
+ },
+ {
+  "pt": "HL_OB",
+  "dist_mm": 0.1,
+  "signed_mm": 0.1,
+  "on": "LAMP_PANEL",
+  "kind": "part"
+ },
+ {
+  "pt": "HL_OB_R",
+  "dist_mm": 0.1,
+  "signed_mm": 0.1,
+  "on": "LAMP_PANEL",
+  "kind": "part"
+ }
+]

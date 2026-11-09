@@ -1,0 +1,714 @@
+{
+ "_doc": "Cross-sections v3 (master plan Phase 6 step 2; DECISIONS (19): the network has no sections).",
+ "frame": "model frame, left half (x>=0)",
+ "stations": {
+  "-0.10": {
+   "points": [
+    {
+     "id": "roof_centre",
+     "x": 0.0,
+     "z": 1.334,
+     "cls": "MEASURED",
+     "sigma_mm": 5,
+     "src": "centre_roof (line blueprint side trace)"
+    },
+    {
+     "id": "crown_0.25",
+     "x": 0.1362,
+     "z": 1.334,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "crown_0.50",
+     "x": 0.2724,
+     "z": 1.3322,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "crown_0.70",
+     "x": 0.3813,
+     "z": 1.3242,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "crown_0.80",
+     "x": 0.4358,
+     "z": 1.3159,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "crown_0.90",
+     "x": 0.4902,
+     "z": 1.3003,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "crown_0.95",
+     "x": 0.5175,
+     "z": 1.2849,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "glass_top",
+     "x": 0.516,
+     "z": 1.257,
+     "cls": "MEASURED",
+     "sigma_mm": 5,
+     "src": "window_door (traced, BA-fitted)"
+    },
+    {
+     "id": "crown_1.00",
+     "x": 0.5447,
+     "z": 1.245,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "glass_top_edge",
+     "x": 0.5164,
+     "z": 1.2447,
+     "cls": "MEASURED",
+     "sigma_mm": 5,
+     "src": "roof_edge (body_profile cant / side-glass top)"
+    },
+    {
+     "id": "glass_base",
+     "x": 0.6211,
+     "z": 0.8772,
+     "cls": "MEASURED",
+     "sigma_mm": 5,
+     "src": "window_door (traced, BA-fitted)"
+    },
+    {
+     "id": "belt",
+     "x": 0.7116,
+     "z": 0.8127,
+     "cls": "MEASURED",
+     "sigma_mm": 5,
+     "src": "belt z (trace); x from skin_x = numpy-shell estimate -> ESTIMATE in x",
+     "x_cls": "ESTIMATE"
+    },
+    {
+     "id": "widest",
+     "x": 0.7674,
+     "z": 0.6454,
+     "cls": "ENVELOPE",
+     "sigma_mm": 16,
+     "src": "GA rear silhouette peak; matches SOURCED FIA 1535 mm"
+    },
+    {
+     "id": "moulding_bot",
+     "x": 0.7668,
+     "z": 0.4312,
+     "cls": "MEASURED",
+     "sigma_mm": 5,
+     "src": "moulding_bot z (trace); x from skin_x = ESTIMATE",
+     "x_cls": "ESTIMATE",
+     "x_minus_envelope_mm": 31.1,
+     "x_minus_bp_front_mm": 24.8
+    },
+    {
+     "id": "sill",
+     "x": 0.7668,
+     "z": 0.2468,
+     "cls": "MEASURED",
+     "sigma_mm": 5,
+     "src": "sill z (trace); x from skin_x = ESTIMATE",
+     "x_cls": "ESTIMATE",
+     "x_minus_envelope_mm": 57.8,
+     "x_minus_bp_front_mm": 6.8
+    }
+   ]
+  },
+  "0.10": {
+   "points": [
+    {
+     "id": "roof_centre",
+     "x": 0.0,
+     "z": 1.3567,
+     "cls": "MEASURED",
+     "sigma_mm": 5,
+     "src": "centre_roof (line blueprint side trace)"
+    },
+    {
+     "id": "crown_0.25",
+     "x": 0.1405,
+     "z": 1.3567,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "crown_0.50",
+     "x": 0.281,
+     "z": 1.3549,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "crown_0.70",
+     "x": 0.3934,
+     "z": 1.3469,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "crown_0.80",
+     "x": 0.4496,
+     "z": 1.3387,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "crown_0.90",
+     "x": 0.5058,
+     "z": 1.323,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "crown_0.95",
+     "x": 0.5339,
+     "z": 1.3077,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "crown_1.00",
+     "x": 0.562,
+     "z": 1.2677,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "glass_top",
+     "x": 0.5303,
+     "z": 1.2661,
+     "cls": "MEASURED",
+     "sigma_mm": 5,
+     "src": "window_door (traced, BA-fitted)"
+    },
+    {
+     "id": "glass_top_edge",
+     "x": 0.5328,
+     "z": 1.2497,
+     "cls": "MEASURED",
+     "sigma_mm": 5,
+     "src": "roof_edge (body_profile cant / side-glass top)"
+    },
+    {
+     "id": "glass_base",
+     "x": 0.6189,
+     "z": 0.8769,
+     "cls": "MEASURED",
+     "sigma_mm": 5,
+     "src": "window_door (traced, BA-fitted)"
+    },
+    {
+     "id": "belt",
+     "x": 0.7124,
+     "z": 0.8116,
+     "cls": "MEASURED",
+     "sigma_mm": 5,
+     "src": "belt z (trace); x from skin_x = numpy-shell estimate -> ESTIMATE in x",
+     "x_cls": "ESTIMATE"
+    },
+    {
+     "id": "widest",
+     "x": 0.7674,
+     "z": 0.6454,
+     "cls": "ENVELOPE",
+     "sigma_mm": 16,
+     "src": "GA rear silhouette peak; matches SOURCED FIA 1535 mm"
+    },
+    {
+     "id": "moulding_bot",
+     "x": 0.7673,
+     "z": 0.4287,
+     "cls": "MEASURED",
+     "sigma_mm": 5,
+     "src": "moulding_bot z (trace); x from skin_x = ESTIMATE",
+     "x_cls": "ESTIMATE",
+     "x_minus_envelope_mm": 32.1,
+     "x_minus_bp_front_mm": 5.3
+    },
+    {
+     "id": "sill",
+     "x": 0.7672,
+     "z": 0.2442,
+     "cls": "MEASURED",
+     "sigma_mm": 5,
+     "src": "sill z (trace); x from skin_x = ESTIMATE",
+     "x_cls": "ESTIMATE",
+     "x_minus_envelope_mm": 58.7,
+     "x_minus_bp_front_mm": 7.2
+    }
+   ]
+  },
+  "0.40": {
+   "points": [
+    {
+     "id": "roof_centre",
+     "x": 0.0,
+     "z": 1.3647,
+     "cls": "MEASURED",
+     "sigma_mm": 5,
+     "src": "centre_roof (line blueprint side trace)"
+    },
+    {
+     "id": "crown_0.25",
+     "x": 0.1453,
+     "z": 1.3647,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "crown_0.50",
+     "x": 0.2905,
+     "z": 1.3629,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "crown_0.70",
+     "x": 0.4067,
+     "z": 1.3549,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "crown_0.80",
+     "x": 0.4648,
+     "z": 1.3467,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "crown_0.90",
+     "x": 0.5229,
+     "z": 1.331,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "crown_0.95",
+     "x": 0.552,
+     "z": 1.3157,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "crown_1.00",
+     "x": 0.581,
+     "z": 1.2757,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "glass_top_edge",
+     "x": 0.5508,
+     "z": 1.2521,
+     "cls": "MEASURED",
+     "sigma_mm": 5,
+     "src": "roof_edge (body_profile cant / side-glass top)"
+    },
+    {
+     "id": "glass_top",
+     "x": 0.552,
+     "z": 1.2387,
+     "cls": "MEASURED",
+     "sigma_mm": 5,
+     "src": "window_door (traced, BA-fitted)"
+    },
+    {
+     "id": "glass_base",
+     "x": 0.6283,
+     "z": 0.8772,
+     "cls": "MEASURED",
+     "sigma_mm": 5,
+     "src": "window_door (traced, BA-fitted)"
+    },
+    {
+     "id": "belt",
+     "x": 0.7145,
+     "z": 0.8045,
+     "cls": "MEASURED",
+     "sigma_mm": 5,
+     "src": "belt z (trace); x from skin_x = numpy-shell estimate -> ESTIMATE in x",
+     "x_cls": "ESTIMATE"
+    },
+    {
+     "id": "widest",
+     "x": 0.7674,
+     "z": 0.6454,
+     "cls": "ENVELOPE",
+     "sigma_mm": 16,
+     "src": "GA rear silhouette peak; matches SOURCED FIA 1535 mm"
+    },
+    {
+     "id": "moulding_bot",
+     "x": 0.7665,
+     "z": 0.4269,
+     "cls": "MEASURED",
+     "sigma_mm": 5,
+     "src": "moulding_bot z (trace); x from skin_x = ESTIMATE",
+     "x_cls": "ESTIMATE",
+     "x_minus_envelope_mm": 31.7,
+     "x_minus_bp_front_mm": 2.5
+    },
+    {
+     "id": "sill",
+     "x": 0.7665,
+     "z": 0.2425,
+     "cls": "MEASURED",
+     "sigma_mm": 5,
+     "src": "sill z (trace); x from skin_x = ESTIMATE",
+     "x_cls": "ESTIMATE",
+     "x_minus_envelope_mm": 58.1,
+     "x_minus_bp_front_mm": 8.5
+    }
+   ]
+  },
+  "0.80": {
+   "points": [
+    {
+     "id": "roof_centre",
+     "x": 0.0,
+     "z": 1.3553,
+     "cls": "MEASURED",
+     "sigma_mm": 5,
+     "src": "centre_roof (line blueprint side trace)"
+    },
+    {
+     "id": "crown_0.25",
+     "x": 0.1415,
+     "z": 1.3553,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "crown_0.50",
+     "x": 0.2829,
+     "z": 1.3534,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "crown_0.70",
+     "x": 0.3961,
+     "z": 1.3455,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "crown_0.80",
+     "x": 0.4527,
+     "z": 1.3372,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "crown_0.90",
+     "x": 0.5093,
+     "z": 1.3215,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "crown_0.95",
+     "x": 0.5376,
+     "z": 1.3062,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "crown_1.00",
+     "x": 0.5659,
+     "z": 1.2663,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "glass_top_edge",
+     "x": 0.5364,
+     "z": 1.2441,
+     "cls": "MEASURED",
+     "sigma_mm": 5,
+     "src": "roof_edge (body_profile cant / side-glass top)"
+    },
+    {
+     "id": "glass_top",
+     "x": 0.535,
+     "z": 1.2354,
+     "cls": "MEASURED",
+     "sigma_mm": 5,
+     "src": "window_quarter (traced, BA-fitted)"
+    },
+    {
+     "id": "glass_base",
+     "x": 0.6332,
+     "z": 0.871,
+     "cls": "MEASURED",
+     "sigma_mm": 5,
+     "src": "window_quarter (traced, BA-fitted)"
+    },
+    {
+     "id": "belt",
+     "x": 0.6992,
+     "z": 0.8536,
+     "cls": "MEASURED",
+     "sigma_mm": 5,
+     "src": "belt z (trace); x from skin_x = numpy-shell estimate -> ESTIMATE in x",
+     "x_cls": "ESTIMATE"
+    },
+    {
+     "id": "widest",
+     "x": 0.7674,
+     "z": 0.6454,
+     "cls": "ENVELOPE",
+     "sigma_mm": 16,
+     "src": "GA rear silhouette peak; matches SOURCED FIA 1535 mm"
+    },
+    {
+     "id": "moulding_bot",
+     "x": 0.7655,
+     "z": 0.4238,
+     "cls": "MEASURED",
+     "sigma_mm": 5,
+     "src": "moulding_bot z (trace); x from skin_x = ESTIMATE",
+     "x_cls": "ESTIMATE",
+     "x_minus_envelope_mm": 31.3,
+     "x_minus_bp_front_mm": 1.5
+    },
+    {
+     "id": "sill",
+     "x": 0.7654,
+     "z": 0.2343,
+     "cls": "MEASURED",
+     "sigma_mm": 5,
+     "src": "sill z (trace); x from skin_x = ESTIMATE",
+     "x_cls": "ESTIMATE",
+     "x_minus_envelope_mm": 57.4,
+     "x_minus_bp_front_mm": 99.4
+    }
+   ]
+  },
+  "1.15": {
+   "points": [
+    {
+     "id": "roof_centre",
+     "x": 0.0,
+     "z": 1.3597,
+     "cls": "MEASURED",
+     "sigma_mm": 5,
+     "src": "centre_roof (line blueprint side trace)"
+    },
+    {
+     "id": "crown_0.25",
+     "x": 0.1359,
+     "z": 1.3597,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "crown_0.50",
+     "x": 0.2718,
+     "z": 1.3578,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "crown_0.70",
+     "x": 0.3806,
+     "z": 1.3499,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "crown_0.80",
+     "x": 0.4349,
+     "z": 1.3416,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "crown_0.90",
+     "x": 0.4893,
+     "z": 1.3259,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "crown_0.95",
+     "x": 0.5165,
+     "z": 1.3106,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "crown_1.00",
+     "x": 0.5436,
+     "z": 1.2707,
+     "cls": "ESTIMATE",
+     "sigma_mm": 10,
+     "src": "crown SHAPE measured at y~0.08 (GA front silhouette), carried to this station"
+    },
+    {
+     "id": "glass_top_edge",
+     "x": 0.5154,
+     "z": 1.2336,
+     "cls": "MEASURED",
+     "sigma_mm": 5,
+     "src": "roof_edge (body_profile cant / side-glass top)"
+    },
+    {
+     "id": "glass_top",
+     "x": 0.5216,
+     "z": 1.2041,
+     "cls": "MEASURED",
+     "sigma_mm": 5,
+     "src": "window_quarter (traced, BA-fitted)"
+    },
+    {
+     "id": "belt",
+     "x": 0.6935,
+     "z": 0.8846,
+     "cls": "MEASURED",
+     "sigma_mm": 5,
+     "src": "belt z (trace); x from skin_x = numpy-shell estimate -> ESTIMATE in x",
+     "x_cls": "ESTIMATE"
+    },
+    {
+     "id": "glass_base",
+     "x": 0.6309,
+     "z": 0.8635,
+     "cls": "MEASURED",
+     "sigma_mm": 5,
+     "src": "window_quarter (traced, BA-fitted)"
+    },
+    {
+     "id": "widest",
+     "x": 0.7674,
+     "z": 0.6454,
+     "cls": "ENVELOPE",
+     "sigma_mm": 16,
+     "src": "GA rear silhouette peak; matches SOURCED FIA 1535 mm"
+    }
+   ]
+  }
+ },
+ "checks": {
+  "crown_estimate_vs_silhouette_mm": {
+   "0.200": 4.4,
+   "0.300": 7.8,
+   "0.400": 7.8,
+   "0.450": 5.1,
+   "0.500": -3.1,
+   "0.530": -14.8,
+   "0.550": -31.4,
+   "0.561": -52.6
+  },
+  "front_vs_rear_silhouette_mm": {
+   "0.40": -2.9,
+   "0.50": 1.8,
+   "0.60": 7.3,
+   "0.67": 16.2,
+   "0.75": 11.0,
+   "0.85": 9.0
+  },
+  "held_out_bp_front": {
+   "shape": [
+    750,
+    1000
+   ],
+   "bp_front_max_x_at_z": {
+    "0.40": 0.762,
+    "0.50": 0.762,
+    "0.60": 0.764,
+    "0.65": 0.764,
+    "0.70": 0.742,
+    "0.80": 0.714,
+    "0.90": 0.824
+   },
+   "bp_front_top_z_at_x": {
+    "0.000": 1.358,
+    "0.200": 1.352,
+    "0.300": 1.346,
+    "0.400": 1.346,
+    "0.450": 1.342,
+    "0.500": 1.342,
+    "0.530": 1.328,
+    "0.550": 1.294
+   },
+   "bp_front_roof_drop_mm": {
+    "0.000": 0.0,
+    "0.200": 6.0,
+    "0.300": 12.0,
+    "0.400": 12.0,
+    "0.450": 16.0,
+    "0.500": 16.0,
+    "0.530": 30.0,
+    "0.550": 64.0
+   },
+   "ga_roof_drop_mm": {
+    "0.000": 0.0,
+    "0.200": 0.2,
+    "0.300": 2.6,
+    "0.400": 10.7,
+    "0.450": 18.4,
+    "0.500": 32.0,
+    "0.530": 47.3,
+    "0.550": 66.4
+   }
+  }
+ },
+ "findings": [
+  "y=-0.10: moulding_bot x=0.767 (skin_x, ESTIMATE) is 31 mm outside the GA envelope (0.736) at z=0.43 but +25 mm from the held-out bp_front outline (0.742): SOURCES CONFLICT, unresolved. Sourced tyre half-width is 0.7475 (track 1320 + 175 mm section), wider than the GA envelope below z~0.4, so the GA low-z envelope is itself suspect.",
+  "y=-0.10: sill x=0.767 (skin_x, ESTIMATE) is 58 mm outside the GA envelope (0.709) at z=0.25 but +7 mm from the held-out bp_front outline (0.760): SOURCES CONFLICT, unresolved. Sourced tyre half-width is 0.7475 (track 1320 + 175 mm section), wider than the GA envelope below z~0.4, so the GA low-z envelope is itself suspect.",
+  "y=0.10: moulding_bot x=0.767 (skin_x, ESTIMATE) is 32 mm outside the GA envelope (0.735) at z=0.43 but +5 mm from the held-out bp_front outline (0.762): SOURCES CONFLICT, unresolved. Sourced tyre half-width is 0.7475 (track 1320 + 175 mm section), wider than the GA envelope below z~0.4, so the GA low-z envelope is itself suspect.",
+  "y=0.10: sill x=0.767 (skin_x, ESTIMATE) is 59 mm outside the GA envelope (0.709) at z=0.24 but +7 mm from the held-out bp_front outline (0.760): SOURCES CONFLICT, unresolved. Sourced tyre half-width is 0.7475 (track 1320 + 175 mm section), wider than the GA envelope below z~0.4, so the GA low-z envelope is itself suspect.",
+  "y=0.40: moulding_bot x=0.766 (skin_x, ESTIMATE) is 32 mm outside the GA envelope (0.735) at z=0.43 but +2 mm from the held-out bp_front outline (0.764): SOURCES CONFLICT, unresolved. Sourced tyre half-width is 0.7475 (track 1320 + 175 mm section), wider than the GA envelope below z~0.4, so the GA low-z envelope is itself suspect.",
+  "y=0.40: sill x=0.766 (skin_x, ESTIMATE) is 58 mm outside the GA envelope (0.708) at z=0.24 but +8 mm from the held-out bp_front outline (0.758): SOURCES CONFLICT, unresolved. Sourced tyre half-width is 0.7475 (track 1320 + 175 mm section), wider than the GA envelope below z~0.4, so the GA low-z envelope is itself suspect.",
+  "y=0.80: moulding_bot x=0.765 (skin_x, ESTIMATE) is 31 mm outside the GA envelope (0.734) at z=0.42 but +1 mm from the held-out bp_front outline (0.764): SOURCES CONFLICT, unresolved. Sourced tyre half-width is 0.7475 (track 1320 + 175 mm section), wider than the GA envelope below z~0.4, so the GA low-z envelope is itself suspect.",
+  "y=0.80: sill x=0.765 (skin_x, ESTIMATE) is 57 mm outside the GA envelope (0.708) at z=0.23 but +99 mm from the held-out bp_front outline (0.666): SOURCES CONFLICT, unresolved. Sourced tyre half-width is 0.7475 (track 1320 + 175 mm section), wider than the GA envelope below z~0.4, so the GA low-z envelope is itself suspect."
+ ]
+}

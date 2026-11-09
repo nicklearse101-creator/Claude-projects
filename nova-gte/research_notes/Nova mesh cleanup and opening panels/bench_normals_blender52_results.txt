@@ -1,0 +1,44 @@
+blender 5.2.1 LTS
+ico sphere: 655362 verts, 1310720 tris, build 1.71s
+vertex_normals read 0.02s
+normals_split_custom_set_from_vertices 1.66s -> custom_normal ('INT16_2D', 'CORNER'), has_custom_normals=True, normals_domain=CORNER
+corner_normals foreach_get 0.03s (3932160 corners)
+normals_split_custom_set (per corner) 9.60s
+calc_tangents 0.27s
+tangent+bitangent_sign read 0.51s, signs [1.]
+body roughness (custom normals = noisy vertex normals): 2.769 deg
+LaplacianSmooth x2 applied (new_from_object) 198.76s
+CorrectiveSmooth x20 only_smooth applied 0.39s
+bmesh from_mesh 0.39s
+bmesh.ops.smooth_vert x10 1.73s
+bmesh to_mesh 0.12s, custom_normal after bmesh: ('INT16_2D', 'CORNER')
+proxy_laplacian roughness of its own normals: 1.504 deg
+proxy_corrective roughness of its own normals: 0.502 deg
+proxy_bmesh roughness of its own normals: 0.315 deg
+DT defaults: mix_mode=REPLACE mix_factor=1.0 loop_mapping=NEAREST_POLYNOR use_object_transform=True
+DataTransfer NEAREST_POLYNOR: eval 1.66s, corner_normals read 0.03s, custom_normal=(('INT16_2D', 'CORNER'), 'CORNER', True)
+   result roughness 0.503 deg
+DataTransfer POLYINTERP_NEAREST: eval 2.86s, corner_normals read 0.03s, custom_normal=(('INT16_2D', 'CORNER'), 'CORNER', True)
+   result roughness 0.498 deg
+DataTransfer POLYINTERP_LNORPROJ: eval 5.73s, corner_normals read 0.03s, custom_normal=(('INT16_2D', 'CORNER'), 'CORNER', True)
+   result roughness 0.498 deg
+DataTransfer NEAREST_NORMAL: eval 1.54s, corner_normals read 0.03s, custom_normal=(('INT16_2D', 'CORNER'), 'CORNER', True)
+   result roughness 0.503 deg
+DataTransfer POLYINTERP_NEAREST + vertex group (top half): eval 2.67s, corner_normals read 0.03s, custom_normal=(('INT16_2D', 'CORNER'), 'CORNER', True)
+bpy.ops.object.modifier_apply via temp_override -> {'FINISHED'} in 2.63s; custom_normal ('INT16_2D', 'CORNER'); roughness 1.635 deg
+WN defaults: mode=FACE_AREA weight=50 thresh=0.009999999776482582 keep_sharp=False
+WeightedNormal FACE_AREA keep_sharp: eval 0.70s, corner_normals read 0.03s, custom_normal=(('INT16_2D', 'CORNER'), 'CORNER', True)
+WeightedNormal CORNER_ANGLE keep_sharp: eval 1.30s, corner_normals read 0.03s, custom_normal=(('INT16_2D', 'CORNER'), 'CORNER', True)
+Shrinkwrap NEAREST_SURFACEPOINT (proxy -> body) eval 0.31s, mean move 0.323 mm
+Shrinkwrap PROJECT (proxy -> body) eval 0.18s, mean move 0.330 mm
+Shrinkwrap TARGET_PROJECT (proxy -> body) eval 0.21s, mean move 0.330 mm
+Mesh.set_sharp_from_angle 0.04s; custom_normal kept: ('INT16_2D', 'CORNER')
+shade_auto_smooth in background -> {'FINISHED'}; modifiers [('Smooth by Angle', 'NODES')]
+free normals mesh: custom_normal ('FLOAT_VECTOR', 'CORNER'), has_custom_normals=True, first corner normal (0.0, 0.0, 1.0)
+   after WeightedNormal on free normals: custom_normal ('FLOAT_VECTOR', 'CORNER'), all still +Z? True, modifier error: True
+   normals_split_custom_set_from_vertices on free-normal mesh -> custom_normal ('FLOAT_VECTOR', 'CORNER'), first (0.0, 0.0, 1.0)
+grid quads (160000 quads): max deviation from set custom normal 0.2594 deg
+   Triangulate modifier keep_custom_normals=False: max deviation 55.3281 deg
+   Triangulate modifier keep_custom_normals=True: max deviation 0.2609 deg
+   bmesh.ops.triangulate: max deviation 55.3281 deg
+   loop_triangles (no mesh change) reuse corner_normals: deviation 0.2594 deg

@@ -1,0 +1,97 @@
+line                         group         wobble      rms  wiggle/m     oop    len  source
+rear_c_pillar                rear          12.8mm   2.29mm       2.8   2.2mm  0.70m  GA 1990 sheet, rear view trace
+belt#2                       body          11.4mm   1.87mm      12.6   6.9mm  1.49m  line blueprint side: belt+belt_b
+shut_door_front#1            shut           9.8mm   3.14mm      15.4   3.6mm  0.39m  line blueprint side: shut_door_front
+front_screen_header#1        dlo            9.3mm   2.79mm       7.0   0.0mm  0.28m  GA 1990 sheet, front view trace
+centre_screen                centre         8.9mm   2.53mm       4.5   0.0mm  0.69m  line blueprint side: screen
+part_bumper_r_1              model_parts    8.8mm   1.91mm       3.8  75.8mm  2.23m  model part outline (rear_end.py - outline 1 (4554 
+part_taillamp_l_7            model_parts    8.5mm   1.62mm       5.0   4.3mm  0.40m  model part outline (tail_lamps.py (GA heights 800/
+rear_lamp                    rear           8.5mm   1.58mm       9.6   2.3mm  1.01m  GA 1990 sheet, rear view trace
+part_taillamp_l_6            model_parts    8.3mm   1.61mm       5.0   4.3mm  0.40m  model part outline (tail_lamps.py (GA heights 800/
+glass_base#2                 dlo            7.6mm   2.16mm       7.5   0.0mm  0.90m  line blueprint side: glass_base
+moulding_bot                 body           7.6mm   1.30mm       8.8   1.0mm  1.67m  line blueprint side: moulding_bot+moulding_bot_b
+bonnet_shut                  shut           7.6mm   2.36mm       7.1   0.0mm  0.99m  shut_bonnet_wing.json
+window_quarter               dlo            7.3mm   2.21mm      12.7   6.1mm  2.25m  windows.json (traced, fitted to BA corners)
+crease_front                 crease         7.2mm   1.61mm       6.8   1.2mm  0.74m  line blueprint side: crease_front+crease_front_b
+part_bumper_f_1              model_parts    7.2mm   1.59mm       3.0  64.8mm  2.10m  model part outline (front_end.py (photo-measured s
+rear_glass#1                 rear           7.2mm   2.45mm       8.1  10.0mm  1.39m  GA 1990 sheet, rear view trace
+front_body_sil               envelope       7.2mm   2.46mm      34.9   0.0mm  0.63m  GA 1990 sheet, front view trace
+rear_bumper_bottom           rear           7.1mm   2.08mm      14.8   2.2mm  0.68m  GA 1990 sheet, rear view trace
+shut_door_rear#2             shut           7.0mm   2.10mm      36.4   1.9mm  0.33m  line blueprint side: shut_door_rear
+window_door                  dlo            6.9mm   1.61mm      21.0   5.7mm  2.02m  windows.json (traced, fitted to BA corners)
+part_taillamp_l_3            model_parts    6.9mm   1.47mm       6.0   0.0mm  0.50m  model part outline (tail_lamps.py (GA heights 800/
+part_wing_front_left_1#1     model_parts    6.9mm   1.37mm       4.1  27.3mm  2.25m  model part outline (rebuild_wing_drawn.py - outlin
+part_panel_r_l_1             model_parts    6.8mm   0.91mm      13.5  31.4mm  3.83m  model part outline (rear_panel.py (tailgate on the
+front_roof_crown             envelope       6.7mm   1.93mm      16.8   0.0mm  0.59m  GA 1990 sheet, front view trace
+tail_centre#2                centre         6.7mm   2.42mm      11.5   0.0mm  0.60m  GA 1990 sheet, side view trace
+front_grille                 front          6.4mm   1.19mm      10.7   4.3mm  0.71m  GA 1990 sheet, front view trace
+tailgate_shut#1              shut           6.3mm   2.56mm      19.7   7.9mm  0.49m  line blueprint side: tailgate_shut
+plan_widest                  plan           6.2mm   1.80mm       2.7   0.0mm  3.67m  GA plan half-width (plan_profile halfw_merged)
+arch_rear                    arch           6.1mm   2.19mm      28.0   3.3mm  0.87m  line blueprint side: arch_rear+arch_rear_b
+part_taillamp_l_2            model_parts    5.8mm   1.11mm       6.0   0.0mm  0.50m  model part outline (tail_lamps.py (GA heights 800/
+front_headlamp#1             front          5.7mm   3.18mm       0.0   0.5mm  0.09m  GA 1990 sheet, front view trace
+arch_front                   arch           5.4mm   1.97mm      32.6   1.5mm  0.65m  line blueprint side: arch_front+arch_front_b
+part_lamp_panel_1            model_parts    5.4mm   0.76mm       7.3   9.3mm  2.08m  model part outline (front_end.py - outline 1 (4209
+centre_backlight             centre         5.4mm   1.80mm      18.2   0.0mm  0.11m  line blueprint side: backlight
+centre_bonnet                centre         5.4mm   1.86mm      12.6   0.0mm  1.19m  line blueprint side: bonnet_top+bonnet_top_b
+part_wing_front_left_1#2     model_parts    5.4mm   2.30mm       4.6   1.9mm  0.87m  model part outline (rebuild_wing_drawn.py - outlin
+dlo_top#1                    dlo            5.2mm   1.51mm       5.7   1.2mm  0.90m  line blueprint side: dlo_top
+part_skirt_left_1#1          model_parts    5.2mm   0.65mm       0.6   1.5mm  1.74m  model part outline (rebuild_sill.py (skirt traced 
+part_bumper_r_valance_1#2    model_parts    5.0mm   1.82mm       0.2  13.9mm  1.01m  model part outline (rear_end.py - outline 1 (3771 
+front_headlamp#3             front          4.8mm   2.02mm      25.9   0.9mm  0.27m  GA 1990 sheet, front view trace
+part_skirt_left_1#2          model_parts    4.7mm   1.82mm      12.1   0.9mm  1.77m  model part outline (rebuild_sill.py (skirt traced 
+sill                         body           4.6mm   0.90mm      11.7   0.8mm  1.63m  line blueprint side: sill+sill_b
+door_bottom#2                shut           4.6mm   1.22mm      12.5   0.7mm  1.24m  line blueprint side: door_bottom+door_bottom_b
+rear_body_sil                envelope       4.5mm   1.95mm       8.5   0.0mm  0.59m  GA 1990 sheet, rear view trace
+part_bumper_f_lip_1#2        model_parts    4.2mm   1.56mm       3.5  17.0mm  1.02m  model part outline (front_end.py - outline 1 (3743
+belt#1                       body           4.1mm   0.92mm      25.9   0.2mm  0.93m  line blueprint side: belt+belt_b
+centre_roof                  centre         3.9mm   1.04mm       8.4   0.0mm  1.69m  line blueprint side: roof+roof_b
+front_headlamp#2             front          3.9mm   1.36mm       6.7   6.5mm  0.39m  GA 1990 sheet, front view trace
+front_a_pillar               dlo            3.8mm   1.15mm       7.9   0.0mm  0.45m  GA 1990 sheet, front view trace
+glass_base#1                 dlo            3.7mm   1.07mm       0.0   0.0mm  0.30m  line blueprint side: glass_base
+front_bumper_top             front          3.6mm   1.31mm      38.4   0.9mm  0.49m  GA 1990 sheet, front view trace
+part_taillamp_l_8            model_parts    3.3mm   0.74mm      24.5   2.1mm  0.33m  model part outline (tail_lamps.py (GA heights 800/
+rear_bumper_top#2            rear           3.2mm   0.80mm      30.0   0.0mm  0.20m  GA 1990 sheet, rear view trace
+crease_rear                  crease         3.0mm   1.25mm      10.9   4.4mm  0.92m  line blueprint side: crease_rear+crease_rear_b
+glass_base#3                 dlo            2.7mm   0.58mm       0.9   1.9mm  0.51m  line blueprint side: glass_base
+rear_bumper_top#3            rear           2.6mm   0.93mm       3.3   3.7mm  0.21m  GA 1990 sheet, rear view trace
+part_grille_surround_1       model_parts    2.3mm   0.32mm       8.0   0.6mm  0.83m  model part outline (front_end.py - outline 1 (1817
+part_bumper_r_valance_1#1    model_parts    2.0mm   0.46mm       0.0   4.8mm  0.78m  model part outline (rear_end.py - outline 1 (3771 
+part_lamp_panel_2            model_parts    1.9mm   0.25mm       5.7   0.7mm  0.89m  model part outline (front_end.py - outline 2 (1810
+part_hood_panel_1            model_parts    1.9mm   0.24mm       5.9  18.0mm  3.04m  model part outline (rebuild_bonnet_drawn.py - outl
+part_wing_front_left_1#3     model_parts    1.8mm   0.63mm       2.5   0.0mm  0.24m  model part outline (rebuild_wing_drawn.py - outlin
+part_bonnet_crease           model_parts    1.8mm   0.38mm       0.0   0.0mm  0.85m  model part outline (body_profile bonnet_creases (r
+screen_base                  dlo            1.7mm   0.57mm       6.6   0.0mm  0.60m  body_profile scuttle_curve + BA WS_B
+part_scuttle_panel_1         model_parts    1.5mm   0.50mm       1.4   6.5mm  1.50m  model part outline (rebuild_scuttle_drawn.py - out
+part_plate_f_1               model_parts    1.5mm   0.49mm       8.6   0.1mm  0.60m  model part outline (front_end.py (plate 520 x 111)
+part_indicator_f_l_1         model_parts    1.5mm   0.31mm      14.8   3.5mm  0.47m  model part outline (front_end.py (BA IND_*) - outl
+rear_tailgate_bottom#2       rear           1.4mm   0.91mm       0.0   0.1mm  0.05m  GA 1990 sheet, rear view trace
+part_taillamp_l_1            model_parts    1.4mm   0.29mm       2.2   3.5mm  0.56m  model part outline (tail_lamps.py (GA heights 800/
+part_taillamp_l_5            model_parts    1.3mm   0.32mm       0.0   3.6mm  0.42m  model part outline (tail_lamps.py (GA heights 800/
+rear_bumper_top#1            rear           1.2mm   0.54mm      25.6   0.4mm  0.20m  GA 1990 sheet, rear view trace
+dlo_top#2                    dlo            1.1mm   0.66mm      37.5   0.0mm  0.08m  line blueprint side: dlo_top
+rear_panel_recess            rear           1.0mm   0.32mm       7.7   0.1mm  0.42m  GA 1990 sheet, rear view trace
+part_taillamp_l_4            model_parts    1.0mm   0.28mm       0.0   3.7mm  0.43m  model part outline (tail_lamps.py (GA heights 800/
+part_headlamp_glass_l_1      model_parts    0.9mm   0.23mm       4.3   0.9mm  0.69m  model part outline (front_end.py (BA HL_*) - outli
+part_bumper_f_lip_1#1        model_parts    0.9mm   0.27mm       0.0   3.8mm  0.75m  model part outline (front_end.py - outline 1 (3743
+moulding_top#2               body           0.8mm   0.23mm       3.0   1.0mm  1.54m  line blueprint side: moulding_top+moulding_top_b
+rear_spoiler_top             rear           0.8mm   0.29mm       8.2   0.0mm  0.48m  GA 1990 sheet, rear view trace
+rear_tailgate_bottom#1       rear           0.7mm   0.32mm      18.6   0.1mm  0.21m  GA 1990 sheet, rear view trace
+plan_front_bumper            plan           0.6mm   0.19mm       7.3   0.0mm  0.55m  GA 1990 sheet, plan view trace
+part_grille_surround_3       model_parts    0.5mm   0.17mm      11.0   0.8mm  0.68m  model part outline (front_end.py - outline 3 (692 
+plan_rear_bumper#2           plan           0.5mm   0.13mm      15.0   0.0mm  0.14m  GA 1990 sheet, plan view trace
+rear_spoiler_bottom          rear           0.3mm   0.12mm       9.1   0.5mm  0.44m  GA 1990 sheet, rear view trace
+shut_door_front#2            shut           0.3mm   0.12mm      20.0   0.0mm  0.15m  line blueprint side: shut_door_front
+plan_rear_bumper#1           plan           0.2mm   0.14mm       0.0   0.0mm  0.05m  GA 1990 sheet, plan view trace
+door_bottom#3                shut           0.2mm   0.08mm       6.2   0.0mm  0.33m  line blueprint side: door_bottom+door_bottom_b
+moulding_top#1               body           0.0mm   0.01mm      10.5   0.1mm  0.10m  line blueprint side: moulding_top+moulding_top_b
+door_bottom#1                shut           0.0mm   0.01mm      12.5   0.0mm  0.08m  line blueprint side: door_bottom+door_bottom_b
+roof_edge                    roof           0.0mm   0.00mm       1.8   1.3mm  1.65m  body_profile cant (photo)
+part_grille_surround_4       model_parts    0.0mm   0.00mm       0.0   0.0mm  0.08m  model part outline (front_end.py - outline 4 (83 m
+bonnet_v                     front          0.0mm   0.00mm      37.7   0.0mm  0.61m  body_profile bonnet_v
+a_pillar                     dlo            0.0mm   0.00mm      92.9   0.0mm  0.56m  BA WS_B -> WS_T
+part_grille_surround_2       model_parts    0.0mm   0.00mm       0.0   0.0mm  0.07m  model part outline (front_end.py - outline 2 (1817
+screen_header                dlo            0.0mm   0.00mm       0.0   0.0mm  0.50m  BA WS_T, header straight in plan
+shut_door_rear#1             shut           0.0mm   0.00mm       0.0   0.0mm  0.02m  line blueprint side: shut_door_rear
+rear_glass#2                 rear           0.0mm   0.00mm       0.0   0.0mm  0.02m  GA 1990 sheet, rear view trace
+tail_centre#1                centre         0.0mm   0.00mm       0.0   0.0mm  0.03m  GA 1990 sheet, side view trace

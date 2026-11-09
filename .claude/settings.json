@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/autosave.sh\"",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}

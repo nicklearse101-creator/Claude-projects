@@ -1,0 +1,8 @@
+Fair the line network, DP tracer, two-view photo marks
+
+fairness.py measures wobble per curve; fit now as fair as the data allow
+(worst <= 1.5 px, RMS <= 0.6 px); tracer stays on one drawn line; LOCK_R and
+BADGE_R triangulated, rear glass nearly flat in plan (was an 8 cm bulge).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_011JoJ6exd1AM6iucA4VJacc

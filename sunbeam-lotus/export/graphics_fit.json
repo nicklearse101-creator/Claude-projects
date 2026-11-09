@@ -1,0 +1,31 @@
+{
+  "cgHeight": 0.5552,
+  "rideHeight": [
+    0.1439,
+    0.2236
+  ],
+  "pitch_deg_from_rideheight": -1.892,
+  "pitch_shared_memory": 0.0128,
+  "wheel_load": [
+    2793,
+    2744,
+    2454,
+    2386
+  ],
+  "susp_travel": [
+    0.0636,
+    0.0627,
+    0.0556,
+    0.0552
+  ],
+  "hub_y_body": {
+    "front": -0.2352,
+    "rear": -0.3134
+  },
+  "GRAPHICS_OFFSET": [
+    0.0,
+    -0.414,
+    -0.174
+  ],
+  "GRAPHICS_PITCH_ROTATION": -1.85
+}

@@ -1,0 +1,8 @@
+Character-line network v2: rear, front, plan and part outlines (96 curves)
+
+GA end/plan views traced onto the ink (trace_view.py, guides in trace_spec.json),
+second coordinate from measured sources per line; part outlines flagged from_model.
+Curve fit: swing check, pole smoothing and gap splitting stop loops across gaps.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_011JoJ6exd1AM6iucA4VJacc

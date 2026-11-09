@@ -1,0 +1,15 @@
+Character-line network v1: 28 key lines as fitted B-splines in FreeCAD
+
+- tools/cad/lines.py: the Nova's key lines assembled from the traced drawings,
+  GA plan and photo measurements (blender/data/cad/lines_v1.json).
+- tools/cad/build_curves.py: least-squares cubic B-splines within one source
+  pixel, split at real corners (40 mm chords); spans capped so the fit can no
+  longer go singular (the 12:22 run hung on that). 24 of 28 within tolerance.
+  -> cad/nova_lines.FCStd, lines_v1_fit.json
+- tools/cad/check_lines.py: draws the lines on every drawing view and photo.
+- tools/fetch_commons.ps1: free Commons photos of pre-facelift 3-doors.
+
+See docs/DECISIONS.md 2026-10-27 (19).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_011JoJ6exd1AM6iucA4VJacc

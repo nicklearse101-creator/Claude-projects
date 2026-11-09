@@ -1,0 +1,117 @@
+
+1989 Vauxhall Nova GTEImage Tools & Body-Surface Reconstruction Brief
+For Claude Code + Blender + available CAD tools | Assetto Corsa mod project
+1. Project context and primary problem
+The goal is a convincing, accurate 3D model of a 1989 UK-market, right-hand-drive Vauxhall Nova GTE for Assetto Corsa. The project uses Blender, Claude Code, and CAD tools that are already installed and available to Claude. Reference work has included researching exterior, engine bay, underside and interior details.
+The main blocker is the exterior body shell: the model can align with dimensions and orthographic reference views but still looks unlike the real car. Matching front/side/top silhouettes is necessary but not sufficient. The surface crowns, cross-sections, curvature continuity, panel transitions, feature lines and highlight flow may be wrong. A mesh can look acceptable in orthographic views and fail badly in three-quarter views or reflective lighting.
+2. What Claude should do before changing geometry
+Inspect the existing Blender scene, body-shell object(s), modifiers, topology, materials, scripts and CAD files. Preserve the original project and make a checkpoint/duplicate before edits.
+Render fixed, repeatable views: front, rear, left, right, top, front three-quarter and rear three-quarter. Use consistent focal length, framing and lighting for comparisons.
+Create a discrepancy list of the five biggest visible differences from real reference photos. Classify each as silhouette, section/cross-section, surface curvature, feature-line placement, topology/shading or small detail.
+Identify how the body was built: extruded side profile, scripted vertices/faces, curves/cross-sections, imported CAD, AI-generated mesh, or a combination. Do not assume the construction method.
+Map each available reference to the constraints it can reliably provide. Side elevation: side silhouette, roofline and openings. Front/rear elevations: width, lamps and bumper placement. Top view: plan outline. Three-quarter photographs: surface curvature and transitions. Avoid treating a perspective photo as an orthographic measurement.
+Do not rebuild or make broad destructive changes until the audit and diagnosis have been presented. Work one region at a time and retain checkpoints.
+3. Image-related tools and what each is good for
+These tools are complementary, not interchangeable. For a body shell, prioritize accurate reference acquisition, calibrated image comparison, photogrammetry/multi-view reconstruction where suitable, and curvature inspection. Image-to-3D generation is usually better for rough starting geometry or separate components than for a precise complete car shell.
+Reference research and image management
+Examples: Google Images, Bing Images, manufacturer brochures, period road tests, enthusiast forums, auction/classified photos, workshop manuals and parts catalogues.
+Best use: Find original period views, trim-specific details, panel gaps, wheel/arch shapes and interior/engine references. Prefer several views of the same car and trim. Record source, viewpoint, year/market, and confidence. Respect copyright and site terms.
+Reverse-image search
+Examples: Google Lens, Bing Visual Search, TinEye.
+Best use: Find alternate copies, original listings, related angles or higher-resolution versions of a known photo. Results may be duplicates or different trims; verify each image.
+Image editing, crop and annotation
+Examples: GIMP, Krita, Paint.NET, Photoshop, Affinity Photo; ImageMagick for batch operations.
+Best use: Crop and label reference areas, create masks, align landmarks, make side-by-side comparisons, adjust levels and prepare image planes. Do not non-uniformly stretch a photo to force a match unless explicitly documenting a calibration correction.
+Image alignment and perspective correction
+Examples: OpenCV; Hugin for panorama-style alignment; Photoshop/GIMP perspective tools for manual corrections.
+Best use: Use feature/landmark alignment, lens/perspective correction and image registration. OpenCV can automate edge extraction, feature matching and overlay comparisons. A perspective photograph cannot be made truly orthographic merely by cropping; use known planes/geometry and document uncertainty.
+Silhouette / edge comparison
+Examples: OpenCV, scikit-image, ImageMagick; Blender Python scripts.
+Best use: Extract silhouette masks or edge maps and compare renders against calibrated references. Useful for roofline, window openings, bonnet, bumper and arch outline. Results are only meaningful with matching view, scale, camera and lens assumptions.
+Photogrammetry / multi-view reconstruction
+Examples: COLMAP, Meshroom (AliceVision), RealityCapture, Agisoft Metashape, 3DF Zephyr.
+Best use: Reconstruct a textured point cloud/mesh from overlapping photographs. Best with many sharp, overlapping views around the same object and stable camera geometry. Glossy paint, glass, repetitive surfaces, changing reflections and missing views make cars difficult. A few unrelated web photos will rarely yield a dependable complete shell.
+Neural radiance fields / 3D Gaussian splatting
+Examples: Nerfstudio, Postshot and other current NeRF/3DGS pipelines.
+Best use: Can create viewable scene reconstructions from a photo/video capture sequence. Often useful for visual reference or camera exploration, but the output may not be a clean, watertight, dimensionally accurate CAD/mesh asset. Treat as a reference aid, not production body geometry.
+Single-image or multi-image AI 3D generation
+Examples: Meshy, Tripo, Rodin/Hyper3D and other image-to-3D services, depending on current access and terms.
+Best use: Can create rough shape concepts or separate items such as seats, steering wheels, mirrors, lamps or small trim parts. A generated full car is likely to invent unseen geometry and soften distinctive panel forms. Do not accept it as authoritative body surfacing without careful rebuild and measurement.
+Image generation / reference concept exploration
+Examples: ChatGPT image generation and other image-generation systems available to the user.
+Best use: Useful for visualizing a missing angle, creating clean concept/reference diagrams, or testing presentation ideas. Generated images are not reliable evidence of exact original body geometry and should never override real period photographs, measured dimensions or drawings.
+Image super-resolution / restoration
+Examples: Upscayl, Real-ESRGAN-based tools, Photoshop Super Resolution and similar tools.
+Best use: Can make a small reference easier to inspect, but enhancement may hallucinate edges and textures. Use only for visual interpretation; do not take newly invented pixels as precise dimensions or panel boundaries.
+Background removal / segmentation
+Examples: SAM/SAM 2-based tools, rembg, Photoshop selection tools, OpenCV masks.
+Best use: Separate the car from its background, create a silhouette mask, isolate a wheel/bumper/lamp, or build image-plane overlays. Manually inspect masks around glass, mirrors, arches and dark tyres.
+Feature/landmark detection and measurement
+Examples: OpenCV, scikit-image, custom Python scripts, manual landmarking in Blender or image editor.
+Best use: Mark wheel centres, axle line, roof corners, windscreen corners, lamp edges, bumper corners, arch apexes and sill line. Normalize against known dimensions such as wheelbase/overall length where reliable. Avoid deriving depth from a single side image.
+Reflective curvature inspection
+Examples: Blender studio lighting, large area lights, HDRI environments, black/white stripe cards, procedural reflection bands.
+Best use: One of the highest-value checks for the body shell. Move long strip highlights across bonnet, roof, doors and rear quarters. Smooth, continuous highlights reveal surface flow; waves, pinches, kinks and abrupt changes expose poor curvature. Use neutral clay material first.
+CAD surface inspection / section analysis
+Examples: Installed CAD tools; use whichever supports sections, curvature combs, zebra analysis, surface continuity and export. Possible examples include FreeCAD, Rhino, Fusion, Alias or other CAD systems if installed/licensed.
+Best use: Use CAD where it genuinely adds value: section curves, measured dimensions, surface continuity and controlled NURBS surfaces. Verify what the installed tool supports rather than assuming every package has automotive-class surfacing tools. Export to Blender and check mesh tessellation, normals and shading.
+Batch image processing
+Examples: ImageMagick, Python Pillow, OpenCV, exiftool.
+Best use: Rename and sort reference sets, extract video frames, standardize resolution, create contact sheets, read EXIF metadata when present, and produce side-by-side comparison sheets.
+Video frame extraction
+Examples: FFmpeg plus OpenCV.
+Best use: Extract frames from walkaround videos to obtain more angles. Prefer sharp frames with minimal motion blur and reflections; deduplicate near-identical frames. A video of one continuous walkaround may improve coverage for photogrammetry if camera motion and overlap are suitable.
+Texture/material reference
+Examples: Blender shader nodes, image editors, material-reference boards.
+Best use: After geometry is credible, use reference images to match paint, plastics, glass, rubber, fabric and trim. Material work should not be used to disguise incorrect surface shape.
+4. Recommended priority order
+First: use the images already collected and find any missing high-quality, near-orthographic front/rear/side/top views, plus several three-quarter photographs.
+Second: organize references by view and provenance; mark wheel centres, axle line, roofline, window apertures, arch apexes, lamp and bumper corners.
+Third: build a repeatable Blender render-and-compare loop with fixed cameras, neutral clay shading, silhouette overlays and reflective strip lighting.
+Fourth: use the installed CAD tools for sections and controlled surface construction if they support those operations. Build the shell around explicit cross-sections and feature lines rather than relying on generic extrusion/subdivision.
+Fifth: use OpenCV/Python for alignment, masks, landmark measurements and edge overlays. Automate repetitive comparisons, not artistic judgement.
+Sixth: consider photogrammetry only if enough overlapping photographs of the same vehicle can be obtained. Use it as a reference or source of rough geometry, then rebuild/clean the shell.
+Seventh: use image-to-3D generation selectively for isolated components or blocked-out geometry, not as the final authority for the entire Nova shell.
+Last: add panel gaps, lamps, trim, badges, interior detail and materials after the primary body shape is convincing.
+5. Body-shell construction principles
+Define primary feature lines first: bonnet perimeter, wing boundaries, wheel-arch lips, shoulder/crease lines, door shut lines, window apertures, sill, roof gutter, rear-quarter-to-hatch transition and bumper boundaries.
+Use a suitable construction method for each panel. Curves and cross-sections are useful for controlled primary surfaces; procedural geometry is useful for repeatable details; manual refinement is appropriate for complex transitions.
+Do not apply subdivision indiscriminately. It can round off crisp creases and alter the intended profile. Use supporting geometry, crease control or separate surfaces where appropriate.
+Inspect silhouette and surface flow independently. Silhouette matching does not guarantee correct cross-section or curvature.
+Use consistent real-world units and known dimensions as constraints. Avoid using a perspective photo as if it were an orthographic drawing.
+Keep primary shell surfaces separate from trim, glass, lights, bumpers and panel-gap detail until the body is right.
+Check normals, topology, shading artefacts and export tessellation before Assetto Corsa integration.
+Save checkpoints after each region and keep a record of which reference justified each major change.
+6. Reference set checklist
+Side elevation, camera as perpendicular to the car as possible.
+Front and rear elevations showing full width and lamp/bumper positions.
+Top/plan view or a reliable drawing for bonnet, roof and rear-quarter plan shape.
+Front three-quarter and rear three-quarter views for surface curvature.
+Close-ups of front and rear wheel arches, bonnet-to-wing transitions, door shut lines, window frames, bumpers, mirrors and lights.
+Photos should match the 1989 Nova GTE body/trim as closely as possible. Flag uncertain market, year, modifications, lowered suspension, aftermarket bumpers or non-original wheels.
+For each image record source URL or source name, view, likely lens/perspective, confidence and which features it can constrain.
+7. Suggested repeatable review loop
+Create a checkpoint/duplicate of the current body shell.
+Render all fixed orthographic and three-quarter views under consistent conditions.
+Compare against reference images with a transparent overlay or silhouette mask where the camera/view is suitable.
+List the five most important discrepancies and classify them.
+Choose one region and one type of error; make a controlled change only.
+Re-render all views, including strip-light reflections, to detect regressions elsewhere.
+Record what changed, why, which reference supports it, and whether it improved the match.
+Do not progress to fine detail until the large body volumes and feature lines are credible.
+8. Copy-and-send instructions for Claude Code
+You are helping build a high-fidelity 1989 UK-market RHD Vauxhall Nova GTE for Assetto Corsa. Blender and CAD tools are installed and available. The main issue is that the exterior body shell looks wrong even though dimensions and orthographic alignment may appear correct. Do not assume that another AI image-to-3D tool will solve this.
+Your first task is an audit and a diagnostic report, not an immediate rebuild:
+Inspect the existing project, scripts, scene, body mesh, modifiers and installed CAD/image tools. Report what is available and which tools are actually callable from the current environment.
+Identify the method used to construct the current body shell and the main limitations of that method.
+Render front, rear, left, right, top, front-three-quarter and rear-three-quarter views using fixed cameras and neutral clay material.
+Compare those views to the supplied real Nova GTE references. Identify the five largest mismatches and classify them as silhouette, section, curvature, feature-line placement, topology/shading or detail.
+Propose a staged correction plan that preserves the existing model and uses checkpoints. Do not make destructive edits before reporting the audit and plan.
+Prefer calibrated reference overlays, landmarks, cross-sections, explicit feature lines, reflective strip-light inspection and section/curvature analysis over guesswork.
+Use image processing tools for alignment, masks, edge maps, measurements and contact sheets. Use image-to-3D only for rough geometry or separate components unless there is evidence it can meet the precision required.
+Use the installed CAD tools where they help construct or inspect controlled surfaces. Verify available commands/features instead of assuming them.
+After each controlled change, render the same views and explain what improved, what regressed and what remains uncertain.
+Keep a reference log: image/source, view, features constrained, confidence and changes based on it.
+Important: a few photographs do not uniquely define a 3D surface. Treat dimensions, orthographic silhouettes, cross-sections, three-quarter references and highlight flow as complementary evidence. Do not invent unseen geometry and present it as verified. Prioritize primary shape and surface continuity before small details.
+9. Decision guide: which tools are worth trying first?
+Highest priority for this specific problem: (1) Blender fixed-view renders and strip-light curvature inspection; (2) OpenCV/Python overlays, masks and landmarks; (3) the installed CAD tool's section and surface-continuity capabilities; (4) better multi-angle reference collection and reverse-image search; (5) photogrammetry only if a suitable overlapping image set exists. Use Meshy/Tripo/Rodin-style generation as optional supporting tools, not the main body-shell solution.

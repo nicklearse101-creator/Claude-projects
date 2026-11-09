@@ -1,0 +1,23 @@
+{
+ "source": "corsa_a_4view_blueprint.gif (3-door side elevation, top car)",
+ "crop": [
+  20,
+  0,
+  660,
+  300
+ ],
+ "crop_file": "side_elevation_crop.png",
+ "px_front_axle": 145,
+ "px_rear_axle": 582,
+ "px_ground": 266,
+ "mm_per_px": 5.36156,
+ "y_front_axle": -1.1715,
+ "y_rear_axle": 1.1715,
+ "width_m": 3.4314,
+ "height_m": 1.60847,
+ "origin_y": -1.84169,
+ "origin_z": -0.17693,
+ "map": "y = -1.1715 + (px_full - 145)*mm_per_px/1000 ; z = (266 - py_full)*mm_per_px/1000",
+ "checks": "wheelbase 2343 over 437 px; ground-to-roof 1383 mm against the printed 1365",
+ "frame": "photo/BA frame: origin midway between the axles (was -1.141/+1.202 until 2026-10-26, DECISIONS (9))"
+}

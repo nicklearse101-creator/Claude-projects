@@ -1,0 +1,141 @@
+{
+ "car": "ks_toyota_ae86",
+ "kn5": "toyota_ae86.kn5",
+ "version": 6,
+ "nodes": 357,
+ "transforms": 180,
+ "meshes": 177,
+ "tris": 242053,
+ "verts": 163133,
+ "materials": 46,
+ "textures": 62,
+ "texture_mb": 29.6,
+ "tris_by_shader": {
+  "ksPerPixelReflection": 67985,
+  "ksPerPixelMultiMap": 67131,
+  "ksPerPixelMultiMap_NMDetail": 43966,
+  "ksPerPixelMultiMap_damage_dirt": 26550,
+  "ksPerPixelAT": 8242,
+  "ksTyres": 7040,
+  "ksPerPixel": 4576,
+  "ksPerPixelNM_UVMult": 4246,
+  "ksPerPixelNM": 3558,
+  "ksBrokenGlass": 2755,
+  "ksPerPixelMultiMap_AT": 2160,
+  "ksBrakeDisc": 1632,
+  "ksSkinnedMesh": 1248,
+  "ksPerPixelAT_NM": 802,
+  "ksWindscreen": 162
+ },
+ "texture_formats": {
+  "DXT5": [
+   "rim.dds 1024x1024",
+   "rim_map.dds 512x512",
+   "rim_blur.dds 1024x1024",
+   "rim_blur_map.dds 512x512",
+   "wheel_NM.dds 512x512",
+   "wheel_dirt.dds 512x512",
+   "wheel_NM_blur.dds 512x512",
+   "brakes.dds 512x512",
+   "brakes_nm.dds 512x512",
+   "brakes_blur.dds 512x512",
+   "brakes_blur_nm.dds 512x512",
+   "lights.dds 1024x512",
+   "lights_nm.dds 1024x512",
+   "TEssuto_color.dds 256x256",
+   "Cockpit_Belt_NM.dds 128x256",
+   "PlasticDetail_color.dds 128x128",
+   "interiors_details.dds 2048x1024",
+   "windscreen.dds 1024x1024",
+   "interiors_ao.dds 1024x1024",
+   "interiors_map.dds 512x512",
+   "PlasticDetail.dds 128x128",
+   "leather.dds 512x512",
+   "leather_nm.dds 512x512",
+   "TEssuto.dds 256x256",
+   "seam.dds 64x128",
+   "seam_nm.dds 64x128",
+   "TEssuto_floor.dds 256x256",
+   "body.dds 2048x2048",
+   "body_damage_nm.dds 512x512",
+   "body_damage.dds 2048x2048",
+   "body_dirt.dds 1024x1024",
+   "damage_mask.dds 512x512",
+   "light_extra.dds 256x256",
+   "light_extra_NM.dds 256x256",
+   "details_2.dds 512x256"
+  ],
+  "RGB24": [
+   "flat_nm.dds 32x32",
+   "lights_chrome.dds 512x512",
+   "body_map.dds 512x512",
+   "Plate_NM.dds 512x256"
+  ],
+  "RGB16": [
+   "rim_detailmap.dds 64x64",
+   "wheel.dds 512x512",
+   "wheel_blur.dds 512x512",
+   "details.dds 512x256",
+   "cockpitLR.dds 256x256",
+   "metal_detail.dds 64x64",
+   "metal_detail_hood.dds 64x64",
+   "lights_int.dds 512x256",
+   "scratches2.dds 512x512",
+   "PlasticDetail_bumper.dds 128x128",
+   "Plate_D.dds 512x256"
+  ],
+  "RGB32": [
+   "rim_blur_nm.dds 512x512",
+   "brakes_glow.dds 256x256",
+   "glass.dds 64x64",
+   "DAMAGE_GLASS.dds 64x64",
+   "exhaust.dds 256x256",
+   "exhaust_map.dds 256x256",
+   "glass_light.dds 64x64"
+  ],
+  "DXT1": [
+   "Cockpit_Belt.dds 128x256",
+   "TEssuto_NM.dds 256x256",
+   "Mirror.dds 64x32",
+   "DAMAGE_GLASS_color.dds 16x16",
+   "NULL.dds 4x4"
+  ]
+ },
+ "lods": {
+  "toyota_ae86.kn5": {
+   "meshes": 177,
+   "tris": 242053,
+   "materials": 46,
+   "textures": 62,
+   "mb": 38.4
+  },
+  "toyota_ae86_LOD_B.kn5": {
+   "meshes": 98,
+   "tris": 54502,
+   "materials": 26,
+   "textures": 0,
+   "mb": 2.6
+  },
+  "toyota_ae86_LOD_C.kn5": {
+   "meshes": 59,
+   "tris": 16474,
+   "materials": 21,
+   "textures": 0,
+   "mb": 0.9
+  },
+  "toyota_ae86_LOD_D.kn5": {
+   "meshes": 4,
+   "tris": 216,
+   "materials": 4,
+   "textures": 0,
+   "mb": 0.0
+  },
+  "collider.kn5": {
+   "meshes": 1,
+   "tris": 96,
+   "materials": 1,
+   "textures": 0,
+   "mb": 0.0
+  }
+ }
+}

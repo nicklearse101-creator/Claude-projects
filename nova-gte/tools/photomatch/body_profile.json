@@ -1,0 +1,1269 @@
+{
+ "_note": "Nova GTE body profile, car frame (car faces -Y, Z up, +X = car's left, origin on the ground midway between the axles). Heights are in the photo/BA frame (ground = F400 tyre contact, loaded wheel centre 0.272); body_geom adds dz for the model's unloaded tyres. Sources: tools/photomatch ba_result.json (BA points) and side_lines.json (cS camera ray-plane hits); end shapes and crowns fitted by matched-camera overlays. All values ESTIMATE from photos unless noted.",
+ "dz": 0.0193,
+ "y_front": -1.779,
+ "y_rear": 1.766,
+ "top": [
+  [
+   -1.779,
+   0.4
+  ],
+  [
+   -1.7786,
+   0.6
+  ],
+  [
+   -1.7782,
+   0.7
+  ],
+  [
+   -1.7778,
+   0.736
+  ],
+  [
+   -1.777,
+   0.74
+  ],
+  [
+   -1.765,
+   0.746
+  ],
+  [
+   -1.74,
+   0.754
+  ],
+  [
+   -1.7,
+   0.7662
+  ],
+  [
+   -1.6,
+   0.7948
+  ],
+  [
+   -1.5,
+   0.8206
+  ],
+  [
+   -1.4,
+   0.8437
+  ],
+  [
+   -1.3,
+   0.864
+  ],
+  [
+   -1.2,
+   0.8815
+  ],
+  [
+   -1.1,
+   0.8963
+  ],
+  [
+   -1.0,
+   0.9083
+  ],
+  [
+   -0.9,
+   0.9176
+  ],
+  [
+   -0.8,
+   0.9241
+  ],
+  [
+   -0.765,
+   0.9257
+  ],
+  [
+   -0.715,
+   0.942
+  ],
+  [
+   -0.7,
+   0.955
+  ],
+  [
+   -0.6,
+   1.03
+  ],
+  [
+   -0.45,
+   1.145
+  ],
+  [
+   -0.3,
+   1.25
+  ],
+  [
+   -0.235,
+   1.298
+  ],
+  [
+   -0.2,
+   1.3
+  ],
+  [
+   -0.12,
+   1.316
+  ],
+  [
+   0.0,
+   1.324
+  ],
+  [
+   0.4,
+   1.329
+  ],
+  [
+   0.8,
+   1.33
+  ],
+  [
+   1.1,
+   1.316
+  ],
+  [
+   1.25,
+   1.3
+  ],
+  [
+   1.3,
+   1.29
+  ],
+  [
+   1.34,
+   1.27
+  ],
+  [
+   1.38,
+   1.236
+  ],
+  [
+   1.42,
+   1.192
+  ],
+  [
+   1.47,
+   1.134
+  ],
+  [
+   1.53,
+   1.065
+  ],
+  [
+   1.59,
+   0.996
+  ],
+  [
+   1.63,
+   0.952
+  ],
+  [
+   1.66,
+   0.918
+  ],
+  [
+   1.7,
+   0.868
+  ],
+  [
+   1.718,
+   0.84
+  ],
+  [
+   1.727,
+   0.82
+  ],
+  [
+   1.731,
+   0.79
+  ],
+  [
+   1.7325,
+   0.7
+  ],
+  [
+   1.7335,
+   0.62
+  ],
+  [
+   1.734,
+   0.578
+  ],
+  [
+   1.7355,
+   0.564
+  ],
+  [
+   1.74,
+   0.558
+  ],
+  [
+   1.752,
+   0.555
+  ],
+  [
+   1.76,
+   0.549
+  ],
+  [
+   1.764,
+   0.535
+  ],
+  [
+   1.7655,
+   0.5
+  ],
+  [
+   1.766,
+   0.455
+  ]
+ ],
+ "floor": [
+  [
+   -1.779,
+   0.4
+  ],
+  [
+   -1.775,
+   0.33
+  ],
+  [
+   -1.766,
+   0.28
+  ],
+  [
+   -1.76,
+   0.264
+  ],
+  [
+   -1.742,
+   0.235
+  ],
+  [
+   -1.718,
+   0.215
+  ],
+  [
+   -1.66,
+   0.2
+  ],
+  [
+   -1.45,
+   0.2
+  ],
+  [
+   -1.3,
+   0.208
+  ],
+  [
+   -0.8,
+   0.218
+  ],
+  [
+   0.8,
+   0.22
+  ],
+  [
+   1.3,
+   0.245
+  ],
+  [
+   1.5,
+   0.262
+  ],
+  [
+   1.6,
+   0.278
+  ],
+  [
+   1.66,
+   0.315
+  ],
+  [
+   1.71,
+   0.35
+  ],
+  [
+   1.745,
+   0.368
+  ],
+  [
+   1.762,
+   0.41
+  ],
+  [
+   1.766,
+   0.455
+  ]
+ ],
+ "halfw": [
+  [
+   -1.775,
+   0.732
+  ],
+  [
+   -1.55,
+   0.742
+  ],
+  [
+   -1.1715,
+   0.748
+  ],
+  [
+   -0.8,
+   0.762
+  ],
+  [
+   0.0,
+   0.7675
+  ],
+  [
+   1.1715,
+   0.7645
+  ],
+  [
+   1.6,
+   0.76
+  ],
+  [
+   1.766,
+   0.755
+  ]
+ ],
+ "_halfw_src": "FIA A-5375: 1522 mm at the front axle, 1529 at the rear, 1535 max (SOURCED); end values ESTIMATE (corners come from the plan sweep)",
+ "z_widest": 0.47,
+ "crease": 0.728,
+ "belt": [
+  [
+   -1.772,
+   0.76
+  ],
+  [
+   -1.0,
+   0.81
+  ],
+  [
+   -0.7,
+   0.88
+  ],
+  [
+   -0.64,
+   0.845
+  ],
+  [
+   -0.4,
+   0.8341
+  ],
+  [
+   0.0,
+   0.8405
+  ],
+  [
+   0.5,
+   0.8485
+  ],
+  [
+   1.0,
+   0.8565
+  ],
+  [
+   1.45,
+   0.8637
+  ],
+  [
+   1.776,
+   0.85
+  ]
+ ],
+ "cant": [
+  [
+   -0.25,
+   1.22
+  ],
+  [
+   0.0,
+   1.227
+  ],
+  [
+   0.41,
+   1.236
+  ],
+  [
+   0.58,
+   1.228
+  ],
+  [
+   1.1,
+   1.216
+  ],
+  [
+   1.4,
+   1.212
+  ]
+ ],
+ "glass_base_x": [
+  [
+   -0.7,
+   0.612
+  ],
+  [
+   0.4,
+   0.628
+  ],
+  [
+   0.6,
+   0.64
+  ],
+  [
+   1.3,
+   0.634
+  ],
+  [
+   1.46,
+   0.642
+  ],
+  [
+   1.6,
+   0.66
+  ],
+  [
+   1.776,
+   0.66
+  ]
+ ],
+ "glass_top_x": [
+  [
+   -0.25,
+   0.505
+  ],
+  [
+   0.4,
+   0.552
+  ],
+  [
+   0.6,
+   0.548
+  ],
+  [
+   1.11,
+   0.515
+  ],
+  [
+   1.3,
+   0.533
+  ],
+  [
+   1.42,
+   0.555
+  ],
+  [
+   1.6,
+   0.575
+  ],
+  [
+   1.776,
+   0.575
+  ]
+ ],
+ "sweep_front": {
+  "_note": "no plan warp at the front since 2026-10-12: the bonnet V is a trim (front_panel.bonnet_v), wing corners from front_corner",
+  "a": 0.0,
+  "k_low": 0.0,
+  "k_high": 0.0,
+  "c_low": 0.0,
+  "c_high": 0.0,
+  "xc": 0.6,
+  "z_lo": 0.7,
+  "z_hi": 0.745,
+  "fade": [
+   -1.7,
+   -1.3
+  ],
+  "cp": 3
+ },
+ "sweep_rear": {
+  "k": 0.65,
+  "k_bumper": 0.65,
+  "z_b": [
+   0.58,
+   0.62
+  ],
+  "p": 6,
+  "fade": [
+   1.3,
+   1.7
+  ],
+  "cr": 200.0,
+  "xr": 0.68
+ },
+ "arch_front": [
+  -1.155,
+  0.317,
+  0.324
+ ],
+ "arch_rear": [
+  1.142,
+  0.281,
+  0.34
+ ],
+ "zones": {
+  "_src": "side lines from side_lines.json (cS rays), lamp/glass corners from ba_result.json; photo frame",
+  "shut_y": [
+   0.465,
+   -0.67
+  ],
+  "b_pillar": [
+   0.425,
+   0.57
+  ],
+  "a_pillar_outer": [
+   [
+    -0.699,
+    0.915
+   ],
+   [
+    -0.192,
+    1.2755
+   ]
+  ],
+  "quarter_rear_edge": [
+   [
+    1.458,
+    0.8525
+   ],
+   [
+    1.096,
+    1.215
+   ]
+  ],
+  "skirt_top": [
+   [
+    -1.46,
+    0.3
+   ],
+   [
+    -0.836,
+    0.297
+   ],
+   [
+    -0.807,
+    0.324
+   ],
+   [
+    0.673,
+    0.297
+   ],
+   [
+    0.768,
+    0.365
+   ],
+   [
+    0.823,
+    0.459
+   ]
+  ],
+  "ws_y": [
+   -0.7,
+   -0.235
+  ],
+  "hatch_glass_z": [
+   0.905,
+   1.19
+  ],
+  "rear_face_y": 1.7,
+  "rear_panel_z0": 0.6,
+  "tail_lamp": {
+   "z": [
+    0.5665,
+    0.81
+   ],
+   "x_in": 0.571,
+   "x_out": 0.712
+  },
+  "front_face_y": -1.7,
+  "headlamp": {
+   "x": [
+    0.4,
+    0.6
+   ],
+   "z": [
+    0.563,
+    0.704
+   ]
+  },
+  "indicator": {
+   "x": [
+    0.6,
+    0.663
+   ],
+   "z": [
+    0.56,
+    0.701
+   ]
+  },
+  "grille": {
+   "x": 0.344,
+   "z": [
+    0.575,
+    0.649
+   ]
+  },
+  "front_spoiler": [
+   -1.46,
+   0.3
+  ],
+  "rear_valance": [
+   1.45,
+   0.37
+  ],
+  "scuttle_y": [
+   -0.762,
+   -0.7
+  ],
+  "sunroof": {
+   "_src": "cCF / c20 photos, ESTIMATE",
+   "x": 0.36,
+   "y": [
+    -0.13,
+    0.3
+   ]
+  },
+  "hatch_glass": {
+   "_src": "BA HG_B (0.545, z 0.905) / HG_T (0.525, z 1.181) glass corners; seal bottom 0.887 on the tailgate centre (cAR ray on the shell, 2026-10-12); 14 mm black rubber seal",
+   "x_bot": 0.545,
+   "z_bot": 0.901,
+   "x_top": 0.525,
+   "z_top": 1.185,
+   "seal": 0.014
+  },
+  "rear_panel_z1": 0.789,
+  "_rear_panel_z1": "top of the black GTE panel on the tailgate (cAR ray on the shell, 2026-10-12); body colour (griffin decal) from here to the glass seal",
+  "_tail_lamp_x_out": "2026-10-13: 0.683 (BA TL_TO / TL_BO = the lamp's rear-face edge) -> 0.712: the lamp wraps round the corner so its frame meets the body side (photos c23 / cAR); the old edge left a 3-4 cm body-colour strip outboard of the lamp"
+ },
+ "crown": {
+  "bonnet": [
+   0.03,
+   2.0
+  ],
+  "screen": [
+   0.045,
+   2.0
+  ],
+  "roof": [
+   0.035,
+   2.0
+  ],
+  "hatch": [
+   0.052,
+   3.0
+  ],
+  "hatch_blend": [
+   1.25,
+   1.36
+  ],
+  "bonnet_front": [
+   0.008,
+   -1.777,
+   0.4
+  ],
+  "bonnet_nose": [
+   0.1,
+   1.0,
+   -1.78,
+   -1.3,
+   0.08
+  ],
+  "_nose_src": "bonnet_nose = [crown, exponent, y_full, y_end]: at the nose the bonnet drops ~6 cm linearly from the centre tip (0, -1.777, 0.740) to the front corners (0.61, -1.663, 0.718), blending back to the normal bonnet crown by y -1.48. Corner triangulated from anglia_side (cS, corner meets the indicator top) + redgte_20 (c20); straight-V edge with linear z checked against c20, cCF and c22 (2026-10-12). Replaces bonnet_front; BA BON_F (y -1.728, z 0.757) was ~6 cm too far forward / 4 cm too high (depth ambiguity of the front views).",
+  "_nose_fair": "2026-10-12: top point (-1.695, 0.766) removed (inflection in the centreline). Nose crown = [drop, exponent, y_start, y_end, ridge rounding]: blended by shape with an ease-out from the tip, so the bonnet is convex everywhere; drop solved so the V edge passes the corner (0.605, -1.664, 0.718) and mid-edge within 0.2 mm.",
+  "hatch_fin": [
+   0.01,
+   2.0,
+   1.28,
+   1.4,
+   1.74,
+   1.78
+  ],
+  "_hatch_fin": "2026-10-13: the tailgate's sides beside the glass are broad flat body-colour panels (the C-pillar 'fins', photos c23/c24/cAR/redgte_25) standing proud of the recessed glass; the old cubic hatch crown dropped them 4-5 cm at the edges. [crown, exponent, y ramp-in, full, ramp-out start, end]."
+ },
+ "bonnet_crease": {
+  "_src": "c20 / cCF photos: two longitudinal bonnet creases bounding a slightly raised centre, ESTIMATE",
+  "x": [
+   [
+    -1.73,
+    0.385
+   ],
+   [
+    -0.76,
+    0.505
+   ]
+  ],
+  "drop": 0.0,
+  "width": 0.05,
+  "_note": "disabled 2026-10-12: no raised centre panel seen in photos 19/20/22 (the lines are the bonnet shut lines)"
+ },
+ "_sweep_note": "End sweeps are height-independent (no shear at the corners). Front compromise between BA lamp points (lamps recede more at the outer end) and BA BON_F (bonnet corner further forward): +-2.5 cm; ESTIMATE.",
+ "nose_v": {
+  "_src": "c20 + cCF: bonnet tip at the centreline (0, -1.777, 0.740), BA BON_F z 0.757 at x 0.6: the edge dips ~17 mm to the centre",
+  "dz": 0.0,
+  "x": 0.55,
+  "y": [
+   -1.8,
+   -1.79,
+   -1.7,
+   -1.62
+  ],
+  "_note": "disabled 2026-10-12: the low centre tip comes from the V-shaped trim of the down-sloping bonnet (griffin decal triangulated at (0, -1.695, 0.766))"
+ },
+ "front_corner": {
+  "_note": "plan rounding of the wing front corner (unswept y): x <= xs - R + sqrt(R^2 - (y_rs - y)^2); wing reaches the indicator outer edge x 0.665 at y -1.68",
+  "R": 0.12,
+  "y_rs": -1.565,
+  "xs": 0.75,
+  "soft": 0.008
+ },
+ "front_taper": {
+  "_src": "redgte_20 (c20, straight front): at lamp height the indicator's outer edge IS the body silhouette - no wing is visible outboard of it - so the wing side runs back from the indicator's wrap end at no more than the camera-ray slope (0.42 dx/dy) and only reaches full width near y -1.50. wb / wt = indicator wrap-end line (IND_OB / IND_OT + front_end.py wrap). In front of that line (wing corner over the indicator) the limit closes in at slope_front so the front edge ends above IND_OT (c20, cCF). ESTIMATE from photos; replaces front_corner (2026-10-12).",
+  "wb": [
+   0.6752,
+   -1.6567,
+   0.5599
+  ],
+  "wt": [
+   0.669,
+   -1.6214,
+   0.7015
+  ],
+  "slope_back": 0.42,
+  "slope_front": 0.12,
+  "blend": 0.015,
+  "soft": 0.035,
+  "z_fade": [
+   0.5,
+   0.54
+  ],
+  "y_max": -1.4
+ },
+ "crown_fade": {
+  "front": false
+ },
+ "front_panel": {
+  "_src": "front_end.py lamp panel (BA HL_*, IND_*, GRO_*): plan y at z_ref, rake dy/dz; wing edge plane through IND_OB/IND_OT",
+  "bottom": [
+   [
+    0.0,
+    -1.7795
+   ],
+   [
+    0.344,
+    -1.7525
+   ],
+   [
+    0.4,
+    -1.7495
+   ],
+   [
+    0.5,
+    -1.7345
+   ],
+   [
+    0.6,
+    -1.7105
+   ],
+   [
+    0.663,
+    -1.6815
+   ],
+   [
+    0.7,
+    -1.655
+   ]
+  ],
+  "z_ref": 0.556,
+  "rake": 0.32,
+  "lip_z": 0.728,
+  "lip_dip": 0.017,
+  "wing_edge": [
+   [
+    0.6632,
+    -1.6787,
+    0.5599
+   ],
+   [
+    0.657,
+    -1.6434,
+    0.7015
+   ]
+  ],
+  "wing_edge_normal": [
+   0.79,
+   0.59,
+   -0.12
+  ],
+  "lip_depth": 0.015,
+  "bonnet_v": {
+   "_src": "2026-10-12 (2): tip re-triangulated from the c20 ray and the cS silhouette (0, -1.755, 0.727); corner (0.61, -1.663, 0.718) cS + c20; straight V a = 0.151. Along it both photos put the edge at z 0.722 +- 0.004.",
+   "y0": -1.755,
+   "a": 0.151,
+   "x_shut": 0.605,
+   "lip": 0.012
+  },
+  "z_split": 0.7045,
+  "_z_split": "below z_split (indicator top + 3 mm) the wing ends on the indicator wrap line; above it the V edge trims bonnet and wing corner"
+ },
+ "_belt_src": "2026-10-12: paint/black boundary traced along anglia_side (cS, 22 columns): one straight line z = 0.8345 + 0.016*y from the door front to the rear quarter, continuous through the B-pillar (the old profile stepped 4.7 cm up behind the B-pillar). belt = boundary + 0.006.",
+ "bonnet_creases": {
+  "_src": "2026-10-12, Nik: the only bonnet creases run lengthways. Crease line traced in redgte_20 (c20) and put on the bonnet surface: x 0.379 @ y -1.661, 0.389 @ -1.524, 0.417 @ -1.298, 0.469 @ -0.933, 0.498 @ -0.708 (linear fit below). Centre panel: small crown c_in; outer panel: straight slope from the crease down to drop_s at the shut line (front corner 0.058 = TOP_F - 0.718 from the cS/c20 corner triangulation; ~0.030 along the bonnet from the cS/c22 shut-line heights).",
+  "x0": 0.379,
+  "y0": -1.661,
+  "dxdy": 0.1249,
+  "c_in": 0.008,
+  "x_shut": 0.605,
+  "drop_s": [
+   [
+    -1.78,
+    0.03
+   ],
+   [
+    -0.7,
+    0.03
+   ]
+  ],
+  "nose_roll": {
+   "E": 0.722,
+   "L": 0.15,
+   "_src": "level front edge height (c20 dark line + lip, cS silhouette); roll-down length ESTIMATE",
+   "power": 3,
+   "_note": "2026-10-13: roll-down R*(1-s)^power over L; power 3 makes the curvature fade to zero where it meets the bonnet (power 2 left a curvature step = a line in the reflections)"
+  }
+ },
+ "scuttle_curve": {
+  "_src": "2026-10-13: centre wiper pivot triangulated c20 + cCF (0.000, -0.800, 0.933; ray gaps 2-6 mm), washer jets (+-0.175, -0.811, 0.928; gap 2 cm), louvre row and screen seal just behind them (c20 / cCF); bonnet rear edge from c20 / cCF on the bonnet surface: centre ~-0.90, at the crease ends (x 0.46) ~-0.83 (curved in plan). The loft's screen surface is kept and extended down at the centre; it meets the scuttle at yb0 = -0.74 (scuttle height from the pivot / louvre rows in c20 + cCF, ~0.925 at the centre; the pivot-based estimate of the base alone was -0.76..-0.78). Corners keep the old base (yb_max): the screen and A-pillars there matched the photos. Was: straight base -0.70, straight bonnet edge -0.765. ESTIMATE +-1.5 cm.",
+  "yb0": -0.74,
+  "k": 0.29,
+  "yb_max": -0.702,
+  "yr0": -0.9,
+  "kr": 0.33,
+  "seal": 0.012,
+  "riser": 0.004,
+  "step": 0.006,
+  "y_glass": -0.7,
+  "louvre": [
+   0.46,
+   0.008,
+   0.048,
+   0.011,
+   0.006
+  ]
+ },
+ "wing_flare": {
+  "_src": "2026-10-13: both wings have a flared lower panel under a crisp step (Nik; anglia_side cS). Step height from cS rays on the shell, checked against the side repeater (BA SR z 0.735, ray 0.730): front wing 0.700-0.704, rear wing 0.689 at the tail lamp falling to 0.680 at its front end (y 0.71, by the filler cap). Front step runs from the headlamp corner to the door, rear from the tail lamp to the filler cap, fading at both ends (photos). Step size ~12 mm (ledge band in cS ~1-1.5 cm, rear silhouette in c24 ~1 cm), ESTIMATE; the flare blends back by z_low so the maximum width stays at the FIA 1535 mm.",
+  "front_y": [
+   -1.62,
+   -1.45,
+   -0.95,
+   -0.72
+  ],
+  "rear_y": [
+   0.7,
+   0.92,
+   1.58,
+   1.7
+  ],
+  "z_step": [
+   [
+    -1.7,
+    0.7
+   ],
+   [
+    -1.17,
+    0.702
+   ],
+   [
+    -0.73,
+    0.704
+   ],
+   [
+    0.0,
+    0.694
+   ],
+   [
+    0.71,
+    0.68
+   ],
+   [
+    1.14,
+    0.686
+   ],
+   [
+    1.6,
+    0.689
+   ],
+   [
+    1.8,
+    0.689
+   ]
+  ],
+  "d": 0.008,
+  "ledge": 0.007,
+  "z_low": [
+   0.47,
+   0.6
+  ],
+  "_merge": "2026-10-13: the step IS the shoulder crease - one continuous line along the whole side (cS: 0.704 at the front door edge, 0.680 at the filler cap, 0.689 at the tail); the separate crease at a fixed 0.728 made a second line 3 cm above the step (body-kit look). Crease now follows z_step everywhere; the 8 mm step (panel below proud) only on the wings."
+ },
+ "glass_panels": {
+  "_src": "2026-10-13: tailgate glass corners triangulated c24 + cAR: bottom (+-0.555, y 1.613-1.645, z 0.904-0.923; matches BA HG_B 0.545/1.629/0.905), top corners on the glass plane through HG_B / HG_T from both photos (+-0.39..0.41, y ~1.39, z ~1.22-1.24); rounded corners (photos: small at the bottom, large at the top); glass recessed in a ~18 mm black rubber channel under the roof's rear edge (c23 / c24 / cAR). Sunroof: tilt/slide glass, width from c20 (+-0.36 incl. seal), fore-aft as before (not measurable), rounded corners (redgte_21). origin / v_dir / n_dir in (y, z), corners (u = x, v along v_dir) counter-clockwise. 2026-10-13: tailgate glass recessed 35 mm (normal) below the fin surface, body-colour walls down to a 12 mm black seal on the glass (photos: deep-set glass between the fins, under the roof visor).",
+  "hatch": {
+   "origin": [
+    1.629,
+    0.905
+   ],
+   "v_dir": [
+    -0.239,
+    0.32
+   ],
+   "n_dir": [
+    0.32,
+    0.239
+   ],
+   "corners": [
+    [
+     -0.555,
+     0.0
+    ],
+    [
+     0.555,
+     0.0
+    ],
+    [
+     0.44,
+     0.399
+    ],
+    [
+     -0.44,
+     0.399
+    ]
+   ],
+   "radii": [
+    0.025,
+    0.025,
+    0.04,
+    0.04
+   ],
+   "recess": 0.035,
+   "seal": 0.018,
+   "margin": 0.004,
+   "wall_seal": 0.012
+  },
+  "sunroof": {
+   "origin": [
+    0.085,
+    1.33
+   ],
+   "v_dir": [
+    1.0,
+    0.0
+   ],
+   "n_dir": [
+    0.0,
+    1.0
+   ],
+   "corners": [
+    [
+     -0.345,
+     -0.215
+    ],
+    [
+     0.345,
+     -0.215
+    ],
+    [
+     0.345,
+     0.215
+    ],
+    [
+     -0.345,
+     0.215
+    ]
+   ],
+   "radii": [
+    0.05,
+    0.05,
+    0.05,
+    0.05
+   ],
+   "recess": 0.006,
+   "seal": 0.016,
+   "margin": 0.004
+  }
+ },
+ "arch_shapes": {
+  "_src": "2026-10-13: wheel-arch lip outlines traced on anglia_side (cS, the best-calibrated camera; wheel hubs match to 1 px), paint/well luminance edges by column (tops) and by row (sides), cross-checked with the earlier hand trace, rays onto the body side x -0.745, photo frame. Rear arch is FLAT-topped at z 0.555-0.563 from y 1.04 to 1.36 (tyre top level - the old circle put it at 0.621), its rear edge is the bumper end; front arch is a flattened curve, top 0.622 (old circle 0.641) and ~3 cm wider at mid height. Polylines run front to rear (y ascending) from below the floor over the top and back down.",
+  "front": [
+   [
+    -1.478,
+    -0.05
+   ],
+   [
+    -1.478,
+    0.267
+   ],
+   [
+    -1.474,
+    0.337
+   ],
+   [
+    -1.468,
+    0.406
+   ],
+   [
+    -1.462,
+    0.46
+   ],
+   [
+    -1.455,
+    0.49
+   ],
+   [
+    -1.446,
+    0.511
+   ],
+   [
+    -1.43,
+    0.533
+   ],
+   [
+    -1.413,
+    0.555
+   ],
+   [
+    -1.387,
+    0.576
+   ],
+   [
+    -1.361,
+    0.589
+   ],
+   [
+    -1.333,
+    0.6
+   ],
+   [
+    -1.305,
+    0.607
+   ],
+   [
+    -1.249,
+    0.617
+   ],
+   [
+    -1.194,
+    0.621
+   ],
+   [
+    -1.139,
+    0.622
+   ],
+   [
+    -1.084,
+    0.62
+   ],
+   [
+    -1.029,
+    0.613
+   ],
+   [
+    -0.975,
+    0.598
+   ],
+   [
+    -0.946,
+    0.586
+   ],
+   [
+    -0.922,
+    0.572
+   ],
+   [
+    -0.908,
+    0.563
+   ],
+   [
+    -0.895,
+    0.549
+   ],
+   [
+    -0.885,
+    0.537
+   ],
+   [
+    -0.876,
+    0.51
+   ],
+   [
+    -0.866,
+    0.488
+   ],
+   [
+    -0.857,
+    0.446
+   ],
+   [
+    -0.849,
+    0.404
+   ],
+   [
+    -0.845,
+    0.349
+   ],
+   [
+    -0.841,
+    0.293
+   ],
+   [
+    -0.841,
+    0.237
+   ],
+   [
+    -0.841,
+    -0.05
+   ]
+  ],
+  "rear": [
+   [
+    0.814,
+    -0.05
+   ],
+   [
+    0.814,
+    0.251
+   ],
+   [
+    0.818,
+    0.319
+   ],
+   [
+    0.826,
+    0.36
+   ],
+   [
+    0.838,
+    0.4
+   ],
+   [
+    0.85,
+    0.42
+   ],
+   [
+    0.862,
+    0.441
+   ],
+   [
+    0.876,
+    0.463
+   ],
+   [
+    0.887,
+    0.484
+   ],
+   [
+    0.909,
+    0.506
+   ],
+   [
+    0.944,
+    0.527
+   ],
+   [
+    0.987,
+    0.539
+   ],
+   [
+    1.04,
+    0.548
+   ],
+   [
+    1.08,
+    0.553
+   ],
+   [
+    1.134,
+    0.557
+   ],
+   [
+    1.187,
+    0.558
+   ],
+   [
+    1.28,
+    0.561
+   ],
+   [
+    1.32,
+    0.562
+   ],
+   [
+    1.36,
+    0.56
+   ],
+   [
+    1.39,
+    0.552
+   ],
+   [
+    1.418,
+    0.535
+   ],
+   [
+    1.45,
+    0.491
+   ],
+   [
+    1.461,
+    0.469
+   ],
+   [
+    1.469,
+    0.447
+   ],
+   [
+    1.472,
+    0.4
+   ],
+   [
+    1.47,
+    0.3
+   ],
+   [
+    1.47,
+    -0.05
+   ]
+  ],
+  "wheel": {
+   "front": [
+    -1.1715,
+    0.272
+   ],
+   "rear": [
+    1.1715,
+    0.272
+   ]
+  }
+ },
+ "top_bonnet_fit": {
+  "_src": "2026-10-13: the bonnet centreline was a monotone spline through 6 photo points (-1.74 .754, -1.62 .789, -1.55 .808, -1.30 .865, -1.10 .895, -0.90 .918); its curvature jumped 4x between knots and showed as waves in the reflections (Nik: wavy bonnet). A single quadratic (constant curvature) fits all six within 1.3 mm, so the bonnet uses that fit analytically between y0 and y1; 'top' keeps samples of it for the spline outside.",
+  "y": [
+   -1.74,
+   -0.765
+  ],
+  "c": [
+   -0.138,
+   -0.1696,
+   0.8767
+  ]
+ },
+ "_cant_src": "2026-10-13: side-window glass top, cS colour scan above the windows (y 0 / 0.3: glass top ~1.227 / 1.24, black frame to 1.238, body-colour band to 1.254, drip gutter to 1.268, then the roof edge) + BA DG_RT 1.236 (y 0.41), QW_FT 1.227, QW_RT 1.216. Was 1.268-1.24: glass ~3 cm too tall, no band."
+}
