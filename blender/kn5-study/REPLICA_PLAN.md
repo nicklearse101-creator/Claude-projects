@@ -187,3 +187,25 @@ Soft pins (strength 0.01–0.3) were no better; a weaker pull to the outline bui
   - add the 5 mm return and holding loops
   - add the window frame as its own patches
 - **Then:** the same method panel by panel (wings, quarters, bonnet, roof, bumpers), and finally curves traced from photos.
+
+### Panel study across 17 cars (`panel_study.py`, results/panel_study_*.json)
+The cars: AE86, E30, MX-5 ND, Sport quattro, 911 GT3 RS, F40, Countach, Giulia QV, Escort Mk1, R34, 190 Evo II, Supra, 570S, Cayenne, GT40, Lotus 72D and SF70H.
+
+| Finding (median over cars, panels > 0.5 m²) | Result |
+|---|---|
+| Thin-plate rebuild from the panel **outline only** | 13 % within 3 mm |
+| **Outline + sharp creases (> 30°)** | **0.65 mm median, 90 % within 3 mm.** Holds on every car type, F1 cars included. |
+| + sections every 400 mm | 90 %, no gain. On real meshes the creases already carry the shape. |
+| Panel-edge rings from the boundary | 7.5 mm (turned-in edge) → 4.0 mm (holding loop) → 14 mm → main grid |
+
+**Panel split (Kunos):**
+- one large body shell
+- bonnet
+- boot lid or hatch
+- doors L and R
+- front and rear bumpers, often 2–3 meshes each (bumper body and backside/details)
+- separate wings on some cars (190 Evo, 911)
+
+Single-seaters split into many more parts (the SF70H has 34).
+
+**Takeaway for our builder:** get the panel outlines and creases right and the surfaces follow. Sections are mainly needed where there are no creases (big soft panels).

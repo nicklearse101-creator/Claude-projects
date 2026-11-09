@@ -1,0 +1,2720 @@
+[
+ {
+  "car": "ks_nissan_skyline_r34",
+  "panels": [
+   {
+    "name": "GEO_Rear_Bumper_SUB1",
+    "parent": "GEO_Rear_Bumper",
+    "area_m2": 1.355,
+    "tris": 7254,
+    "boundary_pct": 7.9,
+    "crease30_pct": 45.2,
+    "rings_mm": [
+     9.4,
+     2.4,
+     6.7
+    ],
+    "lines": {
+     "outline": {
+      "median": 15.96,
+      "within3": 13.7,
+      "fixed": 7.9
+     },
+     "+creases": {
+      "median": 0.37,
+      "within3": 99.2,
+      "fixed": 96.8
+     },
+     "+sections400": {
+      "median": 0.36,
+      "within3": 99.1,
+      "fixed": 96.9
+     }
+    }
+   },
+   {
+    "name": "GEO_Rear_Bumper_SUB2",
+    "parent": "GEO_Rear_Bumper",
+    "area_m2": 1.031,
+    "tris": 584,
+    "boundary_pct": 61.6,
+    "crease30_pct": 53.6,
+    "rings_mm": [
+     100.5,
+     201.5,
+     202.1
+    ],
+    "lines": {
+     "outline": {
+      "median": 48.76,
+      "within3": 6.0,
+      "fixed": 61.6
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "limpador_esquerdo",
+    "parent": "limpador_esquerdo",
+    "area_m2": 0.061,
+    "tris": 579,
+    "boundary_pct": 5.7,
+    "crease30_pct": 57.5,
+    "rings_mm": [
+     10.2,
+     4.0,
+     0.6
+    ],
+    "lines": {
+     "outline": {
+      "median": 46.76,
+      "within3": 12.1,
+      "fixed": 5.7
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "Hood_SUB1",
+    "parent": "Hood",
+    "area_m2": 1.795,
+    "tris": 1508,
+    "boundary_pct": 16.5,
+    "crease30_pct": 35.4,
+    "rings_mm": [
+     2.8,
+     2.0,
+     28.1
+    ],
+    "lines": {
+     "outline": {
+      "median": 7.4,
+      "within3": 15.2,
+      "fixed": 16.5
+     },
+     "+creases": {
+      "median": 0.46,
+      "within3": 98.6,
+      "fixed": 91.3
+     },
+     "+sections400": {
+      "median": 0.36,
+      "within3": 98.3,
+      "fixed": 92.7
+     }
+    }
+   },
+   {
+    "name": "polymsh_detached10",
+    "parent": "polymsh_detached10",
+    "area_m2": 0.057,
+    "tris": 2488,
+    "boundary_pct": 1.3,
+    "crease30_pct": 61.0,
+    "rings_mm": [
+     6.1,
+     12.7,
+     1.3
+    ],
+    "lines": {
+     "outline": {
+      "median": 16.04,
+      "within3": 12.6,
+      "fixed": 1.3
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "polymsh_detached1_SUB1",
+    "parent": "polymsh_detached1",
+    "area_m2": 1.746,
+    "tris": 7948,
+    "boundary_pct": 17.9,
+    "crease30_pct": 51.8,
+    "rings_mm": [
+     3.3,
+     1.0,
+     2.9
+    ],
+    "lines": {
+     "outline": {
+      "median": 11.94,
+      "within3": 28.6,
+      "fixed": 17.9
+     },
+     "+creases": {
+      "median": 0.25,
+      "within3": 97.2,
+      "fixed": 98.4
+     },
+     "+sections400": {
+      "median": 0.25,
+      "within3": 97.1,
+      "fixed": 98.4
+     }
+    }
+   },
+   {
+    "name": "Front_Bumper1_SUB2",
+    "parent": "Front_Bumper1",
+    "area_m2": 4.574,
+    "tris": 15188,
+    "boundary_pct": 7.7,
+    "crease30_pct": 54.8,
+    "rings_mm": [
+     20.2,
+     1.1,
+     2.9
+    ],
+    "lines": {
+     "outline": {
+      "median": 40.38,
+      "within3": 9.0,
+      "fixed": 7.7
+     },
+     "+creases": {
+      "median": 0.42,
+      "within3": 85.4,
+      "fixed": 98.1
+     },
+     "+sections400": {
+      "median": 0.42,
+      "within3": 85.0,
+      "fixed": 98.1
+     }
+    }
+   },
+   {
+    "name": "Front_Bumper1_SUB5",
+    "parent": "Front_Bumper1",
+    "area_m2": 0.05,
+    "tris": 261,
+    "boundary_pct": 100.0,
+    "crease30_pct": 18.6,
+    "rings_mm": [
+     null,
+     null,
+     null
+    ],
+    "lines": {
+     "outline": null,
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "Door_Left_SUB0",
+    "parent": "Door_Left",
+    "area_m2": 1.269,
+    "tris": 4954,
+    "boundary_pct": 5.7,
+    "crease30_pct": 57.8,
+    "rings_mm": [
+     1.9,
+     1.5,
+     7.4
+    ],
+    "lines": {
+     "outline": {
+      "median": 23.1,
+      "within3": 13.8,
+      "fixed": 5.7
+     },
+     "+creases": {
+      "median": 0.49,
+      "within3": 95.8,
+      "fixed": 99.1
+     },
+     "+sections400": {
+      "median": 0.57,
+      "within3": 95.0,
+      "fixed": 99.2
+     }
+    }
+   },
+   {
+    "name": "GEO_Body_SUB1",
+    "parent": "GEO_Body",
+    "area_m2": 22.497,
+    "tris": 21197,
+    "boundary_pct": 8.9,
+    "crease30_pct": 54.9,
+    "rings_mm": [
+     5.2,
+     3.3,
+     3.1
+    ],
+    "lines": {
+     "outline": {
+      "median": 21.22,
+      "within3": 12.5,
+      "fixed": 8.9
+     },
+     "+creases": {
+      "median": 0.43,
+      "within3": 89.3,
+      "fixed": 97.7
+     },
+     "+sections400": {
+      "median": 0.43,
+      "within3": 88.4,
+      "fixed": 98.0
+     }
+    }
+   },
+   {
+    "name": "Door_Left1_SUB0",
+    "parent": "Door_Left1",
+    "area_m2": 1.27,
+    "tris": 4764,
+    "boundary_pct": 5.2,
+    "crease30_pct": 61.3,
+    "rings_mm": [
+     2.0,
+     1.5,
+     7.9
+    ],
+    "lines": {
+     "outline": {
+      "median": 33.12,
+      "within3": 11.2,
+      "fixed": 5.2
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   }
+  ]
+ },
+ {
+  "car": "ks_mercedes_190_evo2",
+  "panels": [
+   {
+    "name": "Hood_SUB0",
+    "parent": "Hood",
+    "area_m2": 1.46,
+    "tris": 1088,
+    "boundary_pct": 15.3,
+    "crease30_pct": 26.0,
+    "rings_mm": [
+     3.7,
+     2.8,
+     27.2
+    ],
+    "lines": {
+     "outline": {
+      "median": 9.55,
+      "within3": 15.4,
+      "fixed": 15.3
+     },
+     "+creases": {
+      "median": 0.53,
+      "within3": 95.1,
+      "fixed": 86.3
+     },
+     "+sections400": {
+      "median": 0.54,
+      "within3": 96.6,
+      "fixed": 90.2
+     }
+    }
+   },
+   {
+    "name": "Bumper_Front1_SUB1",
+    "parent": "Bumper_Front1",
+    "area_m2": 1.955,
+    "tris": 1148,
+    "boundary_pct": 55.2,
+    "crease30_pct": 37.2,
+    "rings_mm": [
+     19.9,
+     24.0,
+     52.2
+    ],
+    "lines": {
+     "outline": {
+      "median": 12.94,
+      "within3": 13.8,
+      "fixed": 55.2
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "Bumper_Front1_SUB0",
+    "parent": "Bumper_Front1",
+    "area_m2": 1.275,
+    "tris": 4460,
+    "boundary_pct": 18.4,
+    "crease30_pct": 43.1,
+    "rings_mm": [
+     11.1,
+     6.0,
+     19.7
+    ],
+    "lines": {
+     "outline": {
+      "median": 10.85,
+      "within3": 19.7,
+      "fixed": 18.4
+     },
+     "+creases": {
+      "median": 0.64,
+      "within3": 97.6,
+      "fixed": 98.3
+     },
+     "+sections400": {
+      "median": 0.64,
+      "within3": 97.6,
+      "fixed": 98.3
+     }
+    }
+   },
+   {
+    "name": "Wing1_SUB0",
+    "parent": "Wing1",
+    "area_m2": 1.241,
+    "tris": 2008,
+    "boundary_pct": 4.3,
+    "crease30_pct": 46.8,
+    "rings_mm": [
+     3.4,
+     2.1,
+     3.3
+    ],
+    "lines": {
+     "outline": {
+      "median": 161.26,
+      "within3": 7.0,
+      "fixed": 4.3
+     },
+     "+creases": {
+      "median": 0.71,
+      "within3": 96.8,
+      "fixed": 97.0
+     },
+     "+sections400": {
+      "median": 0.71,
+      "within3": 96.0,
+      "fixed": 97.6
+     }
+    }
+   },
+   {
+    "name": "Bumper_Rear1_SUB1",
+    "parent": "Bumper_Rear1",
+    "area_m2": 1.945,
+    "tris": 243,
+    "boundary_pct": 61.5,
+    "crease30_pct": 36.1,
+    "rings_mm": [
+     38.1,
+     204.5,
+     166.5
+    ],
+    "lines": {
+     "outline": {
+      "median": 24.52,
+      "within3": 0.0,
+      "fixed": 61.5
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "Bumper_Rear1_SUB0",
+    "parent": "Bumper_Rear1",
+    "area_m2": 1.102,
+    "tris": 2031,
+    "boundary_pct": 10.9,
+    "crease30_pct": 43.5,
+    "rings_mm": [
+     9.2,
+     6.9,
+     3.7
+    ],
+    "lines": {
+     "outline": {
+      "median": 32.08,
+      "within3": 8.5,
+      "fixed": 10.9
+     },
+     "+creases": {
+      "median": 0.68,
+      "within3": 100.0,
+      "fixed": 97.2
+     },
+     "+sections400": {
+      "median": 0.67,
+      "within3": 100.0,
+      "fixed": 97.5
+     }
+    }
+   },
+   {
+    "name": "GEO_Chassis_SUB0",
+    "parent": "GEO_Chassis",
+    "area_m2": 5.767,
+    "tris": 9585,
+    "boundary_pct": 23.5,
+    "crease30_pct": 38.1,
+    "rings_mm": [
+     5.1,
+     3.5,
+     20.1
+    ],
+    "lines": {
+     "outline": {
+      "median": 9.27,
+      "within3": 15.0,
+      "fixed": 23.5
+     },
+     "+creases": {
+      "median": 0.73,
+      "within3": 89.1,
+      "fixed": 96.4
+     },
+     "+sections400": {
+      "median": 0.76,
+      "within3": 88.7,
+      "fixed": 96.9
+     }
+    }
+   },
+   {
+    "name": "Door_LR_SUB0",
+    "parent": "Door_LR",
+    "area_m2": 0.624,
+    "tris": 1077,
+    "boundary_pct": 24.3,
+    "crease30_pct": 28.5,
+    "rings_mm": [
+     5.0,
+     2.9,
+     26.9
+    ],
+    "lines": {
+     "outline": {
+      "median": 6.18,
+      "within3": 15.1,
+      "fixed": 24.3
+     },
+     "+creases": {
+      "median": 0.75,
+      "within3": 90.8,
+      "fixed": 87.6
+     },
+     "+sections400": {
+      "median": 0.54,
+      "within3": 94.4,
+      "fixed": 91.2
+     }
+    }
+   },
+   {
+    "name": "Door_LF1_SUB0",
+    "parent": "Door_LF1",
+    "area_m2": 0.811,
+    "tris": 2535,
+    "boundary_pct": 15.9,
+    "crease30_pct": 61.7,
+    "rings_mm": [
+     4.8,
+     2.5,
+     7.6
+    ],
+    "lines": {
+     "outline": {
+      "median": 6.32,
+      "within3": 19.8,
+      "fixed": 15.9
+     },
+     "+creases": {
+      "median": 0.63,
+      "within3": 97.3,
+      "fixed": 97.3
+     },
+     "+sections400": {
+      "median": 0.65,
+      "within3": 95.2,
+      "fixed": 98.5
+     }
+    }
+   },
+   {
+    "name": "Door_RF_SUB0",
+    "parent": "Door_RF",
+    "area_m2": 0.812,
+    "tris": 2536,
+    "boundary_pct": 16.0,
+    "crease30_pct": 64.5,
+    "rings_mm": [
+     4.9,
+     2.5,
+     7.3
+    ],
+    "lines": {
+     "outline": {
+      "median": 6.36,
+      "within3": 19.8,
+      "fixed": 16.0
+     },
+     "+creases": {
+      "median": 0.35,
+      "within3": 96.0,
+      "fixed": 98.2
+     },
+     "+sections400": null
+    }
+   },
+   {
+    "name": "Door_RR_SUB0",
+    "parent": "Door_RR",
+    "area_m2": 0.624,
+    "tris": 1077,
+    "boundary_pct": 24.1,
+    "crease30_pct": 30.6,
+    "rings_mm": [
+     5.0,
+     2.9,
+     31.0
+    ],
+    "lines": {
+     "outline": {
+      "median": 6.24,
+      "within3": 14.7,
+      "fixed": 24.1
+     },
+     "+creases": {
+      "median": 0.72,
+      "within3": 85.5,
+      "fixed": 91.0
+     },
+     "+sections400": {
+      "median": 0.51,
+      "within3": 87.8,
+      "fixed": 93.3
+     }
+    }
+   }
+  ]
+ },
+ {
+  "car": "ks_toyota_supra_mkiv",
+  "panels": [
+   {
+    "name": "SUPRA_BODY00",
+    "parent": "SUPRA_BODY00",
+    "area_m2": 1.785,
+    "tris": 1700,
+    "boundary_pct": 14.6,
+    "crease30_pct": 20.8,
+    "rings_mm": [
+     5.6,
+     4.1,
+     16.7
+    ],
+    "lines": {
+     "outline": {
+      "median": 12.68,
+      "within3": 11.7,
+      "fixed": 14.6
+     },
+     "+creases": {
+      "median": 0.38,
+      "within3": 100.0,
+      "fixed": 71.6
+     },
+     "+sections400": {
+      "median": 0.34,
+      "within3": 100.0,
+      "fixed": 75.7
+     }
+    }
+   },
+   {
+    "name": "SUPRA_BODY06",
+    "parent": "SUPRA_BODY06",
+    "area_m2": 5.643,
+    "tris": 18250,
+    "boundary_pct": 11.1,
+    "crease30_pct": 49.6,
+    "rings_mm": [
+     4.8,
+     4.1,
+     15.3
+    ],
+    "lines": {
+     "outline": {
+      "median": 20.54,
+      "within3": 11.7,
+      "fixed": 11.1
+     },
+     "+creases": {
+      "median": 0.07,
+      "within3": 99.4,
+      "fixed": 92.9
+     },
+     "+sections400": {
+      "median": 0.07,
+      "within3": 99.5,
+      "fixed": 93.6
+     }
+    }
+   },
+   {
+    "name": "SUPRA_BODY01",
+    "parent": "SUPRA_BODY01",
+    "area_m2": 1.03,
+    "tris": 4015,
+    "boundary_pct": 14.4,
+    "crease30_pct": 50.4,
+    "rings_mm": [
+     17.7,
+     4.5,
+     5.5
+    ],
+    "lines": {
+     "outline": {
+      "median": 28.84,
+      "within3": 10.7,
+      "fixed": 14.4
+     },
+     "+creases": {
+      "median": 0.19,
+      "within3": 98.9,
+      "fixed": 95.8
+     },
+     "+sections400": {
+      "median": 0.21,
+      "within3": 98.8,
+      "fixed": 96.2
+     }
+    }
+   },
+   {
+    "name": "SUPRA_EXT_PLASTIC_FRONT_BUMPER",
+    "parent": "SUPRA_EXT_PLASTIC_FRONT_BUMPER",
+    "area_m2": 0.28,
+    "tris": 2118,
+    "boundary_pct": 15.9,
+    "crease30_pct": 39.3,
+    "rings_mm": [
+     3.0,
+     3.0,
+     3.4
+    ],
+    "lines": {
+     "outline": {
+      "median": 13.29,
+      "within3": 22.0,
+      "fixed": 15.9
+     },
+     "+creases": {
+      "median": 0.36,
+      "within3": 88.7,
+      "fixed": 95.4
+     },
+     "+sections400": {
+      "median": 0.36,
+      "within3": 88.2,
+      "fixed": 95.6
+     }
+    }
+   },
+   {
+    "name": "SUPRA_EXT_PLASTIC_002",
+    "parent": "SUPRA_EXT_PLASTIC_002",
+    "area_m2": 0.325,
+    "tris": 522,
+    "boundary_pct": 0.0,
+    "crease30_pct": 49.3,
+    "rings_mm": [
+     null,
+     null,
+     null
+    ],
+    "lines": {
+     "outline": {
+      "median": NaN,
+      "within3": 0.0,
+      "fixed": 0.0
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "SUPRA_LIGHTS_FRONT_BUMPER",
+    "parent": "SUPRA_LIGHTS_FRONT_BUMPER",
+    "area_m2": 0.069,
+    "tris": 1100,
+    "boundary_pct": 19.0,
+    "crease30_pct": 56.9,
+    "rings_mm": [
+     6.1,
+     4.0,
+     4.0
+    ],
+    "lines": {
+     "outline": {
+      "median": 9.9,
+      "within3": 29.4,
+      "fixed": 19.0
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "SUPRA_BODY02",
+    "parent": "SUPRA_BODY02",
+    "area_m2": 1.95,
+    "tris": 3140,
+    "boundary_pct": 2.7,
+    "crease30_pct": 55.1,
+    "rings_mm": [
+     60.1,
+     60.5,
+     14.8
+    ],
+    "lines": {
+     "outline": {
+      "median": 145.17,
+      "within3": 2.7,
+      "fixed": 2.7
+     },
+     "+creases": {
+      "median": 0.55,
+      "within3": 72.2,
+      "fixed": 96.6
+     },
+     "+sections400": {
+      "median": 0.57,
+      "within3": 71.7,
+      "fixed": 96.7
+     }
+    }
+   },
+   {
+    "name": "SUPRA_BODY04",
+    "parent": "SUPRA_BODY04",
+    "area_m2": 0.869,
+    "tris": 3894,
+    "boundary_pct": 9.4,
+    "crease30_pct": 54.3,
+    "rings_mm": [
+     4.1,
+     3.0,
+     2.4
+    ],
+    "lines": {
+     "outline": {
+      "median": 11.16,
+      "within3": 12.3,
+      "fixed": 9.4
+     },
+     "+creases": {
+      "median": 0.19,
+      "within3": 100.0,
+      "fixed": 97.3
+     },
+     "+sections400": {
+      "median": 0.18,
+      "within3": 100.0,
+      "fixed": 97.6
+     }
+    }
+   },
+   {
+    "name": "SUPRA_BODY05",
+    "parent": "SUPRA_BODY05",
+    "area_m2": 0.869,
+    "tris": 3895,
+    "boundary_pct": 9.4,
+    "crease30_pct": 54.6,
+    "rings_mm": [
+     4.1,
+     3.0,
+     2.4
+    ],
+    "lines": {
+     "outline": {
+      "median": 11.16,
+      "within3": 12.3,
+      "fixed": 9.4
+     },
+     "+creases": {
+      "median": 0.17,
+      "within3": 100.0,
+      "fixed": 97.7
+     },
+     "+sections400": {
+      "median": 0.17,
+      "within3": 100.0,
+      "fixed": 97.9
+     }
+    }
+   }
+  ]
+ },
+ {
+  "car": "ks_mclaren_570s",
+  "panels": [
+   {
+    "name": "GEO_R_door_SUB0",
+    "parent": "GEO_R_door",
+    "area_m2": 0.658,
+    "tris": 2402,
+    "boundary_pct": 12.6,
+    "crease30_pct": 59.6,
+    "rings_mm": [
+     3.1,
+     4.6,
+     15.3
+    ],
+    "lines": {
+     "outline": {
+      "median": 18.42,
+      "within3": 17.0,
+      "fixed": 12.6
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "GEO_R_door_SUB1",
+    "parent": "GEO_R_door",
+    "area_m2": 0.259,
+    "tris": 1784,
+    "boundary_pct": 27.3,
+    "crease30_pct": 50.7,
+    "rings_mm": [
+     3.6,
+     2.9,
+     3.6
+    ],
+    "lines": {
+     "outline": {
+      "median": 5.33,
+      "within3": 32.9,
+      "fixed": 27.3
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "GEO_R_door_SUB2",
+    "parent": "GEO_R_door",
+    "area_m2": 0.816,
+    "tris": 2090,
+    "boundary_pct": 18.5,
+    "crease30_pct": 57.6,
+    "rings_mm": [
+     4.7,
+     2.7,
+     7.3
+    ],
+    "lines": {
+     "outline": {
+      "median": 5.18,
+      "within3": 32.6,
+      "fixed": 18.5
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "GEO_hood_SUB0",
+    "parent": "GEO_hood",
+    "area_m2": 1.037,
+    "tris": 1202,
+    "boundary_pct": 15.1,
+    "crease30_pct": 25.9,
+    "rings_mm": [
+     6.0,
+     2.4,
+     28.0
+    ],
+    "lines": {
+     "outline": {
+      "median": 15.19,
+      "within3": 0.7,
+      "fixed": 15.1
+     },
+     "+creases": {
+      "median": 0.76,
+      "within3": 80.6,
+      "fixed": 84.2
+     },
+     "+sections400": {
+      "median": 0.8,
+      "within3": 80.0,
+      "fixed": 84.6
+     }
+    }
+   },
+   {
+    "name": "GEO_L_door_SUB0",
+    "parent": "GEO_L_door",
+    "area_m2": 0.658,
+    "tris": 2402,
+    "boundary_pct": 12.6,
+    "crease30_pct": 57.3,
+    "rings_mm": [
+     3.1,
+     4.6,
+     15.3
+    ],
+    "lines": {
+     "outline": {
+      "median": 18.42,
+      "within3": 17.0,
+      "fixed": 12.6
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "GEO_L_door_SUB1",
+    "parent": "GEO_L_door",
+    "area_m2": 0.259,
+    "tris": 1784,
+    "boundary_pct": 27.3,
+    "crease30_pct": 50.4,
+    "rings_mm": [
+     3.6,
+     2.9,
+     3.6
+    ],
+    "lines": {
+     "outline": {
+      "median": 5.33,
+      "within3": 32.9,
+      "fixed": 27.3
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "GEO_L_door_SUB2",
+    "parent": "GEO_L_door",
+    "area_m2": 0.816,
+    "tris": 2090,
+    "boundary_pct": 18.5,
+    "crease30_pct": 55.6,
+    "rings_mm": [
+     4.7,
+     2.7,
+     7.3
+    ],
+    "lines": {
+     "outline": {
+      "median": 5.18,
+      "within3": 32.6,
+      "fixed": 18.5
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "GEO_F_bumper_SUB2",
+    "parent": "GEO_F_bumper",
+    "area_m2": 0.379,
+    "tris": 1544,
+    "boundary_pct": 10.8,
+    "crease30_pct": 58.1,
+    "rings_mm": [
+     22.5,
+     11.9,
+     4.8
+    ],
+    "lines": {
+     "outline": {
+      "median": 21.13,
+      "within3": 16.7,
+      "fixed": 10.8
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "GEO_F_bumper_SUB0",
+    "parent": "GEO_F_bumper",
+    "area_m2": 1.973,
+    "tris": 2576,
+    "boundary_pct": 17.1,
+    "crease30_pct": 54.9,
+    "rings_mm": [
+     22.4,
+     4.1,
+     8.1
+    ],
+    "lines": {
+     "outline": {
+      "median": 22.16,
+      "within3": 18.3,
+      "fixed": 17.1
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "GEO_F_bumper_SUB1",
+    "parent": "GEO_F_bumper",
+    "area_m2": 0.719,
+    "tris": 2638,
+    "boundary_pct": 16.8,
+    "crease30_pct": 53.5,
+    "rings_mm": [
+     5.9,
+     2.2,
+     19.9
+    ],
+    "lines": {
+     "outline": {
+      "median": 13.33,
+      "within3": 12.2,
+      "fixed": 16.8
+     },
+     "+creases": {
+      "median": 0.68,
+      "within3": 97.2,
+      "fixed": 97.5
+     },
+     "+sections400": {
+      "median": 0.67,
+      "within3": 97.1,
+      "fixed": 97.6
+     }
+    }
+   },
+   {
+    "name": "GEO_chassis_SUB1",
+    "parent": "GEO_chassis",
+    "area_m2": 4.67,
+    "tris": 9334,
+    "boundary_pct": 14.8,
+    "crease30_pct": 42.0,
+    "rings_mm": [
+     5.0,
+     6.4,
+     12.8
+    ],
+    "lines": {
+     "outline": {
+      "median": 17.53,
+      "within3": 13.2,
+      "fixed": 14.8
+     },
+     "+creases": {
+      "median": 0.72,
+      "within3": 86.4,
+      "fixed": 95.3
+     },
+     "+sections400": {
+      "median": 0.66,
+      "within3": 85.8,
+      "fixed": 96.0
+     }
+    }
+   },
+   {
+    "name": "GEO_chassis_SUB2",
+    "parent": "GEO_chassis",
+    "area_m2": 1.746,
+    "tris": 8472,
+    "boundary_pct": 18.8,
+    "crease30_pct": 45.4,
+    "rings_mm": [
+     10.2,
+     3.2,
+     3.8
+    ],
+    "lines": {
+     "outline": {
+      "median": 9.98,
+      "within3": 24.3,
+      "fixed": 18.8
+     },
+     "+creases": {
+      "median": 0.61,
+      "within3": 92.0,
+      "fixed": 98.1
+     },
+     "+sections400": {
+      "median": 0.61,
+      "within3": 91.4,
+      "fixed": 98.3
+     }
+    }
+   },
+   {
+    "name": "GEO_chassis_SUB0",
+    "parent": "GEO_chassis",
+    "area_m2": 4.778,
+    "tris": 9124,
+    "boundary_pct": 17.0,
+    "crease30_pct": 40.0,
+    "rings_mm": [
+     4.6,
+     2.4,
+     4.0
+    ],
+    "lines": {
+     "outline": {
+      "median": 12.53,
+      "within3": 14.9,
+      "fixed": 17.0
+     },
+     "+creases": {
+      "median": 1.15,
+      "within3": 71.9,
+      "fixed": 93.9
+     },
+     "+sections400": {
+      "median": 1.19,
+      "within3": 71.3,
+      "fixed": 94.8
+     }
+    }
+   }
+  ]
+ },
+ {
+  "car": "ks_porsche_cayenne",
+  "panels": [
+   {
+    "name": "GEO_doorL_othobjects_SUB1",
+    "parent": "GEO_doorL_othobjects",
+    "area_m2": 0.142,
+    "tris": 1271,
+    "boundary_pct": 13.6,
+    "crease30_pct": 52.0,
+    "rings_mm": [
+     2.8,
+     0.9,
+     3.9
+    ],
+    "lines": {
+     "outline": {
+      "median": 16.09,
+      "within3": 18.3,
+      "fixed": 13.6
+     },
+     "+creases": {
+      "median": 0.34,
+      "within3": 95.2,
+      "fixed": 96.9
+     },
+     "+sections400": {
+      "median": 0.34,
+      "within3": 95.2,
+      "fixed": 96.9
+     }
+    }
+   },
+   {
+    "name": "GEO_doorL_carpaint_SUB0",
+    "parent": "GEO_doorL_carpaint",
+    "area_m2": 1.591,
+    "tris": 4028,
+    "boundary_pct": 20.7,
+    "crease30_pct": 53.9,
+    "rings_mm": [
+     10.2,
+     5.0,
+     8.0
+    ],
+    "lines": {
+     "outline": {
+      "median": 12.92,
+      "within3": 16.9,
+      "fixed": 20.7
+     },
+     "+creases": {
+      "median": 0.66,
+      "within3": 81.2,
+      "fixed": 98.6
+     },
+     "+sections400": {
+      "median": 0.66,
+      "within3": 79.3,
+      "fixed": 98.7
+     }
+    }
+   },
+   {
+    "name": "GEO_doorR_othobjects_SUB2",
+    "parent": "GEO_doorR_othobjects",
+    "area_m2": 0.142,
+    "tris": 1272,
+    "boundary_pct": 13.5,
+    "crease30_pct": 53.8,
+    "rings_mm": [
+     2.8,
+     0.9,
+     3.8
+    ],
+    "lines": {
+     "outline": {
+      "median": 16.06,
+      "within3": 17.9,
+      "fixed": 13.5
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "GEO_doorR_carpaint_SUB0",
+    "parent": "GEO_doorR_carpaint",
+    "area_m2": 1.591,
+    "tris": 4030,
+    "boundary_pct": 20.7,
+    "crease30_pct": 53.5,
+    "rings_mm": [
+     10.2,
+     5.0,
+     7.8
+    ],
+    "lines": {
+     "outline": {
+      "median": 12.93,
+      "within3": 17.0,
+      "fixed": 20.7
+     },
+     "+creases": {
+      "median": 0.67,
+      "within3": 72.1,
+      "fixed": 98.1
+     },
+     "+sections400": {
+      "median": 0.71,
+      "within3": 65.7,
+      "fixed": 98.4
+     }
+    }
+   },
+   {
+    "name": "GEO_wiperF_arm_5",
+    "parent": "GEO_wiperF_arm_5",
+    "area_m2": 0.058,
+    "tris": 722,
+    "boundary_pct": 0.0,
+    "crease30_pct": 52.4,
+    "rings_mm": [
+     null,
+     null,
+     null
+    ],
+    "lines": {
+     "outline": {
+      "median": NaN,
+      "within3": 0.0,
+      "fixed": 0.0
+     },
+     "+creases": {
+      "median": 0.62,
+      "within3": 90.5,
+      "fixed": 94.2
+     },
+     "+sections400": {
+      "median": 0.62,
+      "within3": 90.5,
+      "fixed": 94.2
+     }
+    }
+   },
+   {
+    "name": "GEO_rbumper_othobjects_SUB1",
+    "parent": "GEO_rbumper_othobjects",
+    "area_m2": 0.818,
+    "tris": 4708,
+    "boundary_pct": 7.2,
+    "crease30_pct": 55.3,
+    "rings_mm": [
+     26.2,
+     2.0,
+     14.7
+    ],
+    "lines": {
+     "outline": {
+      "median": 21.2,
+      "within3": 12.4,
+      "fixed": 7.2
+     },
+     "+creases": {
+      "median": 0.43,
+      "within3": 97.5,
+      "fixed": 98.4
+     },
+     "+sections400": {
+      "median": 0.43,
+      "within3": 97.5,
+      "fixed": 98.4
+     }
+    }
+   },
+   {
+    "name": "GEO_rbumper_body",
+    "parent": "GEO_rbumper_body",
+    "area_m2": 0.861,
+    "tris": 3480,
+    "boundary_pct": 16.1,
+    "crease30_pct": 53.3,
+    "rings_mm": [
+     6.7,
+     2.3,
+     29.4
+    ],
+    "lines": {
+     "outline": {
+      "median": 13.2,
+      "within3": 10.0,
+      "fixed": 16.1
+     },
+     "+creases": {
+      "median": 0.41,
+      "within3": 98.1,
+      "fixed": 97.2
+     },
+     "+sections400": {
+      "median": 0.3,
+      "within3": 98.0,
+      "fixed": 97.4
+     }
+    }
+   },
+   {
+    "name": "GEO_hood_body",
+    "parent": "GEO_hood_body",
+    "area_m2": 3.499,
+    "tris": 1726,
+    "boundary_pct": 0.0,
+    "crease30_pct": 37.2,
+    "rings_mm": [
+     null,
+     null,
+     null
+    ],
+    "lines": {
+     "outline": {
+      "median": NaN,
+      "within3": 0.0,
+      "fixed": 0.0
+     },
+     "+creases": {
+      "median": 0.84,
+      "within3": 80.3,
+      "fixed": 86.5
+     },
+     "+sections400": {
+      "median": 0.75,
+      "within3": 86.3,
+      "fixed": 88.2
+     }
+    }
+   },
+   {
+    "name": "GEO_fbumper_glass",
+    "parent": "GEO_fbumper_glass",
+    "area_m2": 0.055,
+    "tris": 1142,
+    "boundary_pct": 27.9,
+    "crease30_pct": 45.7,
+    "rings_mm": [
+     4.5,
+     2.4,
+     2.5
+    ],
+    "lines": {
+     "outline": {
+      "median": 4.37,
+      "within3": 24.6,
+      "fixed": 27.9
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "GEO_fbumper_body",
+    "parent": "GEO_fbumper_body",
+    "area_m2": 0.929,
+    "tris": 6680,
+    "boundary_pct": 13.6,
+    "crease30_pct": 50.9,
+    "rings_mm": [
+     4.1,
+     3.0,
+     14.2
+    ],
+    "lines": {
+     "outline": {
+      "median": 10.31,
+      "within3": 16.3,
+      "fixed": 13.6
+     },
+     "+creases": {
+      "median": 0.43,
+      "within3": 100.0,
+      "fixed": 96.9
+     },
+     "+sections400": {
+      "median": 0.44,
+      "within3": 100.0,
+      "fixed": 97.0
+     }
+    }
+   },
+   {
+    "name": "GEO_fbumper_othobjects_SUB0",
+    "parent": "GEO_fbumper_othobjects",
+    "area_m2": 1.655,
+    "tris": 13588,
+    "boundary_pct": 18.7,
+    "crease30_pct": 48.0,
+    "rings_mm": [
+     14.7,
+     3.6,
+     4.0
+    ],
+    "lines": {
+     "outline": {
+      "median": 9.37,
+      "within3": 19.4,
+      "fixed": 18.7
+     },
+     "+creases": {
+      "median": 0.4,
+      "within3": 94.4,
+      "fixed": 96.7
+     },
+     "+sections400": {
+      "median": 0.39,
+      "within3": 95.0,
+      "fixed": 96.8
+     }
+    }
+   },
+   {
+    "name": "GEO_fbumper_othobjects_SUB3",
+    "parent": "GEO_fbumper_othobjects",
+    "area_m2": 0.629,
+    "tris": 620,
+    "boundary_pct": 48.3,
+    "crease30_pct": 49.4,
+    "rings_mm": [
+     39.2,
+     23.9,
+     29.1
+    ],
+    "lines": {
+     "outline": {
+      "median": 14.83,
+      "within3": 16.0,
+      "fixed": 48.3
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "GEO_fbumper_othobjects_SUB2",
+    "parent": "GEO_fbumper_othobjects",
+    "area_m2": 0.086,
+    "tris": 2318,
+    "boundary_pct": 30.3,
+    "crease30_pct": 51.8,
+    "rings_mm": [
+     10.3,
+     2.7,
+     4.6
+    ],
+    "lines": {
+     "outline": {
+      "median": 4.01,
+      "within3": 35.6,
+      "fixed": 30.3
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "GEO_carpaint_SUB5",
+    "parent": "GEO_carpaint",
+    "area_m2": 0.263,
+    "tris": 882,
+    "boundary_pct": 24.6,
+    "crease30_pct": 46.4,
+    "rings_mm": [
+     11.0,
+     8.0,
+     6.1
+    ],
+    "lines": {
+     "outline": {
+      "median": 16.73,
+      "within3": 15.0,
+      "fixed": 24.6
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "GEO_carpaint_SUB3",
+    "parent": "GEO_carpaint",
+    "area_m2": 1.424,
+    "tris": 4432,
+    "boundary_pct": 22.3,
+    "crease30_pct": 50.8,
+    "rings_mm": [
+     11.5,
+     5.3,
+     17.7
+    ],
+    "lines": {
+     "outline": {
+      "median": 9.91,
+      "within3": 19.7,
+      "fixed": 22.3
+     },
+     "+creases": {
+      "median": 0.91,
+      "within3": 95.1,
+      "fixed": 98.4
+     },
+     "+sections400": {
+      "median": 0.92,
+      "within3": 95.0,
+      "fixed": 98.4
+     }
+    }
+   },
+   {
+    "name": "GEO_carpaint_SUB0",
+    "parent": "GEO_carpaint",
+    "area_m2": 9.273,
+    "tris": 16876,
+    "boundary_pct": 13.5,
+    "crease30_pct": 51.6,
+    "rings_mm": [
+     6.8,
+     3.7,
+     11.0
+    ],
+    "lines": {
+     "outline": {
+      "median": 13.78,
+      "within3": 14.5,
+      "fixed": 13.5
+     },
+     "+creases": {
+      "median": 0.74,
+      "within3": 93.3,
+      "fixed": 96.4
+     },
+     "+sections400": {
+      "median": 0.68,
+      "within3": 93.0,
+      "fixed": 96.7
+     }
+    }
+   },
+   {
+    "name": "GEO_exhausts",
+    "parent": "GEO_exhausts",
+    "area_m2": 0.186,
+    "tris": 1162,
+    "boundary_pct": 11.3,
+    "crease30_pct": 49.6,
+    "rings_mm": [
+     105.4,
+     2.2,
+     2.0
+    ],
+    "lines": {
+     "outline": {
+      "median": 54.47,
+      "within3": 0.4,
+      "fixed": 11.3
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   }
+  ]
+ },
+ {
+  "car": "ks_ford_gt40",
+  "panels": [
+   {
+    "name": "EXTERIOR_BODY_MESH",
+    "parent": "EXTERIOR_BODY_MESH",
+    "area_m2": 10.514,
+    "tris": 25266,
+    "boundary_pct": 8.9,
+    "crease30_pct": 39.3,
+    "rings_mm": [
+     16.0,
+     4.0,
+     16.3
+    ],
+    "lines": {
+     "outline": {
+      "median": 19.71,
+      "within3": 8.4,
+      "fixed": 8.9
+     },
+     "+creases": {
+      "median": 0.51,
+      "within3": 87.6,
+      "fixed": 91.3
+     },
+     "+sections400": {
+      "median": 0.49,
+      "within3": 88.5,
+      "fixed": 92.2
+     }
+    }
+   },
+   {
+    "name": "DOOR_R_EXTERIOR_MESH",
+    "parent": "DOOR_R_EXTERIOR_MESH",
+    "area_m2": 1.46,
+    "tris": 4261,
+    "boundary_pct": 6.5,
+    "crease30_pct": 38.1,
+    "rings_mm": [
+     7.8,
+     4.0,
+     3.9
+    ],
+    "lines": {
+     "outline": {
+      "median": 13.88,
+      "within3": 13.4,
+      "fixed": 6.5
+     },
+     "+creases": {
+      "median": 0.73,
+      "within3": 86.6,
+      "fixed": 90.8
+     },
+     "+sections400": {
+      "median": 0.6,
+      "within3": 86.3,
+      "fixed": 91.6
+     }
+    }
+   },
+   {
+    "name": "DOOR_L_EXTERIOR_MESH",
+    "parent": "DOOR_L_EXTERIOR_MESH",
+    "area_m2": 1.46,
+    "tris": 4261,
+    "boundary_pct": 6.5,
+    "crease30_pct": 38.6,
+    "rings_mm": [
+     7.8,
+     4.0,
+     3.9
+    ],
+    "lines": {
+     "outline": {
+      "median": 13.88,
+      "within3": 13.4,
+      "fixed": 6.5
+     },
+     "+creases": {
+      "median": 0.49,
+      "within3": 88.9,
+      "fixed": 93.0
+     },
+     "+sections400": {
+      "median": 0.48,
+      "within3": 88.6,
+      "fixed": 93.6
+     }
+    }
+   }
+  ]
+ },
+ {
+  "car": "ks_lotus_72d",
+  "panels": [
+   {
+    "name": "Cube_042",
+    "parent": "Cube_042",
+    "area_m2": 2.235,
+    "tris": 2976,
+    "boundary_pct": 53.3,
+    "crease30_pct": 56.4,
+    "rings_mm": [
+     4.9,
+     null,
+     null
+    ],
+    "lines": {
+     "outline": {
+      "median": 427.42,
+      "within3": 13.2,
+      "fixed": 53.3
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "Cube_010",
+    "parent": "Cube_010",
+    "area_m2": 0.295,
+    "tris": 451,
+    "boundary_pct": 15.0,
+    "crease30_pct": 50.2,
+    "rings_mm": [
+     354.8,
+     6.0,
+     1.6
+    ],
+    "lines": {
+     "outline": {
+      "median": 35.33,
+      "within3": 0.0,
+      "fixed": 15.0
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "Cube_041_SUB0",
+    "parent": "Cube_041",
+    "area_m2": 9.831,
+    "tris": 19706,
+    "boundary_pct": 11.3,
+    "crease30_pct": 56.0,
+    "rings_mm": [
+     10.1,
+     3.2,
+     5.0
+    ],
+    "lines": {
+     "outline": {
+      "median": 17.06,
+      "within3": 10.4,
+      "fixed": 11.3
+     },
+     "+creases": {
+      "median": 0.21,
+      "within3": 94.3,
+      "fixed": 99.5
+     },
+     "+sections400": {
+      "median": 0.15,
+      "within3": 93.3,
+      "fixed": 99.6
+     }
+    }
+   }
+  ]
+ },
+ {
+  "car": "ks_ferrari_sf70h",
+  "panels": [
+   {
+    "name": "g_Hub_RR_SUB0",
+    "parent": "g_Hub_RR",
+    "area_m2": 0.419,
+    "tris": 4435,
+    "boundary_pct": 5.8,
+    "crease30_pct": 50.2,
+    "rings_mm": [
+     6.9,
+     17.1,
+     27.0
+    ],
+    "lines": {
+     "outline": {
+      "median": 20.41,
+      "within3": 11.7,
+      "fixed": 5.8
+     },
+     "+creases": {
+      "median": 0.53,
+      "within3": 93.9,
+      "fixed": 96.4
+     },
+     "+sections400": {
+      "median": 0.55,
+      "within3": 93.8,
+      "fixed": 96.4
+     }
+    }
+   },
+   {
+    "name": "g_Hub_LR_SUB0",
+    "parent": "g_Hub_LR",
+    "area_m2": 0.419,
+    "tris": 4435,
+    "boundary_pct": 5.8,
+    "crease30_pct": 49.6,
+    "rings_mm": [
+     6.9,
+     17.1,
+     27.0
+    ],
+    "lines": {
+     "outline": {
+      "median": 20.41,
+      "within3": 11.7,
+      "fixed": 5.8
+     },
+     "+creases": {
+      "median": 0.46,
+      "within3": 95.2,
+      "fixed": 97.3
+     },
+     "+sections400": {
+      "median": 0.47,
+      "within3": 95.1,
+      "fixed": 97.3
+     }
+    }
+   },
+   {
+    "name": "g_Hub_RF_SUB0",
+    "parent": "g_Hub_RF",
+    "area_m2": 0.479,
+    "tris": 2652,
+    "boundary_pct": 6.6,
+    "crease30_pct": 56.4,
+    "rings_mm": [
+     10.0,
+     4.8,
+     23.1
+    ],
+    "lines": {
+     "outline": {
+      "median": 76.04,
+      "within3": 1.2,
+      "fixed": 6.6
+     },
+     "+creases": {
+      "median": 0.68,
+      "within3": 96.2,
+      "fixed": 98.1
+     },
+     "+sections400": {
+      "median": 0.74,
+      "within3": 96.0,
+      "fixed": 98.2
+     }
+    }
+   },
+   {
+    "name": "g_Hub_LF_SUB0",
+    "parent": "g_Hub_LF",
+    "area_m2": 0.479,
+    "tris": 2652,
+    "boundary_pct": 6.6,
+    "crease30_pct": 56.9,
+    "rings_mm": [
+     10.0,
+     4.8,
+     23.1
+    ],
+    "lines": {
+     "outline": {
+      "median": 76.04,
+      "within3": 1.2,
+      "fixed": 6.6
+     },
+     "+creases": {
+      "median": 0.74,
+      "within3": 88.9,
+      "fixed": 98.0
+     },
+     "+sections400": {
+      "median": 0.74,
+      "within3": 88.9,
+      "fixed": 98.0
+     }
+    }
+   },
+   {
+    "name": "g_susp_LF_1_SUB1",
+    "parent": "g_susp_LF_1",
+    "area_m2": 0.06,
+    "tris": 432,
+    "boundary_pct": 13.0,
+    "crease30_pct": 58.2,
+    "rings_mm": [
+     2.0,
+     2.0,
+     10.2
+    ],
+    "lines": {
+     "outline": {
+      "median": 6.42,
+      "within3": 31.3,
+      "fixed": 13.0
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "g_susp_LF_1_SUB0",
+    "parent": "g_susp_LF_1",
+    "area_m2": 0.15,
+    "tris": 700,
+    "boundary_pct": 8.2,
+    "crease30_pct": 60.3,
+    "rings_mm": [
+     2.0,
+     2.0,
+     158.2
+    ],
+    "lines": {
+     "outline": {
+      "median": 10.88,
+      "within3": 11.3,
+      "fixed": 8.2
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "g_susp_LF_3",
+    "parent": "g_susp_LF_3",
+    "area_m2": 0.209,
+    "tris": 706,
+    "boundary_pct": 4.4,
+    "crease30_pct": 50.7,
+    "rings_mm": [
+     153.0,
+     2.0,
+     2.0
+    ],
+    "lines": {
+     "outline": {
+      "median": 21.15,
+      "within3": 11.8,
+      "fixed": 4.4
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "g_susp_LF_2",
+    "parent": "g_susp_LF_2",
+    "area_m2": 0.095,
+    "tris": 373,
+    "boundary_pct": 7.7,
+    "crease30_pct": 62.4,
+    "rings_mm": [
+     471.0,
+     1.5,
+     2.0
+    ],
+    "lines": {
+     "outline": {
+      "median": 104.1,
+      "within3": 12.2,
+      "fixed": 7.7
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "g_susp_RF_2",
+    "parent": "g_susp_RF_2",
+    "area_m2": 0.095,
+    "tris": 373,
+    "boundary_pct": 7.7,
+    "crease30_pct": 55.9,
+    "rings_mm": [
+     471.0,
+     1.5,
+     2.0
+    ],
+    "lines": {
+     "outline": {
+      "median": 104.1,
+      "within3": 12.2,
+      "fixed": 7.7
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "g_susp_RF_3",
+    "parent": "g_susp_RF_3",
+    "area_m2": 0.209,
+    "tris": 706,
+    "boundary_pct": 4.4,
+    "crease30_pct": 46.5,
+    "rings_mm": [
+     153.0,
+     2.0,
+     2.0
+    ],
+    "lines": {
+     "outline": {
+      "median": 21.15,
+      "within3": 11.8,
+      "fixed": 4.4
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "g_susp_RF_1_SUB1",
+    "parent": "g_susp_RF_1",
+    "area_m2": 0.06,
+    "tris": 432,
+    "boundary_pct": 13.0,
+    "crease30_pct": 54.3,
+    "rings_mm": [
+     2.0,
+     2.0,
+     10.2
+    ],
+    "lines": {
+     "outline": {
+      "median": 6.42,
+      "within3": 31.3,
+      "fixed": 13.0
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "g_susp_RF_1_SUB0",
+    "parent": "g_susp_RF_1",
+    "area_m2": 0.15,
+    "tris": 700,
+    "boundary_pct": 8.2,
+    "crease30_pct": 60.4,
+    "rings_mm": [
+     2.0,
+     2.0,
+     158.2
+    ],
+    "lines": {
+     "outline": {
+      "median": 10.88,
+      "within3": 11.3,
+      "fixed": 8.2
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "g_susp_LR_4",
+    "parent": "g_susp_LR_4",
+    "area_m2": 0.25,
+    "tris": 717,
+    "boundary_pct": 7.8,
+    "crease30_pct": 58.3,
+    "rings_mm": [
+     103.5,
+     12.1,
+     12.5
+    ],
+    "lines": {
+     "outline": {
+      "median": 14.78,
+      "within3": 20.3,
+      "fixed": 7.8
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "g_susp_LR_1",
+    "parent": "g_susp_LR_1",
+    "area_m2": 0.138,
+    "tris": 606,
+    "boundary_pct": 0.0,
+    "crease30_pct": 56.7,
+    "rings_mm": [
+     null,
+     null,
+     null
+    ],
+    "lines": {
+     "outline": {
+      "median": NaN,
+      "within3": 0.0,
+      "fixed": 0.0
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "g_susp_LR_3",
+    "parent": "g_susp_LR_3",
+    "area_m2": 0.077,
+    "tris": 402,
+    "boundary_pct": 0.0,
+    "crease30_pct": 52.6,
+    "rings_mm": [
+     null,
+     null,
+     null
+    ],
+    "lines": {
+     "outline": {
+      "median": NaN,
+      "within3": 0.0,
+      "fixed": 0.0
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "g_susp_RR_4",
+    "parent": "g_susp_RR_4",
+    "area_m2": 0.25,
+    "tris": 716,
+    "boundary_pct": 8.3,
+    "crease30_pct": 59.0,
+    "rings_mm": [
+     103.1,
+     12.1,
+     12.5
+    ],
+    "lines": {
+     "outline": {
+      "median": 15.51,
+      "within3": 21.6,
+      "fixed": 8.3
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "g_susp_RR_1",
+    "parent": "g_susp_RR_1",
+    "area_m2": 0.138,
+    "tris": 606,
+    "boundary_pct": 0.0,
+    "crease30_pct": 58.0,
+    "rings_mm": [
+     null,
+     null,
+     null
+    ],
+    "lines": {
+     "outline": {
+      "median": NaN,
+      "within3": 0.0,
+      "fixed": 0.0
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "g_susp_RR_3",
+    "parent": "g_susp_RR_3",
+    "area_m2": 0.077,
+    "tris": 402,
+    "boundary_pct": 0.0,
+    "crease30_pct": 57.0,
+    "rings_mm": [
+     null,
+     null,
+     null
+    ],
+    "lines": {
+     "outline": {
+      "median": NaN,
+      "within3": 0.0,
+      "fixed": 0.0
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "g_body_3_SUB1",
+    "parent": "g_body_3",
+    "area_m2": 0.263,
+    "tris": 602,
+    "boundary_pct": 15.2,
+    "crease30_pct": 56.5,
+    "rings_mm": [
+     346.5,
+     25.5,
+     24.8
+    ],
+    "lines": {
+     "outline": {
+      "median": 6.59,
+      "within3": 32.2,
+      "fixed": 15.2
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "g_Body_2_SUB4",
+    "parent": "g_Body_2",
+    "area_m2": 0.445,
+    "tris": 3750,
+    "boundary_pct": 31.5,
+    "crease30_pct": 41.7,
+    "rings_mm": [
+     8.1,
+     3.0,
+     2.0
+    ],
+    "lines": {
+     "outline": {
+      "median": 7.08,
+      "within3": 26.0,
+      "fixed": 31.5
+     },
+     "+creases": {
+      "median": 1.11,
+      "within3": 77.4,
+      "fixed": 97.2
+     },
+     "+sections400": {
+      "median": 0.86,
+      "within3": 81.0,
+      "fixed": 97.4
+     }
+    }
+   },
+   {
+    "name": "g_Body_2_SUB3",
+    "parent": "g_Body_2",
+    "area_m2": 0.359,
+    "tris": 1410,
+    "boundary_pct": 28.0,
+    "crease30_pct": 44.8,
+    "rings_mm": [
+     3.6,
+     20.4,
+     27.3
+    ],
+    "lines": {
+     "outline": {
+      "median": 5.66,
+      "within3": 34.9,
+      "fixed": 28.0
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "g_Body_2_SUB1",
+    "parent": "g_Body_2",
+    "area_m2": 6.546,
+    "tris": 23396,
+    "boundary_pct": 21.0,
+    "crease30_pct": 42.8,
+    "rings_mm": [
+     5.1,
+     8.9,
+     13.3
+    ],
+    "lines": {
+     "outline": {
+      "median": 8.31,
+      "within3": 24.6,
+      "fixed": 21.0
+     },
+     "+creases": {
+      "median": 0.49,
+      "within3": 90.4,
+      "fixed": 95.5
+     },
+     "+sections400": {
+      "median": 0.47,
+      "within3": 91.4,
+      "fixed": 95.8
+     }
+    }
+   },
+   {
+    "name": "g_Body_2_SUB2",
+    "parent": "g_Body_2",
+    "area_m2": 0.975,
+    "tris": 1722,
+    "boundary_pct": 23.8,
+    "crease30_pct": 26.6,
+    "rings_mm": [
+     2.0,
+     3.0,
+     8.5
+    ],
+    "lines": {
+     "outline": {
+      "median": 3.41,
+      "within3": 42.1,
+      "fixed": 23.8
+     },
+     "+creases": {
+      "median": 0.81,
+      "within3": 86.0,
+      "fixed": 81.9
+     },
+     "+sections400": {
+      "median": 0.83,
+      "within3": 88.5,
+      "fixed": 83.2
+     }
+    }
+   },
+   {
+    "name": "g_Body_2_SUB0",
+    "parent": "g_Body_2",
+    "area_m2": 8.171,
+    "tris": 30376,
+    "boundary_pct": 17.1,
+    "crease30_pct": 43.5,
+    "rings_mm": [
+     5.0,
+     4.0,
+     14.3
+    ],
+    "lines": {
+     "outline": {
+      "median": 10.53,
+      "within3": 23.0,
+      "fixed": 17.1
+     },
+     "+creases": {
+      "median": 0.49,
+      "within3": 90.9,
+      "fixed": 95.1
+     },
+     "+sections400": {
+      "median": 0.51,
+      "within3": 91.5,
+      "fixed": 95.4
+     }
+    }
+   },
+   {
+    "name": "g_details_1_SUB4",
+    "parent": "g_details_1",
+    "area_m2": 0.24,
+    "tris": 1950,
+    "boundary_pct": 16.2,
+    "crease30_pct": 40.6,
+    "rings_mm": [
+     2.0,
+     2.5,
+     11.9
+    ],
+    "lines": {
+     "outline": {
+      "median": 6.55,
+      "within3": 25.6,
+      "fixed": 16.2
+     },
+     "+creases": {
+      "median": 0.41,
+      "within3": 97.6,
+      "fixed": 96.1
+     },
+     "+sections400": {
+      "median": 0.59,
+      "within3": 97.2,
+      "fixed": 96.6
+     }
+    }
+   },
+   {
+    "name": "g_details_1_SUB5",
+    "parent": "g_details_1",
+    "area_m2": 0.088,
+    "tris": 1074,
+    "boundary_pct": 19.3,
+    "crease30_pct": 47.4,
+    "rings_mm": [
+     2.0,
+     2.5,
+     21.0
+    ],
+    "lines": {
+     "outline": {
+      "median": 5.46,
+      "within3": 30.5,
+      "fixed": 19.3
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "g_details_1_SUB3",
+    "parent": "g_details_1",
+    "area_m2": 0.641,
+    "tris": 6626,
+    "boundary_pct": 14.1,
+    "crease30_pct": 41.2,
+    "rings_mm": [
+     4.7,
+     2.2,
+     7.8
+    ],
+    "lines": {
+     "outline": {
+      "median": 12.56,
+      "within3": 27.7,
+      "fixed": 14.1
+     },
+     "+creases": {
+      "median": 1.33,
+      "within3": 73.3,
+      "fixed": 95.1
+     },
+     "+sections400": {
+      "median": 1.31,
+      "within3": 72.9,
+      "fixed": 95.4
+     }
+    }
+   },
+   {
+    "name": "g_details_1_SUB1",
+    "parent": "g_details_1",
+    "area_m2": 0.631,
+    "tris": 7483,
+    "boundary_pct": 12.3,
+    "crease30_pct": 45.7,
+    "rings_mm": [
+     10.0,
+     3.8,
+     15.0
+    ],
+    "lines": {
+     "outline": {
+      "median": 23.52,
+      "within3": 22.4,
+      "fixed": 12.3
+     },
+     "+creases": {
+      "median": 0.66,
+      "within3": 86.6,
+      "fixed": 96.6
+     },
+     "+sections400": {
+      "median": 0.67,
+      "within3": 86.5,
+      "fixed": 96.7
+     }
+    }
+   },
+   {
+    "name": "g_details_1_SUB2",
+    "parent": "g_details_1",
+    "area_m2": 1.519,
+    "tris": 3498,
+    "boundary_pct": 13.6,
+    "crease30_pct": 45.7,
+    "rings_mm": [
+     17.6,
+     31.6,
+     31.7
+    ],
+    "lines": {
+     "outline": {
+      "median": 31.98,
+      "within3": 13.3,
+      "fixed": 13.6
+     },
+     "+creases": {
+      "median": 0.59,
+      "within3": 93.1,
+      "fixed": 96.1
+     },
+     "+sections400": {
+      "median": 0.61,
+      "within3": 94.0,
+      "fixed": 96.4
+     }
+    }
+   },
+   {
+    "name": "g_details_1_SUB0",
+    "parent": "g_details_1",
+    "area_m2": 2.083,
+    "tris": 4014,
+    "boundary_pct": 33.5,
+    "crease30_pct": 41.8,
+    "rings_mm": [
+     24.8,
+     9.8,
+     25.3
+    ],
+    "lines": {
+     "outline": {
+      "median": 10.93,
+      "within3": 28.5,
+      "fixed": 33.5
+     },
+     "+creases": {
+      "median": 2.06,
+      "within3": 62.0,
+      "fixed": 97.9
+     },
+     "+sections400": {
+      "median": 1.93,
+      "within3": 63.3,
+      "fixed": 98.0
+     }
+    }
+   },
+   {
+    "name": "g_details_1_SUB6",
+    "parent": "g_details_1",
+    "area_m2": 0.364,
+    "tris": 2522,
+    "boundary_pct": 15.2,
+    "crease30_pct": 51.8,
+    "rings_mm": [
+     35.0,
+     2.3,
+     3.7
+    ],
+    "lines": {
+     "outline": {
+      "median": 34.2,
+      "within3": 15.3,
+      "fixed": 15.2
+     },
+     "+creases": {
+      "median": 0.84,
+      "within3": 57.1,
+      "fixed": 98.5
+     },
+     "+sections400": {
+      "median": 0.84,
+      "within3": 57.1,
+      "fixed": 98.5
+     }
+    }
+   },
+   {
+    "name": "g_body_1_SUB3",
+    "parent": "g_body_1",
+    "area_m2": 0.069,
+    "tris": 402,
+    "boundary_pct": 17.1,
+    "crease30_pct": 40.7,
+    "rings_mm": [
+     2.0,
+     2.0,
+     72.2
+    ],
+    "lines": {
+     "outline": {
+      "median": 9.0,
+      "within3": 25.0,
+      "fixed": 17.1
+     },
+     "+creases": null,
+     "+sections400": null
+    }
+   },
+   {
+    "name": "g_body_1_SUB2",
+    "parent": "g_body_1",
+    "area_m2": 3.088,
+    "tris": 23798,
+    "boundary_pct": 12.7,
+    "crease30_pct": 44.7,
+    "rings_mm": [
+     3.1,
+     8.4,
+     16.6
+    ],
+    "lines": {
+     "outline": {
+      "median": 17.91,
+      "within3": 16.9,
+      "fixed": 12.7
+     },
+     "+creases": {
+      "median": 0.23,
+      "within3": 94.7,
+      "fixed": 95.2
+     },
+     "+sections400": {
+      "median": 0.23,
+      "within3": 94.7,
+      "fixed": 95.4
+     }
+    }
+   },
+   {
+    "name": "g_body_1_SUB0",
+    "parent": "g_body_1",
+    "area_m2": 1.596,
+    "tris": 10310,
+    "boundary_pct": 27.2,
+    "crease30_pct": 39.3,
+    "rings_mm": [
+     8.2,
+     13.5,
+     14.8
+    ],
+    "lines": {
+     "outline": {
+      "median": 3.7,
+      "within3": 44.7,
+      "fixed": 27.2
+     },
+     "+creases": {
+      "median": 0.35,
+      "within3": 96.6,
+      "fixed": 94.6
+     },
+     "+sections400": {
+      "median": 0.34,
+      "within3": 96.7,
+      "fixed": 94.9
+     }
+    }
+   }
+  ]
+ }
+]
