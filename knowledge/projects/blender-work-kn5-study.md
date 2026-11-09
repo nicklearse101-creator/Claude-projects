@@ -42,3 +42,13 @@ Phase 3 (same day, REPORT_PHASE3.md): 112 cars in total (67 Kunos, 29 mods, 12 s
 Gotchas: skinned kn5 meshes have a short trailer (material, layer, lod in/out only); kn5 V is stored negated.
 
 Related: [[nova-gte-project]], [[feedback-blender-use-plugins-skills]].
+
+Replica work (2026-11-09, REPLICA_PLAN.md). Nik's rule: build from scratch, using other cars only as education, never as a base mesh.
+- Blind test on the AE86 (blind_test.py):
+  - outlines only: median 8.5 mm, 56 % within 10 mm
+  - + learned section shapes from 11 cars: 63 %
+  - Outlines can't make a replica.
+- Lines -> surface (lines_to_surface.py): panel outlines + creases + soft feature lines + sections every 400 mm, with a thin-plate fill, give median 1.1 mm and 87 % within 3 mm.
+- So the method is: character-line network first, then smooth quad patches. Panel-edge recipe: 5 mm return, 5 mm holding loop, 10 mm.
+- Next step: rebuild the AE86 from lines (generator test), then from pictures.
+- The Blender scene (unsaved) has the AE86_layout_view and AE86_lines_test collections.

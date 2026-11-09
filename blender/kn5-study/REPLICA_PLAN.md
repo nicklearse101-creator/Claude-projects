@@ -86,3 +86,33 @@ The true AE86 panels are kept only on the chosen lines; every other vertex is re
   - First with the lines taken from the model, to test the generator: quad patches, panel-edge recipe, thin-plate fill.
   - Then with lines traced from pictures.
 - Steps 4 and 5 as above.
+
+### Step 3, first try: our own mesh, a sectional loft (`step3_rebuild.py`)
+- **Mesh:** our own quad mesh, one ring of 160 rays every 20 mm along the car (33k quads).
+- **Starting shape:** the best outline build (`m_prior`), smoothed.
+- **Lines from the true model:**
+  - creases over 12° on the outer skin
+  - window outlines
+  - full sections every 400 mm, pinned along each ring's own rays
+- **Fill:** the smoothest surface through the pins, with a weak pull to the outline build.
+- **Score:** each ring against the true outer outline at its station.
+
+| Lines used | Median | Worst 10 % | Within 3 mm | Within 10 mm |
+|---|---|---|---|---|
+| none (outline build only) | 6.3 mm | 30 mm | 28 % | 64 % |
+| sections only | 5.3 | 35 | 36 | 65 |
+| creases + window outlines | 4.0 | 22 | 40 | 80 |
+| **all** | **3.3** | **19** | **47** | **82** |
+
+Soft pins (strength 0.01–0.3) were no better; a weaker pull to the outline build was worse.
+
+**What stops it reaching the 1.1 mm that Kunos's own layout gets from the same lines (step 2):**
+1. **Ends:** a lengthwise loft can't make the near-vertical front and rear faces. Rays converge into star-shaped artefacts there. Kunos makes the ends as separate panels: the bumpers and the tail panel.
+2. **Loops don't follow the lines:** lines land on scattered ring vertices and pull out dimples. In Kunos meshes, edge loops run along every line, so a line is a continuous loop and not a set of pins.
+3. **Arches and openings:** the loft wraps straight over wheel arches and windows. Kunos cuts them out and runs concentric loops around them.
+
+**Next generator (step 3, second try): patch based, like the professionals.**
+- Split the body into panels, the way Kunos does: sides, roof, bonnet, boot or hatch, front and rear end panels and bumpers.
+- Each panel is a quad patch whose **edge loops are the character lines** (curves resampled into loops) with a smooth fill inside.
+- Arches and windows are boundaries with concentric loops.
+- Then the panel-edge recipe: a 5 mm return, a 5 mm holding loop and a 10 mm loop.
