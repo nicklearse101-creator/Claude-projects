@@ -4,7 +4,7 @@
 > Email addresses and the race-server address are removed, and decrypted Assetto Corsa car data
 > (Kunos and third-party mods) is left out because it can't be redistributed.
 
-> **Public copy:** a cleaned public mirror of this repo is at https://github.com/nicklearse101-creator/claude-projects. Refresh it with `python tools/publish_public.py` after meaningful changes (see CLAUDE.md).
+> **Public copy:** a cleaned public mirror of this repo is at https://github.com/nicklearse101-creator/claude-projects. It updates automatically after each Claude turn on Nik's PC (see CLAUDE.md).
 
 Working repository for projects done with Claude Code, so work from cloud
 sessions is saved and can be picked up again later (from the cloud or from

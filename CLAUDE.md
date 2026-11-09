@@ -29,8 +29,9 @@ This repo is **private**. A cleaned **public** copy lives at
 github.com/nicklearse101-creator/claude-projects (local clone `D:\Claude\claude-projects`).
 
 - Keep working and saving here as normal. Never commit directly to the public repo.
-- After meaningful changes (end of a project step, or when Nik wants to show something), refresh it:
-  `python tools/publish_public.py` (use `--dry-run` to check first).
+- It updates **automatically**: a global Stop hook on Nik's PC runs `python tools/publish_public.py --auto`
+  after every Claude turn and publishes the latest committed state (log: `D:\Claude\claude-projects\.git\publish.log`).
+  Run `python tools/publish_public.py` by hand to publish straight away (`--dry-run` to check first).
 - The script publishes only committed files, removes emails and race-server/Discord addresses,
   leaves out decrypted Kunos/mod car data, and refuses to push if anything sensitive remains.
   New game-data folders must be added to its EXCLUDE list before publishing.
