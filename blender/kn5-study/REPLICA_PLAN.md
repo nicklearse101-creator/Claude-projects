@@ -167,3 +167,23 @@ Soft pins (strength 0.01–0.3) were no better; a weaker pull to the outline bui
 - Resample each curve to a matching point count, then loft or Bridge Edge Loops through the sections, so edge loops lie exactly on the curves.
 - Panel edges as their own loops, with the 5 mm return and holding loops.
 - Score both ways and check in grey after every panel.
+
+### Curves → exact panel: first clean result (AE86 door skin, `panel_loft.py`)
+1. Cut 12 cross-sections through the panel; 8 span it fully and are kept.
+2. Keep the outer skin of each section.
+3. Fit **clean straight edge lines** (bottom edge, beltline) and a straight crease line, rejecting outliers. Trim every section exactly on the edge lines and split it exactly on the crease line, so the crease becomes an edge loop.
+4. Optionally fit each section part as a clean cubic.
+5. Loft a quad surface through the sections with Catmull-Rom interpolation, which passes exactly through every section. **No smoothing.**
+
+| Sections | Real door → ours: median | p90 | Within 3 mm | Ours → real door: median | Within 3 mm |
+|---|---|---|---|---|---|
+| raw cut sections | **1.68 mm** | 2.5 | **97.6 %** | 1.66 mm | 92.8 % |
+| cubic sections (cleanest reflections) | 2.10 | 3.3 | 84.8 | 2.27 | 75.8 |
+
+- **In grey:** clean flat faces and a crisp crease, which reads like the real door's lower skin. This is the first build Nik's "sharp, flat" test is likely to accept.
+- **Still to do on the door:**
+  - span the full length; the end sections are dropped at present
+  - shape the front and rear edges
+  - add the 5 mm return and holding loops
+  - add the window frame as its own patches
+- **Then:** the same method panel by panel (wings, quarters, bonnet, roof, bumpers), and finally curves traced from photos.

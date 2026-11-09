@@ -52,3 +52,8 @@ Replica work (2026-11-09, REPLICA_PLAN.md). Nik's rule: build from scratch, usin
 - So the method is: character-line network first, then smooth quad patches. Panel-edge recipe: 5 mm return, 5 mm holding loop, 10 mm.
 - Next step: rebuild the AE86 from lines (generator test), then from pictures.
 - The Blender scene (unsaved) has the AE86_layout_view and AE86_lines_test collections.
+- 2026-11-09 afternoon: Nik said smoothing-based building never works (blobby, no crisp edges). Agreed.
+  - Smoothing generators are dropped (thin-plate, quad-sphere, height fields): best 2.4-2.9 mm, but lumpy.
+  - New direction is CAD-style curves -> exact patches. A Gordon network on the AE86 door gave 2.3 mm median and 87 % within 3 mm, but my numpy tracing/trimming was buggy.
+  - Next: build panels in Blender natively (Bezier curves -> lofted or bridged loops through the sections), score both ways, check in grey.
+  - Always score both ways: a one-way score hid a folded patch.
