@@ -20,7 +20,7 @@ results log).
 cd /d/Claude/Claude-/blender/kn5-study
 C=D:/SteamLibrary/steamapps/common/assettocorsa/content/cars/ks_toyota_ae86
 OUT=D:/Claude/_scratch_research/kn5_study/blind/door
-python panel_fit.py $C $OUT GEO_extdoorL_SUB1:b0 GEO_extdoorL_SUB1:r1,2 GEO_extglassL   # fit (about 40 s)
+python panel_fit.py $C $OUT GEO_extdoorL_SUB1:b0 GEO_extdoorL_SUB1:r1,2,5 GEO_extglassL   # fit (about 40 s)
 PF_IN='D:\Claude\_scratch_research\kn5_study\blind\door' ./fcrun.sh panel_fit_freecad.py   # CAD faces, STEP, mesh
 # then exact normals: PF.exact_normals(p, mesh points) -> panels_fit_normals.npz -> Blender (custom normals)
 python score_exact.py BUILD.npz        # exact two-way score (strip grids); exact_dist.point_to_tris for meshes
@@ -44,13 +44,13 @@ use C:.
 ## Plan (in order)
 
 ### A. Finish the door properly
-1. **Bug Nik spotted (2026-11-09):** the narrow crease strip between the upper and lower door skin
-   (`r2`) looks recessed on ours but stands out on the original.
-   - Likely cause: the panel normal `w` in `frame_of` takes its sign from authored vertex normals, which
-     can point inward on a narrow band, so the exact normals (and the shading) come out flipped.
-   - Fix: orient `w` outward from the car (as in `cad_panels.skin_by_mesh`), then re-check the zebra
-     and grey views.
-   - If it's still recessed, compare its section with the original's (`section.py`).
+1. **Fixed (2026-11-09): the crease strip looked recessed.** The cause was not normals: the 5 mm ledge
+   face on top of the strip (region `r5`, facing upward) was missing, so the background showed through as
+   grooves. Adding `r5` fixed it.
+   - Lesson: **include every small outward-facing crease region** (ledges and chamfers, from about
+     0.001 m²). Make this automatic: fit all regions of a panel whose normals face out.
+   - Still to do: the strip face is slightly rounded where the original is flat. Check its fit (4x10) and
+     try fewer controls across.
 2. **Window frame band (`b0`) and beltline roll (`b1`)** are about 1.5 mm p95, against 0.1–0.3 mm on
    the rest.
    - Try splitting the frame from the top of the roll.
