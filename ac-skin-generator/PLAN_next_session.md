@@ -65,20 +65,27 @@ showing; ours squeezed to the old strip.
 - **Panels skipped inside the logo.** The missing band is probably a panel whose texels are marked
   shared or fixed, so the decal skips it.
 
+**Nik's rule: never break a picture. Stretch it over curves, arches and panel steps, keeping it whole.**
+No fading or cutting at steep surfaces.
+
 **Fixes:**
 1. **Depth test per decal (main fix).** Rasterise the decal's rectangle into a grid of about 5 mm
-   cells. Keep only the front-most surface in each cell, plus a tolerance of about 15 mm. Hidden and
-   inner surfaces then get nothing: no ghosts.
-2. **Stay on one surface.** Take the normal at the decal's centre. Accept texels whose normal is within
-   about 45° of it, and fade the decal out between 45° and 60° instead of cutting it off hard.
-3. **Smart placement.** Before placing, search a few centimetres around the target spot (and slightly
-   smaller sizes) for the position where the decal's footprint is most uniform: one depth layer,
-   consistent normals, no arch cut-out. This keeps wordmarks off the arch lip and logos off panel
-   steps.
-4. **Panel seams.** If a decal still lands on texels marked shared or fixed, log it with the mesh
-   names, so a missing band can be traced. Check whether the gap is a separate panel with mirrored UVs.
-5. **Check.** Add a "debug overlay" preview that colours each decal's accepted texels, to show where
-   it lands and where it is cut.
+   cells. Keep only the front-most (outer) surface in each cell, with a tolerance of about 15 mm.
+   Hidden and inner surfaces (arch liners, doubled panels, damage meshes) get nothing: no ghost copies.
+2. **Stretch over the whole outer surface.** Every outer texel inside the decal's footprint gets its
+   part of the picture, however steeply it is angled: arch lips, flares and creases included. So the
+   picture runs on unbroken (stretched where the surface turns away). Drop the facing cut-off for side
+   decals, apart from surfaces facing completely away (backs of panels).
+3. **No holes inside a decal.** Texels marked "shared" or "fixed" inside a decal's footprint must not
+   leave a gap in the picture. Find out what the missing band on the Peugeot's wing logo is:
+   - **A separate panel:** include it.
+   - **Truly mirrored UVs:** move the decal so it doesn't straddle them.
+
+   Log the mesh names.
+4. **Gentle placement nudge (optional).** Only so that a logo isn't centred right on an arch edge. It
+   must never shrink or crop the picture.
+5. **Check.** Add a "debug overlay" preview that colours each decal's texels, to show where it lands
+   and confirm it is whole.
 
 ## 3. Nothing on the side windows
 
@@ -104,7 +111,7 @@ showing; ours squeezed to the old strip.
 
 ## Order of work
 1. Stricter glass selection (fixes parts of 1 and 3), with logging. *(small)*
-2. Depth test + normal limit for all decals (fixes 2, also helps the windows). *(medium)*
+2. Depth test (outer surface only) + stretch decals over curves, never break them (fixes 2, also helps the windows). *(medium)*
 3. Alpha-based glass clean + banner overlay UV fill. *(medium)*
 4. Edge-following banner + height option. *(medium)*
 5. Side windows: island split, shared check, upscale, door-window option. *(medium)*
