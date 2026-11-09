@@ -68,6 +68,29 @@ def classify(n):
     return cls
 
 
+def crease_regions(T, n, sel, crease_deg=20.0):
+    """grow regions over shared edges whose faces bend less than crease_deg: regions end at creases"""
+    key = lambda X: tuple(np.round(X / 1e-4).astype(np.int64))
+    edges = {}
+    for ti, t in enumerate(sel):
+        vk = [key(v) for v in T[t]]
+        for a_, b_ in ((0, 1), (1, 2), (2, 0)):
+            e = tuple(sorted((vk[a_], vk[b_]))); edges.setdefault(e, []).append(ti)
+    parent = list(range(len(sel)))
+    def find(x):
+        while parent[x] != x: parent[x] = parent[parent[x]]; x = parent[x]
+        return x
+    cosc = np.cos(np.radians(crease_deg))
+    for fs in edges.values():
+        if len(fs) != 2: continue
+        a_, b_ = fs
+        if n[sel[a_]] @ n[sel[b_]] >= cosc:
+            ra, rb = find(a_), find(b_)
+            if ra != rb: parent[ra] = rb
+    comp = np.array([find(i) for i in range(len(sel))])
+    return [sel[comp == c] for c in np.unique(comp)]
+
+
 def components(T, sel):
     key = lambda X: tuple(np.round(X / 1e-4).astype(np.int64))
     parent = list(range(len(sel)))
@@ -123,15 +146,25 @@ def peaks(a, thr=12, sep=7):
     return sorted(idx)
 
 
-def build_panel(Tp, frame, du):
+def build_panel(Tp, frame, du, Tctx=None, margin=0.0):
     ua, va, ha, hs = FRAMES[frame]
     U = Tp[:, :, ua]
-    u0, u1 = U.min() + 0.0008, U.max() - 0.0008
+    u0, u1 = U.min() + 0.0008 - margin, U.max() - 0.0008 + margin
     if u1 - u0 < 0.008: return None
     ns = max(int(round((u1 - u0) / du)) + 1, 3)
     us = np.linspace(u0, u1, ns)
-    profs = [(u, section_profile(Tp, frame, u)) for u in us]
-    profs = [(u, p) for u, p in profs if p is not None]
+    profs = []
+    for u in us:
+        p = section_profile(Tp, frame, u)
+        if Tctx is not None and margin > 0:
+            pc = section_profile(Tctx, frame, u)
+            if pc is not None:
+                lo = (p[0, 0] if p is not None else None); hi = (p[-1, 0] if p is not None else None)
+                if p is None:   # beyond the piece's own ends along u: take the neighbouring surface near its v-range
+                    V = Tp[:, :, va]; lo, hi = V.min(), V.max()
+                m = (pc[:, 0] >= lo - margin) & (pc[:, 0] <= hi + margin)
+                if m.sum() >= 4: p = pc[m]
+        if p is not None: profs.append((u, p))
     if len(profs) < 2: return None
     # creases: chain section peaks across sections by v
     chains = []
@@ -180,10 +213,24 @@ def main():
     cls = classify(n)
     out = {}; info = []
     for m in np.unique(mid):
-        for frame in FRAMES:
-            sel = np.where((mid == m) & (cls == frame))[0]
-            if len(sel) < 4: continue
-            for comp in components(T, sel):
+        msel = np.where(mid == m)[0]
+        for reg in crease_regions(T, n, msel, float(os.environ.get('CREASE_DEG', 20))):
+            # a region that turns through more than ~70 deg is not one height field: split it by facing
+            spread = (n[reg] @ (n[reg].mean(0) / max(np.linalg.norm(n[reg].mean(0)), 1e-9))).min()
+            pieces = [(cls[reg[0]] if (cls[reg] == cls[reg[0]]).all() else None, reg)]
+            if spread < np.cos(np.radians(70)) or pieces[0][0] is None:
+                pieces = []
+                for frame in FRAMES:
+                    s = reg[cls[reg] == frame]
+                    if len(s): pieces += [(frame, c) for c in components(T, s)]
+            else:
+                # whole region in one frame: pick the frame of its mean normal
+                mn = n[reg].mean(0); ax = int(np.abs(mn).argmax())
+                fr = {0: 'side', 1: 'top' if mn[1] > 0 else 'bottom', 2: 'front' if mn[2] > 0 else 'rear'}[ax]
+                if ax == 0 and mn[0] < 0: continue
+                pieces = [(fr, reg)]
+            for frame, comp in pieces:
+                if frame is None or frame == '': continue
                 Tp = T[comp]
                 area = 0.5 * np.linalg.norm(np.cross(Tp[:, 1] - Tp[:, 0], Tp[:, 2] - Tp[:, 0]), axis=1).sum()
                 if area < 0.0004: continue

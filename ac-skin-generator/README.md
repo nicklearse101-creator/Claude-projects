@@ -20,7 +20,9 @@ Tabs on the left, preview on the right.
 - **Livery** - base / accent / highlight / text colours and a pattern: sweep, twin centre stripes,
   two-tone split, triple side stripes, centre band over the top, chevron nose, hockey stick, tricolour
   diagonal bands, front-to-rear fade, chequered flag fade, geometric shards, hexagon fade, digital camo,
-  plain. Inspired by classic liveries (Martini, Gulf, Marlboro, Porsche/Ford, BMW M) and modern wraps;
+  lightning bolt, sunburst rays, tiger stripes, paint splatter, pinstripe bundle, plain - or **a pattern
+  from a picture**: a side view of a car (fitted to this car's profile) or a flat wrap print, simplified so
+  writing and small stickers melt away, in the picture's colours or yours. Inspired by classic liveries (Martini, Gulf, Marlboro, Porsche/Ford, BMW M) and modern wraps;
   all patterns are 3D functions, so they wrap round the car without seams.
 - **Number & names** - racing number, number style (board, plain, none), where it shows
   (doors, roof), team wordmark, driver name, and a grid to choose where each is written (front wings,

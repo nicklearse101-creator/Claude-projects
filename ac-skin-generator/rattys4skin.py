@@ -8,7 +8,7 @@ from PIL import Image, ImageTk
 import skingen
 
 APP_NAME = skingen.APP_NAME
-VERSION = '1.2.0'
+VERSION = '1.3.0'
 DATA_DIR = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'Rattys4SkinGenerator')
 LOGO_DIR = os.path.join(DATA_DIR, 'logos')
 SETTINGS = os.path.join(DATA_DIR, 'settings.json')
@@ -92,6 +92,8 @@ class App(tk.Tk):
         d['number_style'] = next((k for k, v in NUMBER_STYLES.items() if v == self.vars['number_style_name'].get()), 'board')
         d['team_places'] = [p for p, v in self.tp_vars.items() if v.get()]
         d['name_places'] = [p for p, v in self.np_vars.items() if v.get()]
+        d['pattern_mode'] = next((k for k, v in skingen.PICTURE_MODES.items() if v == self.vars['pattern_mode_name'].get()), 'side_left')
+        d['pattern_simplify'] = next((k for k, v in skingen.SIMPLIFY.items() if v == self.vars['pattern_simplify_name'].get()), 'medium')
         try:
             with open(SETTINGS, 'w', encoding='utf8') as f: json.dump(d, f, indent=2)
         except Exception: pass
@@ -159,6 +161,24 @@ class App(tk.Tk):
                                                        values=list(skingen.PATTERNS.values()), width=32, height=16))
         note('livery', 'Patterns are inspired by classic and modern racing liveries; they use your accent, '
                        'highlight and text colours.')
+        ttk.Label(tabs['livery'], text='Pattern from a picture', font=('Segoe UI', 9, 'bold')).pack(anchor='w', pady=(8, 0))
+        def pic(f):
+            fr = ttk.Frame(f)
+            ttk.Entry(fr, textvariable=self.var('pattern_image'), width=30).pack(side='left', fill='x', expand=True)
+            ttk.Button(fr, text='…', width=3, command=self.pick_pattern_image).pack(side='left')
+            return fr
+        row('livery', 'Picture', pic)
+        self.vars['pattern_mode_name'] = tk.StringVar(value=skingen.PICTURE_MODES.get(self.cfg.get('pattern_mode'), skingen.PICTURE_MODES['side_left']))
+        row('livery', 'The picture is', lambda f: ttk.Combobox(f, textvariable=self.vars['pattern_mode_name'], state='readonly',
+                                                              values=list(skingen.PICTURE_MODES.values()), width=34))
+        self.vars['pattern_simplify_name'] = tk.StringVar(value=skingen.SIMPLIFY.get(self.cfg.get('pattern_simplify'), skingen.SIMPLIFY['medium']))
+        row('livery', 'Simplify', lambda f: ttk.Combobox(f, textvariable=self.vars['pattern_simplify_name'], state='readonly',
+                                                        values=list(skingen.SIMPLIFY.values()), width=24))
+        row('livery', '', lambda f: ttk.Checkbutton(f, text="Use my colours instead of the picture's",
+                                                   variable=self.var('pattern_recolour', tk.BooleanVar)))
+        note('livery', 'Choose "Pattern from a picture…" above, then a picture: a side view of a car (plain background '
+                       'works best) or a flat pattern. Simplify melts writing and small stickers away. Your number, '
+                       'names and logos are added on top as usual.')
         row('livery', '', lambda f: ttk.Checkbutton(f, text='Halftone dots', variable=self.var('halftone', tk.BooleanVar)))
 
         # --- number & names
@@ -288,6 +308,13 @@ class App(tk.Tk):
         d = filedialog.askdirectory(initialdir=self.vars['cars_dir'].get() or None, title='Assetto Corsa content\\cars folder')
         if d: self.vars['cars_dir'].set(os.path.normpath(d)); self.refresh_cars()
 
+    def pick_pattern_image(self):
+        f = filedialog.askopenfilename(title='Picture to make the pattern from',
+                                       filetypes=[('Images', '*.png *.jpg *.jpeg *.webp *.bmp'), ('All files', '*.*')])
+        if f:
+            self.vars['pattern_image'].set(f)
+            self.vars['pattern_name'].set(skingen.PATTERNS['picture'])
+
     def refresh_cars(self):
         d = self.vars['cars_dir'].get()
         try: self.all_cars = sorted(c for c in os.listdir(d) if os.path.isdir(os.path.join(d, c, 'skins')))
@@ -374,6 +401,9 @@ class App(tk.Tk):
                       for l in self.library if l.get('place')]
         d['number_style'] = next((k for k, v in NUMBER_STYLES.items() if v == self.vars['number_style_name'].get()), 'board')
         d['pattern'] = next((k for k, v in skingen.PATTERNS.items() if v == self.vars['pattern_name'].get()), 'sweep')
+        d['pattern_mode'] = next((k for k, v in skingen.PICTURE_MODES.items() if v == self.vars['pattern_mode_name'].get()), 'side_left')
+        d['pattern_simplify'] = next((k for k, v in skingen.SIMPLIFY.items() if v == self.vars['pattern_simplify_name'].get()), 'medium')
+        d['pattern_image'] = self.vars['pattern_image'].get() or None
         d['team_places'] = [p for p, v in self.tp_vars.items() if v.get()] or ['none']
         d['name_places'] = [p for p, v in self.np_vars.items() if v.get()] or ['none']
         d['wheel_colour'] = self.vars['wheel_colour'].get() if self.vars['use_wheels'].get() else None

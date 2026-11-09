@@ -399,7 +399,8 @@ DEFAULT_DESIGN = dict(
     pattern='sweep', halftone=True, carbon=False,
     logo=None, tint_logo=True, logos=None, number='101', number_style='board', number_doors=True, number_roof=True,
     name='', team='RATTY RACING', wheel_colour=None, lens_colour=None, beam_colour=None,
-    team_places=None, name_places=None,
+    team_places=None, name_places=None, pattern_image=None, pattern_mode='side_left', pattern_simplify='medium',
+    pattern_recolour=False,
     win_enable=False, win_clear=True, win_banner='RATTY RACING', win_banner_colour='#111111', win_text_colour='#ffffff',
     win_number=True, win_name=True,
     font=DEFAULT_FONT,
@@ -429,6 +430,152 @@ def _hash(*ints):
     for k, v in zip((73856093, 19349663, 83492791, 2654435761), ints):
         h = h ^ (v.astype(np.int64) * k)
     return (h & 0x7fffffff) % 1000 / 1000.0
+
+
+PATTERNS.update({
+    'lightning': 'Lightning bolt',
+    'sunburst': 'Sunburst rays',
+    'tiger': 'Tiger stripes',
+    'splatter': 'Paint splatter',
+    'pinstripes': 'Pinstripe bundle',
+    'picture': 'Pattern from a picture…',
+})
+PATTERNS['none'] = PATTERNS.pop('none')          # keep "plain" last
+PICTURE_MODES = {'side_left': 'Side view of a car, front on the left',
+                 'side_right': 'Side view of a car, front on the right',
+                 'wrap': 'Flat pattern / wrap print'}
+SIMPLIFY = {'off': 'Off (keep everything)', 'light': 'Light', 'medium': 'Medium (removes writing)', 'strong': 'Strong'}
+
+
+def more_patterns(pat, col, P, N, car, sill, belt, base, acc, acc2, txt):
+    x, y, z = P[:, 0], P[:, 1], P[:, 2]
+    L = car.length; sh = belt - sill
+    s = (car.hi[2] - z) / L
+    hn = (y - sill) / max(sh, 1e-3)
+    side = np.abs(N[:, 0]) > 0.45
+    put = lambda m, c: np.where(m[:, None], np.asarray(c, np.float32), col)
+    if pat == 'lightning':
+        # a zig-zag bolt running along the side, front to rear
+        k = (s * 7.0) % 1.0
+        zz = np.where(k < 0.5, k * 2, 2 - k * 2)          # triangle wave 0..1
+        c = 0.3 + 0.35 * zz
+        col = put(side & (np.abs(hn - c) < 0.07) & (s > 0.04) & (s < 0.92), acc)
+        col = put(side & (np.abs(hn - c) >= 0.07) & (np.abs(hn - c) < 0.1) & (s > 0.04) & (s < 0.92), acc2)
+    elif pat == 'sunburst':
+        fw = [c for w, c in car.wheels.items() if w.endswith('F')]
+        cz = np.mean([c[2] for c in fw]) if fw else car.hi[2] - 0.25 * L
+        cy = np.mean([c[1] for c in fw]) if fw else sill
+        ang = np.arctan2(y - cy, cz - z)
+        rays = (np.floor(ang / np.radians(9)) % 2) == 0
+        dist = np.sqrt((z - cz) ** 2 + (y - cy) ** 2)
+        col = put(side & rays & (dist > 0.45) & (dist < 1.6), acc)
+    elif pat == 'tiger':
+        w = np.sin(z * 9.0 + np.sin(y * 13.0) * 1.6 + np.sin(x * 7.0)) + 0.35 * np.sin(z * 23 + y * 17)
+        col = put((w > 0.75) & (s > 0.2), acc)
+    elif pat == 'splatter':
+        g = 0.12
+        cu, cv, cw = np.floor(z / g), np.floor(y / g), np.floor(x / g)
+        out = np.zeros(len(P), bool)
+        for dz in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                cz_, cy_ = cu + dz, cv + dy
+                r = _hash(cz_, cy_, cw)
+                pz = (cz_ + _hash(cz_ + 3, cy_, cw)) * g; py = (cy_ + _hash(cz_, cy_ + 5, cw)) * g
+                rad = np.where(r > 0.7, g * (0.15 + 0.6 * (r - 0.7)), 0)
+                out |= ((z - pz) ** 2 + (y - py) ** 2) < rad ** 2
+        dens = np.clip((s - 0.3) / 0.5, 0, 1)
+        col = put(out & (_hash(cu, cv) < dens + 0.15), acc)
+    elif pat == 'pinstripes':
+        for k, c in enumerate((acc, acc2, acc, acc2, acc)):
+            c0 = 0.38 + 0.045 * k
+            col = put(side & (np.abs(hn - c0) < 0.012), c)
+        col = put(~side & (np.abs(np.abs(x) - 0.12) < 0.01), acc)
+    return col
+
+
+def load_pattern_picture(path, mode, simplify, recolour, palette):
+    """The picture as a simplified colour map (writing / small detail removed) + where it is valid."""
+    im = Image.open(path).convert('RGB')
+    im.thumbnail((1200, 1200), Image.LANCZOS)
+    a = np.asarray(im).astype(np.float32)
+    valid = np.ones(a.shape[:2], bool)
+    if mode in ('side_left', 'side_right'):
+        border = np.concatenate([a[0], a[-1], a[:, 0], a[:, -1]])
+        bg = np.median(border, 0)
+        if border.std(0).mean() < 30:                # plain background: cut the car out of it
+            fg = np.sqrt(((a - bg) ** 2).sum(-1)) > 40
+            fgi = Image.fromarray((fg * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(5)).filter(ImageFilter.MinFilter(5))
+            fg = np.asarray(fgi) > 127
+            ys, xs = np.nonzero(fg)
+            if len(ys):
+                y0, y1, x0, x1 = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
+                a, valid = a[y0:y1, x0:x1], fg[y0:y1, x0:x1]
+        if mode == 'side_right':
+            a, valid = a[:, ::-1], valid[:, ::-1]
+    img = Image.fromarray(np.clip(a, 0, 255).astype(np.uint8))
+    size = {'off': 0, 'light': 5, 'medium': 9, 'strong': 15}.get(simplify, 9)
+    if size:
+        k = 8 if simplify == 'light' else 6
+        q = img.quantize(k, method=Image.Quantize.MEDIANCUT)
+        for _ in range(3):
+            q = q.filter(ImageFilter.ModeFilter(size))  # small things (writing, stickers) melt into what surrounds them
+        img = q.convert('RGB')
+    a = np.asarray(img).astype(np.float32)
+    if recolour:
+        cols, inv = np.unique(a.reshape(-1, 3), axis=0, return_inverse=True)
+        cnt = np.bincount(inv.ravel(), weights=valid.ravel().astype(float))
+        order = np.argsort(-cnt)
+        pal = [np.asarray(c, np.float32) for c in palette]
+        newc = cols.copy()
+        for rank, ci in enumerate(order):
+            if rank < len(pal):
+                newc[ci] = pal[rank]
+            else:   # extra colours: the palette colour of nearest brightness
+                lum = cols[ci] @ np.array([0.3, 0.59, 0.11])
+                newc[ci] = min(pal, key=lambda p: abs(p @ np.array([0.3, 0.59, 0.11]) - lum))
+        a = newc[inv.ravel()].reshape(a.shape)
+    # fill outside the car silhouette with the nearest car colour (so arches / edges don't pick up background)
+    if not valid.all():
+        fill = a.copy(); ok = valid.copy()
+        for _ in range(60):
+            if ok.all(): break
+            acc_ = np.zeros_like(fill); n = np.zeros(ok.shape, np.float32)
+            for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                sh_ok = np.roll(ok, (dy, dx), (0, 1)); sh_f = np.roll(fill, (dy, dx), (0, 1))
+                acc_ += sh_f * sh_ok[..., None]; n += sh_ok
+            grow = (~ok) & (n > 0)
+            fill[grow] = acc_[grow] / n[grow, None]; ok = ok | grow
+        a = fill
+    return a
+
+
+def picture_pattern(design, P, N, car, sill, belt, palette, log=print):
+    path = design.get('pattern_image')
+    if not path or not os.path.isfile(path):
+        log('pattern picture: none chosen - left plain'); return None
+    mode = design.get('pattern_mode') or 'wrap'
+    a = load_pattern_picture(path, mode, design.get('pattern_simplify') or 'medium',
+                             bool(design.get('pattern_recolour')), palette)
+    H, W = a.shape[:2]
+    x, y, z = P[:, 0], P[:, 1], P[:, 2]
+    L = car.length
+    s = np.clip((car.hi[2] - z) / L, 0, 1)                       # 0 front .. 1 rear
+    if mode in ('side_left', 'side_right'):
+        # the picture's car is stretched over this car's side profile; top / front / rear take the
+        # colour of the profile at the same point along the car and height
+        top_y = car.hi[1]; bot_y = car.lo[1]
+        v = np.clip((top_y - y) / (top_y - bot_y), 0, 1)
+        u = s
+    else:
+        # flat print: spans the car's length; side texels use height, top texels use width across
+        side = np.abs(N[:, 0]) > 0.45
+        span = (car.hi[1] - car.lo[1]) / L * W                      # picture rows covering the car height
+        u = s
+        v_side = (car.hi[1] - y) / (car.hi[1] - car.lo[1]) * min(1.0, span / H)
+        v_top = (x - car.lo[0]) / (car.hi[0] - car.lo[0]) * min(1.0, span / H)
+        v = np.clip(np.where(side, v_side, v_top), 0, 1)
+    log(f'pattern picture: {os.path.basename(path)} ({PICTURE_MODES.get(mode, mode)})')
+    return bilinear(a, u * (W - 1), v * (H - 1))
 
 
 def extra_pattern(pat, col, P, N, car, sill, belt, base, acc, acc2, txt):
@@ -624,7 +771,12 @@ def render_design(car, tm, paint, design, log=print):
         e = (y >= sill + (belt - sill) * 0.55) & (y < sill + (belt - sill) * 0.55 + 0.02)
         col = np.where(e[:, None], acc2, col)
 
-    if pat not in ('sweep', 'stripes', 'split', 'none'):
+    if pat == 'picture':
+        pc = picture_pattern(design, P, N, car, sill, belt, (base, acc, acc2, txt), log)
+        if pc is not None: col = pc
+    elif pat in ('lightning', 'sunburst', 'tiger', 'splatter', 'pinstripes'):
+        col = more_patterns(pat, col, P, N, car, sill, belt, base, acc, acc2, txt)
+    elif pat not in ('sweep', 'stripes', 'split', 'none'):
         col = extra_pattern(pat, col, P, N, car, sill, belt, base, acc, acc2, txt)
 
     # ---- decals
@@ -1136,9 +1288,10 @@ def make_window_stickers(car, design, made, copy_from=None, log=print):
         if 'windscreen' in logos:
             lg = prep_logo(logos['windscreen']['path'], acc2 if logos['windscreen'].get('tint') else None, logos['windscreen'].get('bg', 'auto'))
             asp = lg.width / lg.height
-            if asp > 2.5:     # a wide picture is the banner itself, across the top of the glass
-                hh = min(0.18, wd * 0.96 / asp) if not bn else min(bh, wd * 0.98 / asp)
-                decals.append(Decal(lg, 'front', 0.0, top - hh / 2 - 0.005, hh, region=reg))
+            if asp > 2.5:     # a wide picture is the banner itself: stretched across the glass, sun-strip height
+                hh = bh
+                lg = lg.resize((max(2, int(lg.height * wd * 0.98 / hh)), lg.height), Image.LANCZOS)
+                decals.append(Decal(lg, 'front', 0.0, top - hh / 2 - 0.003, hh, region=reg))
             else:
                 decals.append(Decal(banner_image('', band, txt, fnt, wd / bh), 'front', 0.0, top - bh / 2, bh, region=reg))
                 decals.append(Decal(lg, 'front', 0.0, top - bh / 2, bh * 0.85, region=reg))
