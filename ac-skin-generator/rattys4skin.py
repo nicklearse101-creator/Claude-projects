@@ -8,7 +8,7 @@ from PIL import Image, ImageTk
 import skingen
 
 APP_NAME = skingen.APP_NAME
-VERSION = '1.3.1'
+VERSION = '1.3.2'
 DATA_DIR = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'Rattys4SkinGenerator')
 LOGO_DIR = os.path.join(DATA_DIR, 'logos')
 SETTINGS = os.path.join(DATA_DIR, 'settings.json')

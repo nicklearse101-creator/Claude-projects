@@ -131,6 +131,8 @@ class Car:
         for m in self.kn5.meshes:
             if m.mat is None or not len(m.idx): continue
             if any(wheelish.search(p) for p in m.parents) or wheelish.search(m.name): continue
+            if re.search(r'window|windscreen|windshield|glass|parabrezza|vetr', f'{m.name} {m.mat.name} {m.mat.samplers.get("txDiffuse", "")}', re.I):
+                continue                              # glass: handled by the window stickers, never painted
             t = m.mat.samplers.get('txDiffuse')
             if t: area[t] = area.get(t, 0) + tri_area3(m).sum()
         warea = {}
@@ -161,9 +163,14 @@ class Car:
             self.log('no stock skin overrides the body texture - using the one inside the model')
         best = max(area[t] for t in overridable)
         cands = sorted([t for t in overridable if area[t] > 0.15 * best], key=lambda t: -area[t])
-        self.body_textures = cands[:1] + [t for t in cands[1:] if self._tex_size(t) >= 256]
+        inside = re.compile(r'leather|interior|int_|seat|carpet|dash|cockpit|alcantara|fabric|cage', re.I)
+        keep = []
         for t in cands[1:]:
-            if t not in self.body_textures: self.log(f'{t}: only a small colour swatch - left as it is')
+            if self._tex_size(t) < 256 or inside.search(t) or uv_overlap(self.meshes_for(t)) > 3.0:
+                self.log(f'{t}: not a livery texture (small swatch, interior or shared material) - left as it is')
+            else:
+                keep.append(t)
+        self.body_textures = cands[:1] + keep
         self.tex_area = area
         self.log('body textures: ' + ', '.join(f'{t} ({area[t]:.1f} m²)' for t in self.body_textures))
         body = [m for m in self.kn5.meshes if m.mat is not None and m.mat.samplers.get('txDiffuse') in self.body_textures]
@@ -299,6 +306,32 @@ class TexelMap:
         self.texel_m = float(np.sqrt(a3 / max(1, len(yy))))     # metres per texel (average)
         share = self.shared.sum() / max(1, self.covered.sum())
         log(f'texture {W}x{H}: {self.covered.mean()*100:.0f}% of texels on the body, {share*100:.1f}% shared by two surfaces')
+
+
+def uv_coverage(meshes, size=256):
+    """Which cells of a size x size grid over the texture the meshes' triangles cover."""
+    im = Image.new('L', (size, size), 0); d = ImageDraw.Draw(im)
+    for m in meshes:
+        if not len(m.idx): continue
+        uv = m.uv[m.idx]; uv = uv - np.floor(uv.min(1, keepdims=True))
+        for t in (uv * size).tolist():
+            d.polygon([tuple(p) for p in t], fill=255, outline=255)
+    return np.asarray(im) > 0
+
+
+def uv_overlap(meshes):
+    """Total texture area of all triangles / texture area actually covered (estimated on a 256 grid).
+    1 = each texel used once; big numbers = every panel reuses the same texels."""
+    uv = np.concatenate([m.uv[m.idx] for m in meshes if len(m.idx)])
+    uv = uv - np.floor(uv.min(1, keepdims=True))
+    a = 0.5 * np.abs((uv[:, 1, 0] - uv[:, 0, 0]) * (uv[:, 2, 1] - uv[:, 0, 1]) - (uv[:, 2, 0] - uv[:, 0, 0]) * (uv[:, 1, 1] - uv[:, 0, 1]))
+    c = np.clip((uv.mean(1) * 256).astype(int), 0, 255)
+    cells = np.zeros((256, 256), bool); cells[c[:, 1], c[:, 0]] = True
+    big = a > 1 / 256 ** 2 * 4
+    if big.any():   # large triangles cover many cells: mark their bounding boxes
+        lo = np.clip((uv[big].min(1) * 256).astype(int), 0, 255); hi = np.clip((uv[big].max(1) * 256).astype(int), 0, 255)
+        for (x0, y0), (x1, y1) in zip(lo[:2000], hi[:2000]): cells[y0:y1 + 1, x0:x1 + 1] = True
+    return float(a.sum() / max(cells.mean(), 1e-6))
 
 
 # ------------------------------------------------------------------ views (car space -> 2D, as a person sees it)
@@ -683,7 +716,7 @@ def side_profile(car, tm, paint):
     # door area: the stretch whose lower edge stays near the sill (no wheel arch)
     span = mid | ((zc > z0 + 0.15 * car.length) & (zc < z1 - 0.15 * car.length))
     ok = span & ~np.isnan(lowv) & (lowv < sill + 0.12 * (belt - sill) + 0.04)
-    zs = zc[ok] if ok.any() else zc[mid]
+    zs = zc[ok] if ok.any() else (zc[mid] if mid.any() else zc)
     df, dr = zs.max(), zs.min()
     fw = [c[2] for w, c in car.wheels.items() if w.endswith('F')]
     rw = [c[2] for w, c in car.wheels.items() if w.endswith('R')]
@@ -968,54 +1001,77 @@ def bilinear(arr, u, v):
 
 # ------------------------------------------------------------------ paint mask + shading from stock skins
 def stock_analysis(car, tex, W, H, tm, log=print):
-    imgs = []
-    for s in car.skins:
-        im = car.stock_texture(tex, s)
-        if im is not None: imgs.append(im.resize((W, H), Image.LANCZOS))
-    missing = sum(1 for s in car.skins if not find_skin_file(os.path.join(car.dir, 'skins', s), tex))
-    if imgs and missing and tex in car.kn5.textures:
-        # skins without this file show the model's own copy: it is one more look to compare against
-        try:
-            imgs.append(load_image(car.kn5.textures[tex]).resize((W, H), Image.LANCZOS))
-            log(f'{missing} skin(s) use the model\'s own {tex}: included in the comparison')
-        except Exception: pass
-    if not imgs and tex in car.kn5.textures:
-        imgs = [load_image(car.kn5.textures[tex]).resize((W, H), Image.LANCZOS)]
-    A = np.stack([np.asarray(i.convert('RGB')).astype(np.float32) for i in imgs])
-    alpha = np.asarray(imgs[0].getchannel('A'))
-    base = A[0]
-    if len(A) >= 3:
-        sd = A.std(0).mean(-1)
+    """Compare the stock skins one at a time (memory stays small even with many 4K skins).
+    The comparison runs at up to 2048 px; the masks are then scaled to the texture size."""
+    def sources():
+        for s_ in car.skins:
+            im = car.stock_texture(tex, s_)
+            if im is not None: yield im
+        missing = sum(1 for s_ in car.skins if not find_skin_file(os.path.join(car.dir, 'skins', s_), tex))
+        if missing and tex in car.kn5.textures:
+            # skins without this file show the model's own copy: one more look to compare against
+            try:
+                im = load_image(car.kn5.textures[tex])
+                log(f"{missing} skin(s) use the model's own {tex}: included in the comparison")
+                yield im
+            except Exception: pass
+
+    k = min(1.0, 2048 / max(W, H))
+    aW, aH = max(1, int(W * k)), max(1, int(H * k))
+    n = 0; base = alpha = None
+    S1 = S2 = LMAX = None
+    for im in sources():
+        # resize colour and alpha separately: Pillow premultiplies RGBA, which blacks out alpha-0 texels
+        if base is None:
+            base = np.asarray(im.convert('RGB').resize((W, H), Image.LANCZOS)).astype(np.float32)
+            alpha = np.asarray(im.getchannel('A').resize((W, H), Image.LANCZOS))
+        a = np.asarray(im.convert('RGB').resize((aW, aH), Image.BILINEAR)).astype(np.float32)
+        if S1 is None:
+            S1 = np.zeros_like(a); S2 = np.zeros_like(a); LMAX = np.zeros(a.shape[:2], np.float32)
+        S1 += a; S2 += a * a; LMAX = np.maximum(LMAX, a.mean(-1)); n += 1
+    if base is None:
+        if tex in car.kn5.textures:
+            full = load_image(car.kn5.textures[tex])
+            base = np.asarray(full.convert('RGB').resize((W, H), Image.LANCZOS)).astype(np.float32)
+            alpha = np.asarray(full.getchannel('A').resize((W, H), Image.LANCZOS))
+        else:
+            base = np.full((H, W, 3), 200, np.float32); alpha = np.zeros((H, W), np.uint8)
+    cov_a = np.asarray(Image.fromarray((tm.covered * 255).astype(np.uint8)).resize((aW, aH), Image.NEAREST)) > 0
+    up = lambda m: np.asarray(Image.fromarray((m * 255).astype(np.uint8)).resize((W, H), Image.NEAREST)) > 127
+    if n >= 3:
+        mean = S1 / n
+        sd = np.sqrt(np.maximum(S2 / n - mean * mean, 0)).mean(-1)
         m = Image.fromarray(((sd > 9) * 255).astype(np.uint8))
-        m = m.filter(ImageFilter.MaxFilter(7)).filter(ImageFilter.MinFilter(7)).filter(ImageFilter.MinFilter(3))
-        paint = (np.asarray(m) > 127) & tm.covered
-        # fill small holes (logos/number boards common to every stock skin)
-        holes = ~paint & tm.covered
-        hm = Image.fromarray((holes * 255).astype(np.uint8)).filter(ImageFilter.MinFilter(int(W / 60) | 1)).filter(ImageFilter.MaxFilter(int(W / 60) | 1))
-        big_holes = np.asarray(hm) > 127
-        paint |= holes & ~big_holes & (A.mean(0).mean(-1) > 60)
-        lum = A.mean(-1).max(0)
-        li = Image.fromarray(np.clip(lum, 0, 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(9)).filter(ImageFilter.GaussianBlur(W / 290))
+        f = max(3, int(7 * aW / 2048) | 1)
+        m = m.filter(ImageFilter.MaxFilter(f)).filter(ImageFilter.MinFilter(f)).filter(ImageFilter.MinFilter(3))
+        paint = (np.asarray(m) > 127) & cov_a
+        # fill small holes (logos / number boards common to every stock skin)
+        holes = ~paint & cov_a
+        hf = int(aW / 60) | 1
+        hm = Image.fromarray((holes * 255).astype(np.uint8)).filter(ImageFilter.MinFilter(hf)).filter(ImageFilter.MaxFilter(hf))
+        paint |= holes & ~(np.asarray(hm) > 127) & (mean.mean(-1) > 60)
+        li = Image.fromarray(np.clip(LMAX, 0, 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(f + 2)).filter(ImageFilter.GaussianBlur(aW / 290))
         lum = np.asarray(li).astype(np.float32)
         ref = np.percentile(lum[paint], 90) if paint.any() else 255
-        shade = np.clip(lum / ref, 0.6, 1.0) ** 0.8
-        frac = paint.sum() / max(1, tm.covered.sum())
+        shade_a = np.clip(lum / ref, 0.6, 1.0) ** 0.8
+        frac = paint.sum() / max(1, cov_a.sum())
         if frac < 0.5:
             # skins differ only in decals (colour comes from elsewhere, e.g. Kunos' detail texture):
             # light, colourless texels are bare paint too
-            mean = A.mean(0)
-            light = (mean.mean(-1) > 110) & ((mean.max(-1) - mean.min(-1)) < 35) & tm.covered
+            light = (mean.mean(-1) > 110) & ((mean.max(-1) - mean.min(-1)) < 35) & cov_a
             paint |= light
             log(f'stock skins only differ in decals ({frac * 100:.0f}%); light bare paint added')
-        log(f'paint area from {len(A)} stock skins: {paint.sum() / tm.covered.sum() * 100:.0f}% of the body texels')
+        paint = up(paint) & tm.covered
+        shade = np.asarray(Image.fromarray((shade_a * 255).astype(np.uint8)).resize((W, H), Image.BILINEAR)).astype(np.float32) / 255
+        log(f'paint area from {n} stock skins: {paint.sum() / max(1, tm.covered.sum()) * 100:.0f}% of the body texels')
     else:
         # few skins: everything on the body except light/glass/grille-looking meshes
         bad = re.compile(r'light|lamp|glass|window|grill|grid|mesh|int_|interior|badge|logo|plate|exhaust|tyre|tire|rim', re.I)
-        good_tri = np.array([not bad.search(n) for n in tm.mesh_of_tri])
+        good_tri = np.array([not bad.search(nm) for nm in tm.mesh_of_tri])
         paint = np.zeros((H, W), bool)
         paint[tm.yy, tm.xx] = good_tri[tm.tri]
         shade = np.ones((H, W), np.float32)
-        log(f'only {len(A)} stock skin(s): paint area guessed from mesh names ({paint.sum() / tm.covered.sum() * 100:.0f}%)')
+        log(f'only {n} stock skin(s): paint area guessed from mesh names ({paint.sum() / max(1, tm.covered.sum()) * 100:.0f}%)')
     return base, alpha, paint, shade
 
 
@@ -1026,7 +1082,7 @@ def recolour_wheels(car, tex, colour, log=print):
     imgs = [car.stock_texture(tex, s) for s in car.skins]
     imgs = [i for i in imgs if i is not None]
     W, H = imgs[0].size
-    A = np.stack([np.asarray(i.resize((W, H)).convert('RGB')).astype(np.float32) for i in imgs])
+    A = np.stack([np.asarray(i.convert('RGB').resize((W, H))).astype(np.float32) for i in imgs])
     base = A[0]
     if len(A) >= 3:
         mask = A.std(0).mean(-1) > 9
@@ -1088,7 +1144,17 @@ def tint_lenses(car, lights, colour, made, copy_from=None, log=print):
         if t: by_tex.setdefault(t, []).append(m)
     out = {}
     col = rgb(colour) / 255.0
+    light_names = {m.name for m in lights}
     for tex, ms in by_tex.items():
+        # texels the lamps use that other parts also use (generic chrome / black plastic): don't tint those
+        other_ms = [m for m in car.kn5.meshes if m.mat is not None and m.mat.samplers.get('txDiffuse') == tex
+                    and m.name not in light_names and len(m.idx)]
+        mine_cov = uv_coverage(ms)
+        other_cov = uv_coverage(other_ms) if other_ms else np.zeros_like(mine_cov)
+        clash = (mine_cov & other_cov).sum() / max(1, mine_cov.sum())
+        if clash > 0.5:
+            log(f'headlight lenses: {tex} is shared with other parts of the car - left as it is')
+            continue
         img = current_texture(car, tex, made, copy_from)
         if img is None: continue
         W, H = img.size
@@ -1358,7 +1424,8 @@ def make_window_stickers(car, design, made, copy_from=None, log=print):
             span = np.percentile(uv, 98, axis=0) - np.percentile(uv, 2, axis=0)
             if span.min() > 0.3 and uv.max() <= 1.05:
                 log(f'windows: {tex} is only {img.size[0]}x{img.size[1]} - the skin gets a 2048x2048 version so stickers fit')
-                img = img.convert('RGBA').resize((2048, 2048), Image.LANCZOS)
+                r_, a_ = img.convert('RGB').resize((2048, 2048), Image.LANCZOS), img.convert('RGBA').getchannel('A').resize((2048, 2048), Image.LANCZOS)
+                r_.putalpha(a_); img = r_
             else:
                 log(f'windows: {tex} is only {img.size[0]}x{img.size[1]} and its glass is tiled - no room for stickers, skipped')
                 continue
@@ -1441,11 +1508,15 @@ def apply_decals_rgba(col, alp, tm, decals, inside=False, back=None):
 def write_dds(img, path):
     """Uncompressed A8R8G8B8 with a full mip chain (what AC reads without tools)."""
     img = img.convert('RGBA')
-    levels, im = [], img
+    # mips: colour and alpha shrink separately. (Resizing RGBA premultiplies alpha, and car textures often
+    # have alpha 0 everywhere - that turned every distance level black.)
+    rgb_, a_ = img.convert('RGB'), img.getchannel('A')
+    levels = []
     while True:
-        levels.append(im)
-        if im.width == 1 and im.height == 1: break
-        im = im.resize((max(1, im.width // 2), max(1, im.height // 2)), Image.LANCZOS)
+        im = rgb_.copy(); im.putalpha(a_); levels.append(im)
+        if rgb_.width == 1 and rgb_.height == 1: break
+        size = (max(1, rgb_.width // 2), max(1, rgb_.height // 2))
+        rgb_, a_ = rgb_.resize(size, Image.LANCZOS), a_.resize(size, Image.LANCZOS)
     hdr = struct.pack('<4sIIIIIII44x', b'DDS ', 124, 0x2100F, img.height, img.width, img.width * 4, 0, len(levels))
     hdr += struct.pack('<IIIIIIII', 32, 0x41, 0, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000)
     hdr += struct.pack('<IIIII', 0x401008, 0, 0, 0, 0)
@@ -1558,6 +1629,20 @@ def generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pri
             k = resolution / max(W, H); W, H = int(W * k), int(H * k)
             log(f'making {tex} {W}x{H} for sharper writing and logos')
         log(f'--- {tex}')
+        ov = uv_overlap(car.meshes_for(tex))
+        if ov > 3.0:
+            # every panel reuses the same texels (a plain colour texture): no room for a livery
+            log(f'{tex}: every panel shares this texture ({ov:.0f}x over) - only a plain colour is possible on this car')
+            step(0.1, 'This car only takes a plain colour (shared paint texture)')
+            if ref.size != (W, H):
+                r_, a_ = ref.convert('RGB').resize((W, H), Image.LANCZOS), ref.getchannel('A').resize((W, H), Image.LANCZOS)
+                r_.putalpha(a_); ref = r_
+            a = np.asarray(ref.convert('RGBA')).astype(np.float32)
+            lum = a[..., :3].mean(-1, keepdims=True)
+            ref_l = max(np.percentile(lum, 90), 1)
+            a[..., :3] = np.clip(rgb(design['base']) * np.clip(lum / ref_l, 0.35, 1.1), 0, 255)
+            tex_out[tex] = Image.fromarray(a.astype(np.uint8), 'RGBA')
+            continue
         k_ = car.body_textures.index(tex) / len(car.body_textures)
         step(0.1 + 0.55 * k_, f'Mapping {tex} onto the car')
         tm = TexelMap(car.meshes_for(tex), W, H, log)
