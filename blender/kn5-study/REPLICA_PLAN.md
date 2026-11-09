@@ -209,3 +209,18 @@ The cars: AE86, E30, MX-5 ND, Sport quattro, 911 GT3 RS, F40, Countach, Giulia Q
 Single-seaters split into many more parts (the SF70H has 34).
 
 **Takeaway for our builder:** get the panel outlines and creases right and the surfaces follow. Sections are mainly needed where there are no creases (big soft panels).
+
+### Whole car, sections → lofted panels split by facing direction (`car_loft.py`)
+| Version | Panels | Real → ours | Ours → real | Look in grey |
+|---|---|---|---|---|
+| panels split by facing direction (side/top/front/rear) | 91 | 1.6 mm median, 66 % within 3 mm (holes) | 1.7 mm median, 85 % within 3 mm | clean panel faces, but holes and jagged gaps at the 45° splits |
+| + 20 mm overlap, sections from the whole skin | 260 | 1.8 mm median, 60 % within 3 mm | 1.9 mm median, 72 % within 3 mm | holes closed, but spikes at the bumpers and a centre seam |
+
+- **Big panels** (sides, bonnet, roof): 1.1–1.7 mm both ways, 76–94 % within 3 mm. The section method holds up.
+- **Conclusion: splitting panels by facing direction is a dead end.** The research report (`blender/research/`) agrees: panels must be bounded by the real feature lines (shut lines, creases, window edges). Neighbouring patches then share the same boundary curve and its vertices, so there are no seams or overlaps.
+
+**Next (builder v2):**
+1. Panel layout from the car's lines, Kunos-style: shell, doors, bonnet, boot or hatch, bumpers. The shell is split at its creases into 4-sided patches.
+2. Each patch is a Coons/Gordon surface from its boundary curves, plus sections only on soft panels, written into BMesh with shared boundary vertices.
+3. Panel edges: 3–5 mm gap and turned-in return, with support loops.
+4. Zebra (stripe) check in Blender plus the two-way score.
