@@ -118,6 +118,16 @@ Research: `blender/research/reports/Wheel arch lip surfacing.md`, `blender/resea
   crease strip and the rear wall); (2) a slot above the front of the arch = the crease-strip faces (r2/r4) not
   built yet - add them with `:rall` like the door; (3) the roll behind the arch (rear:b1, 5 mm p95, its blend
   conversion loses 4 mm - widen the conversion grid); (4) the front tip of the wing.
+- 2026-11-10 evening (after Nik's "act like a pro" push): `regress.sh` rebuilds + scores door and wing after every
+  change. Fixes: crease-strip faces built (`rall!0`), hole-filler safety net (`fill_holes.py` + `merge.py`), lip ends
+  where the flare ends and stops at the rear wall (varying width), surfaces cover their whole band, rolls kept only
+  if better than a plain fit, cross-check blocks sized from vertex spacing, and the Class-A rule: fairest surface
+  within tolerance. **Door 87.6 % within 1 mm / 99.6 % within 3 mm; wing 72.4 % / 99.5 %.**
+  On the original's VERTICES the wing is ~88 % within 1 mm (median 0.25 mm); the area score is harsh on Kunos's
+  long flat facets across curves.
+- Next on the wing: like-for-like zebra (both shown as exact smooth surfaces) to judge the remaining swirls on the
+  wing top and the lip's front end; the small roll behind the arch (rear:b1, 38 vertices, 5.9 mm - straddles the
+  crease-strip chamfers); fragments at the bottom-rear corner. Then plan B: rear quarter, roof, bonnet.
 - Live FreeCAD: the FreeCAD AI MCP (http://127.0.0.1:3000/mcp) works from any session by plain HTTP
   (`fc_call.sh (kn5-study) TOOL JSON`); switch_document {"document_name": ...} before set_view/capture.
 - Next (older list): (1) the lower band behind the arch (11 mm p95) = the flare run-out corner: per the research, stop the

@@ -155,7 +155,12 @@ def select_fit(S, dom, folds=5, seed=0, nmax=None, strip=False):
     Lu, Lv = dom[1] - dom[0], dom[3] - dom[2]
     # blocked folds: hold out whole 40 mm patches (checkerboard), not single vertices - a vertex always has
     # near neighbours on its own mesh row, so random hold-outs never see ripples BETWEEN the data
-    fold = ((np.floor(S[:, 0] / 0.04) + 2 * np.floor(S[:, 1] / 0.04)) % folds).astype(int)
+    # block size from the data's own spacing: the hidden patches must be bigger than the gap between vertex rows
+    # (40 mm on the door; the wing's rows are 100-150 mm apart and 40 mm blocks let ripples between rows through)
+    sub = S[:: max(1, len(S) // 400), :2]
+    dnn = np.sqrt(((sub[:, None] - sub[None]) ** 2).sum(2) + np.eye(len(sub)) * 1e9).min(1)
+    blk = float(np.clip(2.5 * np.median(dnn), 0.04, 0.15))
+    fold = ((np.floor(S[:, 0] / blk) + 2 * np.floor(S[:, 1] / blk)) % folds).astype(int)
     if strip:          # a narrow strip (arch lip): hide whole 80 mm stretches along it, keep full cross-sections
         fold = (np.floor(S[:, 0] / 0.08) % folds).astype(int)
     cands = []
@@ -181,6 +186,15 @@ def select_fit(S, dom, folds=5, seed=0, nmax=None, strip=False):
     cvr, _, nu, nv, lam = min(ok, key=lambda c: (c[1], -c[4]))
     f = fit_surface(S, dom, nu, nv, lam); f['lam'] = lam
     r = np.abs(eval_surface(f, S[:, 0], S[:, 1]) - S[:, 2])
+    # Class-A rule: the FAIREST surface within tolerance, not the closest. Smooth harder (bending energy) while the
+    # fit stays within 25 % / 0.3 mm of the best - ripples between Kunos's vertex rows show as swirls in zebra
+    if os.environ.get('PF_FAIR', '1') == '1':
+        p0 = np.percentile(r, 95); lim = max(1.25 * p0, p0 + 0.3e-3)
+        for lam2 in (1e-5, 1e-4, 1e-3, 1e-2, 3e-2):
+            if lam2 <= f['lam']: continue
+            f2 = fit_surface(S, dom, nu, nv, lam2); r2 = np.abs(eval_surface(f2, S[:, 0], S[:, 1]) - S[:, 2])
+            if np.percentile(r2, 95) > lim: break
+            f, r = f2, r2; f['lam'] = lam2
     return f, r, cvr
 
 
@@ -656,7 +670,7 @@ def blend_fillet(P, mk, B, sg, nb, dom_s, t_span):
     # composite surface -> one general 3D B-spline with its own directions: s along the line, rho across the
     # roll (rho = -1 far edge, 0 boundary, > 0 into the neighbour for the band-cut margin). A plain height-field
     # grid over the door plane loses 0.4-0.8 mm because the lip runs diagonally across it.
-    s0, s1 = dom_s; r0, r1 = tmin - 0.1, 0.4
+    s0, s1 = dom_s; r0, r1 = tmin - 0.2, 0.6                 # a margin past its band edges (trims only remove)
     sg_ = np.linspace(s0, s1, 240); rg = np.linspace(r0, r1, 120)
     SS, RR = np.meshgrid(sg_, rg, indexing='ij')
     TT = eval_func(B, SS.ravel()) + sg * RR.ravel() * width(SS.ravel())
@@ -764,6 +778,15 @@ def fit_bands(name, V, Fr, Nv, overlap=0.002, keep=None, Fr_lines=None, cut_poly
             S = to_plane(V[u[mk]], frp); iscore = core[mk]
             pad = 0.02
             dom = [S[:, 0].min() - pad, S[:, 0].max() + pad, S[:, 1].min() - pad, S[:, 1].max() + pad]
+            if not own and band_s is None:
+                # the surface must reach every part of its band (line to line, panel edge to panel edge), not just
+                # where it has data: trimming only removes surface (a crescent gap above the AE86 arch). Fairing
+                # keeps it smooth where there is no data.
+                Pall_ = to_plane(V[u], fr); sg_ = np.linspace(Pall_[:, 0].min(), Pall_[:, 0].max(), 40)
+                t_lo_ = eval_func(lo, sg_).min() if lo is not None else Pall_[:, 1].min()
+                t_hi_ = eval_func(hi, sg_).max() if hi is not None else Pall_[:, 1].max()
+                dom = [min(dom[0], Pall_[:, 0].min() - pad), max(dom[1], Pall_[:, 0].max() + pad),
+                       min(dom[2], max(t_lo_, Pall_[:, 1].min()) - pad), max(dom[3], min(t_hi_, Pall_[:, 1].max()) + pad)]
             f, r, cv = select_fit(S, dom)
             re_ = None
             if not own and np.percentile(r[iscore], 95) > 3e-3 and len(S) >= 30 and os.environ.get('PF_RE', '1') == '1':
@@ -832,9 +855,29 @@ def fit_bands(name, V, Fr, Nv, overlap=0.002, keep=None, Fr_lines=None, cut_poly
             continue
         cov, nb_i, B, sg = max(opts, key=lambda o: o[0])
         Sc = P[core]; Bs = eval_func(B, np.linspace(Sc[:, 0].min(), Sc[:, 0].max(), 50))
-        dom_s = [P[core, 0].min() - 0.05, P[core, 0].max() + 0.05]   # its own length (a roll behind the arch only)
+        # its band's full length inside its area (a roll in the rear sub-panel runs from the rear edge to the arch,
+        # beyond its last vertices): trims only remove surface. Within the panel, not the whole shell.
+        dom_s = [P[core, 0].min() - 0.05, P[core, 0].max() + 0.05]
+        if area_poly is not None:
+            ap_ = np.array(area_poly) / 1000; s_in = P[:, 0][(P[:, 0] >= ap_[:, 0].min()) & (P[:, 0] <= ap_[:, 0].max())]
+            if len(s_in): dom_s = [min(dom_s[0], s_in.min() - 0.02), max(dom_s[1], s_in.max() + 0.02)]
         t_span = [min(Sc[:, 1].min(), Bs.min()) - 0.008, max(Sc[:, 1].max(), Bs.max()) + 0.012]
         f, r, info = blend_fillet(P, core, B, sg, fits[nb_i], dom_s, t_span)
+        # keep the blend only if it really fits better than a plain surface over the roll's own data (including
+        # what is lost turning it into a B-spline); a short roll with few vertices can be better plain
+        Sp = P[core]
+        domp = [min(Sp[:, 0].min(), dom_s[0]) - 0.02, max(Sp[:, 0].max(), dom_s[1]) + 0.02, Sp[:, 1].min() - 0.02, Sp[:, 1].max() + 0.02]
+        fp, rp, cvp = select_fit(Sp, domp)
+        if np.percentile(rp, 95) < np.percentile(r, 95) + info['approx']:
+            e = dict(base)
+            e.update(name=f'{name}:b{b}', dom=mm(domp), nu=fp['nu'], nv=fp['nv'], ku=mm(fp['ku']), kv=mm(fp['kv']),
+                     poles=mm(np.stack(list(np.meshgrid(fp['gu'], fp['gv'], indexing='ij')) + [fp['H']], -1)),
+                     band_lo=line(lo), band_hi=line(hi), fit_p95_mm=float(np.percentile(rp, 95) * 1000))
+            if area_poly is not None: e['own_plane'] = True; e['line_frame'] = [x.tolist() for x in fr]
+            out.append(e)
+            print(f"{e['name']:28s} verts {core.sum():4d} roll kept PLAIN ({fp['nu']}x{fp['nv']}, p95 {np.percentile(rp,95)*1000:.2f} mm) - the blend was "
+                  f"{np.percentile(r,95)*1000:.2f} + {info['approx']*1000:.2f} mm")
+            continue
         e = dict(base)
         # general surface (not a height field): trimmed by 3D prisms of the outline and the band, like a patch
         e.update(name=f'{name}:b{b}', dom=mm([*dom_s, *t_span]), nu=f['nu'], nv=f['nv'], ku=mm(f['ku']), kv=mm(f['kv']),

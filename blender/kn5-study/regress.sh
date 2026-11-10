@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Regression check: rebuild the AE86 door and front wing and print their coverage (original area within 1 / 3 mm).
 # Run after every change to panel_fit.py / panel_fit_freecad.py:   ./regress.sh [door|wing|all]
-# Reference (2026-11-10): door 84.0 % / 99.3 %; wing (all faces + hole fill) 62.5 % / 95.2 %.
+# Reference (2026-11-10 evening): door 87.6 % / 99.6 %; wing (all faces + hole fill) 72.4 % / 99.5 %.
 set -e
 cd "$(dirname "$0")"
 C=D:/SteamLibrary/steamapps/common/assettocorsa/content/cars/ks_toyota_ae86
