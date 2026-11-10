@@ -163,7 +163,8 @@ class Car:
             if t in area and t not in overridable and paintish.search(m.mat.name + ' ' + t) and t in self.kn5.textures:
                 cand[t] = area[t]
         top = max((area[t] for t in overridable), default=0)
-        cand = {t: a_ for t, a_ in cand.items() if a_ > top and self._tex_size(t) >= 256 and uv_overlap(self.meshes_for(t)) <= 3.0}
+        if overridable:      # only a real livery texture may take over from what the skins override
+            cand = {t: a_ for t, a_ in cand.items() if a_ > top and self._tex_size(t) >= 256 and uv_overlap(self.meshes_for(t)) <= 3.0}
         if cand:
             t = max(cand, key=cand.get)
             overridable[t] = 0
@@ -790,7 +791,7 @@ def top_panels(car, tm, paint, belt):
     if len(roof) > 200:
         # the roof is the longest unbroken stretch of high surface: a rear wing or roof spoiler standing
         # behind a gap (the rear window) is not part of it
-        zb = np.floor((roof[:, 2] - car.lo[2]) / 0.04).astype(int)
+        zb = np.floor((roof[:, 2] - roof[:, 2].min()) / 0.04).astype(int)
         cnt = np.bincount(zb)
         on = np.r_[False, cnt > 0.08 * cnt.max(), False]
         edges = np.flatnonzero(np.diff(on.astype(int)))
