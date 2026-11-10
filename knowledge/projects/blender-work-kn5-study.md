@@ -77,3 +77,5 @@ Replica work (2026-11-09, REPLICA_PLAN.md). Nik's rule: build from scratch, usin
 - Scoring: score_exact.py. The old point-sample scorer added about 1 mm of fake error.
 - The v5 strip build (cad_panels.py) is superseded.
 - Next: the window-frame and shoulder-roll bands (about 1.5 mm), then the rest of the car panel by panel, then shut-line returns.
+
+2026-11-10 night: rear quarter built (`:wN` corner split, seam matching + one smooth seam curve, line pinning for all bands, hole filler ignores Kunos chord sag). regress.sh reference: door 87.9/99.6, wing 70.6/96.1, quarter 78.2/96.8 (area within 1/3 mm; vertex scores are the honest ones). NEXT = thin-strip builder (ruled strips between shared edge curves; lamp-top step first), then roof. Handover: blender/kn5-study/NEXT_SESSION.md.
