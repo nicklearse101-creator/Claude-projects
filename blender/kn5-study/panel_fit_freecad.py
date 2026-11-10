@@ -48,7 +48,9 @@ for p in res:
             out.append(c2.toShape(srf))
         return Part.Wire(Part.__sortEdges__(out))
     edges = p['wires'][0]
-    own = p.get('own_plane') or p.get('band_s')      # partial-length band pieces: their surface may not cover the outline
+    # partial-length band pieces and sub-panel faces: their surface may not cover the panel outline, and a
+    # parameter-space trim by an outline lying off the surface gives a bogus huge face - trim by 3D prisms instead
+    own = p.get('own_plane') or p.get('band_s') or p.get('band_poly')
     def prism_wire(es, lf, H=2000.0):
         """an outline (2D B-splines in frame lf) as a 3D wire on the plane h = -H of that frame"""
         out = []
@@ -69,7 +71,7 @@ for p in res:
     if own:
         # own-plane patch (corner blend): untrimmed surface cut by the outline prism of its region's frame
         try:
-            lf = p['line_frame']; wv = np.array(lf[3]); Hh = 2000.0
+            lf = p.get('line_frame') or fr; wv = np.array(lf[3]); Hh = 2000.0
             if p.get('own_poly'):                     # its own outline, in its own plane
                 V3o = [App.Vector(*to_world(fr, q[0], q[1], -Hh)) for q in p['own_poly']]
                 fo_ = Part.Face(Part.makePolygon(V3o + [V3o[0]]))
@@ -149,7 +151,7 @@ for p in res:
             if cut_.Faces and cut_.Area > 1:
                 face = Part.makeShell(cut_.Faces) if len(cut_.Faces) > 1 else cut_.Faces[0]
             else:
-                print(p['name'], 'band cut failed')
+                print(p['name'], 'band cut failed -> left out', flush=True); continue
         except Exception as ex:
             print(p['name'], 'band cut failed:', ex, flush=True); continue
     if p.get('cut_poly'):

@@ -109,6 +109,15 @@ Research: `blender/research/reports/Wheel arch lip surfacing.md`, `blender/resea
   above-the-arch. Each then has lines running edge to edge and the band method works unchanged. Also try
   FreeCAD ReverseEngineering.approxSurface (tested on the door skin: 0.12 mm p95, not a height field) for
   any piece that wraps.
+- 2026-11-10 afternoon: sub-panels done (above / behind / in front of the arch centre), a ledge seen edge-on
+  becomes a STEP cut line (the rocker strip behind the arch: 14.6 -> 1.4 mm and 0.03 mm), FreeCAD approxSurface
+  fallback (`re_fit_freecad.py`, used when a face fits worse than 3 mm and RE does better). Wing now 53.9 % within
+  1 mm, 83.7 % within 3 mm (`images/wing_v2_vs_original_grey.png`). Splitting the lip into arch + run-outs was
+  tried and reverted (worse).
+- Left on the wing: (1) the lip (0.55 mm median but 4-10 mm p95 at its ends, where the flare meets the front
+  crease strip and the rear wall); (2) a slot above the front of the arch = the crease-strip faces (r2/r4) not
+  built yet - add them with `:rall` like the door; (3) the roll behind the arch (rear:b1, 5 mm p95, its blend
+  conversion loses 4 mm - widen the conversion grid); (4) the front tip of the wing.
 - Live FreeCAD: the FreeCAD AI MCP (http://127.0.0.1:3000/mcp) works from any session by plain HTTP
   (`fc_call.sh (kn5-study) TOOL JSON`); switch_document {"document_name": ...} before set_view/capture.
 - Next (older list): (1) the lower band behind the arch (11 mm p95) = the flare run-out corner: per the research, stop the

@@ -569,6 +569,24 @@ def eval_surface_ext(f, s, t, h=1e-4):
     return z + gs * (s - sc) + gt * (t - tc)
 
 
+def re_fit(S_mm, nu=8, nv=8):
+    """FreeCAD ReverseEngineering.approxSurface on points (plane mm): a general surface (not a height field) for a
+    face that wraps. Runs freecadcmd with all temp/user data on D:. Returns (poles mm, ku, kv, distances) or None."""
+    import subprocess, tempfile
+    tmp = r'D:\ClaudeData\tmp\re_fit'; os.makedirs(tmp, exist_ok=True)
+    f_ = os.path.join(tmp, f'pts_{os.getpid()}_{len(S_mm)}.npz'); np.savez(f_, P=S_mm, NU=nu, NV=nv)
+    env = dict(os.environ, RE_IN=f_, TEMP=r'D:\ClaudeData\tmp', TMP=r'D:\ClaudeData\tmp', TMPDIR=r'D:\ClaudeData\tmp',
+               FREECAD_USER_HOME=r'D:\ClaudeData\FreeCAD', FREECAD_USER_DATA=r'D:\ClaudeData\FreeCAD',
+               FREECAD_USER_TEMP=r'D:\ClaudeData\tmp', PYTHONPYCACHEPREFIX=r'D:\ClaudeData\tmp\pycache')
+    try:
+        subprocess.run([r'D:\FreeCAD\bin\freecadcmd.exe', os.path.join(os.path.dirname(os.path.abspath(__file__)), 're_fit_freecad.py')],
+                       env=env, capture_output=True, timeout=600)
+        R_ = np.load(f_ + '.out.npz')
+        return R_['poles'], R_['ku'], R_['kv'], R_['d']
+    except Exception as ex:
+        print('   re_fit failed:', ex); return None
+
+
 def fit_drop(s, tau, D, tmin, ns, nt, lam):
     """D(s, tau) as a tensor cubic B-spline over [s-dom] x [tmin, 0], value and slope forced to 0 at tau = 0"""
     ks = knots(ns, s.min() - 0.02, s.max() + 0.02); kt = knots(nt, tmin, 0.0)
@@ -652,16 +670,20 @@ def blend_fillet(P, mk, B, sg, nb, dom_s, t_span):
     return f, r, dict(ns=ns, nt=nt, cv=best[0], approx=float(ea), nu=nu, nv=nv)
 
 
-def fit_bands(name, V, Fr, Nv, overlap=0.002, keep=None, Fr_lines=None, cut_poly=None, fr=None):
+def fit_bands(name, V, Fr, Nv, overlap=0.002, keep=None, Fr_lines=None, cut_poly=None, fr=None, Fr_outline=None, area_poly=None, extra_lines=()):
     """a region split into bands by its character lines; each band one surface, trimmed exactly on the lines.
     keep: vertices usable as data (False = belongs to another surface, e.g. an arch lip); Fr_lines: triangles to
     look for character lines in; cut_poly: area (plane mm, region frame) cut out of every band (the lip)"""
     u = np.unique(Fr)
     if fr is None: fr = frame_of(V[u], Nv[u])
-    base = fit_panel(name, V, Fr, Nv, verbose=False, fr=fr, outline_only=True)   # frame, outline wires (shared)
+    base = fit_panel(name, V, Fr if Fr_outline is None else Fr_outline, Nv, verbose=False, fr=fr, outline_only=True)
     if cut_poly is not None: base = dict(base, cut_poly=cut_poly, cut_frame=[x.tolist() for x in fr])
+    if area_poly is not None: base = dict(base, band_poly=area_poly)     # a sub-panel: kept to its own area
     lines = feature_lines(V, Fr if Fr_lines is None else Fr_lines, fr)
     P = to_plane(V[u], fr)
+    if extra_lines:                                  # steps the section scan cannot see (a ledge seen edge-on)
+        sg_ = np.linspace(P[:, 0].min(), P[:, 0].max(), 30)
+        lines = sorted(list(lines) + list(extra_lines), key=lambda L_: float(np.mean(eval_func(L_, sg_))))
     # a strong line (rolled edge) gets its own narrow fillet band: two bounds at its measured extent
     cut_lines = []
     for L in lines:
@@ -677,7 +699,8 @@ def fit_bands(name, V, Fr, Nv, overlap=0.002, keep=None, Fr_lines=None, cut_poly
         m = np.ones(len(P), bool) if keep is None else keep[u].copy()
         # overlap across a line: 2 mm, but tight on a sharp line placed to < 0.5 mm, or a vertex of the face
         # beyond a sharp corner (1 mm away) is fitted into this face and bends it
-        ov = lambda L: overlap if (L['ext_lo'] + L['ext_hi'] > 0.003 or L['err'] > 0.5e-3) else max(0.3e-3, 1.5 * L['err'])
+        # (a STEP - a ledge seen edge-on - has both edges on its line at different depths: neither face takes them)
+        ov = lambda L: -1.5e-3 if L.get('step') else (overlap if (L['ext_lo'] + L['ext_hi'] > 0.003 or L['err'] > 0.5e-3) else max(0.3e-3, 1.5 * L['err']))
         if lo is not None: m &= P[:, 1] > eval_func(lo, P[:, 0]) - ov(lo)
         if hi is not None: m &= P[:, 1] < eval_func(hi, P[:, 0]) + ov(hi)
         # across a SOFT bound (roll edge) the surface is smooth, so the band also takes the next vertex row
@@ -735,11 +758,22 @@ def fit_bands(name, V, Fr, Nv, overlap=0.002, keep=None, Fr_lines=None, cut_poly
             pad = 0.02
             dom = [S[:, 0].min() - pad, S[:, 0].max() + pad, S[:, 1].min() - pad, S[:, 1].max() + pad]
             f, r, cv = select_fit(S, dom)
+            re_ = None
+            if not own and np.percentile(r[iscore], 95) > 3e-3 and len(S) >= 30 and os.environ.get('PF_RE', '1') == '1':
+                # the face wraps too much for a height field over the panel plane: FreeCAD's reverse-engineering fit
+                re_ = re_fit(S * 1000, nu=min(10, max(5, f['nu'] + 2)), nv=min(10, max(5, f['nv'] + 2)))
+                if re_ is not None and np.percentile(re_[3][iscore], 95) < 0.8 * np.percentile(r[iscore], 95) * 1000:
+                    print(f"   {name}:b{b}{tag}: height field p95 {np.percentile(r[iscore], 95)*1000:.2f} mm -> FreeCAD approxSurface p95 {np.percentile(re_[3][iscore], 95):.2f} mm (kept)")
+                else:
+                    re_ = None
             e = dict(base)                    # outline wires stay in the region's frame (own-plane patches are
                                               # trimmed by a prism of them; projected onto a tilted plane they fold)
             e.update(name=f'{name}:b{b}{tag}', dom=mm(dom), nu=f['nu'], nv=f['nv'], ku=mm(f['ku']), kv=mm(f['kv']),
                      poles=mm(np.stack(list(np.meshgrid(f['gu'], f['gv'], indexing='ij')) + [f['H']], -1)),
                      band_lo=line(lo), band_hi=line(hi), fit_p95_mm=float(np.percentile(r[iscore], 95) * 1000))
+            if re_ is not None:
+                e.update(nu=re_[0].shape[0], nv=re_[0].shape[1], ku=re_[1].tolist(), kv=re_[2].tolist(), poles=re_[0].tolist(),
+                         general=True, own_plane=True, line_frame=[x.tolist() for x in fr], fit_p95_mm=float(np.percentile(re_[3][iscore], 95)))
             if own:
                 e['frame'] = [x.tolist() for x in frp]; e['own_plane'] = True
                 # its outline in ITS plane: the panel outline drawn in the region plane collapses for a face that
@@ -839,7 +873,28 @@ def find_arch(L2, step=0.01, win=0.40, rmin=0.25, rmax=0.55, tol=0.012):
     return dict(seg=seg, c=c, R=R, dev=float(r.max()), Q=Q, run=run)
 
 
-def fit_arch_panel(name, V, Fr, Nv):
+def ledge_lines(V, Fr, Nv, others, fr, min_area=4e-4):
+    """narrow faces seen edge-on from the panel plane (a ledge or step between a proud strip and the body):
+    each becomes a sharp cut line t = g(s) through its middle - the panel's surface jumps there"""
+    out = []
+    u = np.unique(Fr); P = to_plane(V[u], fr)
+    for Fo in others:
+        T_ = V[Fo]; n_ = np.cross(T_[:, 1] - T_[:, 0], T_[:, 2] - T_[:, 0]); A_ = np.linalg.norm(n_, axis=1)
+        if A_.sum() / 2 < min_area: continue
+        n_ /= A_[:, None]
+        if np.median(np.abs(n_ @ fr[3])) > 0.35: continue          # not edge-on
+        Q_ = to_plane(V[np.unique(Fo)], fr)
+        if not ((Q_[:, 0] > P[:, 0].min()) & (Q_[:, 0] < P[:, 0].max()) & (Q_[:, 1] > P[:, 1].min()) & (Q_[:, 1] < P[:, 1].max())).all(): continue
+        if np.ptp(Q_[:, 1]) > 0.02 * max(1.0, np.ptp(Q_[:, 0]) / 0.3): continue   # a narrow strip along s
+        dom_ = [P[:, 0].min() - 0.1, P[:, 0].max() + 0.1]
+        g_ = fit_func(Q_[:, 0], Q_[:, 1], dom_, tol=0.5e-3, nmax=4)
+        g_.update(s_lo=float(Q_[:, 0].min()), s_hi=float(Q_[:, 0].max()), turn=90.0, hits=len(Q_), ext_lo=0.0, ext_hi=0.0, err=0.3e-3, step=True)
+        out.append(g_)
+        print(f'   ledge face ({len(Fo)} tris, {A_.sum()/2*1e4:.0f} cm2) -> cut line at t {np.mean(Q_[:, 1])*1e3:.0f} mm, s {Q_[:,0].min()*1e3:.0f}..{Q_[:,0].max()*1e3:.0f} mm')
+    return out
+
+
+def fit_arch_panel(name, V, Fr, Nv, others=()):
     """a panel with a wheel arch (front wing): (1) find the opening on the outline; (2) the side surface around
     the arch, extended across it ('main surface first'); (3) lip width = where the real surface leaves that side
     surface; (4) the lip as a strip in arch coordinates (arc length round the arch x distance out from the real
@@ -920,8 +975,43 @@ def fit_arch_panel(name, V, Fr, Nv):
     # (5) the side faces first ('main surfaces first'), with the arch zone left out of their data
     in_lip_v = np.zeros(len(V), bool); in_lip_v[u[sector & (d < Dlip - 0.003)]] = True
     Fl = Fr[~in_lip_v[Fr].any(1)]
-    out = fit_bands(name, V, Fr, Nv, keep=~in_lip_v, Fr_lines=Fl, cut_poly=poly, fr=fr)
-    side = fit_bands.last
+    # sub-panels at the arch (Class-A practice: patch boundaries through the arch ends): above the arch, behind
+    # it and in front of it. Character lines that stop at the arch then run edge to edge inside their sub-panel.
+    # Panel plane: s along the car, t across (t grows downward here when the frame's e2 points down).
+    Er = E(np.linspace(0, Alen, 400)); tsign = 1.0 if (to_plane(V[u], fr)[:, 1] @ (-V[u, 1]) > 0) else -1.0
+    t_top = (Er[:, 1] * tsign).min() * tsign                    # the arch's highest point (t)
+    t_cut = t_top - tsign * (Dlip + 0.01)                        # the line above the lip
+    s_lo = s_hi = c[0]                                           # below the cut: behind / in front of the arch centre
+    BIG = 5.0
+    below = lambda T: (T - t_cut) * tsign > 0
+    areas = {'above': lambda S_, T_: ~below(T_),
+             'rear': lambda S_, T_: below(T_) & (S_ < s_lo),
+             'front': lambda S_, T_: below(T_) & (S_ > s_hi)}
+    rect = {'above': [[-BIG, t_cut - tsign * BIG], [BIG, t_cut - tsign * BIG], [BIG, t_cut], [-BIG, t_cut]],
+            'rear': [[-BIG, t_cut], [s_lo, t_cut], [s_lo, t_cut + tsign * BIG], [-BIG, t_cut + tsign * BIG]],
+            'front': [[s_hi, t_cut], [BIG, t_cut], [BIG, t_cut + tsign * BIG], [s_hi, t_cut + tsign * BIG]]}
+    out, side = [], dict(fits={}, bounds=[])
+    Pall = to_plane(V, fr); cen = Pall[Fr].mean(1)
+    ledges = ledge_lines(V, Fr, Nv, others, fr)
+    for key, inside in areas.items():
+        # data: its triangles plus 20 mm round its cut edges (so the surface reaches its seam with support)
+        pad_ = np.zeros(len(Fr), bool)
+        for ds_, dt_ in ((0.02, 0), (-0.02, 0), (0, 0.02), (0, -0.02)):
+            pad_ |= inside(cen[:, 0] + ds_, cen[:, 1] + dt_)
+        Fs = Fr[pad_ & ~in_lip_v[Fr].all(1)]
+        if len(Fs) < 20: continue
+        ex_ = [L_ for L_ in ledges if inside(np.array([0.5 * (L_['s_lo'] + L_['s_hi'])]), eval_func(L_, [0.5 * (L_['s_lo'] + L_['s_hi'])]))[0]]
+        res_ = fit_bands(f'{name}:{key}', V, Fs, Nv, keep=~in_lip_v, Fr_lines=Fs[~in_lip_v[Fs].any(1)], cut_poly=poly, fr=fr,
+                         Fr_outline=Fr, area_poly=mm(np.array(rect[key])), extra_lines=ex_)
+        out += res_
+        last = fit_bands.last
+        if key == 'above' or not side['fits']:
+            pass
+        # the lip is matched to whichever sub-panel's faces lie next to it
+        off = len(side['bounds'])
+        for bi, f_ in last['fits'].items():
+            side['fits'][off + bi] = (f_, last['bounds'][bi], last['bounds'][bi + 1], inside)
+        side['bounds'] += last['bounds']
     # (4) the lip in arch coordinates (arc length round the arch, distance out from the real edge), height above
     # the panel plane; samples of the ACTUAL side faces on a 25 mm ring just outside it go in as data, so the lip
     # meets them in position and slope (no ridge at its outer edge)
@@ -932,9 +1022,8 @@ def fit_arch_panel(name, V, Fr, Nv):
     ag, dg = ag.ravel(), dg.ravel(); XY_ = E(ag) + dg[:, None] * En(ag)
     sx, tx = XY_[:, 0], XY_[:, 1]
     hs = np.full(len(sx), np.nan)
-    for bi, f_ in side['fits'].items():
-        lo_, hi_ = side['bounds'][bi], side['bounds'][bi + 1]
-        inb = np.ones(len(sx), bool)
+    for bi, (f_, lo_, hi_, inside_) in side['fits'].items():
+        inb = inside_(sx, tx)
         if lo_ is not None: inb &= tx > eval_func(lo_, sx)
         if hi_ is not None: inb &= tx < eval_func(hi_, sx)
         hs[inb] = eval_surface_ext(f_, sx[inb], tx[inb])
@@ -975,7 +1064,8 @@ def main():
                 res.append(fit_panel(f'{name}:f{i}:{kind}', V, Fr, Nv))
             continue
         if comp.startswith('arch'):                    # GEO_body:arch0 = crease region 0 has a wheel arch
-            res += fit_arch_panel(f'{name}:r{int(comp[4:] or 0)}', V, crease_pieces(V, F, Nv)[int(comp[4:] or 0)], Nv)
+            pcs_ = crease_pieces(V, F, Nv); ri_ = int(comp[4:] or 0)
+            res += fit_arch_panel(f'{name}:r{ri_}', V, pcs_[ri_], Nv, others=[q for i_, q in enumerate(pcs_) if i_ != ri_])
             continue
         if comp.startswith('b'):
             for ri in comp[1:].split(','):
