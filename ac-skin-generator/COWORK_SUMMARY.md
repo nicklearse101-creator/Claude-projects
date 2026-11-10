@@ -27,6 +27,11 @@ the side windows) the decal and window code was rebuilt:
 - Checked on Peugeot 308 TCR, Lacetti, Audi Sport quattro, BMW M4 GT3, Escort Mk2. Waiting for Nik's
   in-game check. Details: `PLAN_next_session.md` ("What v1.4.0 did").
 
+## Update: v1.6.0 (10 Nov 2026, night) - current installer
+Logos are never left off; Delete and Edit text (words / font / colour per box) on the preview; quick re-preview;
+font previews; pattern preview swatch; smoother pattern edges; rims and tyres coloured separately (1.5.2); Talbot
+stripes and bonnet scoop painted (1.5.2). Zip: release/Rattys4SkinGenerator_v1.6.0.zip (installer + READ ME FIRST).
+
 ## Update: v1.5.0 (10 Nov 2026)
 Nik's second list after trying v1.4: base colour now reaches every seam; the Talbot Sunbeam works (its body
 texture is found although no skin overrides it); logos and names share a place without covering each other,
