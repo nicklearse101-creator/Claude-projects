@@ -382,11 +382,14 @@ def covered_runs(seg2, gap=0.003):
     return out
 
 
-def feature_lines(V, Fr, fr, ds=0.02, thr=10.0, arm=0.012, span=0.35):
+def feature_lines(V, Fr, fr, ds=0.02, thr=10.0, arm=None, span=0.35):
     """character lines of a region: sharp turns on sections across it (s = const), chained along s,
-    each fitted as one smooth curve t = g(s) over the whole region"""
+    each fitted as one smooth curve t = g(s) over the whole region.
+    The section arm is 12 mm, shorter on narrow regions (a 45 mm crease strip with a 5 mm chamfer along
+    one side needs ~4 mm arms, or the whole section is skipped and the chamfer is fitted into the strip)"""
     from section import cut
     P = to_plane(V, fr); u = np.unique(Fr); s0, s1 = P[u, 0].min(), P[u, 0].max()
+    if arm is None: arm = float(np.clip(np.ptp(P[u, 1]) / 10, 0.004, 0.012))
     hits = []                                   # (section index, t, turn)
     secs = np.arange(s0 + ds / 2, s1, ds)
     k = max(int(arm / 0.002), 2)
@@ -420,6 +423,12 @@ def feature_lines(V, Fr, fr, ds=0.02, thr=10.0, arm=0.012, span=0.35):
                 tv, av = Rv[w_, 0], np.abs(ang[w_]); o_ = np.argsort(tv); tv, av = tv[o_], av[o_]
                 cum = np.cumsum(av) / av.sum()
                 t_lo = tv[np.searchsorted(cum, 0.05)]; t_hi = tv[min(np.searchsorted(cum, 0.95), len(tv) - 1)]
+                # a SHARP line (turning within 3 mm, not a roll) sits ON a profile vertex: snap to the vertex
+                # carrying most of the turn (the 2 mm resampled corner is up to a few mm off, bending both faces)
+                if t_hi - t_lo < 0.003:
+                    nv_ = np.where((np.abs(Rv[:, 0] - tc) < arm) & (np.sign(ang) == sg))[0]
+                    if len(nv_):
+                        tc = Rv[nv_[np.argmax(np.abs(ang[nv_]))], 0]; t_lo = min(t_lo, tc); t_hi = max(t_hi, tc)
                 hits.append((si, tc, a[i], max(tc - t_lo, 0.0), max(t_hi - tc, 0.0)))
     chains = []
     for si, tt, aa, el, er in sorted(hits):
@@ -466,8 +475,11 @@ def fit_bands(name, V, Fr, Nv, overlap=0.002):
     for b in range(len(bounds) - 1):
         lo, hi = bounds[b], bounds[b + 1]
         m = np.ones(len(P), bool)
-        if lo is not None: m &= P[:, 1] > eval_func(lo, P[:, 0]) - overlap
-        if hi is not None: m &= P[:, 1] < eval_func(hi, P[:, 0]) + overlap
+        # overlap across a line: 2 mm, but tight on a sharp line placed to < 0.5 mm, or a vertex of the face
+        # beyond a sharp corner (1 mm away) is fitted into this face and bends it
+        ov = lambda L: overlap if (L['ext_lo'] + L['ext_hi'] > 0.003 or L['err'] > 0.5e-3) else max(0.3e-3, 1.5 * L['err'])
+        if lo is not None: m &= P[:, 1] > eval_func(lo, P[:, 0]) - ov(lo)
+        if hi is not None: m &= P[:, 1] < eval_func(hi, P[:, 0]) + ov(hi)
         S = P[m]
         if len(S) < 12: continue
         pad = 0.02
