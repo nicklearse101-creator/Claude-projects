@@ -17,6 +17,8 @@ All lengths in the json are millimetres (plane coordinates); the frame maps them
 import sys, os, json, glob
 import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+if os.path.isdir(r'D:\ClaudeData\pylibs') and r'D:\ClaudeData\pylibs' not in sys.path:
+    sys.path.append(r'D:\ClaudeData\pylibs')     # extra libraries (SciPy) live on D:, never C:
 from kn5full import KN5
 from exact_dist import point_to_tris, stats
 
@@ -359,8 +361,10 @@ def wrap_split(V, F, Nv, max_spread=60.0, kmax=8):
     return sorted(out, key=lambda p: -len(p))
 
 
-def crease_pieces(V, F, Nv, deg=20.0):
-    """the mesh split at its creases (dihedral > deg), largest first"""
+def crease_pieces(V, F, Nv, deg=None):
+    """the mesh split at its creases (dihedral > deg, default 20; PF_CREASE overrides: the wing's crease strip
+    edges are softer than the door's), largest first"""
+    if deg is None: deg = float(os.environ.get('PF_CREASE', 20.0))
     import cad_panels as CP
     T = V[F]; n = np.cross(T[:, 1] - T[:, 0], T[:, 2] - T[:, 0]); A = np.linalg.norm(n, axis=1)
     n /= np.maximum(A, 1e-12)[:, None]; n *= np.sign((n * Nv[F].mean(1)).sum(1))[:, None]
@@ -689,6 +693,7 @@ def fit_bands(name, V, Fr, Nv, overlap=0.002, keep=None, Fr_lines=None, cut_poly
             if ov(L) < overlap:
                 side = np.sign(P[:, 1] - tb[:, j]); cs = np.sign(np.median(side[core])) if core.any() else 1
                 ring &= (side == cs) | (np.abs(P[:, 1] - tb[:, j]) < ov(L))
+        if keep is not None: ring &= keep[u]               # never borrow vertices that belong to another surface (lip)
         m |= ring
         mm = lambda a: (np.asarray(a) * 1000).tolist()
         line = lambda L: None if L is None else dict(kv=mm(L['kv']), g=mm(L['g']), c=mm(L['c']))
@@ -831,7 +836,7 @@ def find_arch(L2, step=0.01, win=0.40, rmin=0.25, rmax=0.55, tol=0.012):
         if r[0] >= r[-1]: run.pop(0)
         else: run.pop()
     seg = Q[run]; c, R, r = circle2(seg)
-    return dict(seg=seg, c=c, R=R, dev=float(r.max()))
+    return dict(seg=seg, c=c, R=R, dev=float(r.max()), Q=Q, run=run)
 
 
 def fit_arch_panel(name, V, Fr, Nv):
@@ -847,16 +852,47 @@ def fit_arch_panel(name, V, Fr, Nv):
     if A is None:
         print(f'{name}: no wheel arch found; plain bands'); return fit_bands(name, V, Fr, Nv)
     c, R, seg = A['c'], A['R'], A['seg']
-    mid = np.arctan2(*(seg - c).mean(0)[::-1])
-    ang = lambda Q: (np.arctan2(Q[:, 1] - c[1], Q[:, 0] - c[0]) - mid + np.pi) % (2 * np.pi) - np.pi
-    ts = ang(seg); o = np.argsort(ts); re_ = np.linalg.norm(seg - c, axis=1)[o]; ts = ts[o]
-    # the edge's radius round the arch as one smooth curve (straight segments between outline points put kinks
-    # into the lip surface: 1.6 mm lost turning it into a B-spline)
-    Ef_ = fit_func(ts, re_, [ts[0] - 0.3, ts[-1] + 0.3], tol=0.5e-3, nmax=8)
-    Redge = lambda t_: eval_func(Ef_, np.asarray(t_, float))
-    th = ang(P[:, :2]); d = np.linalg.norm(P[:, :2] - c, axis=1) - Redge(th)
-    sector = (th > ts[0] - 0.05) & (th < ts[-1] + 0.05)
-    print(f'{name}: wheel arch radius {R*1e3:.0f} mm, edge within {A["dev"]*1e3:.1f} mm of a circle, spans {np.degrees(ts[-1]-ts[0]):.0f} deg')
+    # the lip follows the WHOLE opening edge, corner to corner - not only its circular part: on the AE86 the flare
+    # carries on down the straight rear edge to the bottom of the wing, 30 mm proud of the body behind it.
+    # Coordinates (research: 'rail' surfaces): a = arc length along the edge, d = distance in from it.
+    Q, run = A['Q'], list(A['run']); n_ = len(Q)
+    def turn(i, k=3):
+        p_, q_ = Q[i % n_] - Q[(i - k) % n_], Q[(i + k) % n_] - Q[i % n_]
+        return np.degrees(np.arccos(np.clip(p_ @ q_ / (np.linalg.norm(p_) * np.linalg.norm(q_) + 1e-12), -1, 1)))
+    i0 = run[0]; i1 = run[0] + len(run) - 1                  # unwrapped (the run may pass the loop's start)
+    for _ in range(80):
+        if turn(i0 - 1) > 30: break
+        i0 -= 1
+    for _ in range(80):
+        if turn(i1 + 1) > 30: break
+        i1 += 1
+    EQ = Q[np.arange(i0, i1 + 1) % n_]
+    al = np.r_[0, np.cumsum(np.linalg.norm(np.diff(EQ, axis=0), axis=1))]; Alen = al[-1]
+    fs_ = fit_func(al, EQ[:, 0], [-0.2, Alen + 0.2], tol=0.5e-3, nmax=14)
+    ft_ = fit_func(al, EQ[:, 1], [-0.2, Alen + 0.2], tol=0.5e-3, nmax=14)
+    def E(a_):
+        a_ = np.asarray(a_, float); return np.c_[eval_func(fs_, a_), eval_func(ft_, a_)]
+    def En(a_):                                              # unit normal into the panel
+        a_ = np.asarray(a_, float); h_ = 1e-4; tg_ = (E(a_ + h_) - E(a_ - h_)) / (2 * h_)
+        nn_ = np.c_[-tg_[:, 1], tg_[:, 0]]; return sgn_ * nn_ / np.linalg.norm(nn_, axis=1)[:, None]
+    sgn_ = 1.0
+    ad = np.linspace(-0.05, Alen + 0.05, 4000); Ed = E(ad)
+    try:
+        from scipy.spatial import cKDTree
+        nearest = cKDTree(Ed).query(P[:, :2])[1]
+    except ImportError:
+        nearest = np.concatenate([np.argmin(((P[i_:i_ + 500, None, :2] - Ed[None]) ** 2).sum(2), axis=1) for i_ in range(0, len(P), 500)])
+    apos = ad[nearest]; d = ((P[:, :2] - Ed[nearest]) * En(apos)).sum(1)
+    if np.median(d[np.abs(d) < 0.15]) < 0: sgn_ = -1.0; d = -d          # panel material on the positive side
+    sector = (apos > -0.01) & (apos < Alen + 0.01)
+    if os.environ.get('PF_DEBUG'):
+        W_ = V[u]
+        for yz in ((0.638, 1.253), (0.285, 0.810), (0.616, 1.197)):
+            i_ = np.argmin(np.hypot(W_[:, 1] - yz[0], W_[:, 2] - yz[1]))
+            print(f'  vertex y {W_[i_,1]:.3f} z {W_[i_,2]:.3f}: along rail {apos[i_]*1e3:.0f} mm, in from edge {d[i_]*1e3:.0f} mm')
+        print(f'  rail ends at y,z: start {np.round(from_plane(np.c_[E([0.0]), [[0]]], fr)[0, 1:], 3)} end {np.round(from_plane(np.c_[E([Alen]), [[0]]], fr)[0, 1:], 3)}')
+    th = apos; R = 1.0; ts = np.array([0.0, Alen])                       # a = arc length along the edge
+    print(f'{name}: wheel arch radius {A["R"]*1e3:.0f} mm (edge within {A["dev"]*1e3:.1f} mm of a circle); lip rail {Alen*1e3:.0f} mm along the opening edge, corner to corner')
 
     def side_fit(d0, d1):
         mk = sector & (d > d0) & (d < d1)
@@ -877,9 +913,9 @@ def fit_arch_panel(name, V, Fr, Nv):
         print(f'  side ring fit {nb["nu"]}x{nb["nv"]}: {mk_.sum()} verts, p95 {np.percentile(rr0, 95)*1e3:.2f} max {rr0.max()*1e3:.2f} mm')
     print(f'{name}: lip {Dlip*1e3:.0f} mm wide (where the surface rejoins the side surface)')
     mm = lambda q: (np.asarray(q) * 1000).tolist()
-    tt_ = np.linspace(ts[0] - 0.05, ts[-1] + 0.05, 120)   # the lip face covers the whole arch zone
-    outer = np.c_[c[0] + (Redge(tt_) + Dlip) * np.cos(tt_ + mid), c[1] + (Redge(tt_) + Dlip) * np.sin(tt_ + mid)]
-    inner = np.c_[c[0] + (Redge(tt_) - 0.06) * np.cos(tt_ + mid), c[1] + (Redge(tt_) - 0.06) * np.sin(tt_ + mid)][::-1]
+    tt_ = np.linspace(-0.01, Alen + 0.01, 160)            # the lip face covers the whole edge, corner to corner
+    outer = E(tt_) + Dlip * En(tt_)
+    inner = (E(tt_) - 0.06 * En(tt_))[::-1]
     poly = mm(np.r_[outer, inner])
     # (5) the side faces first ('main surfaces first'), with the arch zone left out of their data
     in_lip_v = np.zeros(len(V), bool); in_lip_v[u[sector & (d < Dlip - 0.003)]] = True
@@ -889,12 +925,12 @@ def fit_arch_panel(name, V, Fr, Nv):
     # (4) the lip in arch coordinates (arc length round the arch, distance out from the real edge), height above
     # the panel plane; samples of the ACTUAL side faces on a 25 mm ring just outside it go in as data, so the lip
     # meets them in position and slope (no ridge at its outer edge)
-    inspan = (th > ts[0] + 0.02) & (th < ts[-1] - 0.02)
+    inspan = (th > 0.005) & (th < Alen - 0.005)
     lip = inspan & (d > -0.015) & (d < Dlip + 0.002)
     a = th[lip] * R; dl = d[lip]; hl = P[lip, 2]
     ag, dg = np.meshgrid(np.linspace(a.min(), a.max(), 80), np.linspace(Dlip, Dlip + 0.025, 6), indexing='ij')
-    ag, dg = ag.ravel(), dg.ravel(); tg = ag / R; rg = Redge(tg) + dg
-    sx, tx = c[0] + rg * np.cos(tg + mid), c[1] + rg * np.sin(tg + mid)
+    ag, dg = ag.ravel(), dg.ravel(); XY_ = E(ag) + dg[:, None] * En(ag)
+    sx, tx = XY_[:, 0], XY_[:, 1]
     hs = np.full(len(sx), np.nan)
     for bi, f_ in side['fits'].items():
         lo_, hi_ = side['bounds'][bi], side['bounds'][bi + 1]
@@ -911,8 +947,8 @@ def fit_arch_panel(name, V, Fr, Nv):
         for i_ in np.argsort(-r)[:6]: print(f'  lip worst: {np.degrees(a[i_]/R):5.0f} deg round, {dl[i_]*1e3:4.0f} mm out: {r[i_]*1e3:.1f} mm')
     a0, a1 = dom[0], dom[1]; d0, d1 = dom[2] - Dlip, dom[3] - Dlip
     AA, TT = np.meshgrid(np.linspace(a0, a1, 260), np.linspace(d0, d1, 90), indexing='ij'); AA, TT = AA.ravel(), TT.ravel()
-    thg = AA / R; rad = Redge(thg) + TT + Dlip
-    X = np.c_[c[0] + rad * np.cos(thg + mid), c[1] + rad * np.sin(thg + mid), eval_surface(lf, AA, TT + Dlip)]
+    XY_ = E(AA) + (TT + Dlip)[:, None] * En(AA)
+    X = np.c_[XY_[:, 0], XY_[:, 1], eval_surface(lf, AA, TT + Dlip)]
     for nu, nv in ((14, 10), (20, 14), (28, 18), (36, 24)):
         ku = knots(nu, a0, a1); kv = knots(nv, d0, d1)
         Bm = (basis(AA, ku, nu)[:, :, None] * basis(TT, kv, nv)[:, None, :]).reshape(len(X), -1)

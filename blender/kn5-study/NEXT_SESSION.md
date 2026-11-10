@@ -98,7 +98,20 @@ Research: `blender/research/reports/Wheel arch lip surfacing.md`, `blender/resea
   matched to the side faces (join 0.3 mm median). Wing: 49 % of the original within 1 mm, 79 % within 3 mm.
 - By eye: the lip edge still shows as a soft ridge, and the side face above the arch is lumpier than the
   original (`images/wing_arch_v1_vs_original_grey.png`).
-- Next: (1) the lower band behind the arch (11 mm p95) = the flare run-out corner: per the research, stop the
+- 2026-11-10 later: the lip now follows the WHOLE opening edge as a rail (arc length along the edge x distance in,
+  1112 mm corner to corner): on the AE86 the flare runs down the straight rear edge to the bottom of the wing,
+  30 mm proud of the body behind it (that was the "11 mm lower band"). Fixed: borrowed vertex rows ignored the
+  lip mask. Score dipped to 40 % within 1 mm / 76 % within 3 mm because the side band now holds what is left:
+  short character lines that STOP at the arch (the door's crease strip continues 220 mm, door to arch; a piece
+  in front of the arch). The band method needs lines that run edge to edge; these end at an opening.
+- Plan for the side: split the wing into sub-panels at the arch, as Class-A modellers do (patch boundaries on
+  lines through the arch ends, lined up with the shut lines): behind-the-arch, in-front-of-the-arch and
+  above-the-arch. Each then has lines running edge to edge and the band method works unchanged. Also try
+  FreeCAD ReverseEngineering.approxSurface (tested on the door skin: 0.12 mm p95, not a height field) for
+  any piece that wraps.
+- Live FreeCAD: the FreeCAD AI MCP (http://127.0.0.1:3000/mcp) works from any session by plain HTTP
+  (`fc_call.sh (kn5-study) TOOL JSON`); switch_document {"document_name": ...} before set_view/capture.
+- Next (older list): (1) the lower band behind the arch (11 mm p95) = the flare run-out corner: per the research, stop the
   lip short and close the corner with a G1 filling patch (`Part.BRepOffsetAPI_MakeFilling`); (2) G1 lip edge:
   constrain the lip's outer pole rows to the side face (research: rows 0/1 from the panel edge/tangent);
   (3) the side crease strip faces (`:rall`) and the sill stub; (4) consider CurvesWB trims on the surface
