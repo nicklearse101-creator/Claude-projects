@@ -11,7 +11,7 @@ import FreeCAD as App, Part, MeshPart
 IN = os.environ['PF_IN']
 res = json.load(open(os.path.join(IN, 'panels_fit.json')))
 t0 = time.time()
-shapes, mesh = [], {}
+shapes, mesh, normals = [], {}, {}
 
 
 def to_world(fr, s, t, h):
@@ -83,8 +83,20 @@ for p in res:
             ok = face.isValid() and face.Area > 1
         except Exception as ex:
             print(p['name'], 'trim failed:', ex); ok = False
+    if not ok and not own:
+        # parameter-space trim failed (tiny or folded outline): cut the surface with the outline's 3D prism
+        try:
+            wv = np.array(fr[3]); pr = [Part.Face(prism_wire(w_, fr)).extrude(App.Vector(*(wv * 4000.0))) for w_ in p['wires']]
+            outl = pr[0]
+            for h_ in pr[1:]: outl = outl.cut(h_)
+            cut0 = srf.toShape().common(outl)
+            if cut0.Faces and cut0.Area > 1:
+                face = Part.makeShell(cut0.Faces) if len(cut0.Faces) > 1 else cut0.Faces[0]; ok = True
+                print(p['name'], 'trimmed by prism instead', flush=True)
+        except Exception as ex:
+            print(p['name'], 'prism trim failed too:', ex, flush=True)
     if not ok:
-        print(p['name'], 'trim invalid -> untrimmed'); face = srf.toShape()
+        print(p['name'], 'trim invalid -> left out', flush=True); continue
     if ok and (p.get('band_lo') or p.get('band_hi')):
         # cut the face exactly on its character lines: prism over the band (area between the two curves)
         H = 2000.0
@@ -119,9 +131,100 @@ for p in res:
     shapes.append(face)
     m = MeshPart.meshFromShape(Shape=face, MaxLength=float(os.environ.get('PF_MAXLEN', 6)))   # even triangles (Mefisto)
     pts, fc = m.Topology
+    if not fc:                                            # Mefisto can fail on slivers: standard mesher instead
+        m = MeshPart.meshFromShape(Shape=face, LinearDeflection=0.05, AngularDeflection=0.2, Relative=False); pts, fc = m.Topology
+    if not fc:
+        print(p['name'], 'mesh failed -> left out', flush=True); continue
     mesh[p['name'] + '_P'] = np.array([[q.x, q.y, q.z] for q in pts]) / 1000.0
+    # exact surface normals at every display vertex (works for height fields and general surfaces alike),
+    # pointing out of the car: same side as the frame's outward axis w
+    sf = face.Faces[0].Surface; wout = np.array((p.get('line_frame') or p['frame'])[3]); nn = []
+    for q in pts:
+        u_, v_ = sf.parameter(q); n_ = sf.normal(u_, v_); nn.append([n_.x, n_.y, n_.z])
+    nn = np.array(nn); nn *= np.sign((nn @ wout).mean() or 1.0)
+    normals[p['name']] = nn
     mesh[p['name'] + '_F'] = np.array(fc, int)
     print(f"{p['name']:24s} area {face.Area / 1e6:.3f} m2  edges {len(edges)}  mesh {len(fc)} tris  valid {ok}  {time.time() - tf:.1f} s", flush=True)
+# ---- shut-line returns: a ruled strip turned in square to the skin along every FREE outer edge ----
+# (an edge no other face shares). Kunos: ~5 mm return. PF_RETURNS = depth in mm (0 = off).
+RET = float(os.environ.get('PF_RETURNS', 0))
+if RET > 0 and not ONLY:
+    names = [p['name'] for p in res if p['name'] + '_P' in mesh]
+    allf = [(n, sh) for n, sh in zip(names, shapes)]
+    def hole_polys(p):
+        """the outline's openings (window) as 2D polylines in plane mm of the frame its wires live in"""
+        out = []
+        for w_ in p['wires'][1:]:
+            for e_ in w_:
+                Q = np.array(e_['poles'])
+                if e_['periodic']:
+                    n_ = len(Q); kv_ = np.arange(-3, n_ + 4) / n_; u_ = np.linspace(0, 1, 400, endpoint=False)
+                    B = np.zeros((len(u_), n_))
+                    for i in range(n_ + 3):
+                        out_i = np.array([bsp(kv_, i, x) for x in u_]); B[:, i % n_] += out_i
+                else:
+                    kv_ = np.array(e_['knots']); n_ = len(Q); u_ = np.linspace(kv_[0], kv_[-1] - 1e-9, 200)
+                    B = np.array([[bsp(kv_, i, x) for i in range(n_)] for x in u_])
+                out.append(B @ Q)
+        return np.concatenate(out) if out else np.zeros((0, 2))
+    def bsp(kv, i, x, p=3):
+        if p == 0: return 1.0 if kv[i] <= x < kv[i + 1] else 0.0
+        a = 0.0 if kv[i + p] == kv[i] else (x - kv[i]) / (kv[i + p] - kv[i]) * bsp(kv, i, x, p - 1)
+        b = 0.0 if kv[i + p + 1] == kv[i + 1] else (kv[i + p + 1] - x) / (kv[i + p + 1] - kv[i + 1]) * bsp(kv, i + 1, x, p - 1)
+        return a + b
+    k = 0
+    for n, sh in allf:
+        p = res[names.index(n)]
+        if 'glass' in n.lower(): continue                     # glass sits in the frame: no return
+        ON = os.environ.get('PF_RETURNS_ON')                  # body-panel faces only (name substrings); parts get none
+        # a token matches the whole face name's end ('SUB1:r1') or a band prefix ('SUB1:r0:'); 'r1' must not match r10
+        if ON and not any(n.endswith(k_) or (k_.endswith(':') and k_ in n) for k_ in ON.split(',')): continue
+        H2 = hole_polys(p); lf_ = p.get('line_frame') or p['frame']
+        c_, e1_, e2_, w_ = [np.array(x) for x in lf_]
+        for e in sh.Edges:
+            if e.Length < 20: continue
+            pts = e.discretize(Distance=4.0)
+            if len(H2):                                       # on the window opening: the frame channel goes there
+                X = np.array([[q.x, q.y, q.z] for q in pts]) - c_ * 1000
+                st = np.c_[X @ e1_, X @ e2_]
+                dh = np.min(np.linalg.norm(st[:, None] - H2[None], axis=2), axis=1)
+                if np.mean(dh < 3.0) > 0.5: continue
+            # free = its middle 80 % is more than 1 mm from every other face
+            mid = pts[len(pts) // 10: len(pts) - len(pts) // 10] or pts
+            shared = False
+            for n2, sh2 in allf:
+                if n2 == n: continue
+                if sum(sh2.distToShape(Part.Vertex(q))[0] < 1.0 for q in mid[::max(1, len(mid) // 6)]) >= 2:
+                    shared = True; break
+            if shared: continue
+            fc = sh.Faces[0]; inner = []
+            for q in pts:
+                u_, v_ = fc.Surface.parameter(q); nv = fc.Surface.normal(u_, v_)
+                inner.append(q - nv * RET)
+            # turn in on the side AWAY from the car's outside: face normals point out (checked below)
+            w_out = App.Vector(*(res[names.index(n)].get('line_frame') or res[names.index(n)]['frame'])[3])
+            if sum((q2 - q1).dot(w_out) for q1, q2 in zip(pts, inner)) > 0:
+                inner = [q1 - (q2 - q1) for q1, q2 in zip(pts, inner)]
+            try:
+                c2 = Part.BSplineCurve(); c2.approximate(Points=inner, DegMin=3, DegMax=3, Tolerance=0.05)
+                c1 = Part.BSplineCurve(); c1.approximate(Points=pts, DegMin=3, DegMax=3, Tolerance=0.05)
+                rs = Part.makeRuledSurface(c1.toShape(), c2.toShape())
+            except Exception as ex:
+                print('return failed on', n, ex, flush=True); continue
+            rn = f'return{k}:{n}'; k += 1
+            shapes.append(rs)
+            m = MeshPart.meshFromShape(Shape=rs, MaxLength=float(os.environ.get('PF_MAXLEN', 6)))
+            pts_, fc_ = m.Topology
+            mesh[rn + '_P'] = np.array([[q.x, q.y, q.z] for q in pts_]) / 1000.0; mesh[rn + '_F'] = np.array(fc_, int)
+            sf = rs.Faces[0].Surface; nn = []
+            for q in pts_:
+                u_, v_ = sf.parameter(q); n_ = sf.normal(u_, v_); nn.append([n_.x, n_.y, n_.z])
+            nn = np.array(nn); ctr = np.array([sh.CenterOfMass.x, sh.CenterOfMass.y, sh.CenterOfMass.z])
+            pm = np.array([[q.x, q.y, q.z] for q in pts_])
+            nn *= np.sign(((pm - ctr) * nn).sum(1).mean() or 1.0)       # facing out of the panel, into the gap
+            normals[rn] = nn
+            print(f'{rn:40s} length {e.Length:6.0f} mm  area {rs.Area / 1e6:.4f} m2', flush=True)
 Part.makeCompound(shapes).exportStep(os.path.join(IN, 'panels_fit.step'))
 np.savez(os.path.join(IN, 'panels_fit_mesh.npz'), **mesh)
+np.savez(os.path.join(IN, 'panels_fit_normals.npz'), **normals)   # exact normals (FreeCAD)
 print('done', round(time.time() - t0, 1), 's')

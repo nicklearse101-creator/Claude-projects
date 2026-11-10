@@ -22,6 +22,7 @@ from exact_dist import point_to_tris, stats
 
 TOL_SURF = 0.3e-3     # surface fit target (p95, metres)
 TOL_EDGE = 0.4e-3     # outline fit target (max, metres)
+BLEND = os.environ.get('PF_BLEND', '1') == '1'       # rolled edges built from their neighbour (tangent), not fitted freely
 CORNERS = os.environ.get('PF_CORNERS', '0') == '1'   # roll bands: separate corner patches where the line stops (off: too few vertices there on the AE86, 13-18, unstable)
 
 
@@ -289,9 +290,19 @@ def fit_panel(name, V, F, Nv, verbose=True, fr=None, outline_only=False):
         edges = []
         if len(ci) >= 2:
             for a_, b_ in zip(ci, ci[1:] + [ci[0] + len(Lp)]):
-                edges.append(fit_curve2d(np.r_[Lp, Lp][a_:b_ + 1], TOL_EDGE))
+                Q_ = np.r_[Lp, Lp][a_:b_ + 1]; ln = np.linalg.norm(np.diff(Q_, axis=0), axis=1).sum()
+                # long sides (a 1.35 m ledge edge) need more than 24 controls for 0.4 mm; capped ones trim wrongly
+                # fitted to the side's polyline resampled every 5 mm (straight between the original edge vertices):
+                # with only the vertices (200 mm apart on the ledge) extra controls wiggle between them
+                dq = np.r_[0, np.cumsum(np.linalg.norm(np.diff(Q_, axis=0), axis=1))]
+                tq = np.unique(np.r_[np.arange(0, dq[-1], 0.005), dq])
+                Qd = np.c_[np.interp(tq, dq, Q_[:, 0]), np.interp(tq, dq, Q_[:, 1])]
+                edges.append(fit_curve2d(Qd, TOL_EDGE, nmax=int(np.clip(ln / 0.03, 24, 80))))
         else:
-            edges.append(fit_closed_curve2d(Lp, TOL_EDGE))
+            # smooth closed outline (oval mirror glass, lock barrel hole): fitted to its polyline resampled
+            # densely - through its few vertices alone the closed curve overshoots far outside the panel
+            per = np.linalg.norm(np.diff(np.r_[Lp, Lp[:1]], axis=0), axis=1).sum()
+            edges.append(fit_closed_curve2d(resample_closed(Lp, min(0.005, per / 120)), TOL_EDGE))
         wires.append(edges)
     edges = wires[0]; ci = [0] * (len(edges) if len(edges) > 1 else 0)
     if verbose:
@@ -302,6 +313,27 @@ def fit_panel(name, V, F, Nv, verbose=True, fr=None, outline_only=False):
                 poles=mm(np.stack(list(np.meshgrid(f['gu'], f['gv'], indexing='ij')) + [f['H']], -1)),
                 wires=[[dict(poles=mm(e['poles']), knots=(e.get('knots', np.array([])).tolist()), periodic=bool(e.get('periodic', False))) for e in w] for w in wires],
                 fit_p95_mm=float(np.percentile(r, 95) * 1000), fit_max_mm=float(r.max() * 1000))
+
+
+def wrap_split(V, F, Nv, max_spread=60.0, kmax=8):
+    """a smooth face that wraps too far for one height field (normals spread > 70 deg, e.g. a rounded boss)
+    split into connected pieces whose normals stay within max_spread of their mean (k-means on the normals)"""
+    T = V[F]; n = np.cross(T[:, 1] - T[:, 0], T[:, 2] - T[:, 0]); n /= np.maximum(np.linalg.norm(n, axis=1), 1e-12)[:, None]
+    n *= np.sign((n * Nv[F].mean(1)).sum(1))[:, None]
+    spread = lambda m: np.degrees(np.arccos(np.clip(n[m] @ (lambda c: c / np.linalg.norm(c))(n[m].mean(0)), -1, 1))).max()
+    if spread(np.ones(len(F), bool)) <= 70: return [F]
+    rng = np.random.default_rng(0)
+    for k in range(2, kmax + 1):
+        C = n[rng.choice(len(F), k, replace=False)]
+        for _ in range(30):
+            lab = np.argmax(n @ C.T, axis=1)
+            C = np.array([n[lab == j].mean(0) if (lab == j).any() else C[j] for j in range(k)]); C /= np.linalg.norm(C, axis=1)[:, None]
+        if all(spread(lab == j) <= max_spread for j in range(k) if (lab == j).any()): break
+    out = []
+    for j in range(k):
+        if not (lab == j).any(): continue
+        pcs, _ = components(V, F[lab == j]); out += pcs
+    return sorted(out, key=lambda p: -len(p))
 
 
 def crease_pieces(V, F, Nv, deg=20.0):
@@ -471,6 +503,100 @@ def feature_lines(V, Fr, fr, ds=0.02, thr=10.0, arm=None, span=0.35):
     return out
 
 
+def eval_surface_ext(f, s, t, h=1e-4):
+    """height field continued past its domain along its edge slope (no flat clamp -> no kink)"""
+    s = np.asarray(s, float); t = np.asarray(t, float)
+    a0, a1 = f['ku'][3], f['ku'][-4]; b0, b1 = f['kv'][3], f['kv'][-4]
+    sc, tc = np.clip(s, a0 + h, a1 - h), np.clip(t, b0 + h, b1 - h)
+    z = eval_surface(f, sc, tc)
+    gs = (eval_surface(f, sc + h, tc) - eval_surface(f, sc - h, tc)) / (2 * h)
+    gt = (eval_surface(f, sc, tc + h) - eval_surface(f, sc, tc - h)) / (2 * h)
+    return z + gs * (s - sc) + gt * (t - tc)
+
+
+def fit_drop(s, tau, D, tmin, ns, nt, lam):
+    """D(s, tau) as a tensor cubic B-spline over [s-dom] x [tmin, 0], value and slope forced to 0 at tau = 0"""
+    ks = knots(ns, s.min() - 0.02, s.max() + 0.02); kt = knots(nt, tmin, 0.0)
+    Bs = basis(s, ks, ns); Bt = basis(tau, kt, nt)[:, :nt - 2]          # last two tau controls = 0
+    A = (Bs[:, :, None] * Bt[:, None, :]).reshape(len(s), -1)
+    R = np.r_[np.kron(diff2(ns), np.eye(nt - 2)), np.kron(np.eye(ns), diff2(nt)[:, :nt - 2])]
+    c = np.linalg.solve(A.T @ A + lam * len(s) * (R.T @ R), A.T @ D)
+    C = np.zeros((ns, nt)); C[:, :nt - 2] = c.reshape(ns, nt - 2)
+    return dict(ks=ks, kt=kt, ns=ns, nt=nt, C=C)
+
+
+def eval_drop(d, s, tau):
+    """D(s, tau): 0 beyond the boundary (tau > 0), continued linearly past the far edge (no kink there)"""
+    tau = np.minimum(tau, 0.0); a = d['kt'][0]; h = 1e-4
+    Bs = basis(s, d['ks'], d['ns'])
+    ev = lambda t_: np.einsum('ki,ij,kj->k', Bs, d['C'], basis(t_, d['kt'], d['nt']))
+    out = ev(np.maximum(tau, a))
+    lo = tau < a
+    if lo.any():
+        slope = (ev(np.full(len(s), a + h)) - ev(np.full(len(s), a))) / h
+        out[lo] += slope[lo] * (tau[lo] - a)
+    return out
+
+
+def blend_fillet(P, mk, B, sg, nb, dom_s, t_span):
+    """a rolled edge built from its neighbour: h = h_nb(s, t) - D(s, tau), tau = sg * (t - B(s)) <= 0 inside
+    the roll, D = 0 with zero slope on the boundary B -> tangent to the neighbour by construction; D is smooth
+    along the line with few controls (Kunos gives ~9 vertex rows over 1.3 m). Returned as one tensor B-spline
+    in plane coordinates (the composite is evaluated densely and approximated to < 0.03 mm)."""
+    S = P[mk]; tau = sg * (S[:, 1] - eval_func(B, S[:, 0]))
+    D = eval_surface_ext(nb, S[:, 0], S[:, 1]) - S[:, 2]
+    # measure across the roll NORMALISED between its far edge (-1) and the boundary (0): the far edge (window
+    # edge) is a real feature on every vertex row, so the rows line up; plain distance from the boundary line
+    # blurs them by the line's error (1-2 mm) and the profile comes out too stiff
+    sb = np.floor(S[:, 0] / 0.04); far = []
+    for k in np.unique(sb):
+        i = np.where(sb == k)[0]; far.append(i[np.argmin(tau[i])])
+    far = np.array(far)
+    Ef = fit_func(S[far, 0], tau[far], [S[:, 0].min() - 0.1, S[:, 0].max() + 0.1], tol=0.5e-3, nmax=int(np.clip(len(far) // 4, 4, 6)))
+    width = lambda s_: np.maximum(-eval_func(Ef, s_), 0.003)
+    tau = tau / width(S[:, 0])
+    tmin = tau.min() - 0.05
+    fold = (np.floor(S[:, 0] / 0.1) % 5).astype(int)                    # hold out whole vertex rows
+    cands = []
+    for ns in (4, 5, 6, 7):
+        for nt in range(4, 15):                 # a sharp lip at a panel edge needs ~9 across
+            for lam in (1e-7, 1e-5, 1e-3):
+                e = []
+                for k in range(5):
+                    tr = fold != k
+                    if (~tr).sum() == 0 or tr.sum() < ns * nt: continue
+                    d = fit_drop(S[tr, 0], tau[tr], D[tr], tmin, ns, nt, lam)
+                    e.append(eval_drop(d, S[~tr, 0], tau[~tr]) - D[~tr])
+                if e: cands.append((float(np.sqrt(np.mean(np.concatenate(e) ** 2))), ns * nt, ns, nt, lam))
+    cvb = min(c[0] for c in cands)
+    best = min((c for c in cands if c[0] <= cvb * 1.05), key=lambda c: (c[1], -c[4]))
+    _, _, ns, nt, lam = best
+    d = fit_drop(S[:, 0], tau, D, tmin, ns, nt, lam)
+    r = np.abs(eval_drop(d, S[:, 0], tau) - D)
+    # composite surface -> one general 3D B-spline with its own directions: s along the line, rho across the
+    # roll (rho = -1 far edge, 0 boundary, > 0 into the neighbour for the band-cut margin). A plain height-field
+    # grid over the door plane loses 0.4-0.8 mm because the lip runs diagonally across it.
+    s0, s1 = dom_s; r0, r1 = tmin - 0.1, 0.4
+    sg_ = np.linspace(s0, s1, 240); rg = np.linspace(r0, r1, 120)
+    SS, RR = np.meshgrid(sg_, rg, indexing='ij')
+    TT = eval_func(B, SS.ravel()) + sg * RR.ravel() * width(SS.ravel())
+    HH = eval_surface_ext(nb, SS.ravel(), TT) - eval_drop(d, SS.ravel(), RR.ravel())
+    X = np.c_[SS.ravel(), TT, HH]
+    for nu, nv in ((10, 12), (14, 16), (18, 20), (24, 26), (30, 32)):
+        ku = knots(nu, s0, s1); kv = knots(nv, r0, r1)
+        A = (basis(SS.ravel(), ku, nu)[:, :, None] * basis(RR.ravel(), kv, nv)[:, None, :]).reshape(len(X), -1)
+        Pl = np.linalg.lstsq(A, X, rcond=None)[0]
+        ea = np.linalg.norm(A @ Pl - X, axis=1).max()
+        if ea < 3e-5: break
+    if os.environ.get('PF_DEBUG'):
+        er = np.linalg.norm(A @ Pl - X, axis=1); i = np.argmax(er)
+        print('  approx worst at s %.0f rho %.2f (tmin %.2f): %.3f mm; p95 %.3f; rho-band worst:' % (SS.ravel()[i]*1e3, RR.ravel()[i], tmin, er[i]*1e3, np.percentile(er, 95)*1e3),
+              [(round(a_, 2), round(er[(RR.ravel() >= a_) & (RR.ravel() < a_ + 0.2)].max()*1e3, 3)) for a_ in np.arange(r0, r1, 0.2)])
+        print('  s-band worst:', [(int(a_*1e3), round(er[(SS.ravel() >= a_) & (SS.ravel() < a_ + 0.1)].max()*1e3, 3)) for a_ in np.arange(s0, s1, 0.1)])
+    f = dict(nu=nu, nv=nv, ku=ku, kv=kv, poles3=Pl.reshape(nu, nv, 3), lam=lam)
+    return f, r, dict(ns=ns, nt=nt, cv=best[0], approx=float(ea), nu=nu, nv=nv)
+
+
 def fit_bands(name, V, Fr, Nv, overlap=0.002):
     """a region split into bands by its character lines; each band one surface, trimmed exactly on the lines"""
     u = np.unique(Fr); fr = frame_of(V[u], Nv[u])
@@ -486,7 +612,7 @@ def fit_bands(name, V, Fr, Nv, overlap=0.002):
         else:
             cut_lines.append(L)
     bounds = [None] + cut_lines + [None]
-    out = []
+    out, fits, cores, deferred = [], {}, {}, []
     for b in range(len(bounds) - 1):
         lo, hi = bounds[b], bounds[b + 1]
         m = np.ones(len(P), bool)
@@ -514,6 +640,9 @@ def fit_bands(name, V, Fr, Nv, overlap=0.002):
         # a rolled edge (fillet band) is one surface only along its line; where the line stops (window
         # corners: the roll turns into the pillars, and folds over the door plane) each end is its own
         # corner patch over its own plane - as a modeller builds a corner blend
+        is_fillet = lo is not None and hi is not None and lo.get('pair') is not None and lo.get('pair') == hi.get('pair')
+        if BLEND and is_fillet:
+            deferred.append((b, lo, hi, core)); continue
         pieces = [('', m, fr, None)]
         if CORNERS and lo is not None and hi is not None and lo.get('pair') is not None and lo.get('pair') == hi.get('pair'):
             sl, sh = lo['s_lo'], lo['s_hi']
@@ -537,7 +666,34 @@ def fit_bands(name, V, Fr, Nv, overlap=0.002):
                 e['line_frame'] = [x.tolist() for x in fr]          # the band lines live in the region's frame
                 e['band_s'] = mm(band_s)
             out.append(e)
+            if not tag and not own: fits[b] = f; cores[b] = core
             print(f"{e['name']:28s} verts {len(S):4d} control {f['nu']}x{f['nv']} lam {f['lam']:g}  cv {cv*1000:.2f} mm  fit p95 {np.percentile(r[iscore],95)*1000:.2f} max {r[iscore].max()*1000:.2f} mm (band's own vertices)" + ('  (own plane)' if own else ''))
+    # rolled edges: built from the neighbour that really borders them (data within 30 mm of the boundary
+    # along most of the line); the other side may be a free panel edge (beltline into the window)
+    mm = lambda a: (np.asarray(a) * 1000).tolist()
+    line = lambda L: None if L is None else dict(kv=mm(L['kv']), g=mm(L['g']), c=mm(L['c']))
+    for b, lo, hi, core in deferred:
+        opts = []
+        for nb_i, B, sg in ((b + 1, hi, 1), (b - 1, lo, -1)):
+            if nb_i not in fits: continue
+            dd = sg * (P[cores[nb_i], 1] - eval_func(B, P[cores[nb_i], 0]))
+            near = (dd > 0) & (dd < 0.03)
+            cov = np.ptp(P[cores[nb_i]][near, 0]) if near.sum() > 3 else 0.0
+            opts.append((cov, nb_i, B, sg))
+        if not opts: print(f'{name}:b{b} roll: no neighbour'); continue
+        cov, nb_i, B, sg = max(opts, key=lambda o: o[0])
+        Sc = P[core]; Bs = eval_func(B, np.linspace(Sc[:, 0].min(), Sc[:, 0].max(), 50))
+        dom_s = [P[:, 0].min() - 0.02, P[:, 0].max() + 0.02]
+        t_span = [min(Sc[:, 1].min(), Bs.min()) - 0.008, max(Sc[:, 1].max(), Bs.max()) + 0.012]
+        f, r, info = blend_fillet(P, core, B, sg, fits[nb_i], dom_s, t_span)
+        e = dict(base)
+        # general surface (not a height field): trimmed by 3D prisms of the outline and the band, like a patch
+        e.update(name=f'{name}:b{b}', dom=mm([*dom_s, *t_span]), nu=f['nu'], nv=f['nv'], ku=mm(f['ku']), kv=mm(f['kv']),
+                 poles=mm(f['poles3']), general=True, own_plane=True, line_frame=[x.tolist() for x in fr],
+                 band_lo=line(lo), band_hi=line(hi), fit_p95_mm=float(np.percentile(r, 95) * 1000), blend_of=f'{name}:b{nb_i}')
+        out.append(e)
+        print(f"{e['name']:28s} verts {core.sum():4d} ROLL from b{nb_i} (tangent): drop {info['ns']}x{info['nt']} cv {info['cv']*1000:.2f} mm"
+              f"  fit p95 {np.percentile(r, 95)*1000:.2f} max {r.max()*1000:.2f} mm  as {info['nu']}x{info['nv']} B-spline (approx {info['approx']*1000:.3f} mm)")
     print(f"{name}: {len(lines)} character lines: " + ', '.join(f"turn {L['turn']:+.0f} deg ({L['ext_lo']*1000:.0f}/{L['ext_hi']*1000:.0f} mm), {L['hits']} hits, fit {L['err']*1000:.2f} mm" for L in lines))
     return out
 
@@ -556,6 +712,23 @@ def main():
         if comp.startswith('b'):
             for ri in comp[1:].split(','):
                 res += fit_bands(f'{name}:r{ri}', V, crease_pieces(V, F, Nv)[int(ri)], Nv)
+            continue
+        if comp.startswith('rall'):                     # rall!0,1,2,5 = all except those (built as bands)
+            # every crease face of a part above a minimum area (small ledges and chamfers matter: a missing 5 mm
+            # ledge read as a groove); each one surface over its own plane
+            amin = float(os.environ.get('PF_MINAREA', 3e-4))
+            skip = {int(x) for x in comp[5:].split(',') if x} if comp.startswith('rall!') else set()
+            for ri, Fr in enumerate(crease_pieces(V, F, Nv)):
+                if ri in skip: continue
+                T_ = V[Fr]; A_ = np.linalg.norm(np.cross(T_[:, 1] - T_[:, 0], T_[:, 2] - T_[:, 0]), axis=1).sum() / 2
+                if A_ < amin: continue
+                parts = wrap_split(V, Fr, Nv)
+                for wi, Fw in enumerate(parts):
+                    if len(parts) > 1 and len(Fw) < 4: continue
+                    try:
+                        res.append(fit_panel(f'{name}:r{ri}' + (f'w{wi}' if len(parts) > 1 else ''), V, Fw, Nv))
+                    except Exception as ex:
+                        print(f'{name}:r{ri}w{wi} failed: {ex}')
             continue
         if comp.startswith('r'):
             for ri in comp[1:].split(','):

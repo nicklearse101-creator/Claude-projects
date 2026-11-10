@@ -66,6 +66,12 @@ by construction. No smoothing step anywhere.
 - (2026-11-10) Report face scores to the original's facets (`score_faces.py`), not vertex-fit p95; per-face
   original -> ours is meaningless with 200 mm Kunos triangles; use whole-build coverage.
 
+- (2026-11-10) Rolled edges with sparse data: build them FROM the neighbour (skin minus a drop profile, zero
+  value and slope at the boundary) instead of fitting them freely; give them their own along/across directions.
+- (2026-11-10) Fit outline curves to the polyline resampled every 5 mm, never to sparse vertices alone (long
+  sides wiggle, closed ovals overshoot by 100 mm).
+- (2026-11-10) Fit every face, however small (`:rall`); faces wrapping > 70 deg split by normal direction.
+
 ## For the photo phase
 The inputs are exactly what photos/blueprints give: panel outlines, character lines (traced curves) and a
 few sections/points per surface. The fit + trim + band-cut machinery is unchanged.

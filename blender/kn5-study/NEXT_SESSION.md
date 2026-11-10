@@ -65,11 +65,29 @@ use C:.
      in the zebra view (`images/door_v4_vs_original_zebra.png`): check which face.
    - Whole door: original area within 1 mm of our faces 68.9 -> 71.9 %, within 3 mm 88.9 -> 89.4 %
      (`score_faces.py`; its per-face figure is ours -> original only).
-3. **Watertight joins:** each face's outline is currently fitted on its own (within 0.4 mm). Fit each
-   shared boundary once, as a 3D curve, and use it on both faces.
-4. **Shut-line returns:** use the measured recipe (about 5 mm return, 3–4 mm gap; bumpers about 20 mm).
-   Build each return as a ruled or offset surface from the trimmed edge.
-5. **Door parts** as separate meshes, as Kunos does: trims (`GEO_extdoorL_SUB0`), mirror, handle.
+3. **Done 2026-11-10: the roll as a true blend.** Roll = skin surface minus a drop profile D(s, rho), tangent to
+   the skin by construction (join 0.00 mm), rows aligned between window edge and boundary, its own along/across
+   directions as a general B-spline. Roll median 1.23 -> 0.37 mm. Still open: the rear window corner (up to
+   13 mm over a small area: Kunos folds the roll into the B-pillar there).
+4. **Done: joins.** `seams.py` measures gaps. Outline sides are fitted to their 5 mm-resampled polyline (the
+   ledge face was 390 mm short; closed outlines overshot). All skin joins <= 0.24 mm p95 except the window
+   corners. `seams.py` still counts separate parts sitting within 5 mm as joins: limit it to one mesh.
+5. **Done: shut-line returns** (`PF_RETURNS=5 PF_RETURNS_ON=...` in the FreeCAD step): 5 mm ruled strip
+   square to the skin on free outer edges, none on glass or the window opening. Front/rear ends match the
+   original within 1 mm; bottom 1.1 mm (Kunos turns it under at an angle). With every original face fitted,
+   the real returns are built directly, so the generator matters for the photo phase.
+6. **Done: door parts and every small face** (`:rall`, `:rall!0,1,2,5`): window trims, mirror, glass, lock
+   barrel, frame channel and flanges. Faces that wrap > 70 deg are split automatically (`wrap_split`).
+   Fallbacks: prism trim when the parameter trim fails, standard mesher when Mefisto fails.
+   **Complete door** (`blind/door_full`): 80 faces, 84.9 % of the original within 1 mm, 99.4 % within 3 mm.
+   Picture: `images/door_complete_vs_original_grey.png` (local).
+   Full build:
+   ```bash
+   python panel_fit.py $C $OUT GEO_extdoorL_SUB1:b0,2 GEO_extdoorL_SUB1:r1,5 'GEO_extdoorL_SUB1:rall!0,1,2,5' GEO_extdoorL_SUB0:rall mirrorL:rall GEO_extglassL
+   PF_RETURNS=5 PF_RETURNS_ON='SUB1:r0:,SUB1:r1,SUB1:r2:,SUB1:r5' PF_IN=... ./fcrun.sh panel_fit_freecad.py   # ~100 s
+   ```
+7. Still open on the door: wrap-split pieces meet with small steps (G0 only, up to ~3 mm on the mirror boss);
+   the rear window corner of the roll.
 
 ### B. Rest of the body, panel by panel (yes, the car is built in pieces)
 Kunos: the shell is one mesh (`GEO_body`), and doors, bonnet, hatch and bumpers are separate. We
