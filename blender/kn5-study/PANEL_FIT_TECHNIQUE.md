@@ -75,3 +75,12 @@ by construction. No smoothing step anywhere.
 ## For the photo phase
 The inputs are exactly what photos/blueprints give: panel outlines, character lines (traced curves) and a
 few sections/points per surface. The fit + trim + band-cut machinery is unchanged.
+
+- (2026-11-10 night, rear quarter) A panel wrapping a corner (side into tail): ONE cut at 45 deg from its dominant
+  direction (`:wN`), never k-means slices. The minor sub-panel is fitted after the main one with samples of the main's
+  finished surfaces as data beside the seam, and both are cut on one smooth seam curve (not the triangle zig-zag).
+- (2026-11-10 night) Bands must be PINNED to their shared character line (average both heights on the line, refit both
+  with it weighted): sparse data lets neighbours disagree by 1-3 mm and it shows as dark lines.
+- (2026-11-10 night) Never fill "holes" that are only Kunos chord sag: test whether a built face lies over the triangle
+  along its normal, not just its centre's distance.
+

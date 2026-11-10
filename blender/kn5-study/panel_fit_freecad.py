@@ -159,6 +159,11 @@ for p in res:
             cc = face.cut(poly_prism(p['cut_poly'], p['cut_frame']))
             if cc.Faces and cc.Area > 1: face = Part.makeShell(cc.Faces) if len(cc.Faces) > 1 else cc.Faces[0]
         except Exception as ex: print(p['name'], 'cut_poly failed:', ex, flush=True)
+    for cp in p.get('cut_polys') or []:                  # seams of wrap sub-panels: the far side of a smooth seam curve
+        try:
+            cc = face.cut(poly_prism(cp['poly'], cp['frame']))
+            if cc.Faces and cc.Area > 1: face = Part.makeShell(cc.Faces) if len(cc.Faces) > 1 else cc.Faces[0]
+        except Exception as ex: print(p['name'], 'seam cut failed:', ex, flush=True)
     shapes.append(face)
     m = MeshPart.meshFromShape(Shape=face, MaxLength=float(os.environ.get('PF_MAXLEN', 6)))   # even triangles (Mefisto)
     pts, fc = m.Topology

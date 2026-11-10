@@ -155,6 +155,29 @@ then `fill_holes.py` + FreeCAD + `merge.py` (as the wing).
   corner with both faces built against it like the roll blend); (2) kink where the C-pillar meets the roof rail
   (clip edge at y 1.235 - check against the roof once built); (3) the lip above the tail-lamp opening is a thin
   sliver vs the original's ledge; (4) small marks low on the rear corner and at the sill below the B-pillar.
+- **Same night, fixed** (build `blind/quarter_p`, `images/quarter_v2_grid_grey.png`):
+  - (1) was NOT our cut: the "fold" was a hole-filler patch (10 mm off) over the C-pillar corner. Cause: the r1 face is
+    right (vertices median 0.54 mm) but Kunos's 100-150 mm flat triangles sag 3-7 mm off it, and `fill_holes.py` took
+    the sag for holes and laid a second bad face over a good one. Fix: a far triangle is a hole only if the normal line
+    through its centre meets NO built face within 20 mm (`FH_CHORD=0` = old behaviour). Area score drops (the fillers
+    were only chasing chords); vertex score unchanged. r1 stays ONE face (the 45 deg split runs along the whole pillar).
+  - Crack at the lower rear corner: wrap sub-panels now (a) are fitted AFTER the main side with samples of its finished
+    surfaces as data on the main side of the seam (position + slope match, as the arch lip; `PF_WMATCH`), and (b) share
+    ONE smooth seam curve, fitted in a frame halfway between the two faces through the middle of the zig-zag zone; each
+    outline reaches one triangle past it, then the far side is cut away (`cut_polys` in the FreeCAD step; `PF_SEAM`).
+  - Thin dark lines along the side's character lines = bands 1-3 mm apart ON their line (sparse data, each band
+    extrapolates alone). **Line pinning** (fit_bands, all panels, `PF_LINEMATCH`): average both bands' heights along each
+    shared line (only where the line runs and both have data within 40 mm), refit both with it as heavily weighted data
+    (more controls if pinning costs > 25 % / 0.3 mm). Quarter band joins 0.3-2.3 mm median -> 0.1-0.4 mm.
+  - Chord rule tightened: a far triangle counts as sag only if a face lies over it AND its three corners sit within
+    1.5 mm of our faces (corners off = real miss, still filled; the wing needed those: vertices 91.8 -> 92.5 %).
+  - Quarter now: area 78.2 % within 1 mm / 96.8 % within 3 mm; vertices 86.5 % / 97.9 % (median 0.24 mm).
+    Door 87.6 -> 87.9 % (line pinning); wing area 72.4/99.5 -> 70.6/96.1 (chords no longer patched), vertices 92.5/99.3.
+- **Next on the quarter:** the lamp-top step = four flat strips ~8 mm wide x 260 mm (r13 rear-facing, r14 up, r17/r18
+  down); fitted as separate trimmed faces they overlap/gap ~1 mm = ragged. Build narrow strips as RULED surfaces between
+  shared 3D edge curves (each boundary between two regions fitted once as a fair 3D B-spline, used by both sides) -
+  the same builder then serves shut-line returns, lamp surrounds, window flanges. Also a hairline down the edge beside
+  the lamp opening (r27 return) and a small notch at the sill.
 
 ### B. Rest of the body, panel by panel (yes, the car is built in pieces)
 Kunos: the shell is one mesh (`GEO_body`), and doors, bonnet, hatch and bumpers are separate. We

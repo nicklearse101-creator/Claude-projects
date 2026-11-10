@@ -26,6 +26,31 @@ def main():
         A = 0.5 * np.linalg.norm(np.cross(T[:, 1] - T[:, 0], T[:, 2] - T[:, 0]), axis=1)
         d = point_to_tris(T.mean(1), Fall, cap=0.01) * 1000
         hole = d > 2.5
+        # a far CENTRE is not a hole if a built face lies right over it along the triangle's normal: Kunos's long flat
+        # triangles cut chords across curves (100-150 mm triangles sag 3-7 mm off a correct surface); a filler laid
+        # there doubles a good face (ragged lamp-top corner on the rear quarter). Hole = the normal line through the
+        # centre meets no built face within 20 mm.
+        if hole.any() and os.environ.get('FH_CHORD', '1') == '1':
+            from scipy.spatial import cKDTree
+            cB = Fall.mean(1); tree = cKDTree(cB); nT = np.cross(T[:, 1] - T[:, 0], T[:, 2] - T[:, 0])
+            nT /= np.maximum(np.linalg.norm(nT, axis=1), 1e-12)[:, None]
+            covered = 0
+            # chord sag only where the triangle's CORNERS are on our faces (< 1.5 mm): then its centre is off only because
+            # the flat triangle cuts across a curve. Corners off = a real miss, filled as before (the wing needs those)
+            idx_ = np.where(hole)[0]
+            dvx = point_to_tris(T[idx_].reshape(-1, 3), Fall, cap=0.01).reshape(-1, 3) * 1000
+            corner_ok = dict(zip(idx_, (dvx < 1.5).all(1)))
+            for i in np.where(hole)[0]:
+                if not corner_ok[i]: continue
+                o_ = T[i].mean(0); dn = nT[i]
+                cand = Fall[tree.query_ball_point(o_, 0.03 + 0.5 * np.linalg.norm(T[i] - o_, axis=1).max())]
+                if not len(cand): continue
+                e1, e2 = cand[:, 1] - cand[:, 0], cand[:, 2] - cand[:, 0]; pv = np.cross(dn, e2); det = (e1 * pv).sum(1)
+                ok_ = np.abs(det) > 1e-12; inv = np.where(ok_, 1 / np.where(ok_, det, 1), 0); tv = o_ - cand[:, 0]
+                uu = (tv * pv).sum(1) * inv; qv = np.cross(tv, e1); vv = (qv * dn).sum(1) * inv; tt = (qv * e2).sum(1) * inv
+                if (ok_ & (uu >= 0) & (vv >= 0) & (uu + vv <= 1) & (np.abs(tt) < 0.02)).any():
+                    hole[i] = False; covered += 1
+            if covered: print(f'{name}: {covered} far triangles have a built face over them (chord sag, not holes)')
         if not hole.any(): continue
         comps, _ = PF.components(V, F[hole])
         for ci, Fh in enumerate(sorted(comps, key=len, reverse=True)):

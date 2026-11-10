@@ -136,15 +136,16 @@ def sample_tris_bary(T, step=0.004):
     return CL.sample_tris(T, step)
 
 
-def fit_surface(S, dom, nu, nv, lam):
-    """least-squares height field h(s,t) with bending fairing; S (m,3) plane coords [m]"""
+def fit_surface(S, dom, nu, nv, lam, w=None):
+    """least-squares height field h(s,t) with bending fairing; S (m,3) plane coords [m]; w: optional row weights"""
     ku = knots(nu, dom[0], dom[1]); kv = knots(nv, dom[2], dom[3])
     Bu = basis(S[:, 0], ku, nu); Bv = basis(S[:, 1], kv, nv)
     A = (Bu[:, :, None] * Bv[:, None, :]).reshape(len(S), -1)
     Du, Dv = diff2(nu), diff2(nv)
     R = np.r_[np.kron(Du, np.eye(nv)), np.kron(np.eye(nu), Dv)]
-    M = A.T @ A + lam * len(S) * (R.T @ R)
-    h = np.linalg.solve(M, A.T @ S[:, 2])
+    Aw = A if w is None else A * w[:, None]
+    M = Aw.T @ A + lam * len(S) * (R.T @ R)
+    h = np.linalg.solve(M, Aw.T @ S[:, 2])
     return dict(nu=nu, nv=nv, ku=ku, kv=kv, H=h.reshape(nu, nv), gu=greville(ku, nu), gv=greville(kv, nv))
 
 
@@ -714,7 +715,7 @@ def fit_bands(name, V, Fr, Nv, overlap=0.002, keep=None, Fr_lines=None, cut_poly
         else:
             cut_lines.append(L)
     bounds = [None] + cut_lines + [None]
-    out, fits, cores, deferred = [], {}, {}, []
+    out, fits, cores, deferred = [], {}, {}, []; pieces_done = []
     for b in range(len(bounds) - 1):
         lo, hi = bounds[b], bounds[b + 1]
         m = np.ones(len(P), bool) if keep is None else keep[u].copy()
@@ -829,7 +830,51 @@ def fit_bands(name, V, Fr, Nv, overlap=0.002, keep=None, Fr_lines=None, cut_poly
                 if band_s is not None: e['band_s'] = mm(band_s)
             out.append(e)
             if not tag and not own: fits[b] = f; cores[b] = core
+            if not own and re_ is None: pieces_done.append(dict(f=f, lo=lo, hi=hi, band_s=band_s, S=S, core=iscore, dom=dom, idx=len(out) - 1, name=e['name']))   # for line matching + wrap seams
             print(f"{e['name']:28s} verts {len(S):4d} control {f['nu']}x{f['nv']} lam {f['lam']:g}  cv {cv*1000:.2f} mm  fit p95 {np.percentile(r[iscore],95)*1000:.2f} max {r[iscore].max()*1000:.2f} mm (band's own vertices)" + ('  (own plane)' if own else ''))
+    # bands meet ON their character lines (G0): Kunos data near a line is sparse, so each band extrapolates to it on its
+    # own and they can disagree by 1-3 mm (thin dark lines along the rear quarter's lines). Average both bands'
+    # heights along each shared line and refit both with that line as heavily weighted data - two surfaces pinned to one
+    # edge curve. Steps (ledges) and roll bounds are left alone (a roll is built from its neighbour).
+    if os.environ.get('PF_LINEMATCH', '1') == '1':
+        tgt_ = {}
+        s_all = (P[:, 0].min(), P[:, 0].max())
+        for L in bounds[1:-1]:
+            if L.get('step') or L.get('pair') is not None: continue
+            below = [pc for pc in pieces_done if pc['hi'] is L]; above = [pc for pc in pieces_done if pc['lo'] is L]
+            for pa in below:
+                for pb in above:
+                    ra = pa['band_s'] or s_all; rb = pb['band_s'] or s_all
+                    s0_, s1_ = max(ra[0], rb[0], s_all[0]), min(ra[1], rb[1], s_all[1])
+                    if s1_ - s0_ < 0.03: continue
+                    s0_, s1_ = max(s0_, L['s_lo'] - 0.01), min(s1_, L['s_hi'] + 0.01)          # where the line really runs
+                    if s1_ - s0_ < 0.03: continue
+                    sg = np.arange(s0_ + 0.005, s1_ - 0.004, 0.01); tg = eval_func(L, sg)
+                    from scipy.spatial import cKDTree
+                    ok_ = (cKDTree(pa['S'][:, :2]).query(np.c_[sg, tg])[0] < 0.04) & (cKDTree(pb['S'][:, :2]).query(np.c_[sg, tg])[0] < 0.04)
+                    sg, tg = sg[ok_], tg[ok_]                                                     # both bands have data near
+                    if len(sg) < 3: continue
+                    ha = eval_surface_ext(pa['f'], sg, tg); hb = eval_surface_ext(pb['f'], sg, tg); hm = 0.5 * (ha + hb)
+                    print(f"   {pa['name']} | {pb['name']}: on their line {np.median(np.abs(ha - hb))*1e3:.2f} / {np.abs(ha - hb).max()*1e3:.2f} mm apart (median / max) -> pinned")
+                    for pc in (pa, pb): tgt_.setdefault(id(pc), (pc, []))[1].append(np.c_[sg, tg, hm])
+        for pc, lst in tgt_.values():
+            T_ = np.concatenate(lst); S_ = pc['S']; f_ = pc['f']
+            wv = np.r_[np.ones(len(S_)), np.full(len(T_), 3.0 * len(S_) / len(T_))]
+            Sc_ = S_[pc['core']]                                   # judged on the band's own (core) vertices
+            r0_ = np.percentile(np.abs(eval_surface(f_, Sc_[:, 0], Sc_[:, 1]) - Sc_[:, 2]), 95); lim_ = max(1.25 * r0_, r0_ + 0.3e-3)
+            best_ = None
+            for du_, dv_ in ((0, 0), (2, 0), (0, 2), (2, 2), (4, 2), (2, 4), (4, 4)):   # more freedom if pinning costs accuracy
+                if (f_['nu'] + du_) * (f_['nv'] + dv_) > max(20, 0.6 * len(S_)) and (du_ or dv_): continue
+                f2 = fit_surface(np.r_[S_, T_], pc['dom'], f_['nu'] + du_, f_['nv'] + dv_, f_['lam'], w=wv)
+                q_ = np.percentile(np.abs(eval_surface(f2, Sc_[:, 0], Sc_[:, 1]) - Sc_[:, 2]), 95)
+                if best_ is None or q_ < best_[0]: best_ = (q_, f2)
+                if q_ <= lim_: best_ = (q_, f2); break
+            lam_ = f_['lam']; f_.update(best_[1]); f_['lam'] = lam_
+            out[pc['idx']].update(nu=f_['nu'], nv=f_['nv'], ku=mm(f_['ku']), kv=mm(f_['kv']))
+            out[pc['idx']]['poles'] = mm(np.stack(list(np.meshgrid(f_['gu'], f_['gv'], indexing='ij')) + [f_['H']], -1))
+            r_ = np.abs(eval_surface(f_, Sc_[:, 0], Sc_[:, 1]) - Sc_[:, 2])
+            out[pc['idx']]['fit_p95_mm'] = float(np.percentile(r_, 95) * 1000)
+            print(f"   {pc['name']}: refitted on its lines ({f_['nu']}x{f_['nv']}), own vertices p95 {r0_*1e3:.2f} -> {np.percentile(r_, 95)*1e3:.2f} mm, on line {np.abs(eval_surface_ext(f_, T_[:, 0], T_[:, 1]) - T_[:, 2]).max()*1e3:.2f} mm max")
     # rolled edges: built from the neighbour that really borders them (data within 30 mm of the boundary
     # along most of the line); the other side may be a free panel edge (beltline into the window)
     mm = lambda a: (np.asarray(a) * 1000).tolist()
@@ -887,7 +932,7 @@ def fit_bands(name, V, Fr, Nv, overlap=0.002, keep=None, Fr_lines=None, cut_poly
         print(f"{e['name']:28s} verts {core.sum():4d} ROLL from b{nb_i} (tangent): drop {info['ns']}x{info['nt']} cv {info['cv']*1000:.2f} mm"
               f"  fit p95 {np.percentile(r, 95)*1000:.2f} max {r.max()*1000:.2f} mm  as {info['nu']}x{info['nv']} B-spline (approx {info['approx']*1000:.3f} mm)")
     print(f"{name}: {len(lines)} character lines: " + ', '.join(f"turn {L['turn']:+.0f} deg ({L['ext_lo']*1000:.0f}/{L['ext_hi']*1000:.0f} mm), {L['hits']} hits, fit {L['err']*1000:.2f} mm" for L in lines))
-    fit_bands.last = dict(fits=fits, bounds=bounds)      # for a feature built against these faces (arch lip)
+    fit_bands.last = dict(fits=fits, bounds=bounds, pieces=pieces_done, fr=fr)      # for a feature built against these faces (arch lip)
     return out
 
 
@@ -1176,19 +1221,88 @@ def main():
                     w_ = A_ * (n_ @ d0 > np.cos(np.radians(30))); d0 = (n_ * w_[:, None]).sum(0); d0 /= np.linalg.norm(d0)
                 main_ = n_ @ d0 > np.cos(np.radians(float(os.environ.get('PF_WRAP', 45))))
                 parts = []
-                for sel_ in (main_, ~main_):
-                    if sel_.sum(): parts += [p_ for p_ in components(V, Fr[sel_])[0] if len(p_) >= 20]
-                parts.sort(key=lambda p_: -len(p_))
-                cen = V[Fr].mean(1)
-                for wi, Fw in enumerate(parts):
-                    try:
-                        from scipy.spatial import cKDTree
-                        near = cKDTree(V[np.unique(Fw)]).query(cen)[0] < 0.02
-                    except ImportError:
-                        Q_ = V[np.unique(Fw)]; near = np.array([np.linalg.norm(Q_ - c_, axis=1).min() < 0.02 for c_ in cen])
-                    own_ = {tuple(t_) for t_ in Fw}; near |= np.array([tuple(t_) in own_ for t_ in Fr])   # its own big triangles
-                    print(f'{name}:r{ri}w{wi}: {len(Fw)} tris (+{near.sum() - len(Fw)} padding)')
-                    res += fit_bands(f'{name}:r{ri}w{wi}', V, Fr[near], Nv, Fr_outline=Fw)
+                for is_main, sel_ in ((True, main_), (False, ~main_)):
+                    if sel_.sum(): parts += [(is_main, p_) for p_ in components(V, Fr[sel_])[0] if len(p_) >= 20]
+                parts.sort(key=lambda p_: (not p_[0], -len(p_[1])))           # the main side first
+                cen = V[Fr].mean(1); main_fit = None
+                from scipy.spatial import cKDTree
+                # one smooth SEAM curve per non-main sub-panel, through the vertices it shares with the main one: both
+                # sides are trimmed exactly on it (outlines reach one triangle past it, then the far side is cut away),
+                # not along the zig-zag of Kunos's triangle edges (teeth and slivers at the rear corner)
+                _, wid_ = components(V, Fr); Fm0 = next((q_ for m_, q_ in parts if m_), None)
+                seams = {}
+                if Fm0 is not None and os.environ.get('PF_SEAM', '1') == '1':
+                    for wi, (is_main, Fw) in enumerate(parts):
+                        if is_main: continue
+                        sh_ = set(wid_[Fm0.ravel()]) & set(wid_[Fw.ravel()])
+                        if len(sh_) < 4: continue
+                        X_ = V[[i_ for i_ in sorted(set(Fr.ravel())) if wid_[i_] in sh_]]
+                        X_ = np.unique(np.round(X_, 6), axis=0)
+                        # the seam's own frame: normal halfway between the two faces, so both cross it at ~45 deg
+                        nm_ = Nv[np.unique(Fm0)].mean(0); nm_ /= np.linalg.norm(nm_)
+                        np_ = Nv[np.unique(Fw)].mean(0); np_ /= np.linalg.norm(np_)
+                        w_ = nm_ + np_; w_ /= np.linalg.norm(w_)
+                        cx_ = X_.mean(0); e1_ = np.linalg.svd(X_ - cx_)[2][0]; e1_ -= (e1_ @ w_) * w_; e1_ /= np.linalg.norm(e1_)
+                        fm0 = (cx_, e1_, np.cross(w_, e1_), w_)
+                        Q_ = to_plane(X_, fm0)[:, :2]
+                        if len(Q_) < 4: continue
+                        c_ = Q_.mean(0); d1_ = np.linalg.svd(Q_ - c_)[2][0]; d2_ = np.array([-d1_[1], d1_[0]])
+                        a_, b_ = (Q_ - c_) @ d1_, (Q_ - c_) @ d2_
+                        g_ = fit_func(a_, b_, [a_.min() - 0.15, a_.max() + 0.15], tol=3e-3, nmax=4)   # a fair curve through the middle of a zig-zag zone
+                        Pw_ = to_plane(V[np.unique(Fw)], fm0)[:, :2]
+                        sg_ = np.sign(np.median(((Pw_ - c_) @ d2_) - eval_func(g_, (Pw_ - c_) @ d1_)))
+                        aa_ = np.linspace(a_.min() - 0.1, a_.max() + 0.1, 80); C_ = c_ + aa_[:, None] * d1_ + eval_func(g_, aa_)[:, None] * d2_
+                        side_ = lambda sgn: (np.r_[C_, C_[::-1] + sgn * 3.0 * d2_] * 1000).tolist()
+                        dev_ = np.abs(b_ - eval_func(g_, a_))
+                        seams[wi] = dict(part=side_(sg_), main=side_(-sg_), frame=[x.tolist() for x in fm0])
+                        print(f'{name}:r{ri}w{wi}: seam curve through {len(Q_)} shared vertices (within {dev_.max()*1e3:.1f} mm), {np.ptp(a_)*1e3:.0f} mm long')
+                def grown(Fw, others):                     # outline one triangle past each seam
+                    ws_ = set(wid_[Fw.ravel()]); ext_ = [Fw]
+                    for Fo_ in others:
+                        ext_.append(Fo_[np.array([any(wid_[v_] in ws_ for v_ in t_) for t_ in Fo_])])
+                    return np.concatenate(ext_)
+                for wi, (is_main, Fw) in enumerate(parts):
+                    tree = cKDTree(V[np.unique(Fw)])
+                    near = tree.query(cen)[0] < 0.02
+                    own_ = {tuple(t_) for t_ in Fw}; isown = np.array([tuple(t_) in own_ for t_ in Fr]); near |= isown
+                    Vx, Nx, Fdat = V, Nv, Fr[near]
+                    if not is_main and main_fit is not None and os.environ.get('PF_WMATCH', '1') == '1':
+                        # seam matching (as the arch lip): on the main side of the seam, samples of the FINISHED main
+                        # surfaces replace the raw padding vertices, so this sub-panel meets them in position and slope
+                        Fm = main_fit['F']; fm = main_fit['last']['fr']
+                        Tm = V[Fm]; Tm = Tm[tree.query(Tm.mean(1))[0] < 0.06]
+                        X = sample_tris_bary(Tm, 0.006) if len(Tm) else np.zeros((0, 3))
+                        X = X[tree.query(X)[0] < 0.025] if len(X) else X
+                        S_ = to_plane(X, fm); h_ = np.full(len(X), np.nan); hs_ = np.zeros(len(X)); ht_ = np.zeros(len(X))
+                        for pc in main_fit['last']['pieces']:
+                            mk = np.isnan(h_)
+                            if pc['lo'] is not None: mk &= S_[:, 1] > eval_func(pc['lo'], S_[:, 0])
+                            if pc['hi'] is not None: mk &= S_[:, 1] < eval_func(pc['hi'], S_[:, 0])
+                            if pc['band_s'] is not None: mk &= (S_[:, 0] > pc['band_s'][0]) & (S_[:, 0] <= pc['band_s'][1])
+                            if not mk.any(): continue
+                            e_ = 1e-4; f_ = pc['f']
+                            h_[mk] = eval_surface_ext(f_, S_[mk, 0], S_[mk, 1])
+                            hs_[mk] = (eval_surface_ext(f_, S_[mk, 0] + e_, S_[mk, 1]) - eval_surface_ext(f_, S_[mk, 0] - e_, S_[mk, 1])) / (2 * e_)
+                            ht_[mk] = (eval_surface_ext(f_, S_[mk, 0], S_[mk, 1] + e_) - eval_surface_ext(f_, S_[mk, 0], S_[mk, 1] - e_)) / (2 * e_)
+                        ok_ = ~np.isnan(h_)
+                        Xs = from_plane(np.c_[S_[ok_, :2], h_[ok_]], fm)
+                        Ns = -hs_[ok_, None] * fm[1] - ht_[ok_, None] * fm[2] + fm[3]; Ns /= np.linalg.norm(Ns, axis=1)[:, None]
+                        Ns *= np.sign(Ns @ Nv[np.unique(Fw)].mean(0))[:, None] if len(Ns) else 1
+                        mainset = {tuple(t_) for t_ in Fm}
+                        keep_ = np.array([tuple(t_) not in mainset for t_ in Fdat])      # drop raw main-side padding
+                        n0 = len(V); Vx = np.r_[V, Xs]; Nx = np.r_[Nv, Ns]
+                        Fdat = np.r_[Fdat[keep_], np.repeat(np.arange(n0, n0 + len(Xs))[:, None], 3, axis=1)]
+                        print(f'{name}:r{ri}w{wi}: matched to the main side by {len(Xs)} samples of its finished surfaces')
+                    print(f'{name}:r{ri}w{wi}: {len(Fw)} tris (+{near.sum() - len(Fw)} padding)' + (' MAIN' if is_main else ''))
+                    if is_main: Fo_ = grown(Fw, [parts[k_][1] for k_ in seams])
+                    elif wi in seams: Fo_ = grown(Fw, [Fm0])
+                    else: Fo_ = Fw
+                    n_before = len(res)
+                    res += fit_bands(f'{name}:r{ri}w{wi}', Vx, Fdat, Nx, Fr_outline=Fo_, Fr_lines=Fw if Vx is not V else None)
+                    for e_ in res[n_before:]:
+                        cps_ = [dict(poly=seams[k_]['part'], frame=seams[k_]['frame']) for k_ in seams] if is_main else                                ([dict(poly=seams[wi]['main'], frame=seams[wi]['frame'])] if wi in seams else [])
+                        if cps_: e_['cut_polys'] = cps_
+                    if is_main and main_fit is None: main_fit = dict(F=Fw, last=fit_bands.last)
             continue
         if comp.startswith('b'):
             for ri in comp[1:].split(','):

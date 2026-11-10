@@ -3,6 +3,8 @@
 # Run after every change to panel_fit.py / panel_fit_freecad.py:   ./regress.sh [door|wing|quarter|all]
 # Reference (2026-11-10 evening): door 87.6 % / 99.6 %; wing (all faces + hole fill) 72.4 % / 99.5 %;
 # rear quarter (corner split w0, all faces, hole fill) 77.9 % / 98.7 % (2026-11-10 night).
+# After seam matching, line pinning and the chord-sag rule in fill_holes (same night): door 87.9 / 99.6,
+# wing 70.6 / 96.1 (vertices 92.5 / 99.3 - area drop = Kunos chords no longer patched), quarter 78.2 / 96.8.
 set -e
 cd "$(dirname "$0")"
 C=D:/SteamLibrary/steamapps/common/assettocorsa/content/cars/ks_toyota_ae86
