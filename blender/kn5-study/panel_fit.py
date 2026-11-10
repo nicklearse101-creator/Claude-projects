@@ -1161,6 +1161,35 @@ def main():
             pcs_ = crease_pieces(V, F, Nv); ri_ = int(comp[4:] or 0)
             res += fit_arch_panel(f'{name}:r{ri_}', V, pcs_[ri_], Nv, others=[q for i_, q in enumerate(pcs_) if i_ != ri_])
             continue
+        if comp.startswith('w'):                       # GEO_body:w0 = crease region 0 wraps a corner (rear quarter into
+            # the tail): sub-panels by normal direction (PF_WRAP deg spread each, default 50), each by the band method
+            # over its own plane; data padded 20 mm past the seam so each surface reaches it with support
+            pcs_ = crease_pieces(V, F, Nv)
+            for ri in comp[1:].split(','):
+                Fr = pcs_[int(ri)]
+                # ONE cut, at the corner: the main sub-panel = triangles within PF_WRAP deg (45) of the region's
+                # area-weighted main direction (k-means slices a tumblehome side into strips and loses its lines)
+                T_ = V[Fr]; n_ = np.cross(T_[:, 1] - T_[:, 0], T_[:, 2] - T_[:, 0]); A_ = np.linalg.norm(n_, axis=1)
+                n_ /= np.maximum(A_, 1e-12)[:, None]; n_ *= np.sign((n_ * Nv[Fr].mean(1)).sum(1))[:, None]
+                d0 = (n_ * A_[:, None]).sum(0); d0 /= np.linalg.norm(d0)
+                for _ in range(5):                                         # the dominant direction, not the mean
+                    w_ = A_ * (n_ @ d0 > np.cos(np.radians(30))); d0 = (n_ * w_[:, None]).sum(0); d0 /= np.linalg.norm(d0)
+                main_ = n_ @ d0 > np.cos(np.radians(float(os.environ.get('PF_WRAP', 45))))
+                parts = []
+                for sel_ in (main_, ~main_):
+                    if sel_.sum(): parts += [p_ for p_ in components(V, Fr[sel_])[0] if len(p_) >= 20]
+                parts.sort(key=lambda p_: -len(p_))
+                cen = V[Fr].mean(1)
+                for wi, Fw in enumerate(parts):
+                    try:
+                        from scipy.spatial import cKDTree
+                        near = cKDTree(V[np.unique(Fw)]).query(cen)[0] < 0.02
+                    except ImportError:
+                        Q_ = V[np.unique(Fw)]; near = np.array([np.linalg.norm(Q_ - c_, axis=1).min() < 0.02 for c_ in cen])
+                    own_ = {tuple(t_) for t_ in Fw}; near |= np.array([tuple(t_) in own_ for t_ in Fr])   # its own big triangles
+                    print(f'{name}:r{ri}w{wi}: {len(Fw)} tris (+{near.sum() - len(Fw)} padding)')
+                    res += fit_bands(f'{name}:r{ri}w{wi}', V, Fr[near], Nv, Fr_outline=Fw)
+            continue
         if comp.startswith('b'):
             for ri in comp[1:].split(','):
                 res += fit_bands(f'{name}:r{ri}', V, crease_pieces(V, F, Nv)[int(ri)], Nv)

@@ -136,11 +136,31 @@ Research: `blender/research/reports/Wheel arch lip surfacing.md`, `blender/resea
   (3) the side crease strip faces (`:rall`) and the sill stub; (4) consider CurvesWB trims on the surface
   (`Sketch_On_Surface` / `face_builder.shapefix_builder`) instead of prisms.
 
+### B1. Rear quarter + C-pillar - first build done (2026-11-10 night, build `blind/quarter_w`, in `regress.sh`)
+Run: `PF_CLIP=0.45,1,0,1.235,-2.2,-0.5 python panel_fit.py $C $OUT GEO_body:w0 'GEO_body:rall!0'`, FreeCAD step,
+then `fill_holes.py` + FreeCAD + `merge.py` (as the wing).
+- On the quarter the arch flare is ALREADY its own crease faces (r5 lip, r4 return), so the arch method finds no
+  flare: plain bands + `:rall` do it.
+- The side wraps round the rear corner into the strip under the tail lamp (faces rearward): one height field
+  can't (10-23 mm). New spec `:wN` = ONE cut at the corner: the main sub-panel is every triangle within 45 deg
+  (`PF_WRAP`) of the region's dominant direction, the rest its own sub-panels; each by the band method over its own
+  plane, data padded 20 mm past the seam. (k-means on normals sliced the tumblehome side into strips and lost all
+  its character lines - don't.) Side keeps its 4 lines; all bands <= 3 mm p95.
+- Score: area 69.8 -> 77.9 % within 1 mm, 89.4 -> 98.7 % within 3 mm; VERTICES 87.9 % / 98.1 % (median 0.24 mm).
+  `miss_map.py` (new) draws the original coloured by distance in side/top/rear views and prints area + vertex scores.
+- The C-pillar strip (r1) has NO Kunos vertices along its middle 600 mm (two long flat triangles): our smooth face
+  passes the vertices (median 0.4 mm) but not those chords. Splitting it or approxSurface gained nothing; kept whole.
+- By eye (`images/quarter_v1_close_grey.png`): shape right; faults: (1) the 45 deg corner cut shows as a FOLD - the
+  side and rear sub-panels need a G1 corner (shared tangent / blend patch, or a soft cut line fitted through the
+  corner with both faces built against it like the roll blend); (2) kink where the C-pillar meets the roof rail
+  (clip edge at y 1.235 - check against the roof once built); (3) the lip above the tail-lamp opening is a thin
+  sliver vs the original's ledge; (4) small marks low on the rear corner and at the sill below the B-pillar.
+
 ### B. Rest of the body, panel by panel (yes, the car is built in pieces)
 Kunos: the shell is one mesh (`GEO_body`), and doors, bonnet, hatch and bumpers are separate. We
 follow the same split, then split each panel into surfaces at creases and character lines.
 
-- **Order:** front wing → rear quarter and C-pillar → roof → bonnet → hatch → front and rear bumpers
+- **Order:** front wing → rear quarter and C-pillar (first build done, corner fold to fix) → roof → bonnet → hatch → front and rear bumpers
   → sills.
 - **Known limit:** a panel that wraps more than about 70° (wing top into side, bumper corners) is not
   one height field over a plane.

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Regression check: rebuild the AE86 door and front wing and print their coverage (original area within 1 / 3 mm).
-# Run after every change to panel_fit.py / panel_fit_freecad.py:   ./regress.sh [door|wing|all]
-# Reference (2026-11-10 evening): door 87.6 % / 99.6 %; wing (all faces + hole fill) 72.4 % / 99.5 %.
+# Run after every change to panel_fit.py / panel_fit_freecad.py:   ./regress.sh [door|wing|quarter|all]
+# Reference (2026-11-10 evening): door 87.6 % / 99.6 %; wing (all faces + hole fill) 72.4 % / 99.5 %;
+# rear quarter (corner split w0, all faces, hole fill) 77.9 % / 98.7 % (2026-11-10 night).
 set -e
 cd "$(dirname "$0")"
 C=D:/SteamLibrary/steamapps/common/assettocorsa/content/cars/ks_toyota_ae86
@@ -19,4 +20,12 @@ if [ "$what" = wing ] || [ "$what" = all ]; then
   python fill_holes.py $C $R/wing GEO_body >> $R/wing.log 2>&1                 # safety net: fill uncovered areas
   PF_IN="$(cygpath -w $R/wing/fill)" ./fcrun.sh panel_fit_freecad.py >> $R/wing.log 2>&1 && python merge.py $R/wing >> $R/wing.log
   echo "wing: $(python score_faces.py $C $R/wing GEO_body | tail -1)"
+fi
+if [ "$what" = quarter ] || [ "$what" = all ]; then
+  export PF_CLIP=0.45,1,0,1.235,-2.2,-0.5
+  python panel_fit.py $C $R/quarter GEO_body:w0 'GEO_body:rall!0' > $R/quarter.log 2>&1
+  PF_IN="$(cygpath -w $R/quarter)" ./fcrun.sh panel_fit_freecad.py >> $R/quarter.log 2>&1
+  python fill_holes.py $C $R/quarter GEO_body >> $R/quarter.log 2>&1
+  PF_IN="$(cygpath -w $R/quarter/fill)" ./fcrun.sh panel_fit_freecad.py >> $R/quarter.log 2>&1 && python merge.py $R/quarter >> $R/quarter.log
+  echo "quarter: $(python score_faces.py $C $R/quarter GEO_body | tail -1)"
 fi
