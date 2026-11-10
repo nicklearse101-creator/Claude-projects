@@ -60,13 +60,26 @@ for p in res:
                 k_, m_ = mults(np.array(e['knots'])); cu.buildFromPolesMultsKnots(V3, m_, k_, False, 3)
             out.append(cu.toShape())
         return Part.Wire(Part.__sortEdges__(out))
+    def outline_face(w_, lf):
+        f_ = Part.Face(prism_wire(w_, lf))
+        if not f_.isValid():                              # a long B-spline outline can come out slightly self-touching
+            g_ = f_.copy(); g_.fix(1e-3, 1e-4, 1e-2)
+            if g_.isValid(): f_ = g_
+        return f_
     if own:
         # own-plane patch (corner blend): untrimmed surface cut by the outline prism of its region's frame
         try:
             lf = p['line_frame']; wv = np.array(lf[3]); Hh = 2000.0
-            pr = [Part.Face(prism_wire(w_, lf)).extrude(App.Vector(*(wv * 2 * Hh))) for w_ in p['wires']]
-            outl = pr[0]
-            for h_ in pr[1:]: outl = outl.cut(h_)
+            if p.get('own_poly'):                     # its own outline, in its own plane
+                V3o = [App.Vector(*to_world(fr, q[0], q[1], -Hh)) for q in p['own_poly']]
+                fo_ = Part.Face(Part.makePolygon(V3o + [V3o[0]]))
+                if not fo_.isValid():
+                    g_ = fo_.copy(); g_.fix(1e-3, 1e-4, 1e-2); fo_ = g_ if g_.isValid() else fo_
+                outl = fo_.extrude(App.Vector(*(np.array(fr[3]) * 2 * Hh)))
+            else:
+                pr = [outline_face(w_, lf).extrude(App.Vector(*(wv * 2 * Hh))) for w_ in p['wires']]
+                outl = pr[0]
+                for h_ in pr[1:]: outl = outl.cut(h_)
             cut0 = srf.toShape().common(outl)
             face = Part.makeShell(cut0.Faces) if len(cut0.Faces) > 1 else cut0.Faces[0]
             ok = face.Area > 1
@@ -83,10 +96,21 @@ for p in res:
             ok = face.isValid() and face.Area > 1
         except Exception as ex:
             print(p['name'], 'trim failed:', ex); ok = False
+    # an area given as a 2D polygon (plane mm in its frame): band_poly keeps only that area (arch lip),
+    # cut_poly removes it (the lip's area cut out of the side faces)
+    def poly_prism(poly, lf, H=2000.0):
+        V3 = [App.Vector(*to_world(lf, q[0], q[1], -H)) for q in poly]
+        w_ = Part.makePolygon(V3 + [V3[0]]); wv = np.array(lf[3])
+        return Part.Face(w_).extrude(App.Vector(*(wv * 2 * H)))
+    if ok and p.get('band_poly'):
+        try:
+            cc = face.common(poly_prism(p['band_poly'], p.get('line_frame') or fr))
+            if cc.Faces and cc.Area > 1: face = Part.makeShell(cc.Faces) if len(cc.Faces) > 1 else cc.Faces[0]
+        except Exception as ex: print(p['name'], 'band_poly failed:', ex, flush=True)
     if not ok and not own:
         # parameter-space trim failed (tiny or folded outline): cut the surface with the outline's 3D prism
         try:
-            wv = np.array(fr[3]); pr = [Part.Face(prism_wire(w_, fr)).extrude(App.Vector(*(wv * 4000.0))) for w_ in p['wires']]
+            wv = np.array(fr[3]); pr = [outline_face(w_, fr).extrude(App.Vector(*(wv * 4000.0))) for w_ in p['wires']]
             outl = pr[0]
             for h_ in pr[1:]: outl = outl.cut(h_)
             cut0 = srf.toShape().common(outl)
@@ -128,6 +152,11 @@ for p in res:
                 print(p['name'], 'band cut failed')
         except Exception as ex:
             print(p['name'], 'band cut failed:', ex, flush=True); continue
+    if p.get('cut_poly'):
+        try:
+            cc = face.cut(poly_prism(p['cut_poly'], p['cut_frame']))
+            if cc.Faces and cc.Area > 1: face = Part.makeShell(cc.Faces) if len(cc.Faces) > 1 else cc.Faces[0]
+        except Exception as ex: print(p['name'], 'cut_poly failed:', ex, flush=True)
     shapes.append(face)
     m = MeshPart.meshFromShape(Shape=face, MaxLength=float(os.environ.get('PF_MAXLEN', 6)))   # even triangles (Mefisto)
     pts, fc = m.Topology

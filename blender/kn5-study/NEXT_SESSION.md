@@ -89,6 +89,21 @@ use C:.
 7. Still open on the door: wrap-split pieces meet with small steps (G0 only, up to ~3 mm on the mirror boss);
    the rear window corner of the roll.
 
+### B0. Front wing - in progress (2026-11-10, build `blind/wing`)
+Run: `PF_CLIP=0,1,0,2,0.62,2 python panel_fit.py $C $OUT GEO_body:arch0` then the FreeCAD step (no returns).
+Research: `blender/research/reports/Wheel arch lip surfacing.md`, `blender/research/github_finds.md`.
+- Done: wing picked out of the shell (clip box reaching past the door edge, so the real shut-line edge is kept;
+  outline slits/teeth removed); wing top over its own plane, trimmed by its own outline (0.5 mm median);
+  arch found automatically (R 354 mm, edge within 6 mm of a circle), lip 70 mm wide, lip in arch coordinates
+  matched to the side faces (join 0.3 mm median). Wing: 49 % of the original within 1 mm, 79 % within 3 mm.
+- By eye: the lip edge still shows as a soft ridge, and the side face above the arch is lumpier than the
+  original (`images/wing_arch_v1_vs_original_grey.png`).
+- Next: (1) the lower band behind the arch (11 mm p95) = the flare run-out corner: per the research, stop the
+  lip short and close the corner with a G1 filling patch (`Part.BRepOffsetAPI_MakeFilling`); (2) G1 lip edge:
+  constrain the lip's outer pole rows to the side face (research: rows 0/1 from the panel edge/tangent);
+  (3) the side crease strip faces (`:rall`) and the sill stub; (4) consider CurvesWB trims on the surface
+  (`Sketch_On_Surface` / `face_builder.shapefix_builder`) instead of prisms.
+
 ### B. Rest of the body, panel by panel (yes, the car is built in pieces)
 Kunos: the shell is one mesh (`GEO_body`), and doors, bonnet, hatch and bumpers are separate. We
 follow the same split, then split each panel into surfaces at creases and character lines.
