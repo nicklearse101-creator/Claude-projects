@@ -1,6 +1,8 @@
 # Ratty's4Skin Generator – plan for the next session
 
-**v1.5.0 (10 Nov 2026) is the current version** - see "v1.5.0" near the bottom for Nik's second list.
+**v1.5.2 (10 Nov 2026) is the current version** (see v1.5.0, v1.5.1 and v1.5.2 near the bottom).
+
+**v1.5.0** - see "v1.5.0" near the bottom for Nik's second list.
 
 **DONE in v1.4.0 (9 Nov 2026, same evening)** - all three fixes below are built and checked in the
 preview on the five cars; see "What v1.4.0 did" at the bottom. Still to do: Nik's in-game check.
@@ -169,6 +171,19 @@ left off).
   correctly (checked). Now Preview writes nothing at all and says so in red-letter terms in the log and status.
 - Nothing is written to C: any more: preview needs no files, 'Open full size' and the self-test use
   assettocorsa/_r4skin_work on the game's drive (R4S_WORK overrides). Build with TEMP / PYINSTALLER_CONFIG_DIR on D:.
+
+## v1.5.2 (10 Nov 2026, evening) - Nik's Talbot / Kadett tests
+| Nik saw | Cause | Fix |
+|---|---|---|
+| Wheel colour also coloured the tyre (Opel Kadett) | the tyre has its own texture (`tire2.dds`) that the skins override, so it counted as a wheel texture | rims and tyres found apart (tyre shader / tyre names); separate **Rim colour** and **Tyre colour**; a texture both use is changed only where each sits; tyre blur textures follow the tyre |
+| Talbot middle stripe stayed grey | stripe panels (`BANDES_*`, `fenderslivery`) are on a second paint texture `body_2.dds`; skipped because "carPaint_2" contains "int_" (read as interior) and it is small | interior check needs "int_" at a word start; small paint-material textures are painted too |
+| (then) stripe panels got their own copy of the number / names | each texture worked out its own placement | placement worked out once on the main body texture and reused (`ctx`), no moves on the others |
+| Talbot bonnet scoop stayed grey | all its UVs sit on one pixel that nothing painted | `spot_parts`: one-spot parts get the base colour (or follow the panel they share the spot with, logged) |
+| Hatching at the bonnet's front corners | front-wing side writing stretched onto the flat wing top | a surface facing another view more than 0.9 belongs to that view (`OFF_LIMIT`) |
+| Kadett names "no surface found" | lower door shares one picture left/right (mirrored); slid only sideways, then wrong message | moves along and up/down to the nearest clear spot that covers nothing; message says why and to move it by hand |
+
+Also: bonnet / boot writing limited to the named bonnet / boot part's width; stricter on-panel check (98.5 %).
+Still open: wing-top letter tops clip on some cars (curved crease); Talbot lower-door name partly behind the sill trim.
 
 ## Done before this plan (for reference)
 v1.3.2 fixed black distance mipmaps; glass never painted as body; plain-colour (shared texture) cars

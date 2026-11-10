@@ -8,7 +8,7 @@ from PIL import Image, ImageFont, ImageTk
 import skingen
 
 APP_NAME = skingen.APP_NAME
-VERSION = '1.5.1'
+VERSION = '1.5.2'
 DATA_DIR = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'Rattys4SkinGenerator')
 LOGO_DIR = os.path.join(DATA_DIR, 'logos')
 SETTINGS = os.path.join(DATA_DIR, 'settings.json')
@@ -114,7 +114,7 @@ class App(tk.Tk):
     # ---------------------------------------------------------------- settings / library
     def load_cfg(self):
         d = dict(skingen.DEFAULT_DESIGN)
-        d.update(cars_dir='', car='', skin_name='My Skin', copy_from='', use_wheels=False, wheel_colour='#7020d2',
+        d.update(cars_dir='', car='', skin_name='My Skin', copy_from='', use_wheels=False, wheel_colour='#7020d2', use_tyres=False, tyre_colour='#ff8000',
                  use_lens=False, lens_colour='#ffd21f', use_beam=False, beam_colour='#fff2c8')
         try: d.update(json.load(open(SETTINGS, encoding='utf8')))
         except Exception: pass
@@ -300,8 +300,11 @@ class App(tk.Tk):
         row('lights', 'Beam colour', lambda f: self.colour_button(f, 'beam_colour'))
         note('lights', 'Needs Custom Shaders Patch: written to the skin\'s ext_config.ini.')
         ttk.Separator(tabs['lights']).pack(fill='x', pady=6)
-        row('lights', '', lambda f: ttk.Checkbutton(f, text='Recolour the wheels', variable=self.var('use_wheels', tk.BooleanVar)))
-        row('lights', 'Wheel colour', lambda f: self.colour_button(f, 'wheel_colour'))
+        row('lights', '', lambda f: ttk.Checkbutton(f, text='Recolour the wheel rims', variable=self.var('use_wheels', tk.BooleanVar)))
+        row('lights', 'Rim colour', lambda f: self.colour_button(f, 'wheel_colour'))
+        row('lights', '', lambda f: ttk.Checkbutton(f, text='Recolour the tyres', variable=self.var('use_tyres', tk.BooleanVar)))
+        row('lights', 'Tyre colour', lambda f: self.colour_button(f, 'tyre_colour'))
+        note('lights', 'Rims and tyres are separate. Only cars with their own rim / tyre textures can change.')
 
         # --- buttons + log
         bf = ttk.Frame(left); bf.pack(fill='x', pady=(10, 0))
@@ -470,6 +473,7 @@ class App(tk.Tk):
         d['team_places'] = [p for p, v in self.tp_vars.items() if v.get()] or ['none']
         d['name_places'] = [p for p, v in self.np_vars.items() if v.get()] or ['none']
         d['wheel_colour'] = self.vars['wheel_colour'].get() if self.vars['use_wheels'].get() else None
+        d['tyre_colour'] = self.vars['tyre_colour'].get() if self.vars['use_tyres'].get() else None
         d['lens_colour'] = self.vars['lens_colour'].get() if self.vars['use_lens'].get() else None
         d['beam_colour'] = self.vars['beam_colour'].get() if self.vars['use_beam'].get() else None
         for key in ('font_team', 'font_name', 'font_number'):

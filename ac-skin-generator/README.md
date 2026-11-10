@@ -37,9 +37,10 @@ Tabs on the left, preview on the right.
   stickers already there. Inside the car the stickers show their dark back.
 - **Lights & wheels** - headlight lens colour (tints the lamp textures, so the lens and its
   glow change), headlight beam colour (Custom Shaders Patch, written to the skin's
-  `ext_config.ini`), wheel colour.
+  `ext_config.ini`), rim colour and tyre colour (separate).
 
-**Preview** renders left, right, front, rear and top views (1600 px) without writing anything; pick a
+**Preview** renders left, right, front, rear and top views (1600 px) without writing anything (the skin in
+the car does not change - press **Create skin in car** for that); pick a
 view or "Open full size".
 **Edit on the preview:** pick one side, click a logo, number or name (each has a dashed box), then drag to
 move it, mouse wheel to resize, Shift+wheel to turn, or use the Bigger / Smaller / Turn / Flip / Reset buttons.
