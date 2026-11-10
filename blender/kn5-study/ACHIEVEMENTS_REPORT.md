@@ -155,3 +155,34 @@ same.
 - **Never trim to a global smooth curve,** and never add "smoothing" as a fix.
 - **Display meshes need even triangles plus exact normals,** or the zebra stripes tear.
 - **Everything runs on D:** (FreeCAD via `fcrun.sh`, with temp folders on D:).
+
+## 7. 10 November: door finished, front wing and rear quarter built
+
+The panel-fit method went from "one good door skin" to three complete panels, checked after every change by
+`regress.sh` (rebuild + score door, wing and quarter).
+
+| Panel | Faces | Area within 1 / 3 mm | Kunos vertices within 1 / 3 mm |
+|---|---|---|---|
+| Door (with glass, mirror, trims) | 80 | 87.9 % / 99.6 % | - |
+| Front wing | ~25 | 70.6 % / 96.1 % | 92.5 % / 99.3 % |
+| Rear quarter + C-pillar | ~40 | 78.2 % / 96.8 % | 86.5 % / 97.9 % |
+
+The vertex score is the honest one: Kunos's 100-150 mm flat triangles cut chords across curves, so a correct smooth
+surface reads as "off" between vertices on the area score.
+
+**What made it work**
+- **Door:** every small face fitted (a missing 5 mm ledge read as a groove); rolled edges built as true blends from
+  the neighbouring skin (tangent by construction) instead of fitted to sparse vertices; 5 mm shut-line returns.
+- **Front wing:** the wheel arch found automatically on the outline; the lip built in its own "rail" coordinates
+  along the whole opening edge and matched to the side faces; the wing split into sub-panels at the arch, as
+  Class-A modellers do, so character lines run edge to edge; the fairest surface within tolerance, not the closest.
+- **Rear quarter:** a panel that wraps a corner is cut once at 45 deg from its main direction; the minor piece is
+  fitted against the finished main surface and both are cut on one smooth seam curve. Neighbouring bands are pinned
+  to their shared character line (joins 0.1-0.4 mm), which also improved the door.
+- **The hole filler was making things worse** in places: it took Kunos's chord sag for holes and laid a second, bad
+  patch over a correct face. It now fills only real misses.
+
+**Nik's verdict on the quarter's first build:** "really fast and produced a really good result".
+
+**Next:** a thin-strip builder (narrow steps and returns as ruled surfaces between shared edge curves - the
+quarter's lamp-top step is the first case), then the roof, bonnet, hatch, bumpers and sills.
