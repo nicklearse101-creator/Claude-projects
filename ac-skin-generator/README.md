@@ -44,6 +44,8 @@ the car does not change - press **Create skin in car** for that); pick a
 view or "Open full size".
 **Edit on the preview:** pick one side, click a logo, number or name (each has a dashed box), then drag to
 move it, mouse wheel to resize, Shift+wheel to turn, or use the Bigger / Smaller / Turn / Flip / Reset buttons.
+**Edit text...** changes the words, font and colour of one team / driver box; **Delete** removes a logo, number or
+name (Reset all brings it back). Preview again is quick: the car and pattern are kept from the last preview.
 Flip mirrors the picture on that side (so a logo can face forwards on both sides). Moves, sizes and turns
 apply to both sides of the car alike. Press Preview again to redraw. The changes are remembered per car.
 **Placement check** (in the log): logos, numbers and writing never cover each other - where a logo and

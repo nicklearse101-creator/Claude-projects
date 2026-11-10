@@ -8,7 +8,7 @@ from PIL import Image, ImageFont, ImageTk
 import skingen
 
 APP_NAME = skingen.APP_NAME
-VERSION = '1.5.2'
+VERSION = '1.6.0'
 DATA_DIR = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'Rattys4SkinGenerator')
 LOGO_DIR = os.path.join(DATA_DIR, 'logos')
 SETTINGS = os.path.join(DATA_DIR, 'settings.json')
@@ -196,8 +196,11 @@ class App(tk.Tk):
         self.vars['pattern_name'] = tk.StringVar(value=skingen.PATTERNS.get(self.cfg.get('pattern'), skingen.PATTERNS['sweep']))
         row('livery', 'Pattern', lambda f: ttk.Combobox(f, textvariable=self.vars['pattern_name'], state='readonly',
                                                        values=list(skingen.PATTERNS.values()), width=32, height=16))
+        self.swatch = ttk.Label(tabs['livery'])            # what the pattern looks like: side over top, front on the left
+        self.swatch.pack(anchor='w', padx=(130, 0), pady=(2, 4))
+        self.swatch_img = None
         note('livery', 'Patterns are inspired by classic and modern racing liveries; they use your accent, '
-                       'highlight and text colours.')
+                       'highlight and text colours. The picture above shows the car\'s side over its top, front on the left.')
         ttk.Label(tabs['livery'], text='Pattern from a picture', font=('Segoe UI', 9, 'bold')).pack(anchor='w', pady=(8, 0))
         def pic(f):
             fr = ttk.Frame(f)
@@ -227,9 +230,17 @@ class App(tk.Tk):
         row('number', 'Team / wordmark', lambda f: ttk.Entry(f, textvariable=self.var('team')))
         row('number', 'Driver name', lambda f: ttk.Entry(f, textvariable=self.var('name')))
         fonts = [DEFAULT_FONT_NAME] + list(list_fonts())
-        for key, label in (('font_team_name', 'Team font'), ('font_name_name', 'Driver font'), ('font_number_name', 'Number font')):
+        self.font_prev = {}
+        for key, label, src in (('font_team_name', 'Team font', 'team'), ('font_name_name', 'Driver font', 'name'),
+                                ('font_number_name', 'Number font', 'number')):
             self.vars[key] = tk.StringVar(value=self.cfg.get(key) if self.cfg.get(key) in fonts else DEFAULT_FONT_NAME)
             row('number', label, lambda f, key=key: ttk.Combobox(f, textvariable=self.vars[key], values=fonts, state='readonly', width=30))
+            lab = ttk.Label(tabs['number']); lab.pack(anchor='w', padx=(130, 0))
+            self.font_prev[key] = (lab, src, None)
+            upd = (lambda *_, key=key: self.after_idle(lambda: self.update_font_preview(key)))
+            self.vars[key].trace_add('write', upd)
+            if src in self.vars: self.vars[src].trace_add('write', upd)
+            self.after(250, upd)
         ttk.Label(tabs['number'], text='Where to write them:').pack(anchor='w', pady=(8, 2))
         grid = ttk.Frame(tabs['number']); grid.pack(fill='x')
         ttk.Label(grid, text='').grid(row=0, column=0)
@@ -331,7 +342,8 @@ class App(tk.Tk):
         ttk.Label(eb, text='Edit on the preview:').pack(side='left')
         for text, cmd in (('Bigger', lambda: self.edit('scale', 1.08)), ('Smaller', lambda: self.edit('scale', 1 / 1.08)),
                           ('Turn ↺', lambda: self.edit('rot', 5)), ('Turn ↻', lambda: self.edit('rot', -5)),
-                          ('Flip', lambda: self.edit('flip')), ('Reset', lambda: self.edit('reset')),
+                          ('Flip', lambda: self.edit('flip')), ('Edit text…', self.edit_text), ('Delete', lambda: self.edit('delete')),
+                          ('Reset', lambda: self.edit('reset')),
                           ('Reset all', lambda: self.edit('reset_all'))):
             ttk.Button(eb, text=text, command=cmd, width=len(text) + 1).pack(side='left', padx=1)
         self.sel_label = ttk.Label(right, text='Pick one side (Left, Right, Front, Rear or Top), then click a logo, number or name to move it.',
@@ -344,6 +356,92 @@ class App(tk.Tk):
         self.canvas.bind('<B1-Motion>', self.on_drag)
         self.canvas.bind('<MouseWheel>', self.on_wheel)
         self.views = {}
+        for key in ('pattern_name', 'base', 'accent', 'accent2', 'text', 'pattern_image', 'pattern_mode_name',
+                    'pattern_simplify_name', 'halftone', 'carbon'):
+            if key in self.vars: self.vars[key].trace_add('write', lambda *_: self.after_idle(self.update_swatch))
+        self.after(200, self.update_swatch)
+
+    def update_swatch(self):
+        try:
+            d = self.design()
+            im = skingen.pattern_swatch(d, 300)
+        except Exception:
+            return
+        self.swatch_img = ImageTk.PhotoImage(im)
+        self.swatch.configure(image=self.swatch_img)
+
+    def font_image(self, font_path, text, colour='#111111', width=300, height=40):
+        """The words in that font, on a light background (for the font previews)."""
+        im = Image.new('RGB', (width, height), (245, 245, 247))
+        if text:
+            try:
+                t = skingen.text_image(text, 120, skingen.rgb(colour), font_path or skingen.DEFAULT_FONT)
+                t.thumbnail((width - 10, height - 8), Image.LANCZOS)
+                im.paste(t, (6, (height - t.height) // 2), t)
+            except Exception: pass
+        return ImageTk.PhotoImage(im)
+
+    def update_font_preview(self, key):
+        lab, src, _ = self.font_prev[key]
+        text = (self.vars[src].get() if src in self.vars else '') or {'team': 'RATTY RACING', 'name': 'Driver Name', 'number': '101'}[src]
+        img = self.font_image(list_fonts().get(self.vars[key].get()), text)
+        self.font_prev[key] = (lab, src, img)
+        lab.configure(image=img)
+
+    def edit_text(self):
+        """Change the words, font and colour of the team / driver name box picked on the preview (both sides)."""
+        d = next((d for d in self.view_decals() if d['key'] == self.sel), None)
+        if d is None or not (d['key'].startswith('team name') or d['key'].startswith('driver name')):
+            self.sel_label.configure(text='Pick a team or driver name on the preview first (one side showing).', foreground='#b00020')
+            return
+        ad = self.adj(d['key'])
+        is_team = d['key'].startswith('team name')
+        win = tk.Toplevel(self); win.title('Edit text - ' + d['label'].split(' (')[0]); win.transient(self); win.grab_set()
+        f = ttk.Frame(win, padding=12); f.pack(fill='both', expand=True)
+        fonts = [DEFAULT_FONT_NAME] + list(list_fonts())
+        text_v = tk.StringVar(value=ad.get('text') or self.vars['team' if is_team else 'name'].get())
+        cur_font = next((n for n, pth in list_fonts().items() if pth == ad.get('font')), None)
+        font_v = tk.StringVar(value=cur_font or self.vars['font_team_name' if is_team else 'font_name_name'].get())
+        col_v = tk.StringVar(value=ad.get('colour') or '')
+        ttk.Label(f, text='Words').grid(row=0, column=0, sticky='w')
+        ttk.Entry(f, textvariable=text_v, width=34).grid(row=0, column=1, sticky='we', pady=3)
+        ttk.Label(f, text='Font').grid(row=1, column=0, sticky='w')
+        ttk.Combobox(f, textvariable=font_v, values=fonts, state='readonly', width=32).grid(row=1, column=1, sticky='we', pady=3)
+        ttk.Label(f, text='Colour').grid(row=2, column=0, sticky='w')
+        cf = ttk.Frame(f); cf.grid(row=2, column=1, sticky='w', pady=3)
+        cb = tk.Button(cf, width=12, relief='groove')
+        cb.pack(side='left')
+        ttk.Button(cf, text='Automatic', command=lambda: col_v.set('')).pack(side='left', padx=4)
+        prev = ttk.Label(f); prev.grid(row=3, column=0, columnspan=2, pady=(8, 4))
+        keep = {}
+
+        def refresh(*_):
+            c = col_v.get()
+            cb.configure(text=c or 'automatic', bg=c or '#f0f0f0', activebackground=c or '#f0f0f0')
+            keep['img'] = self.font_image(list_fonts().get(font_v.get()), text_v.get(), c or '#111111', 360, 48)
+            prev.configure(image=keep['img'])
+
+        def pick():
+            c = colorchooser.askcolor(col_v.get() or None, parent=win)[1]
+            if c: col_v.set(c)
+        cb.configure(command=pick)
+        for v in (text_v, font_v, col_v): v.trace_add('write', refresh)
+        refresh()
+
+        def ok():
+            ad['text'] = text_v.get().strip()
+            fp = list_fonts().get(font_v.get())
+            if fp: ad['font'] = fp
+            else: ad.pop('font', None)
+            if col_v.get(): ad['colour'] = col_v.get()
+            else: ad.pop('colour', None)
+            if not ad['text']: ad.pop('text')
+            win.destroy(); self.draw_boxes(); self.save_cfg()
+        bf = ttk.Frame(f); bf.grid(row=4, column=0, columnspan=2, pady=(6, 0))
+        ttk.Button(bf, text='OK', command=ok).pack(side='left', padx=4)
+        ttk.Button(bf, text='Cancel', command=win.destroy).pack(side='left', padx=4)
+        ttk.Label(f, text='Changes this box on both sides of the car. Press Preview to see it on the car.',
+                  foreground='#666').grid(row=5, column=0, columnspan=2, pady=(6, 0))
 
     def checks(self, parent, items):
         fr = ttk.Frame(parent)
@@ -542,7 +640,7 @@ class App(tk.Tk):
                               'Preview only - press "Create skin in car" to save it')
             self.after(0, lambda: self.show_views(views, info))
             try:      # a list of what was found in this car (textures, glass, lights ...), kept for next time
-                cat = os.path.join(DATA_DIR, 'catalogue')
+                cat = os.path.join(work_dir(car), 'catalogue')
                 skingen.car_catalogue(car, cat)
                 self.log(f'catalogue of this car: {os.path.join(cat, os.path.basename(car) + ".json")}')
             except Exception: pass
@@ -620,7 +718,8 @@ class App(tk.Tk):
     def view_decals(self):
         v = self.view_var.get()
         if v == 'all' or not self.info.get('frames') or not self.geom: return []
-        return [d for d in self.info.get('decals', []) if d['view'] == v or (v == 'top' and d['view'] == 'roof_l')]
+        return [d for d in self.info.get('decals', []) if (d['view'] == v or (v == 'top' and d['view'] == 'roof_l'))
+                and not self.adj().get(d['key'], {}).get('deleted')]
 
     def corners(self, d):
         v = self.view_var.get()
@@ -710,6 +809,14 @@ class App(tk.Tk):
             self.sel_label.configure(text='Click a logo, number or name on the preview first (one side showing).', foreground='#b00020')
             return
         if what == 'reset': self.adj().pop(d['key'], None)
+        elif what == 'delete':
+            self.adj(d['key'])['deleted'] = True
+            self.sel = None
+            self.sel_label.configure(text=f"{d['label'].split(' (')[0]} deleted (both sides). Press Preview to redraw - "
+                                          "it is quick now. 'Reset all' brings deleted ones back.", foreground='#b00020')
+            self.save_cfg()
+            self.after(10, self.draw_boxes)
+            return
         else:
             ad = self.adj(d['key'])
             if what == 'scale': ad['scale'] = min(4.0, max(0.2, ad.get('scale', 1) * amount))

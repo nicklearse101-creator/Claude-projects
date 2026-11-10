@@ -1,6 +1,6 @@
 # Ratty's4Skin Generator – plan for the next session
 
-**v1.5.2 (10 Nov 2026) is the current version** (see v1.5.0, v1.5.1 and v1.5.2 near the bottom).
+**v1.6.0 (10 Nov 2026) is the current version** (see v1.5.0, v1.5.1 and v1.5.2 near the bottom).
 
 **v1.5.0** - see "v1.5.0" near the bottom for Nik's second list.
 
@@ -184,6 +184,22 @@ left off).
 
 Also: bonnet / boot writing limited to the named bonnet / boot part's width; stricter on-panel check (98.5 %).
 Still open: wing-top letter tops clip on some cars (curved crease); Talbot lower-door name partly behind the sill trim.
+
+## v1.6.0 (10 Nov 2026, night) - Nik's list after the Kadett S2
+| Asked | Done |
+|---|---|
+| Logos left off "with some dumb excuse" (mirrored left/right texels) | Nothing is left off any more. On a mirrored bonnet / roof / boot / bumper a logo goes on the left half, shrunk to fit it, and a mirrored twin is painted on the right half (a matching pair). On mirrored sides it is put on with a note in the log |
+| Delete logos on the preview without redoing the car | **Delete** button on the preview (both sides); "Reset all" brings them back |
+| Quick re-preview | The car, texel maps, stock-skin analysis, painted pattern and the preview drawing are kept from the last run (`_MEMO`); the mirrored-spot search uses a 2 cm grid. Kadett S2 at 4K: first preview 231 s -> 63 s, re-preview after edits 31 s |
+| Font preview when choosing fonts | the chosen font shows the real team / driver / number text under each font box |
+| Edit every team / driver box on its own | **Edit text...** on the preview: words, font, colour per box (both sides) |
+| Patterns look cheap / ragged | patterns are worked out at 4 points per texel and averaged (smooth edges) |
+| Pattern preview by the drop-down | swatch (side over top, front on the left) in your colours, updates live |
+
+Also: per-car catalogue now in `assettocorsa/_r4skin_work/catalogue` (not on C:).
+Still open: wing-top letter clipping on curved creases; Talbot lower-door name behind the sill trim; Escort rear
+half on NICK3_KIT_ATLAS; window stickers not hand-movable; DXT output; text on a mirrored centre panel shows a
+mirrored copy on the other half (car limitation).
 
 ## Done before this plan (for reference)
 v1.3.2 fixed black distance mipmaps; glass never painted as body; plain-colour (shared texture) cars
