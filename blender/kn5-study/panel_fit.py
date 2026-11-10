@@ -63,7 +63,12 @@ def load_mesh(car_dir, name):
     kn5 = sorted(glob.glob(os.path.join(car_dir, '*.kn5')), key=os.path.getsize)[-1]
     k = KN5(kn5, load_textures=False)
     m = next(m for m in k.meshes if m.name == name)
-    return m.pos.astype(float), m.idx.reshape(-1, 3), m.nrm.astype(float)
+    V, F, N = m.pos.astype(float), m.idx.reshape(-1, 3), m.nrm.astype(float)
+    clip = os.environ.get('PF_CLIP')            # 'xmin,xmax,ymin,ymax,zmin,zmax' (AC metres): one panel of a shell
+    if clip:
+        b = np.array([float(x) for x in clip.split(',')]).reshape(3, 2); c = V[F].mean(1)
+        F = F[((c >= b[:, 0]) & (c <= b[:, 1])).all(1)]
+    return V, F, N
 
 
 def components(V, F):
@@ -483,6 +488,21 @@ def feature_lines(V, Fr, fr, ds=0.02, thr=10.0, arm=None, span=0.35):
                 if best is None or abs(ch[-1][1] - tt) < abs(best[-1][1] - tt): best = ch
         if best is not None: best.append((si, tt, aa, el, er))
         else: chains.append([(si, tt, aa, el, er)])
+    # a line broken by an opening (the wheel arch cuts the wing's side crease in two): join pieces that carry on
+    # across the gap at the same height and turn direction
+    chains.sort(key=lambda c: c[0][0]); merged = True
+    while merged:
+        merged = False
+        for a in chains:
+            for b in chains:
+                if a is b or b[0][0] <= a[-1][0] or np.sign(a[-1][2]) != np.sign(b[0][2]): continue
+                if (b[0][0] - a[-1][0]) * ds > 0.8 or len(a) < 3 or len(b) < 3: continue
+                if abs(np.median([c[1] for c in a[-3:]]) - np.median([c[1] for c in b[:3]])) < 0.015:
+                    a.extend(b); chains.remove(b); merged = True; break
+            if merged: break
+    if os.environ.get('PF_DEBUG'):
+        for ch in sorted(chains, key=len, reverse=True)[:14]:
+            print(f'   chain {len(ch):3d} hits s {secs[ch[0][0]]*1e3:6.0f}..{secs[ch[-1][0]]*1e3:6.0f} t {np.median([c[1] for c in ch])*1e3:6.0f} turn {np.median([c[2] for c in ch]):+5.0f}')
     lines = []
     dom = [s0 - 0.1, s1 + 0.1]
     for ch in chains:
@@ -490,10 +510,23 @@ def feature_lines(V, Fr, fr, ds=0.02, thr=10.0, arm=None, span=0.35):
         if ss.max() - ss.min() < span * (s1 - s0) or len(ch) < 6: continue
         # one control per ~12 sections at most: more lets the line chase facet-corner jumps and swing past
         # its last hit (AE86 beltline: n=10 put the rear end 10 mm off)
-        f = fit_func(ss, np.array([c[1] for c in ch]), dom, nmax=int(np.clip(len(ch) // 12, 4, 10)))
+        # controls by cross-validation on the line's own hits (every 3rd held out): a curved line (arch lip)
+        # gets what it needs, a wobbly one (facet-corner jumps) does not
+        tt = np.array([c[1] for c in ch]); cvs = []
+        for n_ in range(4, 11):
+            e_ = []
+            for k_ in range(3):
+                tr_ = np.arange(len(ss)) % 3 != k_
+                if tr_.sum() < n_ + 2: continue
+                g_ = fit_func(ss[tr_], tt[tr_], dom, nmax=n_, tol=0.0)
+                e_.append(eval_func(g_, ss[~tr_]) - tt[~tr_])
+            if e_: cvs.append((float(np.sqrt(np.mean(np.concatenate(e_) ** 2))), n_))
+        nbest = min(n_ for c_, n_ in cvs if c_ <= min(cvs)[0] * 1.1) if cvs else 4
+        f = fit_func(ss, tt, dom, nmax=nbest, tol=0.0)
         f.update(s_lo=float(ss.min()), s_hi=float(ss.max()), turn=float(np.mean([c[2] for c in ch])), hits=len(ch),
                  ext_lo=float(np.median([c[3] for c in ch])), ext_hi=float(np.median([c[4] for c in ch])))
         lines.append(f)
+    lines = [f for f in lines if f['err'] < 3e-3]          # a chain that does not fit one smooth curve is not a line
     # one line per feature: drop a weaker line that runs within 6 mm of a stronger one
     lines.sort(key=lambda f: -abs(f['turn']) * f['hits'])
     sg = np.linspace(s0, s1, 50); out = []
@@ -648,6 +681,25 @@ def fit_bands(name, V, Fr, Nv, overlap=0.002):
             sl, sh = lo['s_lo'], lo['s_hi']
             pieces = [('', m & (P[:, 0] >= sl) & (P[:, 0] <= sh), fr, [sl, sh]),
                       ('c0', m & (P[:, 0] < sl), None, [-10.0, sl]), ('c1', m & (P[:, 0] > sh), None, [sh, 10.0])]
+        # a band facing far from the panel's plane (wing top vs wing side: ~70 deg) is not a height field over
+        # it: fit it over its own plane (trimmed by 3D prisms like a patch)
+        # a band split by an opening (the lowest wing band: in front of and behind the wheel arch) is one
+        # surface per connected piece, each over its own stretch of the car (cut halfway across the gap)
+        if pieces[0][3] is None:
+            inb_ = np.zeros(len(V), bool); inb_[u[core]] = True
+            Tin = Fr[inb_[Fr].all(1)]
+            if len(Tin):
+                comps_, _ = components(V, Tin)
+                big = [np.isin(u, np.unique(c_)) for c_ in comps_ if len(np.unique(c_)) >= 25]
+                if len(big) > 1:
+                    big.sort(key=lambda k_: P[k_, 0].min())
+                    rng_ = [(P[k_, 0].min(), P[k_, 0].max()) for k_ in big]
+                    if all(rng_[i][1] < rng_[i + 1][0] for i in range(len(rng_) - 1)):      # apart along the car
+                        cuts = [-10.0] + [(rng_[i][1] + rng_[i + 1][0]) / 2 for i in range(len(rng_) - 1)] + [10.0]
+                        pieces = [(f'p{i}', m & (P[:, 0] > cuts[i]) & (P[:, 0] <= cuts[i + 1]), fr, [cuts[i], cuts[i + 1]]) for i in range(len(big))]
+        cosw = (lambda nn: nn @ fr[3] / np.linalg.norm(nn))(Nv[u[m]].mean(0)) if m.any() else 1.0
+        if cosw < np.cos(np.radians(35)) and pieces[0][3] is None:
+            pieces = [('', m, None, None)]
         for tag, mk, frp, band_s in pieces:
             if mk.sum() < 12: continue
             own = frp is None
@@ -664,7 +716,7 @@ def fit_bands(name, V, Fr, Nv, overlap=0.002):
             if own: e['frame'] = [x.tolist() for x in frp]; e['own_plane'] = True
             if own or band_s is not None:
                 e['line_frame'] = [x.tolist() for x in fr]          # the band lines live in the region's frame
-                e['band_s'] = mm(band_s)
+                if band_s is not None: e['band_s'] = mm(band_s)
             out.append(e)
             if not tag and not own: fits[b] = f; cores[b] = core
             print(f"{e['name']:28s} verts {len(S):4d} control {f['nu']}x{f['nv']} lam {f['lam']:g}  cv {cv*1000:.2f} mm  fit p95 {np.percentile(r[iscore],95)*1000:.2f} max {r[iscore].max()*1000:.2f} mm (band's own vertices)" + ('  (own plane)' if own else ''))
