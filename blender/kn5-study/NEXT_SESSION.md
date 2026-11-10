@@ -20,10 +20,10 @@ results log).
 cd /d/Claude/Claude-/blender/kn5-study
 C=D:/SteamLibrary/steamapps/common/assettocorsa/content/cars/ks_toyota_ae86
 OUT=D:/Claude/_scratch_research/kn5_study/blind/door
-python panel_fit.py $C $OUT GEO_extdoorL_SUB1:b0 GEO_extdoorL_SUB1:r1,2,5 GEO_extglassL   # fit (about 40 s)
+python panel_fit.py $C $OUT GEO_extdoorL_SUB1:b0,2 GEO_extdoorL_SUB1:r1,5 GEO_extglassL   # fit (about 15 s)
 PF_IN='D:\Claude\_scratch_research\kn5_study\blind\door' ./fcrun.sh panel_fit_freecad.py   # CAD faces, STEP, mesh
 # then exact normals: PF.exact_normals(p, mesh points) -> panels_fit_normals.npz -> Blender (custom normals)
-python score_exact.py BUILD.npz        # exact two-way score (strip grids); exact_dist.point_to_tris for meshes
+python score_faces.py $C $OUT GEO_extdoorL_SUB1 GEO_extglassL   # per-face distance + coverage (about 2 min)
 ```
 
 **Spec syntax** (after the mesh name):
@@ -49,12 +49,22 @@ use C:.
    grooves. Adding `r5` fixed it.
    - Lesson: **include every small outward-facing crease region** (ledges and chamfers, from about
      0.001 m²). Make this automatic: fit all regions of a panel whose normals face out.
-   - Still to do: the strip face is slightly rounded where the original is flat. Check its fit (4x10) and
-     try fewer controls across.
-2. **Window frame band (`b0`) and beltline roll (`b1`)** are about 1.5 mm p95, against 0.1–0.3 mm on
-   the rest.
-   - Try splitting the frame from the top of the roll.
-   - Try building the roll as a true blend (tangent to both neighbours).
+   - **Fixed (2026-11-10): the strip was rounded** because region `r2` was really two faces (the flat
+     strip plus a 5 mm chamfer past a ~31 deg turn) and the strip has no vertices across its 30 mm middle.
+     Narrow regions now get short section arms, so the chamfer line is found, and sharp lines snap to their
+     corner vertex. Spec `GEO_extdoorL_SUB1:b2`. Strip 0.06 mm to the original, flat across (< 0.02 mm bow).
+2. **Window frame ring (`r0:b0`) and beltline roll (`r0:b1`)** (2026-11-10, door build `blind/door_v4`):
+   - The frame ring held the beltline's steep 3 mm lip (the roll was invisible within 12 mm of the panel
+     edge). Arms now shrink at section ends and a roll reaching the edge owns it. Ring vertex fit 1.45 ->
+     0.79 mm (faces: 1.61 -> 1.33 mm p95 to the original).
+   - Roll faces 3.06 -> 2.43 mm p95. Still the weakest face: Kunos has only ~9 vertex rows along 1.3 m
+     there, and the window corners fold over the door plane. Corner patches (`PF_CORNERS=1`) were tried and
+     are unstable (13-18 vertices); off by default.
+   - Next: build the roll as a true blend (tangent to the skin below and the frame), or a swept profile
+     along its line, instead of fitting sparse vertices. Also a white streak low on the front of the door
+     in the zebra view (`images/door_v4_vs_original_zebra.png`): check which face.
+   - Whole door: original area within 1 mm of our faces 68.9 -> 71.9 %, within 3 mm 88.9 -> 89.4 %
+     (`score_faces.py`; its per-face figure is ours -> original only).
 3. **Watertight joins:** each face's outline is currently fitted on its own (within 0.4 mm). Fit each
    shared boundary once, as a 3D curve, and use it on both faces.
 4. **Shut-line returns:** use the measured recipe (about 5 mm return, 3–4 mm gap; bumpers about 20 mm).

@@ -101,17 +101,21 @@ for p in res:
             cu.buildFromPolesMultsKnots([App.Vector(*to_world(lf, gs, cs, -H)) for gs, cs in zip(L['g'], L['c'])], m_, k_, False, 3)
             # poles at Greville points => curve parameter = s, so the band's s range is a plain segment
             a_, b_ = max(s_a, cu.FirstParameter), min(s_b, cu.LastParameter)
+            if a_ >= b_: raise ValueError(f'band range {s_a:.0f}..{s_b:.0f} outside its line')
             if a_ > cu.FirstParameter + 1e-6 or b_ < cu.LastParameter - 1e-6: cu.segment(a_, b_)
             return cu.toShape()
-        lo = line_edge(p.get('band_lo'), dom_s[0], dom_s[1], -5000.0); hi = line_edge(p.get('band_hi'), dom_s[0], dom_s[1], 5000.0)
-        a0, a1 = lo.Vertexes[0].Point, lo.Vertexes[-1].Point; b0, b1 = hi.Vertexes[0].Point, hi.Vertexes[-1].Point
-        wire = Part.Wire(Part.__sortEdges__([lo, Part.LineSegment(a1, b1).toShape(), hi, Part.LineSegment(b0, a0).toShape()]))
-        prism = Part.Face(wire).extrude(App.Vector(*(w * 2 * H)))
-        cut_ = face.common(prism)
-        if cut_.Faces and cut_.Area > 1:
-            face = Part.makeShell(cut_.Faces) if len(cut_.Faces) > 1 else cut_.Faces[0]
-        else:
-            print(p['name'], 'band cut failed')
+        try:
+            lo = line_edge(p.get('band_lo'), dom_s[0], dom_s[1], -5000.0); hi = line_edge(p.get('band_hi'), dom_s[0], dom_s[1], 5000.0)
+            a0, a1 = lo.Vertexes[0].Point, lo.Vertexes[-1].Point; b0, b1 = hi.Vertexes[0].Point, hi.Vertexes[-1].Point
+            wire = Part.Wire(Part.__sortEdges__([lo, Part.LineSegment(a1, b1).toShape(), hi, Part.LineSegment(b0, a0).toShape()]))
+            prism = Part.Face(wire).extrude(App.Vector(*(w * 2 * H)))
+            cut_ = face.common(prism)
+            if cut_.Faces and cut_.Area > 1:
+                face = Part.makeShell(cut_.Faces) if len(cut_.Faces) > 1 else cut_.Faces[0]
+            else:
+                print(p['name'], 'band cut failed')
+        except Exception as ex:
+            print(p['name'], 'band cut failed:', ex, flush=True); continue
     shapes.append(face)
     m = MeshPart.meshFromShape(Shape=face, MaxLength=float(os.environ.get('PF_MAXLEN', 6)))   # even triangles (Mefisto)
     pts, fc = m.Topology

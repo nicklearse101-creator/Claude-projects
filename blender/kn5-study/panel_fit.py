@@ -456,7 +456,9 @@ def feature_lines(V, Fr, fr, ds=0.02, thr=10.0, arm=None, span=0.35):
     for ch in chains:
         ss = secs[[c[0] for c in ch]]
         if ss.max() - ss.min() < span * (s1 - s0) or len(ch) < 6: continue
-        f = fit_func(ss, np.array([c[1] for c in ch]), dom)
+        # one control per ~12 sections at most: more lets the line chase facet-corner jumps and swing past
+        # its last hit (AE86 beltline: n=10 put the rear end 10 mm off)
+        f = fit_func(ss, np.array([c[1] for c in ch]), dom, nmax=int(np.clip(len(ch) // 12, 4, 10)))
         f.update(s_lo=float(ss.min()), s_hi=float(ss.max()), turn=float(np.mean([c[2] for c in ch])), hits=len(ch),
                  ext_lo=float(np.median([c[3] for c in ch])), ext_hi=float(np.median([c[4] for c in ch])))
         lines.append(f)
@@ -498,8 +500,14 @@ def fit_bands(name, V, Fr, Nv, overlap=0.002):
         inb = np.zeros(len(V), bool); inb[u[m]] = True
         ring = np.isin(u, np.unique(Fr[inb[Fr].any(1)]))
         for L, sg in ((lo, -1), (hi, 1)):
-            if L is not None and ov(L) < overlap:              # sharp: never reach across it
-                ring &= (P[:, 1] - eval_func(L, P[:, 0])) * sg < ov(L)
+            if L is not None:                                 # at most 50 mm beyond (Kunos triangles reach 200 mm)
+                ring &= (P[:, 1] - eval_func(L, P[:, 0])) * sg < (ov(L) if ov(L) < overlap else 0.05)
+        core = m.copy()
+        tb = np.c_[[eval_func(L, P[:, 0]) for L in cut_lines]].T if cut_lines else np.zeros((len(P), 0))
+        for j, L in enumerate(cut_lines):                     # never across any sharp line of the region
+            if ov(L) < overlap:
+                side = np.sign(P[:, 1] - tb[:, j]); cs = np.sign(np.median(side[core])) if core.any() else 1
+                ring &= (side == cs) | (np.abs(P[:, 1] - tb[:, j]) < ov(L))
         m |= ring
         mm = lambda a: (np.asarray(a) * 1000).tolist()
         line = lambda L: None if L is None else dict(kv=mm(L['kv']), g=mm(L['g']), c=mm(L['c']))
@@ -515,7 +523,7 @@ def fit_bands(name, V, Fr, Nv, overlap=0.002):
             if mk.sum() < 12: continue
             own = frp is None
             if own: frp = frame_of(V[u[mk]], Nv[u[mk]])
-            S = to_plane(V[u[mk]], frp)
+            S = to_plane(V[u[mk]], frp); iscore = core[mk]
             pad = 0.02
             dom = [S[:, 0].min() - pad, S[:, 0].max() + pad, S[:, 1].min() - pad, S[:, 1].max() + pad]
             f, r, cv = select_fit(S, dom)
@@ -523,13 +531,13 @@ def fit_bands(name, V, Fr, Nv, overlap=0.002):
                                               # trimmed by a prism of them; projected onto a tilted plane they fold)
             e.update(name=f'{name}:b{b}{tag}', dom=mm(dom), nu=f['nu'], nv=f['nv'], ku=mm(f['ku']), kv=mm(f['kv']),
                      poles=mm(np.stack(list(np.meshgrid(f['gu'], f['gv'], indexing='ij')) + [f['H']], -1)),
-                     band_lo=line(lo), band_hi=line(hi), fit_p95_mm=float(np.percentile(r, 95) * 1000))
+                     band_lo=line(lo), band_hi=line(hi), fit_p95_mm=float(np.percentile(r[iscore], 95) * 1000))
             if own: e['frame'] = [x.tolist() for x in frp]; e['own_plane'] = True
             if own or band_s is not None:
                 e['line_frame'] = [x.tolist() for x in fr]          # the band lines live in the region's frame
                 e['band_s'] = mm(band_s)
             out.append(e)
-            print(f"{e['name']:28s} verts {len(S):4d} control {f['nu']}x{f['nv']} lam {f['lam']:g}  cv {cv*1000:.2f} mm  fit p95 {np.percentile(r,95)*1000:.2f} max {r.max()*1000:.2f} mm" + ('  (own plane)' if own else ''))
+            print(f"{e['name']:28s} verts {len(S):4d} control {f['nu']}x{f['nv']} lam {f['lam']:g}  cv {cv*1000:.2f} mm  fit p95 {np.percentile(r[iscore],95)*1000:.2f} max {r[iscore].max()*1000:.2f} mm (band's own vertices)" + ('  (own plane)' if own else ''))
     print(f"{name}: {len(lines)} character lines: " + ', '.join(f"turn {L['turn']:+.0f} deg ({L['ext_lo']*1000:.0f}/{L['ext_hi']*1000:.0f} mm), {L['hits']} hits, fit {L['err']*1000:.2f} mm" for L in lines))
     return out
 

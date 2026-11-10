@@ -55,6 +55,17 @@ by construction. No smoothing step anywhere.
 - Glass in Kunos cars is tiny (door glass 41 tris); the black "mask" mesh is texture, not shape.
 - Blender's bundled Python has no PIL: run kn5/section analysis outside Blender, load npz inside.
 
+- (2026-11-10) Section arms must fit the region: a fixed 12 mm arm skips narrow regions (45 mm strip) and
+  hides turns within 12 mm of a panel edge. Arms now scale with region width and shrink at section ends.
+- (2026-11-10) Sharp lines sit on a vertex: snap to it, and keep band overlap tight across them (a 2 mm
+  overlap pulled a chamfer vertex 1 mm past the corner into the flat strip: 0.31 -> 0.08 mm).
+- (2026-11-10) Kunos vertex rows can be 25 mm apart across and 150 mm apart along: a band edge with no data
+  swings wildly. Across soft bounds, take the next vertex row (at most 50 mm out); never across a sharp line.
+- (2026-11-10) Limit a character line's controls to about one per 12 sections, or it chases facet corners
+  and swings past its last hit.
+- (2026-11-10) Report face scores to the original's facets (`score_faces.py`), not vertex-fit p95; per-face
+  original -> ours is meaningless with 200 mm Kunos triangles; use whole-build coverage.
+
 ## For the photo phase
 The inputs are exactly what photos/blueprints give: panel outlines, character lines (traced curves) and a
 few sections/points per surface. The fit + trim + band-cut machinery is unchanged.
