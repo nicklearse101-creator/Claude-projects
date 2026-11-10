@@ -84,3 +84,26 @@ few sections/points per surface. The fit + trim + band-cut machinery is unchange
 - (2026-11-10 night) Never fill "holes" that are only Kunos chord sag: test whether a built face lies over the triangle
   along its normal, not just its centre's distance.
 
+
+## Thin strips (2026-11-10 late, `strip_build.py`)
+Research: `blender/research/reports/Narrow strip surfacing between panels.md` (Alias Panel Gap / Fillet Flange, the
+Várady/Geomagic pipeline, OCCT source). Every source builds the strip ON the panels' own edges, never fits it and makes
+it meet them afterwards.
+- **Detect:** a crease region with width (area / length) < 15 mm and length > 10 x width, one outline, two long sides
+  (runs of its outline shared with one neighbour each, or free) both covering >= 70 % of it. Default on (`PF_STRIPS=0`
+  turns it off); a strip whose sides cover < 85 % of its length (a side made of runs along several neighbours: the
+  1.4 m drip rail r7) stays an ordinary face for now.
+- **Spine:** midline from nearest-point pairs between the two sides (not equal arc fractions: one side can run
+  longer), parametrised by side A's arc length, then by its own; every curve of the strip is a 3D B-spline whose
+  parameter = arc length along the spine (curved strips work).
+- **Sides:** only the stretch running ALONG the spine (ds/darc > 0.7) - at the ends the outline turns across the strip.
+  A side on a wide face = that face's BUILT edge sampled every 1 mm (only where its tangent runs along the side) and
+  refitted: 0.01-0.02 mm. A side shared by two strips, or free = fitted once to the Kunos boundary (one control per
+  20 mm, 0.3 mm) and reused by both strips.
+- **Surface:** `Part.makeRuledSurface(e1, e2, 1)` - orientation 1, automatic flipped a rail (bow-tie, double area).
+  Each rail runs to its own end corners (slanted ends kept). Cut rails at known parameters, never with Geom
+  closest-point lookups (they returned far local minima: a 0.7 mm rail).
+- **Triangle winding** must agree with the exact normals (ruled faces mesh inward): renderers shade a back-facing
+  triangle with its normal flipped - the lamp-top wall came out dark although the geometry matched to 0.1 mm.
+- Result (rear quarter): 14 strips, each within 0.1 mm median of Kunos; joins on shared edges 0.00-0.01 mm median.
+  Kunos bends the vertex normals of its returns 25-45 deg (soft look); we keep exact normals.

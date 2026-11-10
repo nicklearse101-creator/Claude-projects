@@ -25,8 +25,10 @@ def mults(kv):
 
 
 ONLY = os.environ.get('PF_ONLY')          # comma list of name substrings: build just those faces (debug)
+built = {}                                # face name -> built shape (strips are built on these faces' edges)
 for p in res:
     if ONLY and not any(k in p['name'] for k in ONLY.split(',')): continue
+    if p.get('strip'): continue           # thin strips: after every wide face (below)
     tf = time.time()
     fr = p['frame']; P = np.array(p['poles'])                 # (nu, nv, 3) plane mm
     W = np.array([[to_world(fr, *P[i, j]) for j in range(P.shape[1])] for i in range(P.shape[0])])
@@ -164,7 +166,7 @@ for p in res:
             cc = face.cut(poly_prism(cp['poly'], cp['frame']))
             if cc.Faces and cc.Area > 1: face = Part.makeShell(cc.Faces) if len(cc.Faces) > 1 else cc.Faces[0]
         except Exception as ex: print(p['name'], 'seam cut failed:', ex, flush=True)
-    shapes.append(face)
+    shapes.append(face); built[p['name']] = face
     m = MeshPart.meshFromShape(Shape=face, MaxLength=float(os.environ.get('PF_MAXLEN', 6)))   # even triangles (Mefisto)
     pts, fc = m.Topology
     if not fc:                                            # Mefisto can fail on slivers: standard mesher instead
@@ -181,6 +183,123 @@ for p in res:
     normals[p['name']] = nn
     mesh[p['name'] + '_F'] = np.array(fc, int)
     print(f"{p['name']:24s} area {face.Area / 1e6:.3f} m2  edges {len(edges)}  mesh {len(fc)} tris  valid {ok}  {time.time() - tf:.1f} s", flush=True)
+# ---- thin strips (strip_build.py): ruled surfaces between shared side curves ----
+# A side on a wide face = that face's own built edge, sampled every 1 mm and refitted (so the join is exact to the
+# refit, ~0.02 mm); a side shared by two strips or free = fitted once to the Kunos boundary vertices and used by both.
+import sys as _sys
+_sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) if '__file__' in dir() else os.environ.get('PF_SRC', r'D:\Claude\Claude-\blender\kn5-study'))
+_sys.path.insert(0, r'D:\Claude\Claude-\blender\kn5-study')
+import strip_build as SB
+strips = [p for p in res if p.get('strip') and not (ONLY and not any(k in p['name'] for k in ONLY.split(',')))]
+dbg = {}
+curves_maker = {}
+curves = {}                               # curve key -> (Part.BSplineCurve, source, fit error mm)
+
+
+def face_edge_points(prefix, near, tol=2.0):
+    """points (mm) on the built edges of the faces named prefix (+ band/wrap suffixes) within tol of polyline near"""
+    sh = [s for n, s in built.items() if n == prefix or (n.startswith(prefix) and not n[len(prefix)].isdigit())]
+    if not sh: return np.zeros((0, 3))
+    X, Tg = [], []
+    for s in sh:
+        for e in s.Edges:
+            if e.Length < 2: continue
+            for q in e.discretize(Distance=1.0):
+                t_ = e.tangentAt(e.Curve.parameter(q)) if hasattr(e, 'Curve') else App.Vector()
+                X.append([q.x, q.y, q.z]); Tg.append([t_.x, t_.y, t_.z])
+    X, Tg = np.array(X), np.array(Tg)
+    _, d = SB.spine_s(near, X)
+    # only where the edge runs ALONG the side (at the strip's ends the face's outline turns the corner)
+    sn, _ = SB.spine_s(near, X)
+    dn = np.r_[0, np.cumsum(np.linalg.norm(np.diff(near, axis=0), axis=1))]
+    tq = np.gradient(near, axis=0); tq /= np.maximum(np.linalg.norm(tq, axis=1), 1e-9)[:, None]
+    tl = tq[np.clip(np.searchsorted(dn, sn), 0, len(near) - 1)]
+    al = np.abs((Tg * tl).sum(1)) / np.maximum(np.linalg.norm(Tg, axis=1), 1e-9)
+    return X[(d < tol) & (al > 0.8) & (sn > 0.5) & (sn < dn[-1] - 0.5)]
+
+
+def side_curve(st, sd):
+    """the side's curve (cached by key: a curve shared by two strips is made once)"""
+    key = sd['key']
+    if key in curves: return curves[key]
+    Sp = np.array(st['spine']) * 1000; Q = np.array(sd['pts']) * 1000
+    X, src = np.zeros((0, 3)), 'vertices'
+    if sd.get('nb_name') and not sd.get('nb_strip'):
+        X = face_edge_points(sd['nb_name'], Q)
+    s_q, _ = SB.spine_s(Sp, Q)
+    if len(X) >= 20:
+        s_x, _ = SB.spine_s(Sp, X)
+        cover = np.mean([np.abs(s_x - v).min() < 3.0 for v in s_q])
+        if cover > 0.6:
+            # the face edge where it exists; the Kunos side polyline only where the face edge does not reach
+            far = np.array([np.abs(s_x - v).min() > 3.0 for v in s_q])
+            X = np.r_[X, Q[far]]; s_all = np.r_[s_x, s_q[far]]; src = f'face edge ({cover*100:.0f} %)'; tol = 0.02
+        else: X = np.zeros((0, 3))
+    if src == 'vertices':
+        X, s_all, tol = Q, s_q, 0.3
+    o = np.argsort(s_all); X, s_all = X[o], s_all[o]
+    dbg.setdefault('keys', []).append(key); dbg[key + '_X'] = X; dbg[key + '_s'] = s_all; dbg[key + '_Q'] = Q
+    L = s_all[-1] - s_all[0]
+    # face edge: dense exact samples, follow them (0.02 mm); Kunos vertices: one control per 20 mm at most (more
+    # chases the chord corners of the boundary polyline)
+    nmax = int(np.clip(L / (8.0 if tol < 0.1 else 20.0), 4, 80))
+    f = SB.fit_graph(s_all, X, [s_all[0], s_all[-1]], tol=tol, nmax=nmax, mu=1e-8 if tol < 0.1 else 1e-6)
+    vals, cnt = np.unique(np.round(f['kv'], 9), return_counts=True)
+    cu = Part.BSplineCurve()
+    cu.buildFromPolesMultsKnots([App.Vector(*q) for q in f['C']], [int(c) for c in cnt], [float(v) for v in vals], False, 3)
+    curves[key] = (cu, src, f['err']); curves_maker[key] = cur_strip[0]
+    return curves[key]
+
+
+cur_strip = [None]
+for p in strips:
+    st = p['strip']; tf = time.time(); cur_strip[0] = p['name']
+    try:
+        Sp = np.array(st['spine']) * 1000
+        cs = [side_curve(st, sd) for sd in st['sides']]
+        # the strip's ends: square to its spine at both ends; each side curve cut where it is nearest those points
+        ends = [Sp[0], Sp[-1]]
+        segs = []
+        # each rail runs to its OWN end corners (the side's first and last Kunos vertex), so the strip's end edges
+        # go corner to corner (slanted ends kept); the ruled surface pairs the rails by normalised parameter
+        for (cu, _, _), sd in zip(cs, st['sides']):
+            Q_ = np.array(sd['pts']) * 1000
+            if curves_maker.get(sd['key']) == p['name']:      # parameter = this strip's spine arc length
+                sq_, _ = SB.spine_s(Sp, Q_[[0, -1]])
+                a, b = max(sq_.min(), cu.FirstParameter), min(sq_.max(), cu.LastParameter)
+            else:                                            # a curve made by the neighbouring strip: its own spine
+                # nearest point by dense sampling (Geom closest-point lookups returned far local minima here)
+                uu = np.linspace(cu.FirstParameter, cu.LastParameter, 2000)
+                XX = np.array([[q.x, q.y, q.z] for q in (cu.value(u) for u in uu)])
+                a, b = sorted(uu[np.linalg.norm(XX - e_, axis=1).argmin()] for e_ in Q_[[0, -1]])
+            c2 = cu.copy()
+            if b - a < 1.0: raise ValueError('side curve does not span the strip')
+            c2.segment(a, b); segs.append(c2)
+        # same direction for both (rulings must not cross)
+        if (segs[0].StartPoint - segs[1].StartPoint).Length > (segs[0].StartPoint - segs[1].EndPoint).Length:
+            segs[1].reverse()
+        if os.environ.get('PF_STRIPDBG'):
+            for c_ in segs: print('   rail', p['name'], [round(x, 1) for x in c_.StartPoint], [round(x, 1) for x in c_.EndPoint], 'len', round(c_.length(), 1), flush=True)
+            print('   spine ends', [round(x, 1) for x in Sp[0]], [round(x, 1) for x in Sp[-1]], flush=True)
+        rs = Part.makeRuledSurface(segs[0].toShape(), segs[1].toShape(), 1)   # 1 = as given (automatic can flip one rail)
+        face = rs.Faces[0]
+    except Exception as ex:
+        print(p['name'], 'strip failed:', ex, flush=True); continue
+    shapes.append(face); built[p['name']] = face
+    m = MeshPart.meshFromShape(Shape=face, MaxLength=float(os.environ.get('PF_MAXLEN', 6)))
+    pts, fc = m.Topology
+    if not fc:
+        m = MeshPart.meshFromShape(Shape=face, LinearDeflection=0.05, AngularDeflection=0.2, Relative=False); pts, fc = m.Topology
+    if not fc:
+        print(p['name'], 'strip mesh failed', flush=True); continue
+    sf = face.Surface; nn = []
+    for q in pts:
+        u_, v_ = sf.parameter(q); n_ = sf.normal(u_, v_); nn.append([n_.x, n_.y, n_.z])
+    nn = np.array(nn); nn *= np.sign((nn @ np.array(st['frame'][3])).mean() or 1.0)
+    mesh[p['name'] + '_P'] = np.array([[q.x, q.y, q.z] for q in pts]) / 1000.0; mesh[p['name'] + '_F'] = np.array(fc, int)
+    normals[p['name']] = nn
+    print(f"{p['name']:24s} STRIP area {face.Area / 1e6:.4f} m2 (Kunos {st['area']:.4f})  sides " +
+          ', '.join(f'{curves[sd["key"]][1]} {curves[sd["key"]][2]:.2f} mm' for sd in st['sides']) + f'  {time.time() - tf:.1f} s', flush=True)
 # ---- shut-line returns: a ruled strip turned in square to the skin along every FREE outer edge ----
 # (an edge no other face shares). Kunos: ~5 mm return. PF_RETURNS = depth in mm (0 = off).
 RET = float(os.environ.get('PF_RETURNS', 0))
@@ -260,6 +379,16 @@ if RET > 0 and not ONLY:
             nn *= np.sign(((pm - ctr) * nn).sum(1).mean() or 1.0)       # facing out of the panel, into the gap
             normals[rn] = nn
             print(f'{rn:40s} length {e.Length:6.0f} mm  area {rs.Area / 1e6:.4f} m2', flush=True)
+# triangle winding to agree with the exact (outward) normals: a ruled strip or a reversed face meshes inward, and
+# renderers shade a back-facing triangle with its normal flipped (the lamp-top wall came out dark)
+for n_, nn_ in normals.items():
+    P_, F_ = mesh[n_ + '_P'], mesh[n_ + '_F']
+    if not len(F_) or nn_.shape != P_.shape: continue
+    T_ = P_[F_]; g_ = np.cross(T_[:, 1] - T_[:, 0], T_[:, 2] - T_[:, 0])
+    if (np.einsum('ij,ij->i', g_, nn_[F_].mean(1)) < 0).mean() > 0.5:
+        mesh[n_ + '_F'] = F_[:, [0, 2, 1]]
+if os.environ.get('PF_STRIPDBG'):
+    np.savez(os.path.join(IN, 'strip_dbg.npz'), keys=np.array(dbg.get('keys', [])), **{k: v for k, v in dbg.items() if k != 'keys'})
 Part.makeCompound(shapes).exportStep(os.path.join(IN, 'panels_fit.step'))
 np.savez(os.path.join(IN, 'panels_fit_mesh.npz'), **mesh)
 np.savez(os.path.join(IN, 'panels_fit_normals.npz'), **normals)   # exact normals (FreeCAD)

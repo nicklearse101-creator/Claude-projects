@@ -1,4 +1,4 @@
-# Next session: Blender Work / AE86 replica (handover, 2026-11-10 night)
+# Next session: Blender Work / AE86 replica (handover, 2026-11-10 late)
 
 **Start here.**
 1. Read this page (where we are, how to run, what's next).
@@ -14,9 +14,9 @@ model now; later they will come from photos.
 
 | Panel | State | Area within 1 / 3 mm | Kunos vertices within 1 / 3 mm |
 |---|---|---|---|
-| Door (80 faces incl. glass, mirror, trims) | done | 87.9 % / 99.6 % | - |
-| Front wing (arch lip, sub-panels) | done, small items left | 70.6 % / 96.1 % | 92.5 % / 99.3 % |
-| Rear quarter + C-pillar | first full build, small items left | 78.2 % / 96.8 % | 86.5 % / 97.9 % |
+| Door (80 faces incl. glass, mirror, trims; 21 strips) | done | 88.4 % / 99.7 % | - |
+| Front wing (arch lip, sub-panels) | done, small items left | 70.5 % / 96.1 % | 92.5 % / 99.3 % |
+| Rear quarter + C-pillar (14 strips) | lamp-top step done, small items left | 78.3 % / 96.8 % | 86.3 % / 97.9 % |
 | Roof, bonnet, hatch, bumpers, sills | not started | | |
 
 The **vertex** score is the honest one: Kunos uses 100-150 mm flat triangles that cut chords across curves, so the
@@ -30,7 +30,7 @@ Pictures (local, not in git): `D:\Claude\_scratch_research\kn5_study\images\` - 
 cd /d/Claude/Claude-/blender/kn5-study
 ./regress.sh all          # rebuild + score door, wing, quarter (~6 min). Run after EVERY change to the fitters.
 ```
-Reference (2026-11-10 night): **door 87.9 / 99.6, wing 70.6 / 96.1, quarter 78.2 / 96.8** (area within 1 / 3 mm).
+Reference (2026-11-10 late, with thin strips): **door 88.4 / 99.7, wing 70.5 / 96.1, quarter 78.3 / 96.8** (area within 1 / 3 mm).
 
 One panel by hand (the quarter as an example):
 ```bash
@@ -72,16 +72,17 @@ fallback), `FH_CHORD` (hole filler ignores Kunos chord sag). `PF_WRAP` = wrap cu
 
 ## Next (in order)
 
-### 1. Thin-strip builder (start here)
-The rear quarter's lamp-top step is four flat strips about 8 mm wide and 260 mm long: r13 (faces rearward), r14 (up),
-r17 and r18 (down), between the C-pillar face r1 and the lamp ledge r8. Each is fitted as its own trimmed surface, so
-neighbours overlap or gap by about 1 mm and the step looks ragged (`quarter_v2b_grid_grey.png`, top row).
-- Build: for each boundary between two neighbouring regions, ONE fair 3D B-spline edge curve fitted to the shared
-  vertices (5 mm resampled polyline, as the outline sides). A narrow region (width < ~15 mm, length > ~10 x width)
-  becomes a RULED surface between its two long edge curves; the wide faces either side are trimmed on the same curves.
-- The same builder then serves shut-line returns (door, wing, quarter edges), lamp surrounds and window flanges, and
-  the photo phase (a step = two traced lines).
-- Check: zoom on the lamp top, ours vs Kunos in grey; `seams.py` joins on the step under 0.2 mm; `regress.sh`.
+### 1. Thin strips - DONE 10 Nov late (`strip_build.py`, see PANEL_FIT_TECHNIQUE.md "Thin strips")
+Narrow crease faces are ruled surfaces on shared side curves; a side on a wide face is that face's own built edge.
+Lamp-top channel (r17 / r13 / r14 / r18) now matches Kunos in grey (`images/lamptop_strips_vs_kunos_grey.png`).
+Left to do:
+- **Multi-neighbour sides:** a long side made of runs along several faces (rear quarter r7, the 1.4 m drip rail: r1,
+  r4, r21) needs a chain of curves (rail = wire, `makeRuledSurface` on wires). r7 stays an ordinary face meanwhile.
+- **Wide faces trimmed on strip-strip curves:** today a strip takes the wide face's edge as it is (0.5-1 mm from the
+  Kunos crease); the next step is to fit that edge once from the Kunos crease and trim the wide face on it (2D curve
+  in its parameter space, `toShape(surface)`, the same edge object in both faces, as the research recommends).
+- `seams.py` reads a narrow strip's far edge as a join (p95 ~4 mm on strips under 5 mm wide): measure joins only on
+  boundary vertices whose nearest face is the strip's recorded neighbour.
 
 ### 2. Rear quarter leftovers
 - A hairline down the vertical edge beside the lamp opening (the r27 return).
@@ -111,6 +112,11 @@ skin UV, baked AO, LODs, standard dummy names, two-layer glass.
 ### 7. Afterwards
 Lamps, grille, badges; interior survey; then **from photos** (Nova first: it has solved cameras and traced windows):
 trace outlines and character lines, run the same fit/trim/cut, check by eye. Parked: steward app, Nova grading.
+
+## What happened on 10 Nov late (thin strips)
+- Deep research (3 threads + report) on narrow strips between panels; report in `blender/research/reports/`.
+- `strip_build.py` + FreeCAD stage: 14 strips on the quarter, 21 on the door, 5 on the wing; door 87.9 -> 88.4 %.
+- Triangle winding now follows the exact normals for every face (fixes dark ruled faces).
 
 ## What happened on 10 Nov (short log)
 Full detail is in git history and `ACHIEVEMENTS_REPORT.md` section 7.

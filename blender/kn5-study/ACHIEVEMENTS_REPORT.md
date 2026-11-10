@@ -184,5 +184,9 @@ surface reads as "off" between vertices on the area score.
 
 **Nik's verdict on the quarter's first build:** "really fast and produced a really good result".
 
-**Next:** a thin-strip builder (narrow steps and returns as ruled surfaces between shared edge curves - the
-quarter's lamp-top step is the first case), then the roof, bonnet, hatch, bumpers and sills.
+**Thin strips (late evening):** after a deep-research pass (how Alias, the Geomagic/Várady pipeline and OpenCascade do
+it), narrow steps and returns are built as ruled surfaces between shared side curves, a side on a wide face being
+that face's own edge. 14 strips on the rear quarter, 21 on the door: each within 0.1 mm (median) of Kunos, joins
+0.00-0.01 mm; door 87.9 -> 88.4 % within 1 mm. The lamp-top channel now matches Kunos in grey.
+
+**Next:** chains of curves for strips running along several faces, then the roof, bonnet, hatch, bumpers and sills.

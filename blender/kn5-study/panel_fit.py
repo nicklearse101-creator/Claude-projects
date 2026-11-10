@@ -1313,10 +1313,25 @@ def main():
             # ledge read as a groove); each one surface over its own plane
             amin = float(os.environ.get('PF_MINAREA', 3e-4))
             skip = {int(x) for x in comp[5:].split(',') if x} if comp.startswith('rall!') else set()
-            for ri, Fr in enumerate(crease_pieces(V, F, Nv)):
+            pcs_ = crease_pieces(V, F, Nv)
+            strips_ = {}
+            if os.environ.get('PF_STRIPS', '1') == '1':          # narrow steps / returns: ruled between shared edge curves
+                import strip_build as SB
+                strips_ = SB.find_strips(V, F, Nv, pcs_, components, boundary_loops, amin=amin)
+            for ri, Fr in enumerate(pcs_):
                 if ri in skip: continue
                 T_ = V[Fr]; A_ = np.linalg.norm(np.cross(T_[:, 1] - T_[:, 0], T_[:, 2] - T_[:, 0]), axis=1).sum() / 2
                 if A_ < amin: continue
+                if ri in strips_:
+                    st_ = strips_[ri]
+                    for sd_ in st_['sides']:
+                        sd_['nb_name'] = None if sd_['nb'] is None else f'{name}:r{sd_["nb"]}'
+                        sd_['nb_strip'] = sd_['nb'] in strips_
+                        sd_['key'] = f'{name}:' + '|'.join(sd_['key'])
+                    res.append(dict(name=f'{name}:r{ri}', strip=st_, frame=st_['frame']))
+                    print(f'{name}:r{ri}: STRIP {st_["width"]*1e3:.1f} x {st_["length"]*1e3:.0f} mm, sides ' +
+                          ', '.join(('free' if s_['nb'] is None else f'r{s_["nb"]}' + (' (strip)' if s_['nb_strip'] else '')) for s_ in st_['sides']))
+                    continue
                 parts = wrap_split(V, Fr, Nv)
                 for wi, Fw in enumerate(parts):
                     if len(parts) > 1 and len(Fw) < 4: continue
