@@ -14,6 +14,8 @@ Hand-made skin: `wtcc_chevrolet_lacetti/skins/ratty_racing_101`, scripts in `lac
 
 **RESUME HERE (next session):** `ac-skin-generator/PLAN_next_session.md` - banner mess, decals breaking across panels (needs depth test), nothing on side windows; test car wtcr_peugeot_308_gti_ss. v1.3.2 is the current installer.
 
+**Nik's rule (9 Nov):** decals/pictures must never be broken or cut - stretch them over curves, arches and panel steps; only hide them on inner/hidden surfaces (depth test).
+
 **Lessons:** never judge UV-strip orientation by eye (Lacetti right side is upside down; first skin came out mirrored). Verify with the 3D preview (`tests/test_stock.py CAR SKIN out.png`). The Bash tool mangles backslashes in heredocs (`\b`, `\n` became control chars / newlines) - write patch scripts with the Write tool instead.
 
 **How to apply:** extend the generator for skin work; render both sides before claiming text reads right. Related: [[escort-mk2-dtm-project]], [[talbot-sunbeam-lotus-ac-mod]].

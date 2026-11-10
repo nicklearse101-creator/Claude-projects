@@ -1,14 +1,14 @@
 """Ratty's4Skin Generator - window app.
 No AI: the livery is projected onto the car from its own 3D model."""
-import json, os, re, shutil, sys, tempfile, threading, traceback
+import copy, glob, json, math, os, re, shutil, sys, tempfile, threading, traceback
 import tkinter as tk
 from tkinter import ttk, filedialog, colorchooser, messagebox
-from PIL import Image, ImageTk
+from PIL import Image, ImageFont, ImageTk
 
 import skingen
 
 APP_NAME = skingen.APP_NAME
-VERSION = '1.3.2'
+VERSION = '1.5.0'
 DATA_DIR = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'Rattys4SkinGenerator')
 LOGO_DIR = os.path.join(DATA_DIR, 'logos')
 SETTINGS = os.path.join(DATA_DIR, 'settings.json')
@@ -19,6 +19,25 @@ TEXT_PLACES = ['front_wings', 'lower_doors', 'doors', 'rear_quarters', 'bonnet',
 TEAM_DEFAULT = ['front_wings', 'boot', 'rear', 'front']
 NAME_DEFAULT = ['front_wings']
 NUMBER_STYLES = {'board': 'Number board', 'plain': 'Plain number', 'none': 'No number'}
+
+
+DEFAULT_FONT_NAME = 'Default (Bahnschrift condensed)'
+_FONTS = None
+
+
+def list_fonts():
+    """Fonts installed on this PC: {name shown: file}. Read once."""
+    global _FONTS
+    if _FONTS is None:
+        found = {}
+        dirs = [skingen.FONT_DIR, os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Microsoft', 'Windows', 'Fonts')]
+        for d in dirs:
+            for f in glob.glob(os.path.join(d, '*.[tToO][tT][fF]')):
+                try: fam, sty = ImageFont.truetype(f, 20).getname()
+                except Exception: continue
+                found.setdefault(fam if sty in ('Regular', '') else f'{fam} {sty}', f)
+        _FONTS = dict(sorted(found.items(), key=lambda kv: kv[0].lower()))
+    return _FONTS
 
 
 def resource(name):
@@ -71,6 +90,11 @@ class App(tk.Tk):
         self.thumbs = {}
         self.preview_img = None
         self.busy = False
+        self.info = {}                                   # where the last preview put every decal
+        self.adjust_by_car = self.cfg.get('adjust_by_car') or {}     # hand adjustments, per car
+        self.adjust_gen = {}                             # the adjustments the last preview was made with
+        self.sel = None                                  # decal picked on the preview
+        self.geom = None
         self.build()
         self.refresh_cars()
         self.refresh_library()
@@ -94,6 +118,8 @@ class App(tk.Tk):
         d['name_places'] = [p for p, v in self.np_vars.items() if v.get()]
         d['pattern_mode'] = next((k for k, v in skingen.PICTURE_MODES.items() if v == self.vars['pattern_mode_name'].get()), 'side_left')
         d['pattern_simplify'] = next((k for k, v in skingen.SIMPLIFY.items() if v == self.vars['pattern_simplify_name'].get()), 'medium')
+        d['win_side_place'] = next((k for k, v in skingen.SIDE_PLACES.items() if v == self.vars['win_side_name'].get()), 'rear')
+        d['adjust_by_car'] = self.adjust_by_car
         try:
             with open(SETTINGS, 'w', encoding='utf8') as f: json.dump(d, f, indent=2)
         except Exception: pass
@@ -189,6 +215,10 @@ class App(tk.Tk):
         row('number', 'Show number on', lambda f: self.checks(f, (('number_doors', 'Doors'), ('number_roof', 'Roof'))))
         row('number', 'Team / wordmark', lambda f: ttk.Entry(f, textvariable=self.var('team')))
         row('number', 'Driver name', lambda f: ttk.Entry(f, textvariable=self.var('name')))
+        fonts = [DEFAULT_FONT_NAME] + list(list_fonts())
+        for key, label in (('font_team_name', 'Team font'), ('font_name_name', 'Driver font'), ('font_number_name', 'Number font')):
+            self.vars[key] = tk.StringVar(value=self.cfg.get(key) if self.cfg.get(key) in fonts else DEFAULT_FONT_NAME)
+            row('number', label, lambda f, key=key: ttk.Combobox(f, textvariable=self.vars[key], values=fonts, state='readonly', width=30))
         ttk.Label(tabs['number'], text='Where to write them:').pack(anchor='w', pady=(8, 2))
         grid = ttk.Frame(tabs['number']); grid.pack(fill='x')
         ttk.Label(grid, text='').grid(row=0, column=0)
@@ -202,8 +232,8 @@ class App(tk.Tk):
             self.tp_vars[pl] = tk.BooleanVar(value=pl in tp); self.np_vars[pl] = tk.BooleanVar(value=pl in np_)
             ttk.Checkbutton(grid, variable=self.tp_vars[pl]).grid(row=r, column=1)
             ttk.Checkbutton(grid, variable=self.np_vars[pl]).grid(row=r, column=2)
-        note('number', 'Where both are ticked, the driver name goes under the team name. A logo placed '
-                       'at the same spot takes priority.')
+        note('number', 'Where both are ticked, the driver name goes under the team name. Where a logo is at the '
+                       'same spot, the logo is made a little smaller and the writing goes under it.')
 
         # --- logos
         lt = tabs['logos']
@@ -239,11 +269,17 @@ class App(tk.Tk):
                                                      variable=self.var('win_clear', tk.BooleanVar)))
         row('windows', 'Banner text', lambda f: ttk.Entry(f, textvariable=self.var('win_banner')))
         row('windows', 'Banner colour', lambda f: self.colour_button(f, 'win_banner_colour'))
+        self.vars['win_banner_cm'] = tk.StringVar(value=str(self.cfg.get('win_banner_cm') or 12))
+        row('windows', 'Banner height (cm)', lambda f: ttk.Spinbox(f, from_=8, to=25, width=5, textvariable=self.vars['win_banner_cm']))
         row('windows', 'Sticker text colour', lambda f: self.colour_button(f, 'win_text_colour'))
         row('windows', 'Also show', lambda f: self.checks(f, (('win_number', 'Racing number'), ('win_name', 'Driver name'))))
-        note('windows', 'Banner across the top of the windscreen and rear window; number and driver name on the rear '
-                        'window and rear side windows. Logos can go on the windscreen, rear window or side windows '
-                        '(Logos tab). Number and name come from the "Number & names" tab.')
+        self.vars['win_side_name'] = tk.StringVar(value=skingen.SIDE_PLACES.get(self.cfg.get('win_side_place'), skingen.SIDE_PLACES['rear']))
+        row('windows', 'Side stickers on', lambda f: ttk.Combobox(f, textvariable=self.vars['win_side_name'], state='readonly',
+                                                                 values=list(skingen.SIDE_PLACES.values()), width=22))
+        note('windows', 'The banner follows the top edge of the windscreen and rear window, full width, at the height '
+                        'you choose (8-25 cm). Number and driver name go on the rear window and the side windows '
+                        'chosen here. Logos can go on the windscreen, rear window or side windows (Logos tab). '
+                        'Number and name come from the "Number & names" tab.')
 
         # --- lights & wheels
         row('lights', '', lambda f: ttk.Checkbutton(f, text='Colour the headlight lenses', variable=self.var('use_lens', tk.BooleanVar)))
@@ -274,12 +310,25 @@ class App(tk.Tk):
         self.view_var = tk.StringVar(value='all')
         for key, label in (('all', 'All sides'), ('left', 'Left'), ('right', 'Right'), ('front', 'Front'),
                            ('rear', 'Rear'), ('top', 'Top')):
-            ttk.Radiobutton(vb, text=label, value=key, variable=self.view_var, command=self.redraw).pack(side='left', padx=4)
+            ttk.Radiobutton(vb, text=label, value=key, variable=self.view_var, command=self.on_view).pack(side='left', padx=4)
         ttk.Button(vb, text='Open full size', command=self.open_full).pack(side='right')
-        self.canvas = tk.Label(right, background='#ebecf0', anchor='center',
-                               text=f'{APP_NAME}\n\nPick a car and press Preview', font=('Segoe UI', 13))
+        # edit bar: move / size / turn / flip the logos, number and names on the preview
+        eb = ttk.Frame(right); eb.pack(fill='x', pady=(0, 2))
+        ttk.Label(eb, text='Edit on the preview:').pack(side='left')
+        for text, cmd in (('Bigger', lambda: self.edit('scale', 1.08)), ('Smaller', lambda: self.edit('scale', 1 / 1.08)),
+                          ('Turn ↺', lambda: self.edit('rot', 5)), ('Turn ↻', lambda: self.edit('rot', -5)),
+                          ('Flip', lambda: self.edit('flip')), ('Reset', lambda: self.edit('reset')),
+                          ('Reset all', lambda: self.edit('reset_all'))):
+            ttk.Button(eb, text=text, command=cmd, width=len(text) + 1).pack(side='left', padx=1)
+        self.sel_label = ttk.Label(right, text='Pick one side (Left, Right, Front, Rear or Top), then click a logo, number or name to move it.',
+                                   foreground='#444')
+        self.sel_label.pack(anchor='w', pady=(0, 4))
+        self.canvas = tk.Canvas(right, background='#ebecf0', highlightthickness=0)
         self.canvas.pack(fill='both', expand=True)
         self.canvas.bind('<Configure>', lambda e: self.after_idle(self.redraw))
+        self.canvas.bind('<Button-1>', self.on_press)
+        self.canvas.bind('<B1-Motion>', self.on_drag)
+        self.canvas.bind('<MouseWheel>', self.on_wheel)
         self.views = {}
 
     def checks(self, parent, items):
@@ -404,11 +453,17 @@ class App(tk.Tk):
         d['pattern_mode'] = next((k for k, v in skingen.PICTURE_MODES.items() if v == self.vars['pattern_mode_name'].get()), 'side_left')
         d['pattern_simplify'] = next((k for k, v in skingen.SIMPLIFY.items() if v == self.vars['pattern_simplify_name'].get()), 'medium')
         d['pattern_image'] = self.vars['pattern_image'].get() or None
+        try: d['win_banner_height'] = min(25.0, max(8.0, float(self.vars['win_banner_cm'].get()))) / 100
+        except ValueError: d['win_banner_height'] = 0.12
+        d['win_side_place'] = next((k for k, v in skingen.SIDE_PLACES.items() if v == self.vars['win_side_name'].get()), 'rear')
         d['team_places'] = [p for p, v in self.tp_vars.items() if v.get()] or ['none']
         d['name_places'] = [p for p, v in self.np_vars.items() if v.get()] or ['none']
         d['wheel_colour'] = self.vars['wheel_colour'].get() if self.vars['use_wheels'].get() else None
         d['lens_colour'] = self.vars['lens_colour'].get() if self.vars['use_lens'].get() else None
         d['beam_colour'] = self.vars['beam_colour'].get() if self.vars['use_beam'].get() else None
+        for key in ('font_team', 'font_name', 'font_number'):
+            d[key] = list_fonts().get(self.vars[key + '_name'].get())          # None = the default font
+        d['adjust'] = copy.deepcopy(self.adjust_by_car.get(self.vars['car'].get(), {}))
         return d
 
     def run(self, save):
@@ -437,22 +492,26 @@ class App(tk.Tk):
         for b in (self.btn_prev, self.btn_save): b.state(['disabled'])
         self.log_box.delete('1.0', 'end')
         self.set_progress(0, 'Starting…')
-        threading.Thread(target=self.work, args=(car, name, save, replace), daemon=True).start()
+        opts = dict(design=self.design(), resolution=4096 if self.vars['hires'].get() else None,
+                    copy_from=self.vars['copy_from'].get() or None)      # read here: tk variables belong to this thread
+        threading.Thread(target=self.work, args=(car, name, save, replace, opts), daemon=True).start()
 
     def set_progress(self, frac, text):
         self.after(0, lambda: (self.prog.configure(value=frac * 100), self.status.configure(text=text)))
 
-    def work(self, car, name, save, replace=None):
+    def work(self, car, name, save, replace=None, opts=None):
         tmp = tempfile.mkdtemp(prefix='r4skin_')
-        views = {}
+        views, info = {}, {}
+        design = opts['design']
         try:
             # a replacement is built next to the old skin first; the old one goes only when this succeeded
             build_root = os.path.join(car, 'skins', '_r4skin_building') if replace else (None if save else tmp)
             if replace: shutil.rmtree(build_root, ignore_errors=True)
-            out, sheet, *_ = skingen.generate(car, self.design(), name, out_root=build_root,
-                                              resolution=4096 if self.vars['hires'].get() else None,
-                                              log=self.log, copy_other_from=self.vars['copy_from'].get() or None,
-                                              progress=self.set_progress, views=views)
+            out, sheet, *_ = skingen.generate(car, design, name, out_root=build_root,
+                                              resolution=opts['resolution'],
+                                              log=self.log, copy_other_from=opts['copy_from'],
+                                              progress=self.set_progress, views=views, info=info)
+            info['adjust'] = design.get('adjust') or {}
             views['all'] = self.compose(views)
             if save:
                 views['all'].save(os.path.join(out, 'generator_preview.png'))
@@ -464,7 +523,12 @@ class App(tk.Tk):
             if save:
                 self.log('Done. In Content Manager pick the car and skin, then click "Update preview".')
             self.set_progress(1.0, 'Done - skin saved in the car' if save else 'Preview ready')
-            self.after(0, lambda: self.show_views(views))
+            self.after(0, lambda: self.show_views(views, info))
+            try:      # a list of what was found in this car (textures, glass, lights ...), kept for next time
+                cat = os.path.join(DATA_DIR, 'catalogue')
+                skingen.car_catalogue(car, cat)
+                self.log(f'catalogue of this car: {os.path.join(cat, os.path.basename(car) + ".json")}')
+            except Exception: pass
         except Exception as e:
             self.log('ERROR: ' + str(e))
             self.set_progress(0, 'Stopped - see the message')
@@ -498,17 +562,148 @@ class App(tk.Tk):
         self.busy = False
         for b in (self.btn_prev, self.btn_save): b.state(['!disabled'])
 
-    def show_views(self, views):
+    def show_views(self, views, info=None):
         self.views = views
+        self.info = info or {}
+        self.adjust_gen = copy.deepcopy(self.info.get('adjust') or {})
+        self.sel = None
         self.redraw()
 
+    def on_view(self):
+        self.sel = None
+        self.redraw()
+
+    # ---- decals on the preview
+    def adj(self, key=None):
+        """The hand adjustments for the car on screen (or for one decal of it)."""
+        d = self.adjust_by_car.setdefault(self.vars['car'].get(), {})
+        return d if key is None else d.setdefault(key, {})
+
+    def decal_box(self, d):
+        """A decal of the last preview as it is now (with changes made since): view axes a, b, w, h, turn."""
+        ad, g = self.adj().get(d['key'], {}), self.adjust_gen.get(d['key'], {})
+        sgn = -1 if d['view'] == 'right' else 1
+        a = d['a'] + sgn * (ad.get('da', 0) - g.get('da', 0)); b = d['b'] + ad.get('db', 0) - g.get('db', 0)
+        k = ad.get('scale', 1) / g.get('scale', 1)
+        w, h = d['w'] * k, d['h'] * k
+        rot = d['rot'] + sgn * (ad.get('rot', 0) - g.get('rot', 0))
+        if d['view'] == 'roof_l': a, b, rot = -b, a, rot + 90      # roof number: into the top view's axes
+        return a, b, w, h, rot
+
+    def to_screen(self, view, a, b):
+        ox, oy, dw, dh = self.geom
+        a0, a1, b0, b1 = self.info['frames'][view]
+        fx, fy = (a - a0) / (a1 - a0), (b1 - b) / (b1 - b0)
+        if view == 'top': fx, fy = fy, 1 - fx                     # the top view is shown turned a quarter
+        return ox + fx * dw, oy + fy * dh
+
+    def metres_per_pixel(self, view):
+        a0, a1, b0, b1 = self.info['frames'][view]
+        return (b1 - b0) / self.geom[2] if view == 'top' else (a1 - a0) / self.geom[2]
+
+    def view_decals(self):
+        v = self.view_var.get()
+        if v == 'all' or not self.info.get('frames') or not self.geom: return []
+        return [d for d in self.info.get('decals', []) if d['view'] == v or (v == 'top' and d['view'] == 'roof_l')]
+
+    def corners(self, d):
+        v = self.view_var.get()
+        a, b, w, h, rot = self.decal_box(d)
+        c, s_ = math.cos(math.radians(rot)), math.sin(math.radians(rot))
+        pts = []
+        for x, y in ((-w / 2, -h / 2), (w / 2, -h / 2), (w / 2, h / 2), (-w / 2, h / 2)):
+            pts += self.to_screen(v, a + x * c - y * s_, b + x * s_ + y * c)
+        return pts
+
     def redraw(self):
+        c = self.canvas
+        c.delete('all')
+        W, H = max(200, c.winfo_width()), max(200, c.winfo_height())
         im = self.views.get(self.view_var.get()) if self.views else None
-        if im is None: return
-        w, h = max(200, self.canvas.winfo_width() - 10), max(200, self.canvas.winfo_height() - 10)
-        im = im.copy(); im.thumbnail((w, h), Image.LANCZOS)
+        if im is None:
+            c.create_text(W // 2, H // 2, text=f'{APP_NAME}\n\nPick a car and press Preview', font=('Segoe UI', 13), justify='center')
+            self.geom = None
+            return
+        im = im.copy(); im.thumbnail((W - 10, H - 10), Image.LANCZOS)
         self.preview_img = ImageTk.PhotoImage(im)
-        self.canvas.configure(image=self.preview_img, text='')
+        ox, oy = (W - im.width) // 2, (H - im.height) // 2
+        c.create_image(ox, oy, image=self.preview_img, anchor='nw')
+        self.geom = (ox, oy, im.width, im.height)
+        self.draw_boxes()
+
+    def draw_boxes(self):
+        c = self.canvas
+        c.delete('box')
+        ds = self.view_decals()
+        changed = self.adj() != self.adjust_gen
+        for d in ds:
+            on = self.sel == d['key']
+            c.create_polygon(*self.corners(d), outline='#ff2d55' if on else '#3a7bd5', fill='', width=3 if on else 1,
+                             dash=() if on else (4, 3), tags='box')
+        if self.view_var.get() == 'all':
+            text = 'Pick one side (Left, Right, Front, Rear or Top), then click a logo, number or name to move it.'
+        elif not ds:
+            text = 'No logos, number or names on this side.' if self.info else 'Press Preview first.'
+        elif self.sel:
+            lab = next((d['label'] for d in ds if d['key'] == self.sel), self.sel).split(' (')[0]
+            text = f'{lab}: drag = move, wheel = size, Shift+wheel = turn.'
+        else:
+            text = 'Click a box to pick it. Drag = move, wheel = size, Shift+wheel = turn.'
+        if changed and self.view_var.get() != 'all': text += '  Press Preview to redraw the car.'
+        self.sel_label.configure(text=text, foreground='#b00020' if changed else '#444')
+
+    def on_press(self, e):
+        best = None
+        for d in self.view_decals():
+            p = self.corners(d)
+            xs, ys = p[0::2], p[1::2]
+            if min(xs) - 4 <= e.x <= max(xs) + 4 and min(ys) - 4 <= e.y <= max(ys) + 4:
+                size = (max(xs) - min(xs)) * (max(ys) - min(ys))
+                if best is None or size < best[0]: best = (size, d['key'])
+        self.sel = best[1] if best else None
+        self.drag = (e.x, e.y)
+        self.draw_boxes()
+
+    def on_drag(self, e):
+        v = self.view_var.get()
+        d = next((d for d in self.view_decals() if d['key'] == self.sel), None)
+        if d is None or self.busy: return
+        m = self.metres_per_pixel(v)
+        dx, dy = (e.x - self.drag[0]) * m, (e.y - self.drag[1]) * m
+        self.drag = (e.x, e.y)
+        if v == 'top': da, db = -dy, -dx                           # screen -> the top view's own axes
+        else: da, db = dx, -dy
+        if d['view'] == 'roof_l': da, db = db, -da
+        ad = self.adj(d['key'])
+        ad['da'] = ad.get('da', 0) + (-da if d['view'] == 'right' else da)   # stored so both sides move the same way
+        ad['db'] = ad.get('db', 0) + db
+        self.draw_boxes()
+
+    def on_wheel(self, e):
+        if not self.sel: return
+        up = e.delta > 0
+        if e.state & 0x1: self.edit('rot', 5 if up else -5)        # Shift held: turn
+        else: self.edit('scale', 1.06 if up else 1 / 1.06)
+
+    def edit(self, what, amount=None):
+        if what == 'reset_all':
+            self.adjust_by_car.pop(self.vars['car'].get(), None)
+            self.draw_boxes(); self.save_cfg(); return
+        d = next((d for d in self.view_decals() if d['key'] == self.sel), None)
+        if d is None:
+            self.sel_label.configure(text='Click a logo, number or name on the preview first (one side showing).', foreground='#b00020')
+            return
+        if what == 'reset': self.adj().pop(d['key'], None)
+        else:
+            ad = self.adj(d['key'])
+            if what == 'scale': ad['scale'] = min(4.0, max(0.2, ad.get('scale', 1) * amount))
+            elif what == 'rot': ad['rot'] = (ad.get('rot', 0) + (-amount if d['view'] == 'right' else amount)) % 360
+            elif what == 'flip':
+                fl = set(ad.get('flip') or [])
+                fl.symmetric_difference_update({d['view']})
+                ad['flip'] = sorted(fl)
+        self.draw_boxes()
+        self.save_cfg()
 
     def open_full(self):
         im = self.views.get(self.view_var.get()) if self.views else None

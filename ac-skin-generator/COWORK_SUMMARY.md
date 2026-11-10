@@ -15,6 +15,25 @@ That means writing comes out the right way round on both sides of the car, whate
 - Installer built: `release\Rattys4SkinGenerator_Setup.exe` (53 MB). Not in git, because GitHub isn't for
   binaries. Rebuild it with `python build.py`.
 
+## Update: v1.4.0 (9 Nov 2026, evening)
+After Nik's first in-game test (placement fine; banner a mess, writing breaking across panels, nothing on
+the side windows) the decal and window code was rebuilt:
+- Decals never break: painted through the triangles really visible in their footprint, stretched over
+  arches, creases and panel steps; hidden surfaces get nothing; mirrored parts are avoided.
+- Windows: strict glass selection, old stickers removed by opacity, banner follows the top edge of the
+  glass (height 8-25 cm), painted sun-strip panels take the banner, number/name fitted inside the side
+  window pane (rear side, front door or both).
+- The preview now draws the car's real triangles, so what it shows is what the game maps.
+- Checked on Peugeot 308 TCR, Lacetti, Audi Sport quattro, BMW M4 GT3, Escort Mk2. Waiting for Nik's
+  in-game check. Details: `PLAN_next_session.md` ("What v1.4.0 did").
+
+## Update: v1.5.0 (10 Nov 2026)
+Nik's second list after trying v1.4: base colour now reaches every seam; the Talbot Sunbeam works (its body
+texture is found although no skin overrides it); logos and names share a place without covering each other,
+with a placement check in the log; logos, numbers and names can be moved, resized, turned and flipped with
+the mouse on the preview; separate fonts for team, driver and number; plain black rims take the wheel colour;
+a per-car catalogue file. Details and what is still open: `PLAN_next_session.md` ("v1.5.0").
+
 ## Features
 | Tab | What it does |
 |---|---|

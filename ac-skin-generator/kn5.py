@@ -24,7 +24,7 @@ class Mesh:
 
 
 class Material:
-    __slots__ = ('name', 'shader', 'samplers', 'props')
+    __slots__ = ('name', 'shader', 'samplers', 'props', 'blend', 'alpha_tested', 'depth')
 
     def __init__(self, **k):
         for a, v in k.items(): setattr(self, a, v)
@@ -57,14 +57,15 @@ class KN5:
             self.p += n
         self.materials = []
         for _ in range(self.r('<i')[0]):
-            name = self.s(); shader = self.s(); self.r('<bbi')
+            name = self.s(); shader = self.s(); blend, atest, depth = self.r('<bbi')
             props = {}
             for _ in range(self.r('<i')[0]):
                 pn = self.s(); vals = self.r('<10f'); props[pn] = vals[0]
             samplers = {}
             for _ in range(self.r('<i')[0]):
                 sn = self.s(); self.r('<i'); samplers[sn] = self.s()
-            self.materials.append(Material(name=name, shader=shader, samplers=samplers, props=props))
+            self.materials.append(Material(name=name, shader=shader, samplers=samplers, props=props,
+                                           blend=blend, alpha_tested=bool(atest), depth=depth))
         self.meshes = []
         self._node(np.eye(4), ())
 

@@ -1,5 +1,10 @@
 # Ratty's4Skin Generator – plan for the next session
 
+**v1.5.0 (10 Nov 2026) is the current version** - see "v1.5.0" near the bottom for Nik's second list.
+
+**DONE in v1.4.0 (9 Nov 2026, same evening)** - all three fixes below are built and checked in the
+preview on the five cars; see "What v1.4.0 did" at the bottom. Still to do: Nik's in-game check.
+
 Written 9 Nov 2026 after Nik's in-game test of v1.3.2 on `wtcr_peugeot_308_gti_ss`.
 
 **Working:** the overwrite option; no errors so far. Everything is placed in roughly the right spots.
@@ -118,6 +123,45 @@ No fading or cutting at steep surfaces.
 6. Smart placement search. *(medium, after 2)*
 7. Re-test on the five cars + `tests/batch_cars.py`; rebuild the installer (v1.4.0); update README and
    `COWORK_SUMMARY.md`.
+
+## What v1.4.0 did
+- **Real cause of the broken writing (Peugeot rear quarter, wing logo):** the car's UVs fold over
+  themselves there, so the triangle that "owned" a texel was often a hidden one. Decals are now painted
+  through the triangles that are really visible (depth test), nearest last. No facing cut-off any more.
+- **The "old banner" on the Peugeot was a painted body panel** (`window_part`, on `skin_00.dds`) lying on
+  the windscreen, not glass. It is now found from the geometry and takes the banner.
+- Strict glass selection, opacity-based clean, edge-following banner + height option, side windows by
+  pane with a fit-inside search + rear/door/both option, mirrored and shared glass left off with a log line.
+- Preview redrawn from the real triangles (the old texel-splat preview hid the folded-UV problem).
+- Not done: a general "smart placement search" for body decals (only the slide off mirrored texels);
+  compressed (DXT) output to make 4K files smaller.
+- Checked: Peugeot, Lacetti (decals slide 5-10 cm off mirrored parts), Audi Sport quattro (its glass
+  shares texels between windows: only the windscreen banner goes on), BMW M4 GT3 and Escort Mk2 (tiled
+  glass: no window stickers), plus `tests/batch_cars.py`.
+
+## v1.5.0 (10 Nov 2026) - Nik's second list, all built
+| Asked | Done |
+|---|---|
+| Base colour must cover the whole body (yellow at seams / lamp surrounds) | Painted colours are spread 12 texels into the texture's gaps (`pad_texture`); seams and thin triangles no longer show the old skin |
+| Talbot: "no surface found" | Its skins never override `body.dds`, so the dashboard texture was taken for the body. The paint material's own texture is now used when it is bigger than anything the skins override. Works without touching the car |
+| Catalogue of textures / objects | `car_catalogue()` -> `%APPDATA%\Rattys4SkinGenerator\catalogue\CAR.json`, cached on the model's size + date |
+| Logos cover the names | Logo is made smaller and names go under it; `arrange_decals` keeps every decal clear of the others; on-panel check moves a decal that hangs off its panel (log: "placement check: ...") |
+| Move / resize / rotate on the preview, mirror left/right | Boxes on the single-side previews: drag, wheel, Shift+wheel, buttons Bigger / Smaller / Turn / Flip / Reset; both sides move alike; saved per car (`adjust_by_car`) |
+| Lights / wheels sometimes don't change | Plain one-colour rim textures (Peugeot: pure black) are now set to the colour; rim textures no skin overrides are used too. Lenses still depend on the car having its own lamp texture |
+| Fonts, separately for team and driver | Team / Driver / Number font pickers (all installed fonts) |
+
+Also: roof estimate ignores a rear wing behind the rear window; solid parts of other textures and
+mouldings hide the paint under them (so writing is not put behind a sill trim); preview depth fix for
+parts with collapsed UVs; glass whose UVs run over two tiles can take stickers (panes sharing texels are
+left off).
+
+**Still open**
+- `ford_escort_mk2_tuned`: the rear half sits on `NICK3_KIT_ATLAS.dds` (rejected as a shared atlas), so it
+  is not painted. Needs a look at that atlas' UVs.
+- Window stickers are fitted automatically; they cannot be moved by hand yet.
+- Moving on the preview shows the box only; the car is redrawn on the next Preview (~40 s at 4K).
+- DXT-compressed output for smaller 4K files.
+- Nik's in-game check of v1.5.0.
 
 ## Done before this plan (for reference)
 v1.3.2 fixed black distance mipmaps; glass never painted as body; plain-colour (shared texture) cars
