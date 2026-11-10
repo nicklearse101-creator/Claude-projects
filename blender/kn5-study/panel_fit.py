@@ -148,7 +148,7 @@ def fit_surface(S, dom, nu, nv, lam):
     return dict(nu=nu, nv=nv, ku=ku, kv=kv, H=h.reshape(nu, nv), gu=greville(ku, nu), gv=greville(kv, nv))
 
 
-def select_fit(S, dom, folds=5, seed=0):
+def select_fit(S, dom, folds=5, seed=0, nmax=None, strip=False):
     """control count and fairing chosen by k-fold cross-validation on the vertices: the surface that
     best predicts vertices it has not seen (an over-fitted surface wiggles between them and loses).
     A simpler model is preferred when it is within 5 % of the best."""
@@ -156,10 +156,14 @@ def select_fit(S, dom, folds=5, seed=0):
     # blocked folds: hold out whole 40 mm patches (checkerboard), not single vertices - a vertex always has
     # near neighbours on its own mesh row, so random hold-outs never see ripples BETWEEN the data
     fold = ((np.floor(S[:, 0] / 0.04) + 2 * np.floor(S[:, 1] / 0.04)) % folds).astype(int)
+    if strip:          # a narrow strip (arch lip): hide whole 80 mm stretches along it, keep full cross-sections
+        fold = (np.floor(S[:, 0] / 0.08) % folds).astype(int)
     cands = []
     # control counts searched independently in both directions (tying them to the panel's proportions
     # missed the 6x5 the lower door skin needs)
-    grid = [(nu, nv) for nu in range(4, 15) for nv in range(4, 15) if nu * nv <= max(20, 0.6 * len(S))]
+    # up to one control per ~50 mm along each direction (min 14, max 24): a 1.1 m arch lip needs ~20 along
+    if nmax is None: nmax = [int(np.clip((dom[1] - dom[0]) / 0.05, 14, 24)), int(np.clip((dom[3] - dom[2]) / 0.05, 14, 24))]
+    grid = [(nu, nv) for nu in range(4, nmax[0] + 1) for nv in range(4, nmax[1] + 1) if nu * nv <= max(20, 0.6 * len(S))]
     for nu, nv in grid:
         for lam in (1e-8, 1e-6, 1e-4):
             err = []
@@ -168,7 +172,10 @@ def select_fit(S, dom, folds=5, seed=0):
                 if tr.sum() < 8 or (~tr).sum() == 0: continue
                 f = fit_surface(S[tr], dom, nu, nv, lam)
                 err.append(eval_surface(f, S[~tr, 0], S[~tr, 1]) - S[~tr, 2])
+            if not err: continue                       # too few vertices to cross-check this size
             e = np.concatenate(err); cands.append((float(np.sqrt(np.mean(e ** 2))), nu * nv, nu, nv, lam))
+    if not cands:                                      # a handful of vertices: a plain, well-faired 4x4
+        cands = [(0.0, 16, 4, 4, 1e-4)]
     best = min(c[0] for c in cands)
     ok = [c for c in cands if c[0] <= best * 1.05]
     cvr, _, nu, nv, lam = min(ok, key=lambda c: (c[1], -c[4]))
@@ -781,7 +788,9 @@ def fit_bands(name, V, Fr, Nv, overlap=0.002, keep=None, Fr_lines=None, cut_poly
                 # panel's real edge stay put, the others (along its character lines) go out 15 mm, where the
                 # line prism makes the exact cut.
                 inb2 = np.zeros(len(V), bool); inb2[u[mk]] = True
-                Tb = Fr[inb2[Fr].all(1)]
+                # every triangle TOUCHING the face (Kunos's long triangles cross face boundaries; taking only those
+                # wholly inside left crescent-shaped holes beside the arch). Other faces' areas are cut away anyway.
+                Tb = Fr[inb2[Fr].any(1)]
                 if len(Tb) > 4:
                     _, wid2 = components(V, Tb); lps = boundary_loops(Tb, wid2); rep2 = {w_: i_ for i_, w_ in enumerate(wid2)}
                     _, widR = components(V, Fr); edgeR = set(); [edgeR.update(l_) for l_ in boundary_loops(Fr, widR)]
@@ -823,7 +832,7 @@ def fit_bands(name, V, Fr, Nv, overlap=0.002, keep=None, Fr_lines=None, cut_poly
             continue
         cov, nb_i, B, sg = max(opts, key=lambda o: o[0])
         Sc = P[core]; Bs = eval_func(B, np.linspace(Sc[:, 0].min(), Sc[:, 0].max(), 50))
-        dom_s = [P[:, 0].min() - 0.02, P[:, 0].max() + 0.02]
+        dom_s = [P[core, 0].min() - 0.05, P[core, 0].max() + 0.05]   # its own length (a roll behind the arch only)
         t_span = [min(Sc[:, 1].min(), Bs.min()) - 0.008, max(Sc[:, 1].max(), Bs.max()) + 0.012]
         f, r, info = blend_fillet(P, core, B, sg, fits[nb_i], dom_s, t_span)
         e = dict(base)
@@ -939,7 +948,23 @@ def fit_arch_panel(name, V, Fr, Nv, others=()):
         nearest = np.concatenate([np.argmin(((P[i_:i_ + 500, None, :2] - Ed[None]) ** 2).sum(2), axis=1) for i_ in range(0, len(P), 500)])
     apos = ad[nearest]; d = ((P[:, :2] - Ed[nearest]) * En(apos)).sum(1)
     if np.median(d[np.abs(d) < 0.15]) < 0: sgn_ = -1.0; d = -d          # panel material on the positive side
-    sector = (apos > -0.01) & (apos < Alen + 0.01)
+    # the lip runs only where there IS a flare: step along the edge; at each station the profile across the edge
+    # (height vs distance in, 0-100 mm) is either flat (a plain panel - the recessed panel in front of the AE86
+    # arch) or bent (the flare). The rail is cut back to the bent stretch round the arch.
+    st_ = np.arange(0.0, Alen, 0.03); bent = np.zeros(len(st_), bool)
+    for k_, a_ in enumerate(st_):
+        mk_ = (np.abs(apos - a_) < 0.025) & (d > 0) & (d < 0.10)
+        if mk_.sum() < 4: continue
+        A_ = np.c_[np.ones(mk_.sum()), d[mk_]]; cf_ = np.linalg.lstsq(A_, P[mk_, 2], rcond=None)[0]
+        bent[k_] = np.abs(A_ @ cf_ - P[mk_, 2]).max() > 0.003
+    mid_ = st_[np.argmin(np.abs(st_ - 0.5 * (al[run[0] - i0] + al[min(run[0] + len(run) - 1 - i0, len(al) - 1)])))]
+    k0 = k1 = int(np.argmin(np.abs(st_ - mid_)))
+    while k0 > 0 and (bent[k0 - 1] or (k0 > 1 and bent[k0 - 2])): k0 -= 1
+    while k1 < len(st_) - 1 and (bent[k1 + 1] or (k1 < len(st_) - 2 and bent[k1 + 2])): k1 += 1
+    a_lo, a_hi = max(st_[k0] - 0.03, 0.0), min(st_[k1] + 0.03, Alen)
+    if a_lo > 0.03 or a_hi < Alen - 0.03:
+        print(f'{name}: flare only along {a_lo*1e3:.0f}..{a_hi*1e3:.0f} mm of the {Alen*1e3:.0f} mm edge - the lip stops where the surface is flat')
+    sector = (apos > a_lo - 0.01) & (apos < a_hi + 0.01)
     if os.environ.get('PF_DEBUG'):
         W_ = V[u]
         for yz in ((0.638, 1.253), (0.285, 0.810), (0.616, 1.197)):
@@ -967,13 +992,31 @@ def fit_arch_panel(name, V, Fr, Nv, others=()):
         mk_ = sector & (d > Dlip) & (d < 0.17); rr0 = np.abs(eval_surface(nb, P[mk_, 0], P[mk_, 1]) - P[mk_, 2])
         print(f'  side ring fit {nb["nu"]}x{nb["nv"]}: {mk_.sum()} verts, p95 {np.percentile(rr0, 95)*1e3:.2f} max {rr0.max()*1e3:.2f} mm')
     print(f'{name}: lip {Dlip*1e3:.0f} mm wide (where the surface rejoins the side surface)')
+    # the lip's width along the edge: Dlip, except where the flare ends in a WALL (a steep drop to the body, as at the
+    # AE86's rear lower corner): there the lip stops at the top of the wall, and the wall's own vertices go to
+    # neither the lip nor the side face (the hole filler gives the wall its own face)
+    st_w = np.arange(0.0, Alen + 1e-9, 0.02); Wst = np.full(len(st_w), Dlip); wall = np.zeros(len(st_w), bool)
+    for k_, a_ in enumerate(st_w):
+        mk_ = (np.abs(apos - a_) < 0.015) & (d > 0.005) & (d < Dlip + 0.01)
+        if mk_.sum() < 4: continue
+        o_ = np.argsort(d[mk_]); dd_, hh_ = d[mk_][o_], P[mk_, 2][o_]
+        for j_ in range(len(dd_) - 1):
+            gd, gh = dd_[j_ + 1] - dd_[j_], hh_[j_ + 1] - hh_[j_]
+            if gd > 0.002 and abs(gh) > 0.008 and abs(gh) / gd > 1.2:
+                Wst[k_] = dd_[j_]; wall[k_] = True; break
+    if wall.any():
+        Wst = np.array([np.median(Wst[max(0, k_ - 1):k_ + 2]) for k_ in range(len(Wst))])
+        print(f'{name}: flare ends in a wall along {wall.sum()*20} mm of the edge (lip {Wst[wall].min()*1e3:.0f}-{Wst[wall].max()*1e3:.0f} mm wide there)')
+    Wf = lambda a_: np.interp(np.asarray(a_, float), st_w, Wst)
+    wallf = lambda a_: np.interp(np.asarray(a_, float), st_w, wall.astype(float)) > 0.5
     mm = lambda q: (np.asarray(q) * 1000).tolist()
-    tt_ = np.linspace(-0.01, Alen + 0.01, 160)            # the lip face covers the whole edge, corner to corner
-    outer = E(tt_) + Dlip * En(tt_)
+    tt_ = np.linspace(a_lo - (0.01 if a_lo < 0.03 else 0.0), a_hi + (0.01 if a_hi > Alen - 0.03 else 0.0), 160)   # the lip's stretch
+    outer = E(tt_) + Wf(tt_)[:, None] * En(tt_)
     inner = (E(tt_) - 0.06 * En(tt_))[::-1]
     poly = mm(np.r_[outer, inner])
     # (5) the side faces first ('main surfaces first'), with the arch zone left out of their data
-    in_lip_v = np.zeros(len(V), bool); in_lip_v[u[sector & (d < Dlip - 0.003)]] = True
+    in_lip_v = np.zeros(len(V), bool)
+    in_lip_v[u[sector & ((d < Wf(apos) - 0.003) | (wallf(apos) & (d < Wf(apos) + 0.02)))]] = True   # lip, and the wall
     Fl = Fr[~in_lip_v[Fr].any(1)]
     # sub-panels at the arch (Class-A practice: patch boundaries through the arch ends): above the arch, behind
     # it and in front of it. Character lines that stop at the arch then run edge to edge inside their sub-panel.
@@ -1015,11 +1058,14 @@ def fit_arch_panel(name, V, Fr, Nv, others=()):
     # (4) the lip in arch coordinates (arc length round the arch, distance out from the real edge), height above
     # the panel plane; samples of the ACTUAL side faces on a 25 mm ring just outside it go in as data, so the lip
     # meets them in position and slope (no ridge at its outer edge)
-    inspan = (th > 0.005) & (th < Alen - 0.005)
-    lip = inspan & (d > -0.015) & (d < Dlip + 0.002)
+    # data from 50 mm past each end (flat panel there): the lip fades into the panel instead of ending square
+    inspan = (th > max(a_lo - 0.05, 0.005)) & (th < min(a_hi + 0.05, Alen - 0.005))
+    lip = inspan & (d > -0.015) & (d < np.where(wallf(th), Wf(th) - 0.0015, Dlip + 0.002))
     a = th[lip] * R; dl = d[lip]; hl = P[lip, 2]
     ag, dg = np.meshgrid(np.linspace(a.min(), a.max(), 80), np.linspace(Dlip, Dlip + 0.025, 6), indexing='ij')
-    ag, dg = ag.ravel(), dg.ravel(); XY_ = E(ag) + dg[:, None] * En(ag)
+    ag, dg = ag.ravel(), dg.ravel()
+    keep_s = ~wallf(ag); ag, dg = ag[keep_s], dg[keep_s]          # no side samples beyond a wall (body is 30 mm lower)
+    XY_ = E(ag) + dg[:, None] * En(ag)
     sx, tx = XY_[:, 0], XY_[:, 1]
     hs = np.full(len(sx), np.nan)
     for bi, (f_, lo_, hi_, inside_) in side['fits'].items():
@@ -1030,7 +1076,12 @@ def fit_arch_panel(name, V, Fr, Nv, others=()):
     ok_ = ~np.isnan(hs)
     S = np.r_[np.c_[a, dl, hl], np.c_[ag[ok_], dg[ok_], hs[ok_]]]
     dom = [a.min() - 0.03, a.max() + 0.03, dl.min() - 0.005, Dlip + 0.03]
-    lf, rr_, cvb = select_fit(S, dom)
+    if os.environ.get('PF_LIPNV'):                           # experiment: fixed controls along x across
+        nu_, nv_ = [int(x) for x in os.environ['PF_LIPNV'].split('x')]
+        lf = fit_surface(S, dom, nu_, nv_, 1e-6); lf['lam'] = 1e-6
+        rr_ = np.abs(eval_surface(lf, S[:, 0], S[:, 1]) - S[:, 2]); cvb = 0.0
+    else:
+        lf, rr_, cvb = select_fit(S, dom, strip=True)
     r = rr_[:len(a)]; ns, nt = lf['nu'], lf['nv']
     if os.environ.get('PF_DEBUG'):
         for i_ in np.argsort(-r)[:6]: print(f'  lip worst: {np.degrees(a[i_]/R):5.0f} deg round, {dl[i_]*1e3:4.0f} mm out: {r[i_]*1e3:.1f} mm')
