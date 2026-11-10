@@ -163,6 +163,13 @@ left off).
 - DXT-compressed output for smaller 4K files.
 - Nik's in-game check of v1.5.0.
 
+## v1.5.1 (10 Nov 2026, evening)
+- Nik's Talbot test showed a blue dashboard in game: the car still had the OLD 9 Nov skin (v1.3/1.4 had painted
+  planche_de_bord.dds). He had only pressed Preview with v1.5, which never touches the car. v1.5 writes body.dds
+  correctly (checked). Now Preview writes nothing at all and says so in red-letter terms in the log and status.
+- Nothing is written to C: any more: preview needs no files, 'Open full size' and the self-test use
+  assettocorsa/_r4skin_work on the game's drive (R4S_WORK overrides). Build with TEMP / PYINSTALLER_CONFIG_DIR on D:.
+
 ## Done before this plan (for reference)
 v1.3.2 fixed black distance mipmaps; glass never painted as body; plain-colour (shared texture) cars
 detected; stock-skin comparison streamed (much faster); lens tint skips shared chrome; overwrite of

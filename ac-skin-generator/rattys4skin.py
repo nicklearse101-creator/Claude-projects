@@ -8,7 +8,7 @@ from PIL import Image, ImageFont, ImageTk
 import skingen
 
 APP_NAME = skingen.APP_NAME
-VERSION = '1.5.0'
+VERSION = '1.5.1'
 DATA_DIR = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'Rattys4SkinGenerator')
 LOGO_DIR = os.path.join(DATA_DIR, 'logos')
 SETTINGS = os.path.join(DATA_DIR, 'settings.json')
@@ -38,6 +38,17 @@ def list_fonts():
                 found.setdefault(fam if sty in ('Regular', '') else f'{fam} {sty}', f)
         _FONTS = dict(sorted(found.items(), key=lambda kv: kv[0].lower()))
     return _FONTS
+
+
+def work_dir(car_dir=None):
+    """A scratch folder on the same drive as the game (never on C: unless the game is there):
+    assettocorsa/_r4skin_work. R4S_WORK overrides it."""
+    d = os.environ.get('R4S_WORK')
+    if not d:
+        base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.normpath(car_dir)))) if car_dir else DATA_DIR
+        d = os.path.join(base, '_r4skin_work')
+    os.makedirs(d, exist_ok=True)
+    return d
 
 
 def resource(name):
@@ -500,17 +511,16 @@ class App(tk.Tk):
         self.after(0, lambda: (self.prog.configure(value=frac * 100), self.status.configure(text=text)))
 
     def work(self, car, name, save, replace=None, opts=None):
-        tmp = tempfile.mkdtemp(prefix='r4skin_')
         views, info = {}, {}
         design = opts['design']
         try:
             # a replacement is built next to the old skin first; the old one goes only when this succeeded
-            build_root = os.path.join(car, 'skins', '_r4skin_building') if replace else (None if save else tmp)
+            build_root = os.path.join(car, 'skins', '_r4skin_building') if replace else None
             if replace: shutil.rmtree(build_root, ignore_errors=True)
             out, sheet, *_ = skingen.generate(car, design, name, out_root=build_root,
                                               resolution=opts['resolution'],
                                               log=self.log, copy_other_from=opts['copy_from'],
-                                              progress=self.set_progress, views=views, info=info)
+                                              progress=self.set_progress, views=views, info=info, write=save)
             info['adjust'] = design.get('adjust') or {}
             views['all'] = self.compose(views)
             if save:
@@ -522,7 +532,10 @@ class App(tk.Tk):
                 self.log(f'replaced the old skin: {replace}')
             if save:
                 self.log('Done. In Content Manager pick the car and skin, then click "Update preview".')
-            self.set_progress(1.0, 'Done - skin saved in the car' if save else 'Preview ready')
+            if not save:
+                self.log('PREVIEW ONLY - the skin in the car has NOT changed. Press "Create skin in car" to save it.')
+            self.set_progress(1.0, 'Done - skin saved in the car' if save else
+                              'Preview only - press "Create skin in car" to save it')
             self.after(0, lambda: self.show_views(views, info))
             try:      # a list of what was found in this car (textures, glass, lights ...), kept for next time
                 cat = os.path.join(DATA_DIR, 'catalogue')
@@ -538,7 +551,6 @@ class App(tk.Tk):
             else:
                 self.log(traceback.format_exc())
         finally:
-            shutil.rmtree(tmp, ignore_errors=True)
             if replace:   # never leave a half-built folder in the car's skins
                 shutil.rmtree(os.path.join(car, 'skins', '_r4skin_building'), ignore_errors=True)
             self.after(0, self.done)
@@ -709,7 +721,8 @@ class App(tk.Tk):
         im = self.views.get(self.view_var.get()) if self.views else None
         if im is None:
             messagebox.showinfo(APP_NAME, 'Make a preview first.'); return
-        path = os.path.join(tempfile.gettempdir(), f'r4skin_preview_{self.view_var.get()}.png')
+        car = os.path.join(self.vars['cars_dir'].get(), self.vars['car'].get())
+        path = os.path.join(work_dir(car if os.path.isdir(car) else None), f'preview_{self.view_var.get()}.png')
         im.save(path)
         os.startfile(path)
 
@@ -721,8 +734,8 @@ class App(tk.Tk):
 
 
 def selftest(car_dir):
-    out_txt = os.path.join(tempfile.gettempdir(), 'r4s_selftest.txt')
-    tmp = tempfile.mkdtemp(prefix='r4s_test_')
+    out_txt = os.path.join(work_dir(car_dir), 'selftest.txt')
+    tmp = tempfile.mkdtemp(prefix='selftest_', dir=work_dir(car_dir))
     lines = []
     try:
         d = dict(skingen.DEFAULT_DESIGN); d.update(win_enable=True, lens_colour='#ffd21f', beam_colour='#fff2c8')

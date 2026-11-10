@@ -2279,15 +2279,16 @@ def car_catalogue(car_dir, cache_dir=None):
 
 
 def generate(car_dir, design, skin_name, out_root=None, resolution=None, log=print, preview_path=None,
-             copy_other_from=None, progress=None, views=None, info=None):
-    """info (a dict), when given, is filled with where every decal went and each view's frame, so the
+             copy_other_from=None, progress=None, views=None, info=None, write=True):
+    """write=False: a preview only - everything is worked out and drawn, but no file is written anywhere.
+    info (a dict), when given, is filled with where every decal went and each view's frame, so the
     app can let the user move them on the preview."""
     step = progress or (lambda f, t: None)
     step(0.02, 'Reading the car model')
     car = Car(car_dir, log)
     skin_id = re.sub(r'[^a-z0-9_]+', '_', skin_name.lower()).strip('_') or 'custom'
     out = os.path.join(out_root or os.path.join(car_dir, 'skins'), skin_id)
-    if os.path.exists(out) and os.listdir(out):
+    if write and os.path.exists(out) and os.listdir(out):
         raise FileExistsError(f'skin folder already exists: {out}')
     tex_out, tms = {}, {}
     for tex in car.body_textures:
@@ -2364,44 +2365,45 @@ def generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pri
     lights = find_headlights(car) if (design.get('lens_colour') or design.get('beam_colour')) else []
     if design.get('lens_colour'):
         made.update(tint_lenses(car, lights, design['lens_colour'], made, copy_other_from, log))
-    os.makedirs(out, exist_ok=True)
-    mine = {t.lower() for t in made} | {os.path.splitext(t)[0].lower() + '.dds' for t in made}
-    if copy_other_from:   # copy first, so files made here replace the copies
-        src = os.path.join(car_dir, 'skins', copy_other_from)
-        for f in os.listdir(src):
-            if f.lower() in mine or f.lower() in ('preview.jpg', 'ui_skin.json', 'livery.png', 'generator_preview.png'):
-                continue
-            if os.path.isfile(os.path.join(src, f)):
-                shutil.copyfile(os.path.join(src, f), os.path.join(out, f))
-    step(0.8, 'Writing the textures')
-    for tex, img in made.items():
-        name = os.path.splitext(tex)[0] + '.dds'
-        for s_ in car.skins:     # use the file-name spelling the car's own skins use
-            f_ = find_skin_file(os.path.join(car_dir, 'skins', s_), tex)
-            if f_: name = os.path.splitext(os.path.basename(f_))[0] + '.dds'; break
-        write_dds(img, os.path.join(out, name))
-        log(f'wrote {name}')
-    # Kunos-style paint: the colour lives in the body material's detail texture (e.g. metal_detail.dds),
-    # multiplied over the diffuse. Give the new skin a plain white one so the livery shows its own colours.
-    for tex in car.body_textures:
-        for m in car.meshes_for(tex):
-            det = m.mat.samplers.get('txDetail')
-            if det and det not in made and any(find_skin_file(os.path.join(car_dir, 'skins', s_), det) for s_ in car.skins):
-                write_dds(Image.new('RGBA', (64, 64), (255, 255, 255, 255)), os.path.join(out, os.path.splitext(det)[0] + '.dds'))
-                made[det] = None
-                log(f'wrote a plain white {det} (this car takes its paint colour from it)')
-    if design.get('beam_colour'):
-        txt = beam_config(car, lights, design['beam_colour'], log)
-        if txt: merge_ini(os.path.join(out, 'ext_config.ini'), txt); log('wrote ext_config.ini (beam colour, needs CSP)')
-    num = design.get('number') or ''
-    json.dump({'skinname': skin_name, 'drivername': design.get('name') or '', 'country': '',
-               'team': design.get('team') or '', 'number': int(num) if str(num).isdigit() else num},
-              open(os.path.join(out, 'ui_skin.json'), 'w'), indent=4)
-    lv = Image.new('RGBA', (64, 64), (0, 0, 0, 0)); d = ImageDraw.Draw(lv)
-    d.ellipse([2, 2, 61, 61], fill=tuple(int(v) for v in rgb(design['base'])) + (255,),
-              outline=tuple(int(v) for v in rgb(design['accent2'])) + (255,), width=3)
-    d.pieslice([2, 2, 61, 61], 200, 340, fill=tuple(int(v) for v in rgb(design['accent'])) + (255,))
-    lv.save(os.path.join(out, 'livery.png'))
+    if write:
+        os.makedirs(out, exist_ok=True)
+        mine = {t.lower() for t in made} | {os.path.splitext(t)[0].lower() + '.dds' for t in made}
+        if copy_other_from:   # copy first, so files made here replace the copies
+            src = os.path.join(car_dir, 'skins', copy_other_from)
+            for f in os.listdir(src):
+                if f.lower() in mine or f.lower() in ('preview.jpg', 'ui_skin.json', 'livery.png', 'generator_preview.png'):
+                    continue
+                if os.path.isfile(os.path.join(src, f)):
+                    shutil.copyfile(os.path.join(src, f), os.path.join(out, f))
+        step(0.8, 'Writing the textures')
+        for tex, img in made.items():
+            name = os.path.splitext(tex)[0] + '.dds'
+            for s_ in car.skins:     # use the file-name spelling the car's own skins use
+                f_ = find_skin_file(os.path.join(car_dir, 'skins', s_), tex)
+                if f_: name = os.path.splitext(os.path.basename(f_))[0] + '.dds'; break
+            write_dds(img, os.path.join(out, name))
+            log(f'wrote {name}')
+        # Kunos-style paint: the colour lives in the body material's detail texture (e.g. metal_detail.dds),
+        # multiplied over the diffuse. Give the new skin a plain white one so the livery shows its own colours.
+        for tex in car.body_textures:
+            for m in car.meshes_for(tex):
+                det = m.mat.samplers.get('txDetail')
+                if det and det not in made and any(find_skin_file(os.path.join(car_dir, 'skins', s_), det) for s_ in car.skins):
+                    write_dds(Image.new('RGBA', (64, 64), (255, 255, 255, 255)), os.path.join(out, os.path.splitext(det)[0] + '.dds'))
+                    made[det] = None
+                    log(f'wrote a plain white {det} (this car takes its paint colour from it)')
+        if design.get('beam_colour'):
+            txt = beam_config(car, lights, design['beam_colour'], log)
+            if txt: merge_ini(os.path.join(out, 'ext_config.ini'), txt); log('wrote ext_config.ini (beam colour, needs CSP)')
+        num = design.get('number') or ''
+        json.dump({'skinname': skin_name, 'drivername': design.get('name') or '', 'country': '',
+                   'team': design.get('team') or '', 'number': int(num) if str(num).isdigit() else num},
+                  open(os.path.join(out, 'ui_skin.json'), 'w'), indent=4)
+        lv = Image.new('RGBA', (64, 64), (0, 0, 0, 0)); d = ImageDraw.Draw(lv)
+        d.ellipse([2, 2, 61, 61], fill=tuple(int(v) for v in rgb(design['base'])) + (255,),
+                  outline=tuple(int(v) for v in rgb(design['accent2'])) + (255,), width=3)
+        d.pieslice([2, 2, 61, 61], 200, 340, fill=tuple(int(v) for v in rgb(design['accent'])) + (255,))
+        lv.save(os.path.join(out, 'livery.png'))
     step(0.9, 'Drawing the preview')
     global LAST_LAYERS
     LAST_LAYERS = glass_layers                      # for tests that draw their own views
@@ -2410,5 +2412,5 @@ def generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pri
     if info is not None: info['frames'] = {v: view_frame(car, v) for v in ('left', 'right', 'front', 'rear', 'top')}
     step(1.0, 'Done')
     if preview_path: sheet.save(preview_path)
-    log(f'skin saved: {out}')
+    log(f'skin saved: {out}' if write else 'preview only - nothing was written to the car')
     return out, sheet, car, tms, tex_out
