@@ -22,6 +22,7 @@ from exact_dist import point_to_tris, stats
 
 TOL_SURF = 0.3e-3     # surface fit target (p95, metres)
 TOL_EDGE = 0.4e-3     # outline fit target (max, metres)
+CORNERS = os.environ.get('PF_CORNERS', '0') == '1'   # roll bands: separate corner patches where the line stops (off: too few vertices there on the AE86, 13-18, unstable)
 
 
 # ---------- B-spline basics (clamped uniform, degree 3) ----------
@@ -260,13 +261,19 @@ def basis_open_raw(t, kv, n, p=3):
     return N[:, :n]
 
 
-def fit_panel(name, V, F, Nv, verbose=True):
+def fit_panel(name, V, F, Nv, verbose=True, fr=None, outline_only=False):
+    """one trimmed surface for a piece; fr = a given frame (default: the piece's own best-fit plane);
+    outline_only = just the frame and outline wires (for a band patch that brings its own surface)"""
     T = V[F]; P = V[np.unique(F)]
-    fr = frame_of(P, Nv[np.unique(F)])
+    if fr is None: fr = frame_of(P, Nv[np.unique(F)])
     S = to_plane(P, fr)                      # vertices only
     pad = 0.02
     dom = [S[:, 0].min() - pad, S[:, 0].max() + pad, S[:, 1].min() - pad, S[:, 1].max() + pad]
-    f, r, cv = select_fit(S, dom)
+    if outline_only:
+        f = dict(nu=4, nv=4, lam=0.0, ku=knots(4, dom[0], dom[1]), kv=knots(4, dom[2], dom[3]))
+        f.update(gu=greville(f['ku'], 4), gv=greville(f['kv'], 4), H=np.zeros((4, 4))); r = np.zeros(1); cv = 0.0; verbose = False
+    else:
+        f, r, cv = select_fit(S, dom)
     # outline: every boundary loop of the piece; outer = largest enclosed area, the others are openings
     _, wid = components(V, F)
     loops = boundary_loops(F, wid)
@@ -400,8 +407,11 @@ def feature_lines(V, Fr, fr, ds=0.02, thr=10.0, arm=None, span=0.35):
             if np.ptp(R_[:, 0]) < 4 * arm: continue
             tq = np.arange(R_[0, 0], R_[-1, 0], 0.002); hq = np.interp(tq, R_[:, 0], R_[:, 1]); C = np.c_[tq, hq]
             a = np.zeros(len(C))
-            for i in range(k, len(C) - k):
-                p_, q_ = C[i] - C[i - k], C[i + k] - C[i]
+            # arms shrink (to 4 mm) near a run's ends, so a roll right at a panel edge (beltline into the
+            # window) is still seen; otherwise its first 12 mm are invisible and fall into the next band
+            for i in range(2, len(C) - 2):
+                kk = min(k, i, len(C) - 1 - i)
+                p_, q_ = C[i] - C[i - kk], C[i + kk] - C[i]
                 cr = p_[0] * q_[1] - p_[1] * q_[0]
                 a[i] = np.sign(cr) * np.degrees(np.arccos(np.clip(p_ @ q_ / (np.linalg.norm(p_) * np.linalg.norm(q_) + 1e-12), -1, 1)))
             idx = []
@@ -423,6 +433,9 @@ def feature_lines(V, Fr, fr, ds=0.02, thr=10.0, arm=None, span=0.35):
                 tv, av = Rv[w_, 0], np.abs(ang[w_]); o_ = np.argsort(tv); tv, av = tv[o_], av[o_]
                 cum = np.cumsum(av) / av.sum()
                 t_lo = tv[np.searchsorted(cum, 0.05)]; t_hi = tv[min(np.searchsorted(cum, 0.95), len(tv) - 1)]
+                # a roll that runs out at the panel edge (end vertices carry no turn) owns the edge too
+                if t_lo - Rv[0, 0] < 0.003: t_lo = Rv[0, 0] - 0.005
+                if Rv[-1, 0] - t_hi < 0.003: t_hi = Rv[-1, 0] + 0.005
                 # a SHARP line (turning within 3 mm, not a roll) sits ON a profile vertex: snap to the vertex
                 # carrying most of the turn (the 2 mm resampled corner is up to a few mm off, bending both faces)
                 if t_hi - t_lo < 0.003:
@@ -467,7 +480,7 @@ def fit_bands(name, V, Fr, Nv, overlap=0.002):
     for L in lines:
         if abs(L['turn']) >= 25 and L['ext_lo'] > 0.003 and L['ext_hi'] > 0.003:
             for off in (-L['ext_lo'], L['ext_hi']):
-                M = dict(L); M['c'] = L['c'] + off; cut_lines.append(M)
+                M = dict(L); M['c'] = L['c'] + off; M['pair'] = id(L); cut_lines.append(M)
         else:
             cut_lines.append(L)
     bounds = [None] + cut_lines + [None]
@@ -480,18 +493,43 @@ def fit_bands(name, V, Fr, Nv, overlap=0.002):
         ov = lambda L: overlap if (L['ext_lo'] + L['ext_hi'] > 0.003 or L['err'] > 0.5e-3) else max(0.3e-3, 1.5 * L['err'])
         if lo is not None: m &= P[:, 1] > eval_func(lo, P[:, 0]) - ov(lo)
         if hi is not None: m &= P[:, 1] < eval_func(hi, P[:, 0]) + ov(hi)
-        S = P[m]
-        if len(S) < 12: continue
-        pad = 0.02
-        dom = [S[:, 0].min() - pad, S[:, 0].max() + pad, S[:, 1].min() - pad, S[:, 1].max() + pad]
-        f, r, cv = select_fit(S, dom)
+        # across a SOFT bound (roll edge) the surface is smooth, so the band also takes the next vertex row
+        # beyond it: Kunos rows can be 25 mm apart, and a band edge with no data under it swings wildly
+        inb = np.zeros(len(V), bool); inb[u[m]] = True
+        ring = np.isin(u, np.unique(Fr[inb[Fr].any(1)]))
+        for L, sg in ((lo, -1), (hi, 1)):
+            if L is not None and ov(L) < overlap:              # sharp: never reach across it
+                ring &= (P[:, 1] - eval_func(L, P[:, 0])) * sg < ov(L)
+        m |= ring
         mm = lambda a: (np.asarray(a) * 1000).tolist()
         line = lambda L: None if L is None else dict(kv=mm(L['kv']), g=mm(L['g']), c=mm(L['c']))
-        e = dict(base); e.update(name=f'{name}:b{b}', dom=mm(dom), nu=f['nu'], nv=f['nv'], ku=mm(f['ku']), kv=mm(f['kv']),
-                                poles=mm(np.stack(list(np.meshgrid(f['gu'], f['gv'], indexing='ij')) + [f['H']], -1)),
-                                band_lo=line(lo), band_hi=line(hi), fit_p95_mm=float(np.percentile(r, 95) * 1000))
-        out.append(e)
-        print(f"{e['name']:28s} verts {len(S):4d} control {f['nu']}x{f['nv']} lam {f['lam']:g}  cv {cv*1000:.2f} mm  fit p95 {np.percentile(r,95)*1000:.2f} max {r.max()*1000:.2f} mm")
+        # a rolled edge (fillet band) is one surface only along its line; where the line stops (window
+        # corners: the roll turns into the pillars, and folds over the door plane) each end is its own
+        # corner patch over its own plane - as a modeller builds a corner blend
+        pieces = [('', m, fr, None)]
+        if CORNERS and lo is not None and hi is not None and lo.get('pair') is not None and lo.get('pair') == hi.get('pair'):
+            sl, sh = lo['s_lo'], lo['s_hi']
+            pieces = [('', m & (P[:, 0] >= sl) & (P[:, 0] <= sh), fr, [sl, sh]),
+                      ('c0', m & (P[:, 0] < sl), None, [-10.0, sl]), ('c1', m & (P[:, 0] > sh), None, [sh, 10.0])]
+        for tag, mk, frp, band_s in pieces:
+            if mk.sum() < 12: continue
+            own = frp is None
+            if own: frp = frame_of(V[u[mk]], Nv[u[mk]])
+            S = to_plane(V[u[mk]], frp)
+            pad = 0.02
+            dom = [S[:, 0].min() - pad, S[:, 0].max() + pad, S[:, 1].min() - pad, S[:, 1].max() + pad]
+            f, r, cv = select_fit(S, dom)
+            e = dict(base)                    # outline wires stay in the region's frame (own-plane patches are
+                                              # trimmed by a prism of them; projected onto a tilted plane they fold)
+            e.update(name=f'{name}:b{b}{tag}', dom=mm(dom), nu=f['nu'], nv=f['nv'], ku=mm(f['ku']), kv=mm(f['kv']),
+                     poles=mm(np.stack(list(np.meshgrid(f['gu'], f['gv'], indexing='ij')) + [f['H']], -1)),
+                     band_lo=line(lo), band_hi=line(hi), fit_p95_mm=float(np.percentile(r, 95) * 1000))
+            if own: e['frame'] = [x.tolist() for x in frp]; e['own_plane'] = True
+            if own or band_s is not None:
+                e['line_frame'] = [x.tolist() for x in fr]          # the band lines live in the region's frame
+                e['band_s'] = mm(band_s)
+            out.append(e)
+            print(f"{e['name']:28s} verts {len(S):4d} control {f['nu']}x{f['nv']} lam {f['lam']:g}  cv {cv*1000:.2f} mm  fit p95 {np.percentile(r,95)*1000:.2f} max {r.max()*1000:.2f} mm" + ('  (own plane)' if own else ''))
     print(f"{name}: {len(lines)} character lines: " + ', '.join(f"turn {L['turn']:+.0f} deg ({L['ext_lo']*1000:.0f}/{L['ext_hi']*1000:.0f} mm), {L['hits']} hits, fit {L['err']*1000:.2f} mm" for L in lines))
     return out
 
