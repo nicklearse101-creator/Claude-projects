@@ -1836,8 +1836,12 @@ INSIDE_RE = re.compile(r'(?<![a-z])int_|_int\b|interior|inside|inner|\.int\b|gla
                        r'interieur', re.I)
 
 
-OVERLAY_RE = re.compile(r'banner|sun.?strip|visor_?decal|(?:window|windows|glass|win|wind)[\W_]*(?:decal|sticker)|'
-                        r'(?:decal|sticker)s?[\W_]*(?:glass|window)|windowforstickers|numglass|glasstickers', re.I)
+OVERLAY_RE = re.compile(r'banner|sun.?strip|visor_?decal|(?:window|windows|glass|win|wind|windshield|windscreen)[\W_]*(?:decal|sticker)|'
+                        r'(?:decal|sticker)s?[\W_]*(?:glass|window)|windowforstickers|numglass|glasstickers|glasslabel|'
+                        r'glass[\W_]*numbers?|numbers?[\W_]*glass|windows?[\W_]*(?:(?:int|ext|glass)[\W_]*)*numbers?|'
+                        r'(?:glass|window|windscreen|windshield)\w*[\W_]numbers?(?![a-z])', re.I)
+# names that may be a sticker sheet: counted as one only when the mesh lies on the glass
+MAYBE_OVERLAY_RE = re.compile(r'sticker|decal|banner|strip|poloska|number|label|names?(?![a-z])', re.I)
 DECAL_RE = re.compile(r'decal|sticker', re.I)
 SIDE_PLACES = {'rear': 'Rear side windows', 'door': 'Front door windows', 'both': 'Both'}
 
@@ -1855,16 +1859,23 @@ def window_meshes(car, with_overlays=False, log=None):
     strict, loose, ov_ext, ov_inner = [], [], [], []
     body = set(getattr(car, 'body_textures', ()))
     y_min = car.lo[1] + 0.6 * (car.hi[1] - car.lo[1])
+    maybe = []                                     # sticker-like names that are only a sheet if they lie on the glass
     for m in car.kn5.meshes:
         if not len(m.idx) or m.mat is None or not m.mat.samplers.get('txDiffuse'): continue
         label = f'{m.name} {m.mat.name}'
         inside = bool(INSIDE_RE.search(label)) or m.mat.shader.lower() == 'kswindscreen'
         painted = m.mat.samplers['txDiffuse'] in body
-        if not painted and not re.search(r'light|lens|lamp|dash', m.name, re.I) and (OVERLAY_RE.search(label) or
+        not_lamp = not re.search(r'light|lens|lamp|dash|steer|seat|calip|brake|rim(?![a-z])|frame|trim|seal|rubber|mou?ld|'
+                                 r'digital|display', m.name, re.I)
+        if not painted and not_lamp and (OVERLAY_RE.search(label) or
                             (DECAL_RE.search(label) and 'door' in label.lower() and m.pos.mean(0)[1] > y_min)):
             if tri_area3(m).sum() > 0.02:          # tiny patches (door-pin labels etc.) are not sticker sheets
                 (ov_inner if inside else ov_ext).append(m)
             continue
+        if not painted and not_lamp and (OVERLAY_RE.search(m.mat.samplers['txDiffuse']) or MAYBE_OVERLAY_RE.search(
+                label + ' ' + m.mat.samplers['txDiffuse'])) and tri_area3(m).sum() > 0.02 and m.pos.mean(0)[1] > y_min:
+            maybe.append((m, inside or bool(INSIDE_RE.search(m.mat.samplers['txDiffuse']))))
+            if not GLASS_RE.search(label): continue
         tex = m.mat.samplers['txDiffuse']
         named = GLASS_RE.search(label) or (see_through(m.mat) and GLASS_RE.search(tex) and
                                            # named only by its texture: must be window-sized, at window height
@@ -1876,6 +1887,20 @@ def window_meshes(car, with_overlays=False, log=None):
     use = strict if any(not i for _, i in strict) else loose
     if use is loose and loose and log: log('windows: no see-through glass found by material - glass picked by name only')
     ext = [m for m, i in use if not i]; inner = [m for m, i in use if i]
+    if maybe and ext + inner:
+        # a sticker sheet lies on the glass (a few mm off it): most of its points within 2 cm of a glass surface
+        G = sample_tris(np.concatenate([m.pos[m.idx].reshape(-1, 3, 3) for m in ext + inner]), 0.01)
+        cell = 0.02
+        key = lambda Q: (np.floor(Q / cell).astype(np.int64) + 100000) @ np.array([1, 200000, 200000 ** 2], np.int64)
+        gk = np.floor(G / cell).astype(np.int64)
+        near = np.unique(np.concatenate([((gk + d) + 100000) @ np.array([1, 200000, 200000 ** 2], np.int64)
+                                         for d in np.array(np.meshgrid([-1, 0, 1], [-1, 0, 1], [-1, 0, 1])).reshape(3, -1).T]))
+        for m, inside in maybe:
+            if m in ext or m in inner: continue
+            Q = sample_tris(m.pos[m.idx].reshape(-1, 3, 3), 0.01)
+            if np.isin(key(Q), near).mean() >= 0.7:
+                (ov_inner if inside else ov_ext).append(m)
+        ext = [m for m in ext if m not in ov_ext + ov_inner]; inner = [m for m in inner if m not in ov_ext + ov_inner]
     if log and ext: log('windows: glass = ' + ', '.join(m.name for m in ext)[:160])
     return (ext, inner, ov_ext, ov_inner) if with_overlays else (ext, inner)
 
@@ -2199,12 +2224,27 @@ def make_window_stickers(car, design, made, copy_from=None, log=print, resolutio
     for view, sg in (('left', 1), ('right', -1)):
         if side_img is None: break
         to_a = (lambda z: -z) if view == 'left' else (lambda z: z)
-        dm = [m for m in ov_ext if 'door' in (m.name + m.mat.name).lower() and m.pos.mean(0)[0] * sg > 0]
+        side_sheet = []                                # the car's own sticker sheets on this side's windows
+        for m in ov_ext:
+            T_ = m.pos[m.idx].reshape(-1, 3, 3)
+            n_ = np.cross(T_[:, 1] - T_[:, 0], T_[:, 2] - T_[:, 0])
+            n_ /= np.maximum(np.linalg.norm(n_, axis=1, keepdims=True), 1e-12)
+            vn = m.nrm[m.idx].reshape(-1, 3, 3).mean(1)
+            n_ = np.where((n_ * vn).sum(1, keepdims=True) < 0, -n_, n_)
+            on = (T_.mean(1)[:, 0] * sg > 0.1) & (n_[:, 0] * sg > 0.5)
+            if 0.5 * np.linalg.norm(np.cross(T_[on, 1] - T_[on, 0], T_[on, 2] - T_[on, 0]), axis=1).sum() > 0.01:
+                side_sheet.append(T_[on])
         mine = sorted([i for i in sides if i['c'][0] * sg > 0], key=lambda i: i['c'][2])
         targets = []                                   # (what it is, triangles, z range or None, margin)
-        if dm:      # the car has its own door-window sticker sheet: put them there
-            targets.append(('door window sticker sheet', np.concatenate([m.pos[m.idx] for m in dm]), None, 0.0))
-        elif mine:
+        sheet_fits = False
+        if side_sheet:      # the car has its own sticker sheet on this side's window: put them there
+            Ts = np.concatenate(side_sheet)
+            mk, _, _ = footprint(Ts, view, cell, erode=0.0)
+            ys_, _ = np.nonzero(mk)
+            sheet_fits = len(ys_) and fit_rect(mk, side_img.width / side_img.height, int(0.62 * (np.ptp(ys_) + 1))) is not None \
+                and (np.ptp(ys_) + 1) * cell >= 0.08
+            if sheet_fits: targets.append(('side window sticker sheet', Ts, None, 0.0))
+        if not sheet_fits and mine:
             rear_i = mine[0]
             z0, z1 = rear_i['T'][..., 2].min(), rear_i['T'][..., 2].max()
             ahead = [i for i in mine[1:] if i['area'] >= 0.08]
@@ -2268,7 +2308,8 @@ def make_window_stickers(car, design, made, copy_from=None, log=print, resolutio
             span = np.percentile(flat, 98, axis=0) - np.percentile(flat, 2, axis=0)
             # glass whose UVs run over two tiles is fine (panes that land on the same texels are left off
             # later); glass that repeats one small patch over and over has no room
-            tiled = uv_overlap(ms) > 3.0 or (min(img.size) < 512 and span.min() <= 0.3)
+            only_sheets = not ({'glass', 'inner'} & set(kinds))
+            tiled = uv_overlap(ms) > 3.0 or (min(img.size) < 512 and span.min() <= 0.3 and not only_sheets)
             if tiled and min(img.size) < 512:
                 log(f'windows: {tex} is only {img.size[0]}x{img.size[1]} and its glass is tiled - no room for stickers, skipped')
                 continue
