@@ -11,5 +11,6 @@ Nik's list, in order. Tick items off here when they are done and checked on his 
 5. [ ] Window stickers (banner, number, name) can't be moved or deleted on the preview yet.
 6. [ ] Smaller skin files (compressed DDS) – 4K skins are about 90 MB each.
 7. [ ] **Preinstalled logos** – the logo library comes with a starter set of logos already in it after install.
+8. [ ] **Headlights: lens colour only** – remove the cast-light (CSP beam colour) option; keep only the lens colour change.
 
 Details of earlier fixes: `PLAN_next_session.md`.
