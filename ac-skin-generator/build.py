@@ -1,8 +1,10 @@
 """Build Ratty's4Skin Generator for sharing:
   dist/Rattys4SkinGenerator/            the app (folder with Rattys4SkinGenerator.exe)
   release/Rattys4SkinGenerator_Setup.exe the one-file installer to send to people
-Run:  python build.py      (needs: pip install pyinstaller pillow numpy)"""
-import os, shutil, subprocess, sys, zipfile
+  release/Rattys4SkinGenerator_vX.Y.Z.zip the installer + "READ ME FIRST.txt", to share
+Run:  python make_starter_logos.py   (once, for the starter logo set)
+      python build.py      (needs: pip install pyinstaller pillow numpy)"""
+import os, re, shutil, subprocess, sys, zipfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 WORK = os.path.join(HERE, 'build')
@@ -42,6 +44,15 @@ def main():
     shutil.move(os.path.join(DIST, 'Rattys4SkinGenerator_Setup.exe'), os.path.join(REL, 'Rattys4SkinGenerator_Setup.exe'))
     size = os.path.getsize(os.path.join(REL, 'Rattys4SkinGenerator_Setup.exe')) / 1e6
     print(f'installer: release/Rattys4SkinGenerator_Setup.exe ({size:.0f} MB)')
+    # 3. the zip to share: installer + READ ME FIRST.txt (kept in git next to this file)
+    ver = re.search(r"VERSION = '([^']+)'", open(os.path.join(HERE, 'installer.py'), encoding='utf8').read()).group(1)
+    readme = os.path.join(HERE, 'READ ME FIRST.txt')
+    shutil.copy(readme, os.path.join(REL, 'READ ME FIRST.txt'))
+    zp = os.path.join(REL, f'Rattys4SkinGenerator_v{ver}.zip')
+    with zipfile.ZipFile(zp, 'w', zipfile.ZIP_DEFLATED) as z:
+        z.write(readme, 'READ ME FIRST.txt')
+        z.write(os.path.join(REL, 'Rattys4SkinGenerator_Setup.exe'), 'Rattys4SkinGenerator_Setup.exe')
+    print(f'zip: release/{os.path.basename(zp)} ({os.path.getsize(zp) / 1e6:.0f} MB)')
 
 
 if __name__ == '__main__':

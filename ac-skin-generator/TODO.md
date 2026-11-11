@@ -10,7 +10,7 @@ Nik's list, in order. Tick items off here when they are done and checked on his 
 4. [x] Smaller skin files (compressed DDS) – 4K skins are about 90 MB each.
 5. [x] **Preinstalled logos** – the logo library comes with a starter set of logos already in it after install.
 6. [x] **Headlights: lens colour only** – remove the cast-light (CSP beam colour) option; keep only the lens colour change.
-7. [~] **Name dictionary from Nik's car library** (after 1-6): scan every car's kn5 (mesh, material and texture
+7. [x] **Name dictionary from Nik's car library** (after 1-6): scan every car's kn5 (mesh, material and texture
    names) and collect all the different names modders use for the same part (glass, body/paint, wings, doors,
    bonnet, boot, banner, lights, rims, interior...). Make the app recognise them, so logos and window stickers work
    on cars where they are refused now. Check on the cars where it fails today.
@@ -33,3 +33,21 @@ Details of earlier fixes: `PLAN_next_session.md`.
   window sticker sheets (window_sticker, windows_decals, decal_glass, Glass_Sticker...) recognised as sticker sheets;
   light words (farol, pisca, milha, tulipa, fara, fog, ltl/rtl, covers) kept off the glass. Tools:
   tests/catalogue_all_cars.py (all cars -> JSON) to compare before / after.
+
+## Done 11 Nov evening (v1.7.0)
+- 7 part 2: paint names (carrozzeria / carrozeria, carroceria, carrosserie, karosserie, lackierung, vernice, pintura,
+  peinture; a part whose name says car paint is paint even if it says light / grille / window); exporters' `_mesh`
+  endings are not grille mesh; bonnet / boot lid words in 10 languages, front or back by position; headlight words
+  (fari, fanale, farol, phare, koplamp, ajovalo, high / low / full beam, DRL, projector, xenon), indicators (freccia,
+  intermitente, pisca, clignotant) kept out; inner-pane words (wewn, innen, interno, interne, interieur); rally spot
+  lamps are not windows.
+- Main body texture: the biggest OUTSIDE area (interior / cockpit parts don't count) with skin / paint / livery / body
+  names first. ~165 cars (most Kunos and GT3 cars) had a cockpit-shadow, mechanics or underbody texture as the main
+  one - that one sets where every logo goes.
+- A logo whose spot is an opening (air intake / grille at the default front-bumper height) looks up / down / sideways
+  for the panel; preview boxes show where decals really went (and moving one by hand starts from there).
+- Headlight lens tint: lamps drawn on the body texture are tinted, painted texels (pop-up covers) are not.
+- Window stickers: left off again when the car uses the glass's picture for another window too (>= 10 % of it, or
+  backwards on the other side) - the no-mirroring change had let a backwards '101' show on the Kadett's door window.
+- Tools: tests/places_all_cars.py (a logo on every place of every car, which places refuse it; SKINGEN_DIR for a
+  'before' run with an older copy).

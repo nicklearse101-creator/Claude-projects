@@ -8,7 +8,7 @@ from PIL import Image, ImageFont, ImageTk
 import skingen
 
 APP_NAME = skingen.APP_NAME
-VERSION = '1.6.0'
+VERSION = '1.7.0'
 DATA_DIR = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'Rattys4SkinGenerator')
 LOGO_DIR = os.path.join(DATA_DIR, 'logos')
 SETTINGS = os.path.join(DATA_DIR, 'settings.json')
@@ -726,7 +726,20 @@ class App(tk.Tk):
     def adj(self, key=None):
         """The hand adjustments for the car on screen (or for one decal of it)."""
         d = self.adjust_by_car.setdefault(self.vars['car'].get(), {})
-        return d if key is None else d.setdefault(key, {})
+        if key is None: return d
+        if key not in d:
+            d[key] = {}
+            # the app slid it onto its panel (the spot asked for was an opening or ran off the panel): moving it by
+            # hand starts from where it shows, not from where it was first put
+            ds = [x for x in (getattr(self, 'info', None) or {}).get('decals', []) if x['key'] == key and any(x.get('slid') or ())]
+            ds.sort(key=lambda x: x['view'] != self.view_var.get())
+            if ds:
+                sgn = -1 if ds[0]['view'] == 'right' else 1
+                da, db = sgn * ds[0]['slid'][0], ds[0]['slid'][1]
+                d[key].update(da=da, db=db)
+                g = self.adjust_gen.setdefault(key, {})
+                g['da'] = g.get('da', 0) + da; g['db'] = g.get('db', 0) + db
+        return d[key]
 
     def decal_box(self, d):
         """A decal of the last preview as it is now (with changes made since): view axes a, b, w, h, turn."""

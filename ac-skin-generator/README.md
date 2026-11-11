@@ -5,7 +5,7 @@ the car from its own 3D model, so writing reads correctly on both sides whatever
 texture layout looks like.
 
 ## Install (for anyone)
-Run `Rattys4SkinGenerator_Setup.exe` (built into `release/`, about 53 MB). It installs for
+Run `Rattys4SkinGenerator_Setup.exe` (built into `release/` together with `Rattys4SkinGenerator_vX.Y.Z.zip`, the installer plus "READ ME FIRST.txt" to share). It installs for
 the current user - no admin needed - into `%LOCALAPPDATA%\Programs\Rattys4SkinGenerator`,
 adds a Desktop and Start-menu shortcut, and appears in Windows "Installed apps" for removal.
 Python is not needed. Windows SmartScreen may warn because the exe is not signed:
@@ -28,16 +28,20 @@ Tabs on the left, preview on the right.
   (doors, roof), team wordmark, driver name, a font for each of the three (any font installed on the PC), and a grid to choose where each is written (front wings,
   lower doors, doors, rear quarters, bonnet, roof, boot, rear, front). Writing switches to a readable
   colour and gets a thin outline, so it shows over any pattern.
-- **Logos** - your library of logos and pictures. Add images once; give each a place:
-  doors, bonnet, front wings, rear quarters, lower doors, roof, boot lid, rear panel,
-  front bumper, windscreen banner, rear window, rear side windows. Optional glow tint.
+- **Logos** - your library of logos and pictures. It comes with a starter set (about 230 logos) on
+  first start; add your own images once and give each a place: doors, bonnet, front wings, rear quarters,
+  lower doors, roof, boot lid, rear panel, front bumper, windscreen banner, rear window, rear side windows.
+  Optional glow tint. Several logos can share one place: they start side by side, each with its own box
+  to move on the preview.
 - **Windows** - new window stickers: a banner that follows the top edge of the windscreen and rear
   window (full width, height 8-25 cm, default 12), number and driver name on the rear window and on the
   side windows you choose (rear side windows, front door windows or both); optionally removes the
-  stickers already there. Inside the car the stickers show their dark back.
+  stickers already there. Inside the car the stickers show their dark back. **Tinted windows**: a colour
+  and how dark (5-90 %), the windscreen only when ticked; stickers stay on top of the tint.
 - **Lights & wheels** - headlight lens colour (tints the lamp textures, so the lens and its
-  glow change), headlight beam colour (Custom Shaders Patch, written to the skin's
-  `ext_config.ini`), rim colour and tyre colour (separate).
+  glow change), rim colour and tyre colour (separate).
+- **Smaller files** (Car tab, on by default) - compressed textures (DXT1, or DXT5 where there is
+  transparency), about a quarter of the size: a 4K skin texture is about 22 MB instead of 90 MB.
 
 **Preview** renders left, right, front, rear and top views (1600 px) without writing anything (the skin in
 the car does not change - press **Create skin in car** for that); pick a
@@ -48,9 +52,10 @@ move it, mouse wheel to resize, Shift+wheel to turn, or use the Bigger / Smaller
 name (Reset all brings it back). Preview again is quick: the car and pattern are kept from the last preview.
 Flip mirrors the picture on that side (so a logo can face forwards on both sides). Moves, sizes and turns
 apply to both sides of the car alike. Press Preview again to redraw. The changes are remembered per car.
-**Placement check** (in the log): logos, numbers and writing never cover each other - where a logo and
-names share a place the logo is made smaller and the names go under it, and anything that would cover
-another decal or hang off its panel is moved clear (the log says what moved, or what did not fit). A progress bar shows each stage; closing mid-build asks first.
+**Placement:** logos, numbers and writing go where you asked. Nothing is moved, shrunk or left off because
+it overlaps something else - move it on the preview if you want it elsewhere. Where a logo and names share a
+place the logo is made smaller and the names go under it; a decal hanging off its panel (over a sill or an
+opening) is slid onto the panel, and the log says so. A progress bar shows each stage; closing mid-build asks first.
 **Create skin in car** writes a new skin folder. If you already made a skin with that name, it asks
 whether to replace it (the old one goes only once the new one is built); skins the app didn't make are
 never overwritten. In Content Manager
@@ -72,9 +77,10 @@ pick the skin and click "Update preview".
    **A decal is never broken.** It is painted through the triangles that are really visible in its
    footprint (front-most surface per 5 mm cell, 15 mm tolerance), nearest last, however steeply they are
    angled - so it stretches whole over arches, creases and panel steps, also where the car's UVs fold
-   over themselves. Hidden surfaces (arch liners, doubled panels, damage meshes) get nothing. Where
-   the left and right of the car share texels (mirrored UVs) a side decal slides along the car to get
-   clear; if it can't, it is left off whole, with a line in the log. Long writing shrinks to its panel.
+   over themselves. Hidden surfaces (arch liners, doubled panels, damage meshes) get nothing. Nothing is mirrored by
+   the app: where the car itself uses one picture for both sides of a panel (mirrored UVs, e.g. the Kadett
+   bonnet) the decal is still put where asked, and the log notes that it also shows (mirrored) on the other
+   side. Long writing shrinks to its panel.
    `debug_decals=True` in the design tints every decal's footprint (see `tests/nik_test.py`).
 6. Windows: a mesh is glass only if its name says so, its material is see-through, it is not on the
    paint texture and it is not a light, trim, frame or chrome part (the log lists the glass used).
@@ -85,14 +91,35 @@ pick the skin and click "Update preview".
    (panes = connected pieces of glass), sized to fit inside it. Small glass textures are enlarged
    by texel size; tiled glass textures and glass shared between windows are skipped. Inside glass
    only gets the backs of stickers that landed outside.
-7. Headlights: front light meshes found by name and position; lens tint on their texels;
-   beam colour overrides the car's CSP `[LIGHT_HEADLIGHT_n] COLOR`, or adds a headlight pair
-   at the lamps when the car has none.
+   Tint: the glass texels get a film colour behind what is already on the glass (see-through textures)
+   or are blended towards it (opaque ones); window stickers are drawn over the tint.
+7. Headlights: front light meshes found by name and position; lens tint on their texels. Pop-up
+   covers and other painted parts on the body texture are never tinted.
+7b. **Name dictionary.** Modders name the same part in many ways and languages. Collected from all 868 cars
+   in Nik's library (`tests/catalogue_all_cars.py`, `tests/places_all_cars.py` compare before / after):
+   - glass: window, windscreen / windscr, windshield, glass / glas, win_, parabrezza, vetro, lunotto, scheibe,
+     vidro, vidrio, parabrisas, luneta, cristal, verre, vitre, pare-brise, lasi, ruit (a see-through material
+     whose texture says glass counts when the mesh is window-sized and high on the car); not glass: lights
+     (farol, faro, fari, pisca, milha, tulipa, fog, ltl / rtl...), covers, guards, deflectors, stickers, plates;
+   - window sticker sheets: banner, sun strip, window_sticker, windows_decals, decal_glass, Glass_Sticker...;
+   - headlights: headlight / headlamp, lamp, faro, fari, farol, fanal, phare, scheinwerfer, koplamp, ajovalo,
+     high / low beam (HBEAM, LBEAM), DRL, projector, xenon; indicators (freccia, intermitente, pisca,
+     clignotant) are not headlights;
+   - bonnet / boot lid: hood, bonnet, capot, cofano, (motor)haube, kapot, konepelti, frunk, trunk, boot,
+     tailgate, hatch, coffre, baule, heckklappe, decklid, liftgate, portellone, maletero, kofferraum,
+     achterklep, engine cover - front or back is told by where the part sits;
+   - paint: carpaint, paint, livery, body colour, carrozzeria, carroceria, carrosserie, karosserie,
+     lackierung, vernice, pintura, peinture; a part whose name says car paint is paint even when it also
+     says light / grille / window (pop-up `HeadLight R CarPaint`, `EXT_Carpaint_FGrill`);
+   - wheels and rims by whole words only (`rim`, `rims`, `rim_lf`...: never inside primera or trim);
+     exporters' `_mesh` endings are not grille mesh; interior shells (`body_int`) do not count when picking
+     the body texture.
 8. The painted colours are spread into the texture's gaps between panels (12 texels), so the old skin's
    colour cannot show as a line along seams and lamp surrounds.
 9. `car_catalogue()` lists what was found in a car (body / wheel textures, glass, lights, every material and
    its textures) into `%APPDATA%\Rattys4SkinGenerator\catalogue\CAR.json`, reused while the model is unchanged.
-10. Output: mipmapped uncompressed DDS, `ui_skin.json`, `livery.png`, `ext_config.ini`.
+10. Output: mipmapped DDS (compressed DXT1 / DXT5 by default, uncompressed with "Smaller files" off),
+   `ui_skin.json`, `livery.png`.
 
 ## Build
 `python build.py` (needs Python 3 with pillow, numpy, pyinstaller) -> `dist/` app folder and
