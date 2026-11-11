@@ -1,8 +1,7 @@
 # Next session: Blender Work / AE86 replica (handover, 2026-11-11 midday)
 
-**Start here.** Roof neighbour strips DONE (11 Nov, 12:00). Next job: the C-pillar-top corners (rear header strip ends + r18/r19 + C-pillar
-top r1x00, Next 3b item 2 "Left"), then bonnet -> hatch -> bumpers -> sills.
-The rear roll is done and waits for Nik's verdict on the whole car.
+**Start here.** Roof neighbours + C-pillar-top corners DONE (11 Nov, 13:00). Next job: the bonnet, then hatch (incl. the hatch
+surround: the only uncovered Kunos facets at the rear roof corner are hatch surround, x < 0.45), bumpers, sills.
 1. Read this page (where we are, how to run, what's next).
 2. `PANEL_FIT_TECHNIQUE.md`: the method that works, with every lesson we paid for (bottom of the file).
 3. `ACHIEVEMENTS_REPORT.md`: the story so far (section 7 = the 10 Nov work on the door, wing and rear quarter).
@@ -33,7 +32,8 @@ Pictures (local, not in git): `D:\Claude\_scratch_research\kn5_study\images\` - 
 cd /d/Claude/Claude-/blender/kn5-study
 ./regress.sh all          # rebuild + score door, wing, quarter, roof (~7 min). Run after EVERY change to the fitters.
 ```
-Reference (2026-11-11, + pillar/foot sweep): **door 88.5 / 99.7, wing 70.5 / 96.1, quarter 85.9 / 99.3** (area within 1 / 3 mm; quarter vertices 90.1 / 98.2);
+Reference (2026-11-11 13:00, one owner per surface): **door 88.5 / 99.7, wing 70.5 / 96.1, quarter 85.6 / 99.3** (area within 1 / 3 mm;
+the quarter now leaves the roof's triangles out and snaps to the roof's edges);
 **roof vertices 72.4 / 97.0 % within 0.3 / 1 mm** (`./regress.sh roof`, 50 s; also prints the neighbour strips).
 
 One panel by hand (the quarter as an example):
@@ -203,12 +203,24 @@ Left (in order):
    0.3 mm); `face_edge_points` keeps, where two built edges run side by side, only the one nearer the Kunos side
    (crown outline vs side-line edge at the drip strip's rear end); `regress.sh all` unsets PF_CLIP before the roof
    (the quarter's clip box broke the roof step). Picture `images/roof_v3_neighbour_strips_grey.png`.
-   **Left - the C-pillar-top corners (next):** the rear header strips r9/r10 wrap ~30 mm down round each rear roof
-   corner (x 491 -> 507, y 1215 -> 1191) and the strip builder drops those ends (sides kept only where ds/darc > 0.7
-   along the straight axis): 8 Kunos vertices per end uncovered. Build them together with r18/r19 (56 mm corner
-   strips, roof side still from Kunos vertices: the roof run is too short for 20 edge samples) and the C-pillar top
-   r1x00 refit with roof samples (quarter build), as the research's corner patches (MakeFilling G1, <= 4 sides).
-   A-pillar tops: below y 1.0, not in this set - with the front end.
+   **C-pillar-top corners - DONE 11 Nov 13:00** (picture `images/roof_v4_cpillar_corners_grey.png`):
+   - Rear header strips r9/r10 wrap ~30 mm down round each rear roof corner: built as CHAIN strips now (strip_build
+     prefers the chain version when its spine is > 3 % longer; strips under 5 mm may turn 30 deg per 20 mm, wider
+     ones 20). r9/r10 Kunos vertices max 20 -> 1.27 mm.
+   - **One owner per surface:** the quarter build used to remake the roof's edge (a side-band sliver, the header
+     strip ends, the drip-end corner) -> two overlapping surfaces, blotches in grey. `PF_NOROOF=1` makes
+     `load_mesh` leave out every triangle the roof build owns (`roof_build.roof_owned`: roof + its neighbour strips);
+     quarter clip y now 1.3 (the 1.235 clip orphaned 4 C-pillar-top triangles = the white line across the pillar top).
+   - **The roof is the master** (`PF_MASTER` = its packed build): in `fit_panel`, a piece's outline loop that runs
+     within 2.5 mm of the master's open boundary is densified (2 mm) and moved onto it, and those points are fit
+     data (x3). Window-surround panel (quarter r4) <-> roof: gap median 0.32 -> 0.04 mm. regress.sh builds the roof
+     FIRST, then the quarter. Quarter 85.8 -> 85.6 % (r4 fit p95 0.29 -> 0.54 mm: it now passes through the
+     roof's edge, incl. the vertex-fitted wrap ends).
+   - Tried and dropped: the roof's strips taking the QUARTER's built pillar edges (`PF_FOREIGN`, per-face BREPs in
+     `<build>/faces/` - the mechanism stays): it fed the old quarter edge error round in a circle. Masters first.
+   - Left (small): r18/r19 corner strips and the wrap ends use Kunos vertices for their pillar side (0.6-0.8 mm);
+     Kunos shades its 2-4 mm returns as soft rolls (bent normals), ours are crisp (exact normals) - judge on the
+     complete car.
 3. The side line itself is a ~9 mm roll in Kunos (holding loops 457 / 466) and still a crease in ours - same quintic
    roll machinery along x if Nik wants it softer.
 
@@ -237,6 +249,10 @@ skin UV, baked AO, LODs, standard dummy names, two-layer glass.
 ### 7. Afterwards
 Lamps, grille, badges; interior survey; then **from photos** (Nova first: it has solved cameras and traced windows):
 trace outlines and character lines, run the same fit/trim/cut, check by eye. Parked: steward app, Nova grading.
+
+## What happened on 11 Nov (13:00)
+- C-pillar-top corners: header strips wrap the corners (chain strips), one owner per surface (PF_NOROOF), the roof as
+  master for the quarter (PF_MASTER, roof built first), quarter clip y 1.3; regress.sh clip leaks fixed.
 
 ## What happened on 11 Nov (noon)
 - Roof neighbour strips (7 per car) built on the roof's own edges; roof outline resampling; edge sampler picks the

@@ -297,6 +297,35 @@ def basis_open_raw(t, kv, n, p=3):
     return N[:, :n]
 
 
+_MASTER = {}
+def master_snap(loops3, step=0.002, tol=0.0025):
+    """loops3: the piece's boundary loops (3D, metres). With PF_MASTER set: each loop densified every 2 mm and every
+    point within tol of the master build's open boundary moved onto it (nearest point on its boundary segments).
+    Returns (new loops, the moved points) or None. Kunos vertices on a shared edge sit 0.1-0.3 mm from our master
+    edge; the master's other boundaries (a 2-4 mm strip's far side) are further, so the nearest is the right one."""
+    path = os.environ.get('PF_MASTER')
+    if not path: return None
+    if path not in _MASTER:
+        d = np.load(path); Pm, Fm = d['P'], d['F']
+        E = np.sort(np.r_[Fm[:, [0, 1]], Fm[:, [1, 2]], Fm[:, [2, 0]]], 1)
+        u, c = np.unique(E, axis=0, return_counts=True); B = u[c == 1]
+        _MASTER[path] = (Pm[B[:, 0]], Pm[B[:, 1]])
+    A, Bq = _MASTER[path]; D = Bq - A; L2 = np.maximum((D * D).sum(1), 1e-18)
+    out, moved = [], []
+    for L in loops3:
+        Q = np.r_[L, L[:1]]; dq = np.r_[0, np.cumsum(np.linalg.norm(np.diff(Q, axis=0), axis=1))]
+        tq = np.unique(np.r_[np.arange(0, dq[-1], step), dq[:-1]]); X = np.c_[[np.interp(tq, dq, Q[:, k]) for k in range(3)]].T
+        lo = A.min(0) - 0.01; hi = A.max(0) + 0.01; X2 = X.copy()
+        near = ((X > lo) & (X < hi)).all(1); n0 = len(moved)
+        for i in np.where(near)[0]:
+            t = np.clip(((X[i] - A) * D).sum(1) / L2, 0, 1); C = A + t[:, None] * D; dd = np.linalg.norm(C - X[i], axis=1)
+            j = dd.argmin()
+            if dd[j] < tol: X2[i] = C[j]; moved.append(C[j])
+        out.append(X2 if len(moved) - n0 >= 5 else L)       # loops away from the master stay as Kunos drew them
+        if len(moved) - n0 < 5: del moved[n0:]
+    return out, np.array(moved).reshape(-1, 3)
+
+
 def fit_panel(name, V, F, Nv, verbose=True, fr=None, outline_only=False, extra=None, data_F=None):
     """one trimmed surface for a piece; fr = a given frame (default: the piece's own best-fit plane);
     outline_only = just the frame and outline wires (for a band patch that brings its own surface);
@@ -306,6 +335,13 @@ def fit_panel(name, V, F, Nv, verbose=True, fr=None, outline_only=False, extra=N
     S = to_plane(P, fr)                      # vertices only
     if extra is not None and len(extra):     # extra data (metres): e.g. a neighbouring surface's end rows to join
         S = np.r_[S, to_plane(np.asarray(extra), fr)]
+    # a MASTER build already made the neighbour (PF_MASTER = its packed npz, e.g. the roof): where this piece's
+    # outline runs along the master's boundary, the outline IS that boundary (exact edge points) and those points
+    # are fit data too, so the face passes through the master's edge and is trimmed on it - one edge, no gap
+    _, wid_ = components(V, F); rep_ = {w: i for i, w in enumerate(wid_)}
+    snap = master_snap([V[[rep_[w] for w in L]] for L in boundary_loops(F, wid_)])
+    if snap is not None and len(snap[1]):
+        S = np.r_[S, np.repeat(to_plane(snap[1], fr), 3, axis=0)]
     pad = 0.02
     dom = [S[:, 0].min() - pad, S[:, 0].max() + pad, S[:, 1].min() - pad, S[:, 1].max() + pad]
     if outline_only:
@@ -319,6 +355,7 @@ def fit_panel(name, V, F, Nv, verbose=True, fr=None, outline_only=False, extra=N
     def area2(L2): return 0.5 * abs(np.dot(L2[:, 0], np.roll(L2[:, 1], -1)) - np.dot(L2[:, 1], np.roll(L2[:, 0], -1)))
     rep = {w: i for i, w in enumerate(wid)}
     Ls = [to_plane(V[[rep[w] for w in L]], fr)[:, :2] for L in loops]
+    if snap is not None: Ls = [to_plane(L3, fr)[:, :2] for L3 in snap[0]]
     order = np.argsort([-area2(L) for L in Ls])
     wires = []
     def despike(L):

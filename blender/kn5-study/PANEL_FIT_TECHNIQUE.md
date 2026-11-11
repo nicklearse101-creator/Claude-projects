@@ -177,3 +177,10 @@ not a station polyline; give the neighbour face the sweep's flat band as tangent
   face). Two lessons: fit outline trim curves to the polyline resampled every 5 mm, also in special builders (the
   roof's drip edge wiggled +-2 mm between vertices 50 mm apart); where two built edges run side by side near a strip
   side, take only the one nearer the Kunos side, never a mix.
+- One owner per surface: when two builds overlap (quarter clip box over the roof's edge), the later one leaves out
+  the earlier one's Kunos triangles (PF_NOROOF) - two surfaces on one place show as blotches. Masters are built
+  first; a slave face whose outline runs along the master's open boundary is trimmed ON it and fitted through it
+  (PF_MASTER: outline points within 2.5 mm moved onto the master edge, used as data). Never let the master take the
+  slave's edges as well (a circle: the slave's old error comes back).
+- Narrow chain strips may turn harder: rulings skew by about width x turn, so a 3-4 mm return may turn 30 deg per
+  20 mm (the rear header wrapping round the roof corner); prefer the chain over two runs when it covers more.

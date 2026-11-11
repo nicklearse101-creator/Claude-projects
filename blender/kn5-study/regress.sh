@@ -12,6 +12,7 @@
 # Foot touch-ups (resampled stations, deck cut on the grid's real edge): quarter 85.8 / 99.3 (vertices 90.1 / 98.2).
 # Roof (roof_build.py; score = Kunos VERTICES within 0.3 / 1 mm): first build 67.2 / 97.0; G2 rear roll (11 Nov) 67.9 / 97.0, max 1.2 mm.
 # Roof neighbour strips + resampled roof outline (11 Nov noon): roof 72.4 / 97.0; door 88.5 / 99.7, wing 70.5 / 96.1, quarter 85.8 / 99.3.
+# C-pillar-top corners, one owner per surface (PF_NOROOF), roof as master (PF_MASTER), roof built first (11 Nov 13:00): door 88.5 / 99.7, wing 70.5 / 96.1, roof 72.4 / 97.0, quarter 85.6 / 99.3.
 set -e
 cd "$(dirname "$0")"
 C=D:/SteamLibrary/steamapps/common/assettocorsa/content/cars/ks_toyota_ae86
@@ -30,21 +31,24 @@ if [ "$what" = wing ] || [ "$what" = all ]; then
   PF_IN="$(cygpath -w $R/wing/fill)" ./fcrun.sh panel_fit_freecad.py >> $R/wing.log 2>&1 && python merge.py $R/wing >> $R/wing.log
   echo "wing: $(python score_faces.py $C $R/wing GEO_body | tail -1)"
 fi
+if [ "$what" = roof ] || [ "$what" = all ]; then
+  unset PF_CLIP                                      # the wing step exports it
+  # the roof is the MASTER on top of the car (built first): its neighbour strips take a side on an unbuilt region
+  # from the Kunos vertices; the quarter then snaps to the roof's edges (PF_MASTER). (PF_FOREIGN = the other way
+  # round, quarter faces into the roof's strips: tried, it fed the old quarter edge error back round in a circle.)
+  python roof_build.py $C $R/roof > $R/roof.log 2>&1
+  PF_IN="$(cygpath -w $R/roof)" ./fcrun.sh panel_fit_freecad.py >> $R/roof.log 2>&1
+  python pack_build.py $R/roof $R/roof/build.npz >> $R/roof.log
+  echo "roof: $(python roof_score.py $C $R/roof/build.npz | head -1)"
+fi
 if [ "$what" = quarter ] || [ "$what" = all ]; then
   export PF_CLIP=0.45,1,0,1.3,-2.2,-0.5          # y up to the roof: the roof triangles are left out by PF_NOROOF
   export PF_NOROOF=1                                 # the roof build owns the roof + its strips (one owner per surface)
+  [ -f $R/roof/build.npz ] && export PF_MASTER=$R/roof/build.npz   # faces along the roof are trimmed on its edges
   python panel_fit.py $C $R/quarter GEO_body:w0 GEO_body:pillar1 'GEO_body:rall!0,1' > $R/quarter.log 2>&1
   PF_IN="$(cygpath -w $R/quarter)" ./fcrun.sh panel_fit_freecad.py >> $R/quarter.log 2>&1
   python fill_holes.py $C $R/quarter GEO_body >> $R/quarter.log 2>&1
   PF_IN="$(cygpath -w $R/quarter/fill)" ./fcrun.sh panel_fit_freecad.py >> $R/quarter.log 2>&1 && python merge.py $R/quarter >> $R/quarter.log
   echo "quarter: $(python score_faces.py $C $R/quarter GEO_body | tail -1)"
-fi
-if [ "$what" = roof ] || [ "$what" = all ]; then
-  unset PF_CLIP PF_NOROOF                             # the quarter step exports them
-  # the quarter's built faces (C-pillar) for the strips along the pillar top (run the quarter first)
-  [ -f $R/quarter/faces/faces.json ] && export PF_FOREIGN="quarter=$(cygpath -w $R/quarter/faces)"
-  python roof_build.py $C $R/roof > $R/roof.log 2>&1
-  PF_IN="$(cygpath -w $R/roof)" ./fcrun.sh panel_fit_freecad.py >> $R/roof.log 2>&1
-  unset PF_FOREIGN && python pack_build.py $R/roof $R/roof/build.npz >> $R/roof.log
-  echo "roof: $(python roof_score.py $C $R/roof/build.npz | head -1)"
+  unset PF_CLIP PF_NOROOF PF_MASTER
 fi

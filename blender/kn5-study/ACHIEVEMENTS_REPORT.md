@@ -211,7 +211,10 @@ that face's own edge. 14 strips on the rear quarter, 21 on the door: each within
 - **Roof neighbours** (noon): the windscreen header, drip strips and rear header strips are thin returns built on the
   roof's own edges (joins 0.02 mm, strips within 0.07-0.18 mm median of Kunos); a cleaner roof outline lifted the
   roof to 72.4 % of vertices within 0.3 mm.
+- **C-pillar-top corners** (13:00): the rear header strips wrap round the roof corners; every surface now has one
+  owner (the quarter no longer remakes the roof's edge) and the quarter is trimmed on the roof's edges, so the roof
+  to window-surround join closed from 0.32 to 0.04 mm (median) and the line across the pillar top is gone.
 
-**Next:** the C-pillar-top corners (header strip ends, corner strips, pillar top), then
+**Next:**
 bonnet, hatch, bumpers and sills; then assemble the whole car (mirror, scores, one picture per section).
 

@@ -16,7 +16,7 @@ print(f'Kunos roof area within 1 / 3 mm of ours (facet centres, chords - referen
 # the roof's neighbour strips (roof_build.neighbour_strips): their Kunos vertices -> ours, per strip
 if os.environ.get('RS_STRIPS', '1') != '0':
     import panel_fit as PF
-    Vb, Fb, Nb = PF.load_mesh(sys.argv[1], 'GEO_body'); cb = Vb[Fb].mean(1); pcs = PF.crease_pieces(Vb, Fb[cb[:, 1] > 1.0], Nb)
+    Vb, Fb, Nb = PF.load_mesh(sys.argv[1], 'GEO_body', raw=True); cb = Vb[Fb].mean(1); pcs = PF.crease_pieces(Vb, Fb[cb[:, 1] > 1.0], Nb)
     names = [k[:-2] for k in d.files if k.endswith('_F')] if 'names' not in d.files else []
     out = []
     for ri in (9, 10, 11, 12, 13, 18, 19):
