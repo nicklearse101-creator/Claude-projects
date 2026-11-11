@@ -196,3 +196,7 @@ not a station polyline; give the neighbour face the sweep's flat band as tangent
   wall along its own surface) - it reads like Kunos's averaged-normal corners; Coons on the 4 runs otherwise. Never
   makeFilledFace on a polygon outline (balloons 10+ mm).
 - Name lookups by prefix bite: 'r1' matches 'r10'. Look up exact names first (pack_build normals, 11 Nov).
+- Watertight check on meshes, not only B-rep sewing (bonnet, 11 Nov): free boundary = boundary edges > 0.3 mm from every
+  other face. It found a hidden flap (one face lying over another = two owners) that no score showed.
+- Small parts (nozzles): measure the original per section (width, height per station) before modelling; a guessed taper
+  was backwards and 2.5 mm too tall.

@@ -14,6 +14,7 @@
 # Roof neighbour strips + resampled roof outline (11 Nov noon): roof 72.4 / 97.0; door 88.5 / 99.7, wing 70.5 / 96.1, quarter 85.8 / 99.3.
 # Bonnet first build (centre + outer panels + G2 step band, no nose yet; 11 Nov): Kunos skin vertices median 0.13, 99.6 % within 1 mm.
 # Bonnet nose (front face + degree-7 G2 roll, 11 Nov pm): all 695 skin vertices median 0.13, 74.5 / 99.7 % within 0.3 / 1 mm; nose 0.17 / max 0.76.
+# Bonnet steps 13-14 (11 Nov night): 8 pin-hole fills, underside cap (Kunos vertices median 0.9 mm), nozzles (median 0.5 mm).
 # Bonnet edges (13 strips + 12 corner fills, 11 Nov evening): skin 75.7 / 100.0 %; edges r1-r13 median 0.06, 99.2 % within 1 mm. Others unchanged.
 # C-pillar-top corners, one owner per surface (PF_NOROOF), roof as master (PF_MASTER), roof built first (11 Nov 13:00): door 88.5 / 99.7, wing 70.5 / 96.1, roof 72.4 / 97.0, quarter 85.6 / 99.3.
 set -e
@@ -60,4 +61,9 @@ if [ "$what" = bonnet ] || [ "$what" = all ]; then
   python bonnet_build.py $C $R/bonnet > $R/bonnet.log 2>&1
   PF_SAVE_FACES=0 PF_IN="$(cygpath -w $R/bonnet)" ./fcrun.sh panel_fit_freecad.py >> $R/bonnet.log 2>&1 && python pack_build.py $R/bonnet $R/bonnet/build.npz >> $R/bonnet.log
   echo "bonnet: $(python bonnet_score.py $C $R/bonnet/build.npz | head -1)"
+  # step 13-14: pin-hole fills (mesh level), then the underside cap + washer nozzles -> build_full.npz (the whole bonnet)
+  python mesh_holes.py $R/bonnet/build.npz 0.3 --fill $R/bonnet/build_filled.npz > $R/bonnet/holes.log 2>&1
+  python underside_build.py $C $R/bonnet/build_filled.npz $R/bonnet/build_full.npz > $R/bonnet/underside.log 2>&1
+  echo "bonnet holes: $(grep -c 'holefill:' $R/bonnet/holes.log) filled; $(grep -E '^underside|^nozzles' $R/bonnet/underside.log | tr '
+' ' ')"
 fi

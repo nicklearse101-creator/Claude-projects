@@ -3,8 +3,9 @@
 **Start here.** BONNET in progress (research report `blender/research/reports/Bonnet surfacing.md`, 15-step build table).
 Built (11 Nov, `bonnet_build.py` + `bonnet_score.py`, `./regress.sh bonnet` 2.5 min): centre panel C, outer panels O, the G2
 step band (steps 1-7), the NOSE (steps 8-9: straight -52.5 deg front face + degree-7 G2 roll), the EDGES (steps 10-12: notch
-skin gap, 13 edge strips, 12 corner fills incl. G1 rounded wall corners). NEXT = sew + clearance (step 13: also closes the
-~1-2 mm pin-holes on top of each rounded corner), underside cap + nozzles (step 14), then the hatch.
+skin gap, 13 edge strips, 12 corner fills incl. G1 rounded wall corners), watertight check + clearance (step 13) and the
+underside cap + washer nozzles (step 14): the bonnet is COMPLETE (`build_full.npz`). NEXT = the HATCH (+ hatch surround),
+then bumpers, sills.
 1. Read this page (where we are, how to run, what's next).
 2. `PANEL_FIT_TECHNIQUE.md`: the method that works, with every lesson we paid for (bottom of the file).
 3. `ACHIEVEMENTS_REPORT.md`: the story so far (section 7 = the 10 Nov work on the door, wing and rear quarter).
@@ -22,7 +23,8 @@ model now; later they will come from photos.
 | Front wing (arch lip, sub-panels) | done, small items left | 70.5 % / 96.1 % | 92.5 % / 99.3 % |
 | Rear quarter + C-pillar (17 strips) | done 11 Nov: pillar + foot = one swept surface (sweep_build.py); small join items left (Next 0) | 85.9 % / 99.3 % | 90.1 % / 98.2 % |
 | Roof (crown + rear band + 2 side bands + rear roll) + 7 neighbour strips | 11 Nov (roof_build.py): fair crown, G2 rear roll, strips on its built edges | 65.0 % / 100.0 % | 72.4 % within 0.3 mm, 97.0 % within 1 mm (median 0.13, max 1.2); strips median 0.07-0.27 mm |
-| Bonnet, hatch, bumpers, sills | not started | | |
+| Bonnet (skin, nose, 13 edge strips, corner rounds, underside, nozzles) | done 11 Nov | | skin 100 % within 1 mm, edges 99.2 % |
+| Hatch, bumpers, sills | not started | | |
 
 The **vertex** score is the honest one: Kunos uses 100-150 mm flat triangles that cut chords across curves, so the
 area score marks a correct smooth surface as "off" between vertices.
@@ -290,6 +292,24 @@ Left (in order):
 - Left: pin-holes ~1-2 mm on top of each round (round top vs chamfer ends + skin corner) -> sew step; the rounds' outline
   is 1.8-2.8 mm off Kunos's chord outline by design (a real radius); seams.py still reads narrow strips' far edges as joins.
 
+**Steps 13-14 - DONE 11 Nov night** (picture `images/bonnet_v5_complete_grey.png`; `./regress.sh bonnet` 3.8 min):
+- OCC sewing (`sew_build.py`, kept for later) REFUSES the boolean-cut skin faces (centre, outer L/R, bands) even at 1 mm,
+  though the joins measure 0.02 mm; strips, corner fills and nose faces do sew. Part::Sewing is not available headless;
+  ShapeFix / rebuilding did not help. Not solved - the watertight check is done on the meshes instead:
+- `mesh_holes.py BUILD.npz 0.3 [--fill OUT]`: a face's boundary edge is free when > 0.3 mm from every other face; free
+  edges chained into groups. Found a real defect: C kept a FLAP over O along the lamp-bay front edge (two owners) -> polyO
+  now runs forward along x = B-end ahead of the band. Left: 8 pin-holes (2-10 mm, corner meetings) -> fan patches
+  ('holefill:k', mesh only). Remaining free = the real open bottoms (flange+returns 3.3 m, lip, walls) + 4 bits <= 2 mm.
+- `clearance.py`: vs every Kunos mesh within 40 mm (GEO_body, headlights, details, wipers, side lights): closest approach
+  ours = Kunos's (body 1.01 / 0.98, headlights 0.02 / 0.01, details 0.14 / 0.14 mm); 'behind our surface' counts equal
+  Kunos's own under the same test (shared seats); side gap at z 1650 2.71 vs 2.62 mm.
+- `underside_build.py`: cap from OUR free bottom loop (chained, 10 mm resample) -> rim 10 mm inside / 10 mm under the
+  skin -> lid on a 120 mm plan grid 25 mm under the skin (Delaunay, inside the rim). 1623 tris, never above the skin,
+  Kunos SUB2 vertices median 0.9 / p95 5.3 mm. Washer nozzles (Kunos SUB0 measured per z: 18.6 x 11.5 mm to z 963, then a
+  quarter-ellipse to 8.4 mm at a blunt front): superellipse loft, own-vertex end caps; Kunos vertices median 0.48 / max 1.2.
+- Left (for the AC-ready stage): the notch pin-hole fan shades dark; the lid shows faint facets; nozzle front face crisper
+  than Kunos's; B-rep sewing of the skin faces.
+
 ### 4. Rest of the body, panel by panel
 **Roof research done:** `blender/research/reports/Roof surfacing.md` (16-step build table). Key points: roof = master
 surface, one full-width face overshooting 20-40 mm, degree 5 single span vs cubic by cross-validation; fit VERTICES only
@@ -315,6 +335,9 @@ skin UV, baked AO, LODs, standard dummy names, two-layer glass.
 ### 7. Afterwards
 Lamps, grille, badges; interior survey; then **from photos** (Nova first: it has solved cameras and traced windows):
 trace outlines and character lines, run the same fit/trim/cut, check by eye. Parked: steward app, Nova grading.
+
+## What happened on 11 Nov (night)
+- Bonnet complete: mesh watertight check (C flap over O fixed, 8 pin-holes filled), clearance = Kunos, underside cap, nozzles.
 
 ## What happened on 11 Nov (evening)
 - Bonnet edges: 13 edge strips, 12 corner fills (G1 rounds on wall corners), notch skin gap, pack_build normals bug.

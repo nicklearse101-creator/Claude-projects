@@ -209,7 +209,9 @@ def main():
     A_, B_ = thin(A_), thin(B_)
     # O territory + band (cut from C); at the notch end it follows the band's (slanted) end edge A -> B before turning
     # out at A's z (a constant-z cut from A left a wedge between the band end and O that no face covered)
-    polyO = xz(np.r_[A_, [B_[-1]], [[B_[-1, 0], A_[-1, 1]]], [[700.0, A_[-1, 1]], [700.0, 600.0], Sfar]])
+    # ... and then runs FORWARD along x = B's x: everything outboard of the tongue ahead of the band belongs to O (C kept a
+    # flap over O along the lamp-bay front edge: two owners, found by mesh_holes.py)
+    polyO = xz(np.r_[A_, [B_[-1]], [[B_[-1, 0], 2100.0], [700.0, 2100.0], [700.0, 600.0], Sfar]])
     polyC = xz(np.r_[B_, [[B_[-1, 0], 2000.0], [200.0, 2000.0], [200.0, 600.0], Sfar]])   # C territory + band (cut from O)
     res = []
     cC = [polyO, mir(polyO)]
