@@ -1,7 +1,9 @@
 # Next session: Blender Work / AE86 replica (handover, 2026-11-11 midday)
 
-**Start here.** Roof neighbours + C-pillar-top corners DONE (11 Nov, 13:00). Next job: the bonnet, then hatch (incl. the hatch
-surround: the only uncovered Kunos facets at the rear roof corner are hatch surround, x < 0.45), bumpers, sills.
+**Start here.** BONNET in progress (research report `blender/research/reports/Bonnet surfacing.md`, 15-step build table).
+Built (11 Nov afternoon, `bonnet_build.py` + `bonnet_score.py`, `./regress.sh bonnet` ~3 min): centre panel C, outer panels O, the G2
+step band (steps 1-7). NEXT = the nose roll (step 8-9: -52.5 deg front face + roof-style G2 roll from C), then the outline
+details at the notch corner, edge strips (step 11), corner fills, underside cap + nozzles (step 14).
 1. Read this page (where we are, how to run, what's next).
 2. `PANEL_FIT_TECHNIQUE.md`: the method that works, with every lesson we paid for (bottom of the file).
 3. `ACHIEVEMENTS_REPORT.md`: the story so far (section 7 = the 10 Nov work on the door, wing and rear quarter).
@@ -223,6 +225,24 @@ Left (in order):
      complete car.
 3. The side line itself is a ~9 mm roll in Kunos (holding loops 457 / 466) and still a crease in ours - same quintic
    roll machinery along x if Nik wants it softer.
+
+### 3c. Bonnet - first build 11 Nov (`bonnet_build.py`)
+- Kunos skin = GEO_hood_SUB1 crease region 0 (1274 tris, mirror-exact). C (raised centre, full width, sym poles, deg 5,
+  z knots 880/960/1040/1250/1450/1650, x knots +-150/300/400/470, lam 10): vertices rms 0.30, max 0.71 mm = Kunos's own
+  +-0.6 mm lengthwise washboard (rows alternate at 100 mm; our fair C ignores it, by design). O (outer, right fitted,
+  left mirrored, deg 5 x 3, single span across): rms 0.21 mm (the washboard reaches its rows near the line).
+- Step line: fair plan spline through the measured mid-row points, tail tip (440.9, 885.2) -> hook (R ~44) -> notch
+  corner (361.5, 1721), 914 mm; left side = C all along (rearward on the tail). Band = quintic Hermite across from C's
+  jets at A and O's at B (width 8 mm at the tip, 16 through the hook, 20 on the rear main run, 10 at the notch),
+  55 poles along incl. 9 triple-knot crossings of C / O knot lines; Hermite fit 1 um.
+- The tail dies by height: C fitted with G2 rows = O along the seam S (the band's end cross-section carried on
+  rearward): value 0.6 um, slopes 1e-4. Behind the tip (s < 0) everything is O (= C there).
+- Classification lessons: the outer panel's FRONT edge vertices (lamp bays, x >= 366, z < 1730) must be O data, or O
+  dives 9 mm at the notch; the rear zone behind the hook needs C knots at x +-400/470 (else 1.8 mm misses there).
+- FreeCAD: all bonnet faces use the outline-prism cut (own_plane) + cut_polys; cut polygons thinned to ~5 mm segments
+  (4000-point polygons hung OCC for 13 min). Build 2 min.
+- Score (Kunos vertices, no nose): median 0.13, p95 0.55, max 1.27 mm, 99.6 % within 1 mm; band rows max 0.69 mm.
+  Picture `images/bonnet_v1_panels_step_grey.png`. Visible: tiny gap/dip at the notch corner where band, C and O end.
 
 ### 4. Rest of the body, panel by panel
 **Roof research done:** `blender/research/reports/Roof surfacing.md` (16-step build table). Key points: roof = master

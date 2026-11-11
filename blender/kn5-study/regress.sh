@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Regression check: rebuild the AE86 door and front wing and print their coverage (original area within 1 / 3 mm).
-# Run after every change to panel_fit.py / panel_fit_freecad.py:   ./regress.sh [door|wing|quarter|roof|all]
+# Run after every change to panel_fit.py / panel_fit_freecad.py:   ./regress.sh [door|wing|quarter|roof|bonnet|all]
 # Reference (2026-11-10 evening): door 87.6 % / 99.6 %; wing (all faces + hole fill) 72.4 % / 99.5 %;
 # rear quarter (corner split w0, all faces, hole fill) 77.9 % / 98.7 % (2026-11-10 night).
 # After seam matching, line pinning and the chord-sag rule in fill_holes (same night): door 87.9 / 99.6,
@@ -12,6 +12,7 @@
 # Foot touch-ups (resampled stations, deck cut on the grid's real edge): quarter 85.8 / 99.3 (vertices 90.1 / 98.2).
 # Roof (roof_build.py; score = Kunos VERTICES within 0.3 / 1 mm): first build 67.2 / 97.0; G2 rear roll (11 Nov) 67.9 / 97.0, max 1.2 mm.
 # Roof neighbour strips + resampled roof outline (11 Nov noon): roof 72.4 / 97.0; door 88.5 / 99.7, wing 70.5 / 96.1, quarter 85.8 / 99.3.
+# Bonnet first build (centre + outer panels + G2 step band, no nose yet; 11 Nov): Kunos skin vertices median 0.13, 99.6 % within 1 mm.
 # C-pillar-top corners, one owner per surface (PF_NOROOF), roof as master (PF_MASTER), roof built first (11 Nov 13:00): door 88.5 / 99.7, wing 70.5 / 96.1, roof 72.4 / 97.0, quarter 85.6 / 99.3.
 set -e
 cd "$(dirname "$0")"
@@ -51,4 +52,10 @@ if [ "$what" = quarter ] || [ "$what" = all ]; then
   PF_IN="$(cygpath -w $R/quarter/fill)" ./fcrun.sh panel_fit_freecad.py >> $R/quarter.log 2>&1 && python merge.py $R/quarter >> $R/quarter.log
   echo "quarter: $(python score_faces.py $C $R/quarter GEO_body | tail -1)"
   unset PF_CLIP PF_NOROOF PF_MASTER
+fi
+if [ "$what" = bonnet ] || [ "$what" = all ]; then
+  unset PF_CLIP PF_NOROOF PF_MASTER
+  python bonnet_build.py $C $R/bonnet > $R/bonnet.log 2>&1
+  PF_SAVE_FACES=0 PF_IN="$(cygpath -w $R/bonnet)" ./fcrun.sh panel_fit_freecad.py >> $R/bonnet.log 2>&1 && python pack_build.py $R/bonnet $R/bonnet/build.npz >> $R/bonnet.log
+  echo "bonnet: $(python bonnet_score.py $C $R/bonnet/build.npz | head -1)"
 fi
