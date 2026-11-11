@@ -1,4 +1,4 @@
-# Next session: Blender Work / AE86 replica (handover, 2026-11-11 morning)
+# Next session: Blender Work / AE86 replica (handover, 2026-11-11 midday)
 
 **Start here.**
 1. Read this page (where we are, how to run, what's next).
@@ -17,7 +17,7 @@ model now; later they will come from photos.
 | Door (80 faces incl. glass, mirror, trims; 23 strips) | done | 88.5 % / 99.7 % | - |
 | Front wing (arch lip, sub-panels) | done, small items left | 70.5 % / 96.1 % | 92.5 % / 99.3 % |
 | Rear quarter + C-pillar (17 strips) | done 11 Nov: pillar + foot = one swept surface (sweep_build.py); small join items left (Next 0) | 85.9 % / 99.3 % | 90.1 % / 98.2 % |
-| Roof (crown + rear band + 2 side bands) | first build 11 Nov (roof_build.py): fair crown, crisp rear line still to soften, neighbours not refitted | 64.6 % / 100.0 % | 67.2 % within 0.3 mm, 97.0 % within 1 mm (median 0.19, max 1.2) |
+| Roof (crown + rear band + 2 side bands + rear roll) | 11 Nov (roof_build.py): fair crown, G2 rear roll done; neighbours not refitted | 65.2 % / 100.0 % | 67.9 % within 0.3 mm, 97.0 % within 1 mm (median 0.18, max 1.2) |
 | Bonnet, hatch, bumpers, sills | not started | | |
 
 The **vertex** score is the honest one: Kunos uses 100-150 mm flat triangles that cut chords across curves, so the
@@ -29,9 +29,10 @@ Pictures (local, not in git): `D:\Claude\_scratch_research\kn5_study\images\` - 
 ## How to run (Nik's PC, everything on D:)
 ```bash
 cd /d/Claude/Claude-/blender/kn5-study
-./regress.sh all          # rebuild + score door, wing, quarter (~6 min). Run after EVERY change to the fitters.
+./regress.sh all          # rebuild + score door, wing, quarter, roof (~7 min). Run after EVERY change to the fitters.
 ```
-Reference (2026-11-11, + pillar/foot sweep): **door 88.5 / 99.7, wing 70.5 / 96.1, quarter 85.9 / 99.3** (area within 1 / 3 mm; quarter vertices 90.1 / 98.2).
+Reference (2026-11-11, + pillar/foot sweep): **door 88.5 / 99.7, wing 70.5 / 96.1, quarter 85.9 / 99.3** (area within 1 / 3 mm; quarter vertices 90.1 / 98.2);
+**roof vertices 67.9 / 97.0 % within 0.3 / 1 mm** (`./regress.sh roof`, 30 s).
 
 One panel by hand (the quarter as an example):
 ```bash
@@ -142,8 +143,9 @@ Left to do:
 - The small roll behind the arch (rear:b1, 38 vertices, 5.9 mm), fragments at the bottom-rear corner.
 
 ### 3b. Roof - first build 11 Nov (`roof_build.py`, `roof_score.py`)
-Run: `python roof_build.py $C $R && PF_IN="$(cygpath -w $R)" ./fcrun.sh panel_fit_freecad.py && python pack_build.py $R X.npz &&
-python roof_score.py $C X.npz` (crown meshing takes ~6 min). Picture: `images/roof_v1_grey.png`; crown isophotes `images/roof_crown_isophotes.png`.
+Run: `./regress.sh roof` (30 s), or by hand `python roof_build.py $C $R && PF_IN="$(cygpath -w $R)" ./fcrun.sh panel_fit_freecad.py && python pack_build.py $R X.npz &&
+python roof_score.py $C X.npz`. Pictures: `images/roof_v2_rear_roll_grey.png` (Kunos / crisp line / roll), `images/roof_v1_grey.png`; crown isophotes `images/roof_crown_isophotes.png`.
+Grey Kunos/before/now: `python D:/ClaudeData/tmp/roof/grey3.py BEFORE.npz NOW.npz OUT.png` (uses `view.py` there).
 What the Kunos roof region (GEO_body, 422 tris, exactly symmetric, full width) really is:
 - **crown** from the rear line (z ~ -0.896) to the windscreen header; the front rolls down progressively (no line);
 - **rear band**: a flat ~16 deg strip behind a crisp-ish line (~10 deg turn in one row) down to the rear edge;
@@ -164,14 +166,33 @@ Lessons (paid for, all with isophote maps - `iso()` stripes of n.L, islands = wa
   design (the real roof and Kunos's own normals are smooth there).
 - Leaving the holding loops out of the crown data made the side bulge WORSE (9.7 mm): kept in (RF_HOLD=0).
 - Fair crown + chords: the facet distance in the 313-459 mm side strip is real chord sag (~1.3 mm predicted), not error.
+**Rear roll - DONE 11 Nov midday** (`rear_roll` in roof_build.py, `RF_ROLL=0` = old crisp line):
+- Kunos rows across the line (x 0): z -833 / -871 / -896 / -917 / -942, facet slopes 2.0 / 5.5 / 15.7 / 16.1 deg; the
+  vertex normals are plain averages of those facets, so AC shades the 10 deg turn as a soft roll from row -871 to -917.
+  The side line (holding loops x 457 / 466 round 461.5) runs straight on through the rear band to the rear edge: the
+  two lines simply cross.
+- Rear line R(x) = even quartic through the old crown/rear and side/rear edges (0.27 mm). Roll from zB = R - 21 (rear
+  band) to zA = R + 25 (crown; side band outside the side line) = `RF_ROLL_A` / `RF_ROLL_B`. Parameters (u, x), u =
+  z - zB: z linear in u, quartic in x -> exact. Height = QUINTIC Hermite in u matching value, d/dz, d2/dz2 of both
+  neighbours at constant x -> G2 on both edges by construction (checked: G0 0 um, normals <= 0.0002 deg; 0.05 deg in
+  the last 1.5 mm at the ends). One span deg 5 across, deg 5 along with the rear band's x knots as TRIPLE knots (its
+  jets are only C2 there; without them 0.08 deg); a knot 1.5 mm from an end made huge end poles - dropped.
+- Split at the side line x = +-461.5 (where it meets zA): centre piece (front = crown, untrimmed natural edges) +
+  two corner pieces (front = side band, outer end trimmed on the roof outline in (u, x)). Pieces meet within 5 um;
+  the side line's crease fades out across the roll to nothing at the rear band.
+- Neighbours cut back with plan polygons on the exact edges (`cut_polys`, 10 mm segments: 1 mm segments made the crown
+  mesh 124k tris / 8 min; now 30k / 22 s; the FreeCAD stage takes a per-face `maxlen`, crown 12 mm).
+- Joins on the built meshes: roll to crown / rear band 1-6 um (p95 5 um); corner pieces 0.06-0.12 mm = display-mesh
+  chord sag on the tight side-band curvature (the surfaces meet exactly).
+- Scores: vertices 67.2 -> 67.9 % within 0.3 mm, 97.0 % within 1 mm, max 1.2 mm unchanged (the roll sits up to ~0.9 mm
+  under the old corner vertex row at z -896, as a real radius must).
+- White specks in grey renders: NOT pinholes (every face's open edges form one loop = its outline); z-buffer raster misses.
 Left (in order):
-1. **Rear line too crisp**: Kunos shades it as a soft ~25 mm roll (holding row at z -0.871, normals smoothed across);
-   ours shows a hard line and a shade step where it bends down at the rear corner. Build a G1 roll band (setbacks from
-   both faces, Hermite blend per station, like the door's beltline roll), and a corner patch where it meets the side line.
+1. Judge the rear roll in Nik's eyes next to Kunos (width 46 mm taken from the Kunos rows; a narrower roll = sharper).
 2. Neighbours from the roof's built edges (report table): drip strips r12/r13 (strip_build on the crown edge), windscreen
    header r11, rear header strips r9/r10, C-pillar top r1x00 refit with roof samples (quarter build), A-pillar tops.
-3. Tiny white specks seen in the grey render on the crown interior - check the display mesh for slivers / pinholes.
-4. Crown meshing is slow (373 s, 122k tris): coarser MaxLength for the big face.
+3. The side line itself is a ~9 mm roll in Kunos (holding loops 457 / 466) and still a crease in ours - same quintic
+   roll machinery along x if Nik wants it softer.
 
 ### 4. Rest of the body, panel by panel
 **Roof research done:** `blender/research/reports/Roof surfacing.md` (16-step build table). Key points: roof = master
@@ -198,6 +219,10 @@ skin UV, baked AO, LODs, standard dummy names, two-layer glass.
 ### 7. Afterwards
 Lamps, grille, badges; interior survey; then **from photos** (Nova first: it has solved cameras and traced windows):
 trace outlines and character lines, run the same fit/trim/cut, check by eye. Parked: steward app, Nova grading.
+
+## What happened on 11 Nov (midday)
+- Roof rear line rebuilt as an exact G2 quintic roll (3 faces), neighbours cut back on its edges; roof added to
+  regress.sh; roof build 9 min -> 30 s. Picture `images/roof_v2_rear_roll_grey.png`.
 
 ## What happened on 11 Nov (night)
 - Chain sides (drip rail r7, door SUB1 r12/r14), fold flanges (C-pillar window flange r6 as two strips), sanity checks

@@ -157,6 +157,110 @@ def split_runs(L, lab, P2, thr=35.0):
     return runs
 
 
+def jet_z(f, z, x, e=0.5):
+    """value, d/dz, d2/dz2 at constant x (central differences; works for HF and MappedCrown alike)"""
+    f0, fp, fm = f(z, x), f(z + e, x), f(z - e, x)
+    return f0, (fp - fm) / (2 * e), (fp - 2 * f0 + fm) / e ** 2
+
+
+def line2d(p, q):
+    p, q = np.asarray(p, float), np.asarray(q, float)
+    return dict(poles=[(p + (q - p) * k / 3).tolist() for k in range(4)], knots=[0, 0, 0, 0, 1, 1, 1, 1], periodic=False)
+
+
+def rear_roll(crown, rear, side, rear_line_pts, side_line_pts, outline_pts, a, b):
+    """the rear line as a G2 ROLL instead of a crease (Kunos shades it as a soft ~45 mm roll: its 10 deg turn sits
+    between vertex rows 25 mm apart and the smoothed normals spread it from row z -871 to -917).
+    Rear line R(x) = even quartic through the crown/rear and side/rear edges. The roll runs from zB = R - b (on the
+    rear band) to zA = R + a (on the crown, or the side band outside the side line). Parameters (u, x), u = z - zB in
+    mm (0..W, W = a + b, constant): z is linear in u and a quartic in x -> exact in a degree-5 x basis. Height = quintic
+    Hermite in u matching value, d/dz and d2/dz2 of both neighbours at constant x -> G2 along both edges by construction
+    (the tangential derivatives follow from the matched values). Split at the side line x = +-X0 (crown | side band at
+    zA): centre piece (front = crown) + two corner pieces (front = side band); on x = X0 both use the same rear band
+    and crown = side band there (G0 edge), so the pieces meet exactly and the side line's crease fades out across the
+    roll to nothing at the rear band. Returns roll faces (json dicts) and the cut polygons for the neighbours."""
+    cR = np.polyfit(rear_line_pts[:, 1] ** 2, rear_line_pts[:, 0], 2)
+    R = lambda x: np.polyval(cR, np.asarray(x, float) ** 2)
+    errR = np.abs(R(rear_line_pts[:, 1]) - rear_line_pts[:, 0])
+    W = a + b
+    o = np.argsort(side_line_pts[:, 0]); xe = lambda z: np.interp(z, side_line_pts[o, 0], side_line_pts[o, 1])
+    X0 = 461.0
+    for _ in range(30): X0 = float(xe(R(X0) + a))
+    print(f'roll: rear line R(x) even quartic, max {errR.max():.2f} mm off the old edges; a {a:.0f} b {b:.0f} mm; side line meets zA at x {X0:.2f}')
+
+    def coeffs(front, x):
+        zA, zB = R(x) + a, R(x) - b
+        fA, dA, kA = jet_z(front, zA, x); fB, dB, kB = jet_z(rear, zB, x)
+        p0, q0, r0 = fB, W * dB, W * W * kB; p1, q1, r1 = fA, W * dA, W * W * kA
+        H = np.c_[p0, p0 + q0 / 5, p0 + 2 * q0 / 5 + r0 / 20, p1 - 2 * q1 / 5 + r1 / 20, p1 - q1 / 5, p1]
+        Z = np.c_[[R(x) - b + W * i / 5 for i in range(6)]].T
+        return Z, H
+
+    def piece(front, xa, xb, name, sym=False):
+        xs = np.linspace(xa, xb, 600); Z, H = coeffs(front, xs)
+        for ni in range(0, 40):
+            # the rear band's own x knots (cubic, C2 there) as triple knots, so its jets are exact in this basis
+            kr = [k_ for k_ in np.unique(rear.kt[4:-4]) if xa + 8 < k_ < xb - 8]   # (one 1.5 mm from an end: ill-posed, huge end poles)
+            ki = sorted(set(np.round(np.linspace(xa, xb, ni + 2)[1:-1], 6)) - set(np.round(kr, 6)))
+            ki = [k_ for k_ in ki if all(abs(k_ - r_) > 4 for r_ in kr)]
+            kx = np.r_[[xa] * 6, sorted(ki + kr * 3), [xb] * 6]; n = len(kx) - 6
+            B = bas(xs, kx, n, 0, 5)
+            Hc = np.linalg.lstsq(B, H, rcond=None)[0]; Zc = np.linalg.lstsq(B, Z, rcond=None)[0]
+            eh, ez = np.abs(B @ Hc - H).max(), np.abs(B @ Zc - Z).max()
+            if eh < 1e-3 and ez < 1e-4: break
+        gx = np.array([kx[j + 1:j + 6].mean() for j in range(n)])
+        P = np.stack([Zc.T, np.broadcast_to(gx, Zc.T.shape), Hc.T], -1)        # (6, n, 3): (z, x, h) frame mm
+        print(f'  {name}: x {xa:.1f}..{xb:.1f}, poles 6 x {n} (deg 5 x 5), coefficient fit {eh * 1000:.2f} um, z {ez * 1000:.3f} um')
+        return P, kx
+
+    def check(P, ku, kv, front, name, xr):
+        """evaluate the built surface on its edges vs the neighbours: G0 (mm) and normal angle (deg)"""
+        n = P.shape[1]; Bu = lambda u_, d=0: bas(u_, ku, 6, d, 5); Bv = lambda v_, d=0: bas(v_, kv, n, d, 5)
+        xs = np.linspace(xr[0], xr[1], 50); out = []
+        for u_, f_ in ((0.0, rear), (W, front)):
+            Su = Bu(np.full(1, u_)); Su1 = Bu(np.full(1, u_), 1)
+            pt = np.einsum('i,ijk,lj->lk', Su[0], P, Bv(xs)); du_ = np.einsum('i,ijk,lj->lk', Su1[0], P, Bv(xs)); dv_ = np.einsum('i,ijk,lj->lk', Su[0], P, Bv(xs, 1))
+            nr = np.cross(du_, dv_); nr /= np.linalg.norm(nr, axis=1)[:, None]; nr *= np.sign(nr[:, 2:])
+            h0, dz, _ = jet_z(f_, pt[:, 0], pt[:, 1])
+            e = 0.5; dxx = (f_(pt[:, 0], pt[:, 1] + e) - f_(pt[:, 0], pt[:, 1] - e)) / (2 * e)
+            nn = np.c_[-dz, -dxx, np.ones_like(dz)]; nn /= np.linalg.norm(nn, axis=1)[:, None]
+            ang = np.degrees(np.arccos(np.clip((nr * nn).sum(1), -1, 1)))
+            out.append(f'{"rear" if u_ == 0 else "front"} G0 {np.abs(pt[:, 2] - h0).max() * 1000:.1f} um, normals {ang.max():.4f} deg (at x {xs[np.argmax(ang)]:.0f}; p90 {np.percentile(ang, 90):.4f})')
+        print(f'  {name} edges: ' + '; '.join(out))
+
+    faces = []
+    PC, kxC = piece(crown, -X0, X0, 'rollC'); ku = [0.0] * 6 + [W] * 6
+    check(PC, np.array(ku), kxC, crown, 'rollC', (-X0, X0))
+    wC = [line2d((0, -X0), (0, X0)), line2d((0, X0), (W, X0)), line2d((W, X0), (W, -X0)), line2d((W, -X0), (0, -X0))]
+    faces.append(dict(name='roof:rollC', frame=FRAME, du=5, dv=5, dom=[[0.0, W], [-X0, X0]], nu=6, nv=PC.shape[1], ku=ku, kv=kxC.tolist(),
+                      poles=PC.tolist(), wires=[wC], fit_p95_mm=0.0, fit_max_mm=0.0))
+    # corner pieces: front = side band; outer end trimmed on the roof outline (free edges), drawn in (u, x)
+    X1 = float(outline_pts[:, 1].max() + 12)
+    PR, kxR = piece(side, X0, X1, 'rollR'); check(PR, np.array(ku), kxR, side, 'rollR', (X0, X0 + 25))
+    m = (outline_pts[:, 0] > R(491.0) - b - 25) & (outline_pts[:, 0] < R(491.0) + a + 25)
+    cz = np.polyfit(outline_pts[m, 0], outline_pts[m, 1], 2); xo = lambda z: np.polyval(cz, z)
+    print(f'  outline at the corner: x = quadratic in z, max {np.abs(xo(outline_pts[m, 0]) - outline_pts[m, 1]).max():.2f} mm over {m.sum()} points')
+    us = np.linspace(0, W, 40); xq = np.full_like(us, 491.0)
+    for _ in range(20): xq = xo(R(xq) - b + us)
+    g = PF.fit_curve2d(np.c_[us, xq] / 1000.0, 0.002e-3)
+    wo = dict(poles=(g['poles'] * 1000).tolist(), knots=g['knots'].tolist(), periodic=False)
+    wR = [line2d((0, X0), (0, xq[0])), wo, line2d((W, xq[-1]), (W, X0)), line2d((W, X0), (0, X0))]
+    faces.append(dict(name='roof:rollR', frame=FRAME, du=5, dv=5, dom=[[0.0, W], [X0, X1]], nu=6, nv=PR.shape[1], ku=ku, kv=kxR.tolist(),
+                      poles=PR.tolist(), wires=[wR], fit_p95_mm=0.0, fit_max_mm=0.0))
+    PL = PR[:, ::-1].copy(); PL[..., 1] *= -1; kxL = (-kxR[::-1]).tolist()
+    mir = lambda e: dict(e, poles=[[p_[0], -p_[1]] for p_ in e['poles']])
+    faces.append(dict(name='roof:rollL', frame=FRAME, du=5, dv=5, dom=[[0.0, W], [-X1, -X0]], nu=6, nv=PL.shape[1], ku=ku, kv=kxL,
+                      poles=PL.tolist(), wires=[[mir(e) for e in wR]], fit_p95_mm=0.0, fit_max_mm=0.0))
+    # centre / corner meeting line x = X0: same rear band, crown = side band there
+    zz = np.linspace(R(X0) - b, R(X0) + a, 30); hc = PC[:, -1, 2]; hr = PR[:, 0, 2]
+    print(f'  centre/corner join at x {X0:.1f}: pole column gap {np.abs(hc - hr).max() * 1000:.1f} um')
+    # neighbours cut back to the roll's edges (dense plan polylines on the exact edge curves)
+    xx = np.linspace(-700, 700, 141)                     # 10 mm segments: chord sag on R(x) ~3 um (1 mm: crown meshing 8 min)
+    cut_front = [{'poly': np.c_[R(xx) + a, xx].tolist() + [[R(700) + a - 400, 700], [R(-700) + a - 400, -700]], 'frame': FRAME}]
+    cut_rear = [{'poly': np.c_[R(xx) - b, xx].tolist() + [[R(700) - b + 400, 700], [R(-700) - b + 400, -700]], 'frame': FRAME}]
+    return faces, dict(crown=cut_front, sideR=cut_front, sideL=cut_front, rear=cut_rear), dict(R=R, a=a, b=b, X0=X0)
+
+
 def main():
     car, out = sys.argv[1], sys.argv[2]; os.makedirs(out, exist_ok=True)
     V, R0, N = roof_region(car)
@@ -223,6 +327,13 @@ def main():
     side.fit(Ps[:, 2], Ps[:, 0], Ps[:, 1], 1e0, rows=[(G1[:, 0], G1[:, 1], crown(G1[:, 0], G1[:, 1]), 100.0),
                                                      (G2[:, 0], G2[:, 1], rear(G2[:, 0], G2[:, 1]), 100.0)])
     faces['sideR'] = side
+    # 4. the rear line as a G2 roll (RF_ROLL=0: the old crisp line)
+    roll, cuts = [], {}
+    if os.environ.get('RF_ROLL', '1') != '0':
+        rl = np.vstack([edge_samples('rear', nb) for nb in ('crown', 'sideR', 'sideL')])
+        ol = np.vstack([edge_samples(k, None) for k in ('sideR', 'rear')]); ol = ol[ol[:, 1] > 470]
+        roll, cuts, _ = rear_roll(crown, rear, side, rl, edge_samples('crown', 'sideR'), ol,
+                                  float(os.environ.get('RF_ROLL_A', 25)), float(os.environ.get('RF_ROLL_B', 21)))
 
     res = []
     for k in ('crown', 'rear', 'sideR', 'sideL'):
@@ -259,6 +370,9 @@ def main():
                         nu=int(P.shape[0]), nv=int(P.shape[1]), ku=[float(x) for x in ku], kv=[float(x) for x in kv], poles=P.tolist(),
                         wires=[wk],
                         fit_p95_mm=float(np.percentile(np.abs(r), 95)), fit_max_mm=float(np.abs(r).max())))
+        if cuts.get(k): res[-1]['cut_polys'] = cuts[k]
+        if k == 'crown': res[-1]['maxlen'] = 12.0          # big gentle face: coarser display mesh (was 6 min to mesh)
+    res += roll
     json.dump(res, open(os.path.join(out, 'panels_fit.json'), 'w'))
     np.savez(os.path.join(out, 'roof_data.npz'), V=Vm[np.unique(R0)], R0=R0)
     print('saved', os.path.join(out, 'panels_fit.json'))

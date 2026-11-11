@@ -240,7 +240,7 @@ for p in res:
                 cc = face.cut(poly_prism(cp['poly'], cp['frame']))
                 if cc.Faces and cc.Area > 1: face = Part.makeShell(cc.Faces) if len(cc.Faces) > 1 else cc.Faces[0]
     shapes.append(face); built[p['name']] = face
-    m = MeshPart.meshFromShape(Shape=face, MaxLength=float(os.environ.get('PF_MAXLEN', 6)))   # even triangles (Mefisto)
+    m = MeshPart.meshFromShape(Shape=face, MaxLength=float(os.environ.get('PF_MAXLEN') or p.get('maxlen') or 6))   # even triangles (Mefisto)
     pts, fc = m.Topology
     if not fc:                                            # Mefisto can fail on slivers: standard mesher instead
         m = MeshPart.meshFromShape(Shape=face, LinearDeflection=0.05, AngularDeflection=0.2, Relative=False); pts, fc = m.Topology
