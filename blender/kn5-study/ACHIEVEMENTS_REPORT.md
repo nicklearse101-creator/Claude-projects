@@ -190,3 +190,25 @@ that face's own edge. 14 strips on the rear quarter, 21 on the door: each within
 0.00-0.01 mm; door 87.9 -> 88.4 % within 1 mm. The lamp-top channel now matches Kunos in grey.
 
 **Next:** chains of curves for strips running along several faces, then the roof, bonnet, hatch, bumpers and sills.
+
+## 8. 11 November: C-pillar, its foot, and the roof
+
+| Panel | Area within 1 / 3 mm | Kunos vertices |
+|---|---|---|
+| Rear quarter + C-pillar | 85.9 % / 99.3 % (was 78.2 / 96.8) | 90.1 % / 98.2 % within 1 / 3 mm |
+| Roof (crown, rear band, side bands, rear roll) | 65.2 % / 100.0 % | 67.9 % within 0.3 mm, 97.0 % within 1 mm, max 1.2 mm |
+
+- **Thin strips along several faces** (the 1.4 m drip rail) and fold flanges (the C-pillar window flange).
+- **C-pillar:** built from station profiles like a designer draws it (top line, G2 shoulder, side line every 25 mm),
+  not fitted to Kunos's sparse triangles; pillar vertices p95 2.4 -> 0.5 mm. Its **foot** turned out to be the same
+  shoulder carrying on round the tail-top corner, so pillar and foot are one swept surface; the deck is cut on its
+  real edge (no cracks, no pinch).
+- **Roof:** a fair master crown (one surface, symmetric by construction) plus the rear and side bands, all sharing
+  exact trim curves. The crisp rear line Kunos shades as a soft roll is now an exact G2 roll (three faces, split at
+  the side line), built from its neighbours rather than fitted; joins 0.001-0.006 mm. Roof build 9 min -> 30 s, now
+  part of `regress.sh`.
+- Nik on the roll: "looks ok" - to be judged properly with the complete car.
+
+**Next:** the roof's neighbours from its built edges (drip strips, windscreen and rear headers, C-pillar top), then
+bonnet, hatch, bumpers and sills; then assemble the whole car (mirror, scores, one picture per section).
+

@@ -1,6 +1,7 @@
 # Next session: Blender Work / AE86 replica (handover, 2026-11-11 midday)
 
-**Start here.**
+**Start here.** Next job: the roof's neighbours from its built edges (Next 3b, item 2), then bonnet -> hatch -> bumpers -> sills.
+The rear roll is done and waits for Nik's verdict on the whole car.
 1. Read this page (where we are, how to run, what's next).
 2. `PANEL_FIT_TECHNIQUE.md`: the method that works, with every lesson we paid for (bottom of the file).
 3. `ACHIEVEMENTS_REPORT.md`: the story so far (section 7 = the 10 Nov work on the door, wing and rear quarter).
@@ -188,7 +189,8 @@ Lessons (paid for, all with isophote maps - `iso()` stripes of n.L, islands = wa
   under the old corner vertex row at z -896, as a real radius must).
 - White specks in grey renders: NOT pinholes (every face's open edges form one loop = its outline); z-buffer raster misses.
 Left (in order):
-1. Judge the rear roll in Nik's eyes next to Kunos (width 46 mm taken from the Kunos rows; a narrower roll = sharper).
+1. Nik (11 Nov): the roll "looks ok"; he will judge it properly later, with the complete car. Keep RF_ROLL_A / _B
+   (25 / 21 mm) until then; narrower = sharper. Don't spend more time on it now.
 2. Neighbours from the roof's built edges (report table): drip strips r12/r13 (strip_build on the crown edge), windscreen
    header r11, rear header strips r9/r10, C-pillar top r1x00 refit with roof samples (quarter build), A-pillar tops.
 3. The side line itself is a ~9 mm roll in Kunos (holding loops 457 / 466) and still a crease in ours - same quintic
