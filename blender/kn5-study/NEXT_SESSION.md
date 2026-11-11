@@ -17,7 +17,8 @@ model now; later they will come from photos.
 | Door (80 faces incl. glass, mirror, trims; 23 strips) | done | 88.5 % / 99.7 % | - |
 | Front wing (arch lip, sub-panels) | done, small items left | 70.5 % / 96.1 % | 92.5 % / 99.3 % |
 | Rear quarter + C-pillar (17 strips) | done 11 Nov: pillar + foot = one swept surface (sweep_build.py); small join items left (Next 0) | 85.9 % / 99.3 % | 90.1 % / 98.2 % |
-| Roof, bonnet, hatch, bumpers, sills | not started | | |
+| Roof (crown + rear band + 2 side bands) | first build 11 Nov (roof_build.py): fair crown, crisp rear line still to soften, neighbours not refitted | 64.6 % / 100.0 % | 67.2 % within 0.3 mm, 97.0 % within 1 mm (median 0.19, max 1.2) |
+| Bonnet, hatch, bumpers, sills | not started | | |
 
 The **vertex** score is the honest one: Kunos uses 100-150 mm flat triangles that cut chords across curves, so the
 area score marks a correct smooth surface as "off" between vertices.
@@ -139,6 +140,38 @@ Left to do:
 ### 3. Front wing leftovers
 - Like-for-like zebra (both as exact smooth surfaces) to judge swirls on the wing top and the lip's front end.
 - The small roll behind the arch (rear:b1, 38 vertices, 5.9 mm), fragments at the bottom-rear corner.
+
+### 3b. Roof - first build 11 Nov (`roof_build.py`, `roof_score.py`)
+Run: `python roof_build.py $C $R && PF_IN="$(cygpath -w $R)" ./fcrun.sh panel_fit_freecad.py && python pack_build.py $R X.npz &&
+python roof_score.py $C X.npz` (crown meshing takes ~6 min). Picture: `images/roof_v1_grey.png`; crown isophotes `images/roof_crown_isophotes.png`.
+What the Kunos roof region (GEO_body, 422 tris, exactly symmetric, full width) really is:
+- **crown** from the rear line (z ~ -0.896) to the windscreen header; the front rolls down progressively (no line);
+- **rear band**: a flat ~16 deg strip behind a crisp-ish line (~10 deg turn in one row) down to the rear edge;
+- **side bands** (rear half only, z < -0.517): ~20 deg strips outside the side line (x ~ 0.461, Kunos holding loops at
+  0.457 / 0.466), out to the C-pillar shoulder; in front of z -0.517 the drip strip (own Kunos region) takes over.
+How it is built: every face is a B-spline over the PLAN (frame s = z, t = x, h = y) so shared trim curves are the same 2D
+curve in both faces; bands are fitted to their vertices + the crown / each other along the shared edges (G0 rows,
+seams 0.003-0.03 mm). The crown is ONE surface mapped to its edges: s' = 1000 (z - zr(x)) / (zf(x) - zr(x)) (rear line /
+front edge as even quartics, so the map is exact in the x basis), single span degree 7 along x degree 5 across, knots at
+s' 500 / 850, mirror-paired poles; trim curves converted to (s', x) (1-4 um). FreeCAD stage now reads `du` / `dv`.
+Lessons (paid for, all with isophote maps - `iso()` stripes of n.L, islands = waviness):
+- Kunos roof VERTEX HEIGHTS are lumpy at 0.3-0.7 mm, but its vertex NORMALS are fair. A plan-grid crown fitted to the
+  vertices (9x14 cubic, 0.09-0.14 mm RMS) ripples visibly in grey; third-derivative fairing only clears it at lambda 1e7
+  (1 mm RMS, 3 mm max). Normals as slope data are inconsistent with the heights (p95 20-30 deg near the edges where
+  Kunos averages across creases; interior ok) and do not fix it either.
+- The centreline row sits ~1.1 mm HIGH against every smooth symmetric crown: Kunos's half-model leaves a slight ridge
+  at x = 0 (row slopes 1.5 deg at once beside the centreline, 2.4 deg further out). Our fair crown ignores it - by
+  design (the real roof and Kunos's own normals are smooth there).
+- Leaving the holding loops out of the crown data made the side bulge WORSE (9.7 mm): kept in (RF_HOLD=0).
+- Fair crown + chords: the facet distance in the 313-459 mm side strip is real chord sag (~1.3 mm predicted), not error.
+Left (in order):
+1. **Rear line too crisp**: Kunos shades it as a soft ~25 mm roll (holding row at z -0.871, normals smoothed across);
+   ours shows a hard line and a shade step where it bends down at the rear corner. Build a G1 roll band (setbacks from
+   both faces, Hermite blend per station, like the door's beltline roll), and a corner patch where it meets the side line.
+2. Neighbours from the roof's built edges (report table): drip strips r12/r13 (strip_build on the crown edge), windscreen
+   header r11, rear header strips r9/r10, C-pillar top r1x00 refit with roof samples (quarter build), A-pillar tops.
+3. Tiny white specks seen in the grey render on the crown interior - check the display mesh for slivers / pinholes.
+4. Crown meshing is slow (373 s, 122k tris): coarser MaxLength for the big face.
 
 ### 4. Rest of the body, panel by panel
 **Roof research done:** `blender/research/reports/Roof surfacing.md` (16-step build table). Key points: roof = master

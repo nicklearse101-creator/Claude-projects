@@ -56,7 +56,7 @@ for p in res:
     ku, mu = mults(p['ku']); kv, mv = mults(p['kv'])
     srf = Part.BSplineSurface()
     srf.buildFromPolesMultsKnots([[App.Vector(*W[i, j]) for j in range(W.shape[1])] for i in range(W.shape[0])],
-                                 mu, mv, ku, kv, False, False, 3, 3)
+                                 mu, mv, ku, kv, False, False, p.get('du', 3), p.get('dv', 3))
     def build_wire(es):
         out = []
         for e in es:
