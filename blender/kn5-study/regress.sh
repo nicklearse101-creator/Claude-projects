@@ -13,6 +13,7 @@
 # Roof (roof_build.py; score = Kunos VERTICES within 0.3 / 1 mm): first build 67.2 / 97.0; G2 rear roll (11 Nov) 67.9 / 97.0, max 1.2 mm.
 # Roof neighbour strips + resampled roof outline (11 Nov noon): roof 72.4 / 97.0; door 88.5 / 99.7, wing 70.5 / 96.1, quarter 85.8 / 99.3.
 # Bonnet first build (centre + outer panels + G2 step band, no nose yet; 11 Nov): Kunos skin vertices median 0.13, 99.6 % within 1 mm.
+# Bonnet nose (front face + degree-7 G2 roll, 11 Nov pm): all 695 skin vertices median 0.13, 74.5 / 99.7 % within 0.3 / 1 mm; nose 0.17 / max 0.76.
 # C-pillar-top corners, one owner per surface (PF_NOROOF), roof as master (PF_MASTER), roof built first (11 Nov 13:00): door 88.5 / 99.7, wing 70.5 / 96.1, roof 72.4 / 97.0, quarter 85.6 / 99.3.
 set -e
 cd "$(dirname "$0")"

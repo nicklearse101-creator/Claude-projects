@@ -250,6 +250,7 @@ for p in res:
     m = MeshPart.meshFromShape(Shape=face, MaxLength=float(os.environ.get('PF_MAXLEN') or p.get('maxlen') or 6))   # even triangles (Mefisto)
     pts, fc = m.Topology
     if not fc:                                            # Mefisto can fail on slivers: standard mesher instead
+        print(p['name'], 'Mefisto mesh failed -> standard mesher (fine, slow)', flush=True)
         m = MeshPart.meshFromShape(Shape=face, LinearDeflection=0.05, AngularDeflection=0.2, Relative=False); pts, fc = m.Topology
     if not fc:
         print(p['name'], 'mesh failed -> left out', flush=True); continue

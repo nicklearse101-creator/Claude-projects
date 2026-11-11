@@ -184,3 +184,10 @@ not a station polyline; give the neighbour face the sweep's flat band as tangent
   slave's edges as well (a circle: the slave's old error comes back).
 - Narrow chain strips may turn harder: rulings skew by about width x turn, so a 3-4 mm return may turn 30 deg per
   20 mm (the rear header wrapping round the roof corner); prefer the chain over two runs when it covers more.
+- Progressive rolls (bonnet nose, 11 Nov): a G2 quintic between two surfaces has NO free shape - its curvature peaks
+  mid-band. When the real roll tightens toward one side, raise the degree to 7: keep the three end coefficients on each
+  side from the neighbours' jets (G2 stays exact) and fit one offset each to the two middle coefficients (constant
+  along the roll when the section is constant; per-x offsets overfit). Choose the roll's start/end by eye in grey, not
+  by best vertex fit: the tightest fit (R 43 mm) showed a dark band, R 68 mm read like the original.
+- Cut polygons: keep segments as long as the chord sag allows (~0.02 mm). Many short segments across a big face make
+  Mefisto mesh it far finer (4x triangles, 7x time).

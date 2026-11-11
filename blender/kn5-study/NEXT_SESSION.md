@@ -1,9 +1,10 @@
 # Next session: Blender Work / AE86 replica (handover, 2026-11-11 midday)
 
 **Start here.** BONNET in progress (research report `blender/research/reports/Bonnet surfacing.md`, 15-step build table).
-Built (11 Nov afternoon, `bonnet_build.py` + `bonnet_score.py`, `./regress.sh bonnet` ~3 min): centre panel C, outer panels O, the G2
-step band (steps 1-7). NEXT = the nose roll (step 8-9: -52.5 deg front face + roof-style G2 roll from C), then the outline
-details at the notch corner, edge strips (step 11), corner fills, underside cap + nozzles (step 14).
+Built (11 Nov, `bonnet_build.py` + `bonnet_score.py`, `./regress.sh bonnet` 2.5 min): centre panel C, outer panels O, the G2
+step band (steps 1-7), the NOSE (steps 8-9: straight -52.5 deg front face + degree-7 G2 roll). NEXT = outline details at the
+notch corner (step 10), edge strips (step 11: chamfers, returns, walls, rear flange, nose lip), corner fills, sew + clearance,
+underside cap + nozzles (step 14).
 1. Read this page (where we are, how to run, what's next).
 2. `PANEL_FIT_TECHNIQUE.md`: the method that works, with every lesson we paid for (bottom of the file).
 3. `ACHIEVEMENTS_REPORT.md`: the story so far (section 7 = the 10 Nov work on the door, wing and rear quarter).
@@ -244,6 +245,26 @@ Left (in order):
 - Score (Kunos vertices, no nose): median 0.13, p95 0.55, max 1.27 mm, 99.6 % within 1 mm; band rows max 0.69 mm.
   Picture `images/bonnet_v1_panels_step_grey.png`. Visible: tiny gap/dip at the notch corner where band, C and O end.
 
+**Nose - DONE 11 Nov pm** (`front_face` + `nose_roll` in bonnet_build.py; `BN_NOSE=0` = old build; picture
+`images/bonnet_v2_nose_roll_grey.png`, roll choice `images/bonnet_v2_nose_A_vs_B_grey.png`):
+- Kunos nose = one section swept across x: rows at the same heights in every column (front-face rows y 655.40 / 639.27
+  everywhere), shifted in z by the bowed plan front edge e(x) (6.3 mm over +-348; even quartic in x, 0.28 mm = Kunos chords).
+- Front face F: h = a(x) + b(x) (z - e(x)), fitted to the face rows (z > e - 26): slope -52.53 deg, rms 0.25 mm. B-spline
+  degree 1 x 5 (exactly straight along z).
+- Roll: parameters (u, x), z = e(x) - A + u, W = A - B constant -> exact in x. A QUINTIC G2 Hermite could not do it: Kunos's
+  roll is progressive (only 6 deg turn over z 1770-1855, then 31 deg in the last 27 mm), so a quintic sat 4-5 mm high, or
+  (roll starting late) C did the bending (R 28 mm). Now DEGREE 7: c0-c2 from C's jets, c5-c7 from F's (G2 by
+  construction; checked on the poles: G0 0.3 um, slopes equal, d2h/dz2 diff 5e-8 /mm), c3 / c4 = straight split + ONE
+  fitted offset each for the whole width (x-dependent offsets overfitted: +-12 mm swings).
+- A / B chosen by eye: best vertex fit A 68 / B 20 (rms 0.24, R_min 43 mm) showed a dark band in grey; A 72 / B 16
+  (R_min 68 mm, research target 70-110) reads like Kunos -> default (`BN_NOSE_A` / `BN_NOSE_B`). No inflection.
+- C now takes tongue data up to the roll start (z < e - A + 1) and its domain runs to z 1900 (its jets at the roll start).
+  C max 0.71 -> 0.84 mm (the new tongue rows), band-edge slope miss 0.85 -> 1.07 deg.
+- Scores: nose 135 vertices median 0.17, p95 0.46, max 0.76 mm, 100 % within 1 mm; all 695 skin vertices median 0.13,
+  99.7 % within 1 mm. The 0.9 mm tip facet (-62.4 deg) is left to the nose chamfer strip (step 11).
+- Lesson: cut polygons with 10 mm segments across the centre face made Mefisto mesh it 4x finer (99k tris, 4 min); 42 mm
+  segments (chord sag 0.02 mm) -> 25k / 34 s. panel_fit_freecad.py now says when Mefisto fails and falls back.
+
 ### 4. Rest of the body, panel by panel
 **Roof research done:** `blender/research/reports/Roof surfacing.md` (16-step build table). Key points: roof = master
 surface, one full-width face overshooting 20-40 mm, degree 5 single span vs cubic by cross-validation; fit VERTICES only
@@ -269,6 +290,9 @@ skin UV, baked AO, LODs, standard dummy names, two-layer glass.
 ### 7. Afterwards
 Lamps, grille, badges; interior survey; then **from photos** (Nova first: it has solved cameras and traced windows):
 trace outlines and character lines, run the same fit/trim/cut, check by eye. Parked: steward app, Nova grading.
+
+## What happened on 11 Nov (afternoon, late)
+- Bonnet nose: straight front face + degree-7 G2 roll (shape chosen by eye, R_min 68 mm); bonnet build 2.5 min.
 
 ## What happened on 11 Nov (13:00)
 - C-pillar-top corners: header strips wrap the corners (chain strips), one owner per surface (PF_NOROOF), the roof as

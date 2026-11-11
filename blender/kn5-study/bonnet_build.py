@@ -12,17 +12,24 @@ What the Kunos skin (crease region 0) is:
   quintic Hermite across it from the jets of C (side A) and O (side B), exact B-spline poles.
 - Beyond the tail tip the two panels are the SAME surface: C is fitted with G2 rows equal to O along the seam S
   (the band's end cross-section carried on to the rear edge), so the step dies by height, never by width.
-Every face is over the PLAN (frame s = z, t = x, h = y, mm) like roof_build.py. Nose roll, edge strips, underside:
-later steps of the report's build order.
+- NOSE: a straight -52.5 deg front face F (linear in z, following the bowed plan front edge e(x)) and a G2 roll
+  C -> F of constant width across the plan curve, DEGREE 7 in the roll direction: the three end coefficients on each
+  side come from the jets of C and F (G2 by construction), the two middle ones get one fitted offset each from the
+  Kunos roll vertices (one value for the whole width: the section is constant across x). A quintic (no free shape)
+  could not follow Kunos's progressive roll (gentle to z 1855, tight near the face): 4-5 mm high, or C did the
+  bending (R 28 mm).
+Every face is over the PLAN (frame s = z, t = x, h = y, mm) like roof_build.py. Edge strips, underside: later steps
+of the report's build order.
 """
 import sys, os, json
+from math import comb
 import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 if os.path.isdir(r'D:\ClaudeData\pylibs') and r'D:\ClaudeData\pylibs' not in sys.path:
     sys.path.append(r'D:\ClaudeData\pylibs')
 from scipy.interpolate import BSpline, splprep, splev
 import panel_fit as PF
-from roof_build import HF, FRAME
+from roof_build import HF, FRAME, bas, jet_z
 
 MESH = 'GEO_hood_SUB1'
 # step line mid-row points (x, z) mm, measured on the Kunos mesh (research notes kunos_bonnet_measurements.md):
@@ -32,7 +39,12 @@ LINE_PTS = np.array([
     (338.95, 919.3), (334.3, 927.85),
     (336.6, 1008), (341.0, 1110), (345.4, 1211), (349.2, 1311), (353.1, 1410), (356.3, 1508), (359.4, 1607),
     (358.4, 1664), (361.5, 1721)])
-NOSE_Z = float(os.environ.get('BN_NOSE_Z', 1790))      # C data stops here on the tongue (the nose roll comes later)
+NOSE_Z = float(os.environ.get('BN_NOSE_Z', 1790))      # without the nose (BN_NOSE=0): C data stops here on the tongue
+NOSE = os.environ.get('BN_NOSE', '1') != '0'
+NOSE_A = float(os.environ.get('BN_NOSE_A', 72))        # roll start on C: z = e(x) - A (e = plan front edge)
+NOSE_B = float(os.environ.get('BN_NOSE_B', 16))        # roll end on the front face: z = e(x) - B
+# (best vertex fit was A 68 / B 20: rms 0.24 mm but R_min 43 mm, a visible dark band in grey; A 72 / B 16 gives
+#  R_min 68 mm (research target 70-110) and reads like Kunos - judged by eye, 11 Nov)
 
 
 # ---------- B-spline helpers (degree 5 along the line) ----------
@@ -144,12 +156,16 @@ def main():
     ro = O(Do[:, 2], Do[:, 0]) - Do[:, 1]
     print(f'O  {O.ns}x{O.nt} poles  vertices {len(Do)}  rms {np.sqrt(np.mean(ro ** 2)):.3f}  max {np.abs(ro).max():.3f} mm')
 
-    # C: full width, mirror-paired poles; tongue only up to NOSE_Z; G2 rows = O along the seam S
-    sel = isC & (Pr[:, 2] < NOSE_Z)
+    # C: full width, mirror-paired poles; tongue only up to the roll start (NOSE_Z without the nose); G2 rows = O along S
+    if NOSE:
+        nose = front_face(Pr)
+        sel = isC & (Pr[:, 2] < nose['e'](np.abs(Pr[:, 0])) - NOSE_A + 1.0)
+    else:
+        sel = isC & (Pr[:, 2] < NOSE_Z)
     Dc = Pr[sel]; Dc = np.r_[Dc, Dc * [-1, 1, 1]]          # both halves (Kunos is mirror-exact)
     zk = [float(x) for x in os.environ.get('BN_CZ', '880,960,1040,1250,1450,1650').split(',')]
     xk = [float(x) for x in os.environ.get('BN_CX', '150,300,400,470').split(',')]
-    C = HF(zk, (690.0, 1830.0), sorted([-x for x in xk] + xk), (-520.0, 520.0), sym=True, p=5, pt=5)
+    C = HF(zk, (690.0, 1900.0 if NOSE else 1830.0), sorted([-x for x in xk] + xk), (-520.0, 520.0), sym=True, p=5, pt=5)
     ks = np.linspace(-12.0, 60.0, 37)                      # S from 12 mm ahead of the tip (across the band end) to the rear edge
     Sx = tip[0] + ks * sdir[0]; Sz = tip[1] + ks * sdir[1]
     WS = float(os.environ.get('BN_WS', 1e3))
@@ -194,7 +210,12 @@ def main():
     polyO = xz(np.r_[A_, [[700.0, A_[-1, 1]], [700.0, 600.0], Sfar]])          # O territory + band (cut from C)
     polyC = xz(np.r_[B_, [[B_[-1, 0], 2000.0], [200.0, 2000.0], [200.0, 600.0], Sfar]])   # C territory + band (cut from O)
     res = []
-    res.append(hf_face('hood:centre', C, wires, [polyO, mir(polyO)], maxlen=10.0))
+    cC = [polyO, mir(polyO)]
+    if NOSE:
+        roll, cut_c, cut_f = nose_roll(nose, C, Pr, wires)
+        cC.append(cut_c)
+        res.append(nose['face'](wires, cut_f)); res.append(roll)
+    res.append(hf_face('hood:centre', C, wires, cC, maxlen=10.0))
     res.append(hf_face('hood:outerR', O, wires, [polyC]))
     res.append(hf_face('hood:outerL', O, [[dict(e, poles=mir(e['poles'])) for e in w] for w in wires], [mir(polyC)], mirror=True))
     for nm, P_ in (('hood:bandR', band['P']), ('hood:bandL', band['P'] * [1, -1, 1])):
@@ -205,6 +226,80 @@ def main():
     json.dump(res, open(os.path.join(out, 'panels_fit.json'), 'w'))
     print('saved', os.path.join(out, 'panels_fit.json'))
     return line, C, O
+
+
+def front_face(Pr):
+    """the nose's straight front face: e(x) = plan front edge (Kunos skin row y 639.27, even quartic), height
+    h = a(x) + b(x) (z - e(x)) fitted to the face rows (z > e - 26, without the 0.9 mm tip facet), a / b even in x.
+    As a B-spline: degree 1 in z (exactly straight), degree 5 in x."""
+    X, H, Z = np.abs(Pr[:, 0]), Pr[:, 1], Pr[:, 2]
+    fr = (np.abs(H - 639.27) < 0.05) & (X < 352)
+    ce = np.polyfit(X[fr] ** 2, Z[fr], 2); e = lambda x: np.polyval(ce, np.asarray(x, float) ** 2)
+    fm = (X < 352) & (Z > e(X) - 26) & (H > 639.0)
+    bf = lambda z, x: np.c_[np.ones_like(x), x ** 2, x ** 4, z - e(x), (z - e(x)) * x ** 2]
+    cf = np.linalg.lstsq(bf(Z[fm], X[fm]), H[fm], rcond=None)[0]
+    def f(z, x, *_):
+        z, x = np.broadcast_arrays(np.atleast_1d(np.asarray(z, float)), np.atleast_1d(np.asarray(x, float)))
+        return bf(z, x) @ cf
+    rf = f(Z[fm], X[fm]) - H[fm]
+    print(f'nose front face: edge e(x) through {fr.sum()} points (max {np.abs(e(X[fr]) - Z[fr]).max():.2f} mm = Kunos chords),'
+          f' slope {np.degrees(np.arctan(cf[3])):.2f} deg, {fm.sum()} vertices rms {np.sqrt(np.mean(rf ** 2)):.3f} max {np.abs(rf).max():.3f} mm')
+    def face(wires, cut):
+        z0, z1, x1 = 1855.0, 1930.0, 420.0
+        xs = np.linspace(-x1, x1, 801); kx = np.r_[[-x1] * 6, np.linspace(-x1, x1, 13)[1:-1], [x1] * 6]; n = len(kx) - 6
+        Bx = bas(xs, kx, n, 0, 5); gx = np.array([kx[j + 1:j + 6].mean() for j in range(n)])
+        Hc = [np.linalg.lstsq(Bx, f(z_, np.abs(xs)), rcond=None)[0] for z_ in (z0, z1)]
+        err = max(np.abs(Bx @ h_ - f(z_, np.abs(xs))).max() for h_, z_ in zip(Hc, (z0, z1)))
+        P = np.stack([np.stack([np.full(n, z_), gx, h_], -1) for z_, h_ in zip((z0, z1), Hc)])
+        print(f'  front face B-spline: 2 x {n} poles (deg 1 x 5), fit {err * 1000:.2f} um')
+        return dict(name='hood:noseface', frame=FRAME, du=1, dv=5, nu=2, nv=n, ku=[z0, z0, z1, z1], kv=kx.tolist(),
+                    dom=[[z0, z1], [-x1, x1]], poles=P.tolist(), wires=wires, own_plane=True,
+                    cut_polys=[dict(poly=cut, frame=FRAME)], maxlen=4.0, fit_p95_mm=0.0, fit_max_mm=0.0)
+    return dict(e=e, f=f, face=face)
+
+
+def nose_roll(nose, C, Pr, wires, a=None, b=None):
+    """G2 roll C -> front face across z = e(x) - a .. e(x) - b (constant width W = a - b). Parameters (u, x),
+    z = e(x) - a + u. Height = degree-7 Bernstein in u / W: c0..c2 from C's jets at the start, c5..c7 from the face's
+    jets at the end (G2 by construction), c3 / c4 = the straight split of c2..c5 plus one fitted offset each (least
+    squares on the Kunos roll vertices). Returns the roll face and the cut polygons for C and the face."""
+    a = NOSE_A if a is None else a; b = NOSE_B if b is None else b; W = a - b; e, f = nose['e'], nose['f']
+    def coeffs(x):
+        zA = e(x) - a; c0, d0, k0 = jet_z(C, zA, x); c7, d7, k7 = jet_z(f, zA + W, x)
+        q0, r0, q1, r1 = W * d0, W * W * k0, W * d7, W * W * k7
+        c = [c0, c0 + q0 / 7, c0 + 2 * q0 / 7 + r0 / 42, None, None, c7 - 2 * q1 / 7 + r1 / 42, c7 - q1 / 7, c7]
+        c[3] = c[2] + (c[5] - c[2]) / 3; c[4] = c[2] + 2 * (c[5] - c[2]) / 3
+        return np.array(c)
+    bern = lambda t: np.array([comb(7, i) * t ** i * (1 - t) ** (7 - i) for i in range(8)])
+    X, H, Z = np.abs(Pr[:, 0]), Pr[:, 1], Pr[:, 2]
+    m = (X < 352) & (Z > e(X) - a) & (Z < e(X) - b)
+    Bm = bern((Z[m] - e(X[m]) + a) / W); cm = coeffs(X[m])
+    h0 = (cm * Bm).sum(0); dl = np.linalg.lstsq(np.c_[Bm[3], Bm[4]], H[m] - h0, rcond=None)[0]
+    r = h0 + Bm[3] * dl[0] + Bm[4] * dl[1] - H[m]
+    print(f'nose roll: z = e(x) - {a:.0f} .. e(x) - {b:.0f} (W {W:.0f} mm), degree 7, middle offsets {dl[0]:+.2f} / {dl[1]:+.2f} mm;'
+          f' {m.sum()} roll vertices rms {np.sqrt(np.mean(r ** 2)):.3f} max {np.abs(r).max():.3f} mm')
+    x1 = 420.0; xs = np.linspace(-x1, x1, 1201); cs = coeffs(np.abs(xs)); cs[3] += dl[0]; cs[4] += dl[1]
+    Zs = np.stack([e(xs) - a + W * i / 7 for i in range(8)])
+    for ni in range(10, 80, 4):
+        kx = np.r_[[-x1] * 6, np.linspace(-x1, x1, ni + 2)[1:-1], [x1] * 6]; n = len(kx) - 6; Bx = bas(xs, kx, n, 0, 5)
+        Hc = np.linalg.lstsq(Bx, cs.T, rcond=None)[0]; Zc = np.linalg.lstsq(Bx, Zs.T, rcond=None)[0]
+        eh, ez = np.abs(Bx @ Hc - cs.T).max(), np.abs(Bx @ Zc - Zs.T).max()
+        if eh < 1e-3 and ez < 1e-4: break
+    gx = np.array([kx[j + 1:j + 6].mean() for j in range(n)])
+    P = np.stack([Zc.T, np.broadcast_to(gx, Zc.T.shape), Hc.T], -1)            # (8, n, 3)
+    tt = np.linspace(0, 1, 801); c0 = coeffs(np.zeros(1))[:, 0]; c0[3] += dl[0]; c0[4] += dl[1]
+    hz = c0 @ bern(tt); zz = e(0.0) - a + W * tt
+    d1 = np.gradient(hz, zz); d2 = np.gradient(d1, zz); kap = -d2 / (1 + d1 ** 2) ** 1.5
+    print(f'  roll poles 8 x {n} (deg 7 x 5), coefficient fit {eh * 1000:.2f} um; section at x 0: slope {np.degrees(np.arctan(d1[1])):.1f}'
+          f' -> {np.degrees(np.arctan(d1[-2])):.1f} deg, R_min {1 / kap[2:-2].max():.0f} mm, inflection {(kap[2:-2] < -1e-6).any()}')
+    roll = dict(name='hood:noseroll', frame=FRAME, du=7, dv=5, nu=8, nv=n, ku=[0.0] * 8 + [W] * 8, kv=kx.tolist(),
+                dom=[[0.0, W], [-x1, x1]], poles=P.tolist(), wires=wires, own_plane=True, maxlen=3.0, fit_p95_mm=0.0, fit_max_mm=0.0)
+    # cut lines on e(x) - a / e(x) - b: 42 mm segments (chord sag ~0.02 mm). 10 mm segments made Mefisto mesh the
+    # centre 4x finer (99k tris, 4 min instead of 25k / 34 s). The outline is behind z 1730 beyond x +-362.
+    xx = np.linspace(-420, 420, 21)
+    cut_c = np.c_[e(xx) - a, xx].tolist() + [[2100.0, 420.0], [2100.0, -420.0]]
+    cut_f = np.c_[e(xx) - b, xx].tolist() + [[1600.0, 420.0], [1600.0, -420.0]]
+    return roll, cut_c, cut_f
 
 
 def hf_face(name, f, wires, cut_polys, maxlen=6.0, mirror=False):
