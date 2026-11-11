@@ -114,7 +114,7 @@ class MappedCrown:
 
 # ---------- the roof region and its pieces ----------
 def roof_region(car):
-    V, F, N = PF.load_mesh(car, 'GEO_body'); c = V[F].mean(1)
+    V, F, N = PF.load_mesh(car, 'GEO_body', raw=True); c = V[F].mean(1)
     R0 = PF.crease_pieces(V, F[c[:, 1] > 1.0], N)[0]             # largest crease region over the cant rails = roof
     return V, R0, N
 
@@ -261,6 +261,28 @@ def rear_roll(crown, rear, side, rear_line_pts, side_line_pts, outline_pts, a, b
     return faces, dict(crown=cut_front, sideR=cut_front, sideL=cut_front, rear=cut_rear), dict(R=R, a=a, b=b, X0=X0)
 
 
+def strip_set(car):
+    """GEO_body crease pieces above y 1.0 (piece 0 = roof), their thin strips, and the roof's neighbour strips: those
+    touching the roof + those touching them"""
+    import strip_build as SB
+    V, F, N = PF.load_mesh(car, 'GEO_body', raw=True); c = V[F].mean(1); Fs = F[c[:, 1] > 1.0]
+    pcs = PF.crease_pieces(V, Fs, N)
+    st = SB.find_strips(V, Fs, N, pcs, PF.components, PF.boundary_loops, amin=1e-5)
+    def nbs(s): return {r['nb'] for sd in s['sides'] for r in (sd.get('runs') or [sd])}
+    keep = {ri for ri, s in st.items() if 0 in nbs(s)}
+    keep |= {ri for ri, s in st.items() if nbs(s) & keep}
+    return V, pcs, st, keep, nbs
+
+
+def roof_owned(car):
+    """Kunos GEO_body triangles the roof build makes (roof + its neighbour strips). Other builds leave them out
+    (panel_fit.load_mesh with PF_NOROOF=1), so every surface has one owner; they take the roof's faces as foreign."""
+    if car not in _OWNED:
+        _, pcs, _, keep, _ = strip_set(car); _OWNED[car] = np.vstack([pcs[0]] + [pcs[i] for i in sorted(keep)])
+    return _OWNED[car]
+_OWNED = {}
+
+
 def neighbour_strips(car):
     """the roof's neighbours: every one is a thin Kunos return 2-4 mm wide (windscreen header, the two drip strips,
     the two rear header strips, the small corners at the C-pillar tops). Built with strip_build.py: a side on the
@@ -268,15 +290,12 @@ def neighbour_strips(car):
     shared by both; a side on something not built here (hatch surround, gutter) = fitted to the Kunos vertices.
     Strips touching the roof + strips touching those. Names 'roofnb:rN' (N = crease piece of GEO_body above y 1.0,
     same numbering as the roof region = piece 0); the roof side's nb_name is the prefix 'roof:' = every roof face."""
-    import strip_build as SB
-    V, F, N = PF.load_mesh(car, 'GEO_body'); c = V[F].mean(1); Fs = F[c[:, 1] > 1.0]
-    pcs = PF.crease_pieces(V, Fs, N)
-    st = SB.find_strips(V, Fs, N, pcs, PF.components, PF.boundary_loops, amin=1e-5)
-    def nbs(s): return {r['nb'] for sd in s['sides'] for r in (sd.get('runs') or [sd])}
-    keep = {ri for ri, s in st.items() if 0 in nbs(s)}
-    keep |= {ri for ri, s in st.items() if nbs(s) & keep}
+    V, pcs, st, keep, nbs = strip_set(car)
     out = []
-    def name(nb): return None if nb is None else ('roof:' if nb == 0 else f'roofnb:r{nb}')
+    # C-pillar (piece 3, x > 0) built by the rear-quarter run: its faces come in as 'quarter/GEO_body:r1*' when the
+    # FreeCAD stage is given PF_FOREIGN='quarter=<quarter build>/faces' (regress.sh does); the left pillar is not built
+    foreign = {3: 'quarter/GEO_body:r1'} if 'quarter=' in os.environ.get('PF_FOREIGN', '') else {}
+    def name(nb): return None if nb is None else ('roof:' if nb == 0 else foreign.get(nb, f'roofnb:r{nb}'))
     for ri in sorted(keep):
         s = st[ri]
         for sd in s['sides']:
@@ -285,7 +304,7 @@ def neighbour_strips(car):
                 r['key'] = 'roofnb:' + '|'.join(str(x) for x in r['key'])
             # a side on a region not built here (and not a strip) has no built edge: Kunos vertices
             for r in [sd] + list(sd.get('runs', [])):
-                if r['nb'] not in (None, 0) and r['nb'] not in st: r['nb_name'] = None
+                if r['nb'] not in (None, 0) and r['nb'] not in st and r['nb'] not in foreign: r['nb_name'] = None
         out.append(dict(name=f'roofnb:r{ri}', strip=s, frame=s['frame']))
         print(f'roofnb:r{ri}: STRIP {s["width"] * 1e3:.1f} x {s["length"] * 1e3:.0f} mm ({s["mode"]}), neighbours {sorted(map(str, nbs(s)))}')
     return out

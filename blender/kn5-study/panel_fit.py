@@ -61,11 +61,17 @@ def diff2(n):
 
 
 # ---------- data ----------
-def load_mesh(car_dir, name):
+def load_mesh(car_dir, name, raw=False):
     kn5 = sorted(glob.glob(os.path.join(car_dir, '*.kn5')), key=os.path.getsize)[-1]
     k = KN5(kn5, load_textures=False)
     m = next(m for m in k.meshes if m.name == name)
     V, F, N = m.pos.astype(float), m.idx.reshape(-1, 3), m.nrm.astype(float)
+    if raw: return V, F, N
+    if name == 'GEO_body' and os.environ.get('PF_NOROOF') == '1':
+        # leave out the triangles the roof build makes (roof + its neighbour strips): one owner per surface
+        import roof_build as RB_
+        own = {tuple(sorted(t)) for t in RB_.roof_owned(car_dir)}
+        F = F[np.array([tuple(sorted(t)) not in own for t in F], bool)]
     clip = os.environ.get('PF_CLIP')            # 'xmin,xmax,ymin,ymax,zmin,zmax' (AC metres): one panel of a shell
     if clip:
         b = np.array([float(x) for x in clip.split(',')]).reshape(3, 2); c = V[F].mean(1)

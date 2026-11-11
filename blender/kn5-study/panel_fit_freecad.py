@@ -26,6 +26,13 @@ def mults(kv):
 
 ONLY = os.environ.get('PF_ONLY')          # comma list of name substrings: build just those faces (debug)
 built = {}                                # face name -> built shape (strips are built on these faces' edges)
+# faces built by ANOTHER run (PF_FOREIGN='tag=dir;...', dirs written with PF_SAVE_FACES): only their edges are used
+# (a strip on this run's side of a join takes the other build's real edge); named 'tag/<face name>'
+for _fs in [x for x in os.environ.get('PF_FOREIGN', '').split(';') if x]:
+    _tag, _dir = _fs.split('=', 1)
+    for _n, _f in json.load(open(os.path.join(_dir, 'faces.json'))).items():
+        _sh = Part.Shape(); _sh.read(os.path.join(_dir, _f)); built[f'{_tag}/{_n}'] = _sh
+    print('foreign faces', _tag, len(json.load(open(os.path.join(_dir, 'faces.json')))), flush=True)
 for p in res:
     if ONLY and not any(k in p['name'] for k in ONLY.split(',')): continue
     if p.get('strip'): continue           # thin strips: after every wide face (below)
@@ -494,6 +501,11 @@ for n_, nn_ in normals.items():
         mesh[n_ + '_F'] = F_[:, [0, 2, 1]]
 if os.environ.get('PF_STRIPDBG'):
     np.savez(os.path.join(IN, 'strip_dbg.npz'), keys=np.array(dbg.get('keys', [])), **{k: v for k, v in dbg.items() if k != 'keys'})
+if os.environ.get('PF_SAVE_FACES', '1') == '1':      # every built face as its own BREP (for PF_FOREIGN in other runs)
+    _fd = os.path.join(IN, 'faces'); os.makedirs(_fd, exist_ok=True); _idx = {}
+    for _k, (_n, _sh) in enumerate((n, sh) for n, sh in built.items() if '/' not in n):
+        _f = f'f{_k:04d}.brep'; _sh.exportBrep(os.path.join(_fd, _f)); _idx[_n] = _f
+    json.dump(_idx, open(os.path.join(_fd, 'faces.json'), 'w'), indent=0)
 Part.makeCompound(shapes).exportStep(os.path.join(IN, 'panels_fit.step'))
 np.savez(os.path.join(IN, 'panels_fit_mesh.npz'), **mesh)
 np.savez(os.path.join(IN, 'panels_fit_normals.npz'), **normals)   # exact normals (FreeCAD)

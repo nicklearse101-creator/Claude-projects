@@ -18,6 +18,7 @@ WMAX = 0.015        # a strip: width below 15 mm ...
 RATIO = 10.0        # ... and length above 10 x width
 import os
 DBG = bool(os.environ.get('SB_DBG'))
+CORNER_MAX = float(os.environ.get('SB_CORNER_MAX', 20))   # chain strips: max spine turn per 20 mm (deg)
 WMAX2, RATIO2 = 0.030, 25.0   # or below 30 mm, more than 25 x as long, and straight across (no vertex inside)
 
 
@@ -205,15 +206,21 @@ def find_strips(V, F, Nv, pcs, components, boundary_loops, wmax=WMAX, ratio=RATI
             return out_
         finish = lambda sd_, md_, W_=W, At_=None: _finish_strip(V, ri, sd_, md_, W_, Ln, c, es, et, en, s, A, sig, At_)
         res_ = None
-        for mode, make in (('runs', two_run_sides), ('chain', chain_sides)) if os.environ.get('SB_CHAIN', '1') == '1' else (('runs', two_run_sides),):
+        modes = (('runs', two_run_sides), ('chain', chain_sides)) if os.environ.get('SB_CHAIN', '1') == '1' else (('runs', two_run_sides),)
+        for mode, make in modes:
             sides = make()
             if sides is None: continue
             if inside:
                 res_ = fold_split(sides, mode)
                 if res_ is not None: break
                 continue
-            res_ = finish(sides, mode)
-            if res_ is not None: break
+            r2_ = finish(sides, mode)
+            if r2_ is None: continue
+            # a runs strip whose sides stop short of the region's ends (the rear header strips wrap ~30 mm down round
+            # the roof corners onto the C-pillars: those ends are along OTHER neighbours) -> the chain version, when it
+            # is valid and covers clearly more (> 3 % longer spine)
+            sl_ = lambda r: float(np.linalg.norm(np.diff(np.array(r['spine']), axis=0), axis=1).sum())
+            if res_ is None or sl_(r2_) > 1.03 * sl_(res_): res_ = r2_
         if res_ is not None: out[ri] = res_
     return out
 
@@ -279,7 +286,11 @@ def _finish_strip(V, ri, sides, mode, W, Ln, c, es, et, en, s, A, sig, A_tot=Non
             # a sharp corner along the strip (the door's window-frame strip round its top corner: 28 deg in 20 mm):
             # inner and outer rails differ in length there and the rulings skew - stays an ordinary face
             Q_ = resample(Sp, 0.02); t_ = np.diff(Q_, axis=0); t_ /= np.linalg.norm(t_, axis=1)[:, None]
-            if len(t_) > 1 and np.degrees(np.arccos(np.clip((t_[1:] * t_[:-1]).sum(1), -1, 1))).max() > 20:
+            turn_ = np.degrees(np.arccos(np.clip((t_[1:] * t_[:-1]).sum(1), -1, 1))).max() if len(t_) > 1 else 0.0
+            if DBG: print(f'  r{ri} chain: max turn {turn_:.0f} deg per 20 mm')
+            # the rulings skew by about width x turn: a 3-4 mm return may turn 30 deg per 20 mm (rear header strips at
+            # the roof corners, 24 deg), a wider strip only 20 (door window-frame strip, 28 deg)
+            if turn_ > (CORNER_MAX if W > 0.005 else max(CORNER_MAX, 30.0)):
                 if DBG: print(f'  r{ri} chain: sharp corner')
                 return None
         for sd in sides: sd['maker'] = ri

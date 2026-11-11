@@ -31,7 +31,8 @@ if [ "$what" = wing ] || [ "$what" = all ]; then
   echo "wing: $(python score_faces.py $C $R/wing GEO_body | tail -1)"
 fi
 if [ "$what" = quarter ] || [ "$what" = all ]; then
-  export PF_CLIP=0.45,1,0,1.235,-2.2,-0.5
+  export PF_CLIP=0.45,1,0,1.3,-2.2,-0.5          # y up to the roof: the roof triangles are left out by PF_NOROOF
+  export PF_NOROOF=1                                 # the roof build owns the roof + its strips (one owner per surface)
   python panel_fit.py $C $R/quarter GEO_body:w0 GEO_body:pillar1 'GEO_body:rall!0,1' > $R/quarter.log 2>&1
   PF_IN="$(cygpath -w $R/quarter)" ./fcrun.sh panel_fit_freecad.py >> $R/quarter.log 2>&1
   python fill_holes.py $C $R/quarter GEO_body >> $R/quarter.log 2>&1
@@ -39,8 +40,11 @@ if [ "$what" = quarter ] || [ "$what" = all ]; then
   echo "quarter: $(python score_faces.py $C $R/quarter GEO_body | tail -1)"
 fi
 if [ "$what" = roof ] || [ "$what" = all ]; then
-  unset PF_CLIP                                      # the quarter step exports it: it would clip the roof
+  unset PF_CLIP PF_NOROOF                             # the quarter step exports them
+  # the quarter's built faces (C-pillar) for the strips along the pillar top (run the quarter first)
+  [ -f $R/quarter/faces/faces.json ] && export PF_FOREIGN="quarter=$(cygpath -w $R/quarter/faces)"
   python roof_build.py $C $R/roof > $R/roof.log 2>&1
-  PF_IN="$(cygpath -w $R/roof)" ./fcrun.sh panel_fit_freecad.py >> $R/roof.log 2>&1 && python pack_build.py $R/roof $R/roof/build.npz >> $R/roof.log
+  PF_IN="$(cygpath -w $R/roof)" ./fcrun.sh panel_fit_freecad.py >> $R/roof.log 2>&1
+  unset PF_FOREIGN && python pack_build.py $R/roof $R/roof/build.npz >> $R/roof.log
   echo "roof: $(python roof_score.py $C $R/roof/build.npz | head -1)"
 fi
