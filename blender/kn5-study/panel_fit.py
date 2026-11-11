@@ -1338,7 +1338,7 @@ def main():
                     E0r = G_[npil - 1:, 0]; Dr = G_[npil - 1:, 6] - E0r; Dr /= np.linalg.norm(Dr, axis=1)[:, None]
                     uu = np.unique(Ft); kk = np.argmin(np.linalg.norm(V[uu][:, None] - E0r[None], axis=2), axis=1)
                     dd = np.full(len(V), np.inf); dd[uu] = ((V[uu] - E0r[kk]) * Dr[kk]).sum(1)
-                    F_out = Ft[(dd[Ft] < 0.003).any(1)]; F_dat = Ft[(dd[Ft] < -0.001).all(1)]
+                    F_out = Ft[(dd[Ft] < 0.02).any(1)]; F_dat = Ft[(dd[Ft] < -0.001).all(1)]   # outline well past the sweep's edge: the cut makes the real boundary
                     row = np.r_[[E0r[0] - 0.03 * (E0r[1] - E0r[0]) / np.linalg.norm(E0r[1] - E0r[0])], E0r,
                                 [E0r[-1] + 0.03 * (E0r[-1] - E0r[-2]) / np.linalg.norm(E0r[-1] - E0r[-2])]]
                     Drx = np.r_[Dr[:1], Dr, Dr[-1:]]
@@ -1346,10 +1346,11 @@ def main():
                         vs_ = set(np.unique(Fp).tolist()); Fd_ = np.array([t_ for t_ in F_dat if t_[0] in vs_], int).reshape(-1, 3)
                         if len(Fp) < 4 or len(Fd_) < 3: continue
                         try:
-                            e_ = fit_panel(f'{name}:r{ri}d{k_}', V, Fp, Nv, extra=G_[npil - 1:, 0:3].reshape(-1, 3), data_F=Fd_)
+                            e_ = fit_panel(f'{name}:r{ri}d{k_}', V, Fp, Nv, extra=(E0r[:, None] + np.array([0, 0.008, 0.016, 0.024])[None, :, None] * Dr[:, None]).reshape(-1, 3), data_F=Fd_)   # the sweep's flat top band: tangent data
                             fr_ = [np.array(x) for x in e_['frame']]
                             band = np.r_[row, (row + 0.3 * Drx)[::-1]]
-                            e_['cut_polys'] = [dict(poly=(to_plane(band, fr_)[:, :2] * 1000).tolist(), frame=e_['frame'])]
+                            fallback_ = [dict(poly=(to_plane(band, fr_)[:, :2] * 1000).tolist(), frame=e_['frame'])]   # if the edge cut fails
+                            e_['cut_grid_edge'] = dict(grid=f'{name}:r{ri}p', near=(E0r * 1000).tolist(), dirs=Dr.tolist(), fallback=fallback_)   # exact: on the built edge
                             res.append(e_)
                         except Exception as ex: print(f'{name}:r{ri}d{k_} failed: {ex}')
                     print(f'{name}:r{ri}: PILLAR+FOOT sweep {npil}+{g["nfoot"]} stations, spine {g["arc"][-1]*1e3:.0f} mm, deck {len(F_dat)} tris')

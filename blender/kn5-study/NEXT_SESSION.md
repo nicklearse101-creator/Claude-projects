@@ -83,11 +83,17 @@ sweep's top edge by a band poly). `PF_PILLAR_FOOT=0` restores the old pillar + `
 Lessons (paid for): smoothing profile PARAMETERS separately broke their coupling (rows 7.7 mm off); smoothing the
 setbacks hard can't follow the real 30 -> 3 mm change at the corner (77 %); FreeCAD `approximate` failed QUIETLY on the
 54 x 32 grid (6 poles, 17 mm off) - the grid face now falls back to `interpolate` when approximate misses by > 0.5 mm.
-Left (by eye, `images/quarter_v6_foot_sweep_grey.png`):
-- soft dent where the pillar base meets the deck (the window-flange notch);
-- a pinhole + hairline cracks where the deck face meets the sweep (hole filler patches): trim the deck on the sweep's
-  real top EDGE (research: `Part.Face(srf, wire of 3D edges)` sews; our own 2D pcurves don't);
-- the ramp of the station normal from pillar axis to deck plane (4 stations) - check zebra there.
+Touch-ups done (11 Nov, `images/quarter_v7_foot_touchups_grey.png` / `_close.png`):
+- corner pinch + pinhole: the blend's ends jittered between stations and columns tied to them slid along the surface
+  (18 mm kinks, the interpolated grid pinched) -> every station is resampled at fixed arc distances from its anchor
+  (the point nearest the virtual corner X) before the column smoothing (`PF_SWEEP_RESAMPLE`, default on);
+- cracks on the deck join: the deck is cut on the grid face's REAL top edge (`cut_grid_edge` in the FreeCAD stage; a
+  polyline through the stations cut chords, ~0.5 mm short round the corner); the prism may only SPLIT the face, so the
+  deck-side pieces are kept by their centre of mass; the deck outline reaches 20 mm past the edge so the cut makes it;
+- the pillar-base notch: the deck gets the sweep's flat top band (E0 + 0/8/16/24 mm) as tangent data - lumps gone.
+  (A constant top arm put a hump over the window edge: reverted.)
+Left: two faint hairlines on the deck join (sewing will close them), a thin dark sliver along the drip-rail edge near
+the notch - check when the roof is built.
 
 ### 0b. C-pillar r1 - pillar part (11 Nov morning, kept as the first 32 stations)
 Research: `blender/research/reports/Smooth region segmentation into faces.md` (12-step pipeline). Built

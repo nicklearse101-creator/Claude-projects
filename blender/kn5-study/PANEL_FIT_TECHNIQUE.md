@@ -149,3 +149,6 @@ line x side tangent), keep the station normal in the deck plane, side = curve c3
 the raw profile ROWS column by column, never the parameters one by one. Deck interior = own face cut on the sweep's top
 edge. FreeCAD `approximate` can fail quietly on long uneven grids: check its deviation and fall back to `interpolate`.
 Quarter 84.4 -> 85.9 % (vertices 88.3 -> 90.1 %).
+Touch-ups (same day): resample every station at fixed arc distances from a STABLE anchor (nearest point to X) - columns
+tied to jittery blend ends slide and an interpolated grid pinches; cut neighbouring faces on the grid face's real edge,
+not a station polyline; give the neighbour face the sweep's flat band as tangent data.

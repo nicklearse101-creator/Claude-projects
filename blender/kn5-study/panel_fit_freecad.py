@@ -196,6 +196,49 @@ for p in res:
             cc = face.cut(poly_prism(cp['poly'], cp['frame']))
             if cc.Faces and cc.Area > 1: face = Part.makeShell(cc.Faces) if len(cc.Faces) > 1 else cc.Faces[0]
         except Exception as ex: print(p['name'], 'seam cut failed:', ex, flush=True)
+    cge = p.get('cut_grid_edge')
+    if cge and cge['grid'] in built:            # cut on a grid face's REAL edge (a polyline through its stations cuts
+        try:                                    # chords across a curved edge: 0.5 mm cracks round the foot's corner)
+            near = np.array(cge['near']); dirs = np.array(cge['dirs'])
+            def edge_dist(e):
+                X_ = np.array([[q.x, q.y, q.z] for q in e.discretize(40)])
+                return np.mean([np.linalg.norm(X_ - q, axis=1).min() for q in near])
+            eg = min(built[cge['grid']].Edges, key=edge_dist)
+            X_ = np.array([[q.x, q.y, q.z] for q in eg.discretize(Distance=1.0)])
+            if np.linalg.norm(X_[0] - near[0]) > np.linalg.norm(X_[-1] - near[0]): X_ = X_[::-1]
+            # only the stretch along the given stations (the edge runs on up the pillar): the longest run within 15 mm
+            dn_ = np.linalg.norm(X_[:, None] - near[None], axis=2).min(1); ok_ = dn_ < 15.0
+            runs_, cur_ = [], []
+            for i_, o_ in enumerate(ok_):
+                if o_: cur_.append(i_)
+                elif cur_: runs_.append(cur_); cur_ = []
+            if cur_: runs_.append(cur_)
+            X_ = X_[max(runs_, key=len)]
+            kk_ = np.argmin(np.linalg.norm(X_[:, None] - near[None], axis=2), axis=1); D_ = dirs[kk_]
+            t0_ = (X_[0] - X_[5]) / np.linalg.norm(X_[0] - X_[5]); t1_ = (X_[-1] - X_[-6]) / np.linalg.norm(X_[-1] - X_[-6])
+            X_ = np.r_[[X_[0] + 30 * t0_], X_, [X_[-1] + 30 * t1_]]; D_ = np.r_[D_[:1], D_, D_[-1:]]
+            band = np.r_[X_, (X_ + 300 * D_)[::-1]]
+            c_, e1_, e2_, w_ = [np.array(x) for x in fr]
+            poly = np.c_[(band - c_ * 1000) @ e1_, (band - c_ * 1000) @ e2_]
+            cc = face.cut(poly_prism(poly.tolist(), fr))
+            # the band prism can merely SPLIT the face along the edge (both pieces kept): keep the deck-side pieces only
+            keep_ = []
+            for fc_ in cc.Faces:
+                cm_ = np.array(fc_.CenterOfMass); k_ = np.argmin(np.linalg.norm(near - cm_, axis=1))
+                if (cm_ - near[k_]) @ dirs[k_] < 0: keep_.append(fc_)
+            if os.environ.get('PF_DEBUG'): print(p['name'], 'edge cut: before', round(face.Area), 'after', round(cc.Area), 'faces', len(cc.Faces), 'kept', len(keep_), round(sum(x.Area for x in keep_)), flush=True)
+            if keep_: face = Part.makeShell(keep_) if len(keep_) > 1 else keep_[0]
+            if os.environ.get('PF_DEBUG'):
+                S_ = np.array([[q.x, q.y, q.z] for e_ in face.Edges for q in e_.discretize(Distance=2.0)])
+                print('  deck boundary -> nearest foot E0 point: p50 %.1f mm; foot E0 points -> deck boundary: p50 %.1f max %.1f mm; band X_ -> E0 p95 %.2f mm' % (
+                    np.median(np.linalg.norm(S_[:, None] - near[None], axis=2).min(1)), np.median(np.linalg.norm(near[:, None] - S_[None], axis=2).min(1)),
+                    np.linalg.norm(near[:, None] - S_[None], axis=2).min(1).max(), np.percentile(np.linalg.norm(X_[:, None] - near[None], axis=2).min(1), 95)), flush=True)
+            print(p['name'], f'cut on the edge of {cge["grid"]} ({eg.Length:.0f} mm, {edge_dist(eg):.2f} mm from its stations)', flush=True)
+        except Exception as ex:
+            print(p['name'], 'grid edge cut failed:', ex, '-> station polyline cut', flush=True)
+            for cp in cge.get('fallback') or []:
+                cc = face.cut(poly_prism(cp['poly'], cp['frame']))
+                if cc.Faces and cc.Area > 1: face = Part.makeShell(cc.Faces) if len(cc.Faces) > 1 else cc.Faces[0]
     shapes.append(face); built[p['name']] = face
     m = MeshPart.meshFromShape(Shape=face, MaxLength=float(os.environ.get('PF_MAXLEN', 6)))   # even triangles (Mefisto)
     pts, fc = m.Topology

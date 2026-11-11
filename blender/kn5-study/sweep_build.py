@@ -12,6 +12,7 @@ searched round the turn-rate peak (least total squared error); pass 2 refits eve
 filtered, smoothed setbacks. The raw profile ROWS are then smoothed column by column along the spine (smoothing the
 parameters separately broke how they fit together: rows 7.7 mm off). FreeCAD builds the face by interpolating the grid
 (approximate failed quietly on this grid: 6 poles over 54 stations). Pure numpy."""
+import os
 import numpy as np
 from blend_build import _section, _line, _proj, _bez, split_shoulder, shoulder_profile, UP
 
@@ -114,7 +115,7 @@ def roll_profile(Q, top_max=None, rate_min=0.6, win=0.006, tmin=1.5, reach=6, ch
             e = (wts * np.array([np.linalg.norm(_bez(C_, tb) - Q[i], axis=1).min() ** 2 for i in mid])).sum() if mid else abs(a - b) * 1e-9
             if e < bb[0]: bb = (e, a, b)
     E0 = _proj(Q[0], ct, dt)
-    if top_max is not None and np.linalg.norm(A_ - E0) > top_max: E0 = A_ - top_max * dt
+    if top_max is not None and np.linalg.norm(A_ - E0) > top_max: E0 = A_ - top_max * dt   # (a constant arm put a hump over the window edge)
     C_ = np.array([A_, A_ + bb[1] * dt, A_ + 2 * bb[1] * dt, D_ - 2 * bb[2] * ds, D_ - bb[2] * ds, D_])
     nside = max(len(Q) - idd - 1, 1); X_, sA, sD = _corner(ct, dt, D_, ds, A_)
     return dict(E0=E0, A=A_, D=D_.copy(), Dt=D_ + 0.01 * ds, ab=np.array([bb[1], bb[2]]) / chord, Ls=np.array([sf[4]]), c=sf[3],
@@ -206,7 +207,21 @@ def sweep_grid(V, Fr, Nv, s_lim=(-0.645, 0.135), step_p=0.025, step_f=0.015, x_s
         return SB.eval_graph(f, arc), f['err']
     # raw profile rows smoothed column by column along the spine (each column keeps its meaning: E0, the top arm,
     # the blend, the side curve), so a parameter can't drift away from the others it belongs with
-    Gr = np.array([build_profile(p['E0'], p['A'], p['D'], p['Dt'], p['ab'], float(p['Ls'][0]), p['c']) for _, _, p in st])
+    def resample(p, n_top=10, n_near=12, near=0.030, n_far=10):
+        """the profile at fixed arc distances from its anchor (the point nearest the virtual corner X): the blend's
+        ends A / D jitter between stations, and columns tied to them slid along the surface (18 mm kinks, a pinch)"""
+        P = build_profile(p['E0'], p['A'], p['D'], p['Dt'], p['ab'], float(p['Ls'][0]), p['c'], nu=(40, 80, 80))
+        ar = np.r_[0, np.cumsum(np.linalg.norm(np.diff(P, axis=0), axis=1))]
+        a0 = ar[np.argmin(np.linalg.norm(P - p['X'], axis=1))]
+        top = np.linspace(0, a0, n_top, endpoint=False)
+        nr = np.linspace(a0, min(a0 + near, ar[-1]), n_near, endpoint=False)
+        far = np.linspace(min(a0 + near, ar[-1]), ar[-1], n_far)
+        q = np.r_[top, nr, far]
+        return np.c_[[np.interp(q, ar, P[:, i]) for i in range(3)]].T
+    if os.environ.get('PF_SWEEP_RESAMPLE', '1') == '1':
+        Gr = np.array([resample(p) for _, _, p in st])
+    else:
+        Gr = np.array([build_profile(p['E0'], p['A'], p['D'], p['Dt'], p['ab'], float(p['Ls'][0]), p['c']) for _, _, p in st])
     Gs, e0 = sm(Gr.reshape(len(st), -1), 5e-4, 0.02)
     G = Gs.reshape(Gr.shape); E0 = G[:, 0]; ea = ed = float(np.abs(G - Gr).max())
     if verbose:
