@@ -114,6 +114,10 @@ pick the skin and click "Update preview".
    - wheels and rims by whole words only (`rim`, `rims`, `rim_lf`...: never inside primera or trim);
      exporters' `_mesh` endings are not grille mesh; interior shells (`body_int`) do not count when picking
      the body texture.
+   - the main body texture (it decides where every logo goes) is the biggest outside area with skin / paint /
+     livery / body names first: on ~165 cars (most Kunos, GT3 and GT4 cars) a cockpit-shadow, mechanics or
+     underbody texture used to win. On a 152-car sample, places refusing a logo went from 177 to 18 (left:
+     karts, bikes, trucks, open cars with no roof, estates with no boot lid).
 8. The painted colours are spread into the texture's gaps between panels (12 texels), so the old skin's
    colour cannot show as a line along seams and lamp surrounds.
 9. `car_catalogue()` lists what was found in a car (body / wheel textures, glass, lights, every material and
