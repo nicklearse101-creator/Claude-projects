@@ -261,6 +261,36 @@ def rear_roll(crown, rear, side, rear_line_pts, side_line_pts, outline_pts, a, b
     return faces, dict(crown=cut_front, sideR=cut_front, sideL=cut_front, rear=cut_rear), dict(R=R, a=a, b=b, X0=X0)
 
 
+def neighbour_strips(car):
+    """the roof's neighbours: every one is a thin Kunos return 2-4 mm wide (windscreen header, the two drip strips,
+    the two rear header strips, the small corners at the C-pillar tops). Built with strip_build.py: a side on the
+    roof = the roof's own BUILT edge (FreeCAD stage samples it), so the join is exact; a side on a strip is one curve
+    shared by both; a side on something not built here (hatch surround, gutter) = fitted to the Kunos vertices.
+    Strips touching the roof + strips touching those. Names 'roofnb:rN' (N = crease piece of GEO_body above y 1.0,
+    same numbering as the roof region = piece 0); the roof side's nb_name is the prefix 'roof:' = every roof face."""
+    import strip_build as SB
+    V, F, N = PF.load_mesh(car, 'GEO_body'); c = V[F].mean(1); Fs = F[c[:, 1] > 1.0]
+    pcs = PF.crease_pieces(V, Fs, N)
+    st = SB.find_strips(V, Fs, N, pcs, PF.components, PF.boundary_loops, amin=1e-5)
+    def nbs(s): return {r['nb'] for sd in s['sides'] for r in (sd.get('runs') or [sd])}
+    keep = {ri for ri, s in st.items() if 0 in nbs(s)}
+    keep |= {ri for ri, s in st.items() if nbs(s) & keep}
+    out = []
+    def name(nb): return None if nb is None else ('roof:' if nb == 0 else f'roofnb:r{nb}')
+    for ri in sorted(keep):
+        s = st[ri]
+        for sd in s['sides']:
+            for r in [sd] + list(sd.get('runs', [])):
+                r['nb_name'] = name(r['nb']); r['nb_strip'] = r['nb'] in st
+                r['key'] = 'roofnb:' + '|'.join(str(x) for x in r['key'])
+            # a side on a region not built here (and not a strip) has no built edge: Kunos vertices
+            for r in [sd] + list(sd.get('runs', [])):
+                if r['nb'] not in (None, 0) and r['nb'] not in st: r['nb_name'] = None
+        out.append(dict(name=f'roofnb:r{ri}', strip=s, frame=s['frame']))
+        print(f'roofnb:r{ri}: STRIP {s["width"] * 1e3:.1f} x {s["length"] * 1e3:.0f} mm ({s["mode"]}), neighbours {sorted(map(str, nbs(s)))}')
+    return out
+
+
 def main():
     car, out = sys.argv[1], sys.argv[2]; os.makedirs(out, exist_ok=True)
     V, R0, N = roof_region(car)
@@ -280,7 +310,11 @@ def main():
             if key in edges:
                 e = edges[key]; rev = e['ids'][0] != ids[0]
             else:
-                Q = W2[ids]; e = PF.fit_curve2d(Q, PF.TOL_EDGE); e['ids'] = ids; edges[key] = e; rev = False
+                # fitted to the side's polyline resampled every 5 mm (as panel_fit does): with only the vertices (50 mm
+                # apart along the drip edge) the curve wiggled +-2 mm between them and the drip strip could not use it
+                Q = W2[ids]; dq = np.r_[0, np.cumsum(np.linalg.norm(np.diff(Q, axis=0), axis=1))]
+                tq = np.unique(np.r_[np.arange(0, dq[-1], 0.005), dq]); Qd = np.c_[np.interp(tq, dq, Q[:, 0]), np.interp(tq, dq, Q[:, 1])]
+                e = PF.fit_curve2d(Qd, PF.TOL_EDGE, nmax=int(np.clip(dq[-1] / 0.03, 24, 80))); e['ids'] = ids; edges[key] = e; rev = False
             P_ = e['poles'][::-1] if rev else e['poles']
             es.append(dict(poles=(P_ * 1000).tolist(), knots=(1 - e['knots'][::-1] if rev else e['knots']).tolist(),
                            periodic=False, nb=nb, err_mm=e['err'] * 1000, curve=P_))
@@ -373,6 +407,8 @@ def main():
         if cuts.get(k): res[-1]['cut_polys'] = cuts[k]
         if k == 'crown': res[-1]['maxlen'] = 12.0          # big gentle face: coarser display mesh (was 6 min to mesh)
     res += roll
+    if os.environ.get('RF_STRIPS', '1') != '0':
+        res += neighbour_strips(car)
     json.dump(res, open(os.path.join(out, 'panels_fit.json'), 'w'))
     np.savez(os.path.join(out, 'roof_data.npz'), V=Vm[np.unique(R0)], R0=R0)
     print('saved', os.path.join(out, 'panels_fit.json'))

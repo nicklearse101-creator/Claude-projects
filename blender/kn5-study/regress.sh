@@ -11,6 +11,7 @@
 # Pillar + foot one sweep (sweep_build.py, 11 Nov): door 88.5 / 99.7, wing 70.5 / 96.1, quarter 85.9 / 99.3 (vertices 90.1 / 98.2).
 # Foot touch-ups (resampled stations, deck cut on the grid's real edge): quarter 85.8 / 99.3 (vertices 90.1 / 98.2).
 # Roof (roof_build.py; score = Kunos VERTICES within 0.3 / 1 mm): first build 67.2 / 97.0; G2 rear roll (11 Nov) 67.9 / 97.0, max 1.2 mm.
+# Roof neighbour strips + resampled roof outline (11 Nov noon): roof 72.4 / 97.0; door 88.5 / 99.7, wing 70.5 / 96.1, quarter 85.8 / 99.3.
 set -e
 cd "$(dirname "$0")"
 C=D:/SteamLibrary/steamapps/common/assettocorsa/content/cars/ks_toyota_ae86
@@ -38,6 +39,7 @@ if [ "$what" = quarter ] || [ "$what" = all ]; then
   echo "quarter: $(python score_faces.py $C $R/quarter GEO_body | tail -1)"
 fi
 if [ "$what" = roof ] || [ "$what" = all ]; then
+  unset PF_CLIP                                      # the quarter step exports it: it would clip the roof
   python roof_build.py $C $R/roof > $R/roof.log 2>&1
   PF_IN="$(cygpath -w $R/roof)" ./fcrun.sh panel_fit_freecad.py >> $R/roof.log 2>&1 && python pack_build.py $R/roof $R/roof/build.npz >> $R/roof.log
   echo "roof: $(python roof_score.py $C $R/roof/build.npz | head -1)"

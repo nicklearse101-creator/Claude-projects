@@ -196,7 +196,7 @@ that face's own edge. 14 strips on the rear quarter, 21 on the door: each within
 | Panel | Area within 1 / 3 mm | Kunos vertices |
 |---|---|---|
 | Rear quarter + C-pillar | 85.9 % / 99.3 % (was 78.2 / 96.8) | 90.1 % / 98.2 % within 1 / 3 mm |
-| Roof (crown, rear band, side bands, rear roll) | 65.2 % / 100.0 % | 67.9 % within 0.3 mm, 97.0 % within 1 mm, max 1.2 mm |
+| Roof (crown, rear band, side bands, rear roll) + neighbour strips | 65.0 % / 100.0 % | 72.4 % within 0.3 mm, 97.0 % within 1 mm, max 1.2 mm |
 
 - **Thin strips along several faces** (the 1.4 m drip rail) and fold flanges (the C-pillar window flange).
 - **C-pillar:** built from station profiles like a designer draws it (top line, G2 shoulder, side line every 25 mm),
@@ -208,7 +208,10 @@ that face's own edge. 14 strips on the rear quarter, 21 on the door: each within
   the side line), built from its neighbours rather than fitted; joins 0.001-0.006 mm. Roof build 9 min -> 30 s, now
   part of `regress.sh`.
 - Nik on the roll: "looks ok" - to be judged properly with the complete car.
+- **Roof neighbours** (noon): the windscreen header, drip strips and rear header strips are thin returns built on the
+  roof's own edges (joins 0.02 mm, strips within 0.07-0.18 mm median of Kunos); a cleaner roof outline lifted the
+  roof to 72.4 % of vertices within 0.3 mm.
 
-**Next:** the roof's neighbours from its built edges (drip strips, windscreen and rear headers, C-pillar top), then
+**Next:** the C-pillar-top corners (header strip ends, corner strips, pillar top), then
 bonnet, hatch, bumpers and sills; then assemble the whole car (mirror, scores, one picture per section).
 

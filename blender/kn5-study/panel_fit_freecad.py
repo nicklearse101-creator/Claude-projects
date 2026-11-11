@@ -274,14 +274,16 @@ def face_edge_points(prefix, near, tol=2.0):
     """points (mm) on the built edges of the faces named prefix (+ band/wrap suffixes) within tol of polyline near"""
     sh = [s for n, s in built.items() if n == prefix or (n.startswith(prefix) and not n[len(prefix)].isdigit())]
     if not sh: return np.zeros((0, 3))
-    X, Tg = [], []
+    X, Tg, Ei = [], [], []
+    ne = 0
     for s in sh:
         for e in s.Edges:
             if e.Length < 2: continue
             for q in e.discretize(Distance=1.0):
                 t_ = e.tangentAt(e.Curve.parameter(q)) if hasattr(e, 'Curve') else App.Vector()
-                X.append([q.x, q.y, q.z]); Tg.append([t_.x, t_.y, t_.z])
-    X, Tg = np.array(X), np.array(Tg)
+                X.append([q.x, q.y, q.z]); Tg.append([t_.x, t_.y, t_.z]); Ei.append(ne)
+            ne += 1
+    X, Tg, Ei = np.array(X), np.array(Tg), np.array(Ei)
     _, d = SB.spine_s(near, X)
     # only where the edge runs ALONG the side (at the strip's ends the face's outline turns the corner)
     sn, _ = SB.spine_s(near, X)
@@ -289,7 +291,19 @@ def face_edge_points(prefix, near, tol=2.0):
     tq = np.gradient(near, axis=0); tq /= np.maximum(np.linalg.norm(tq, axis=1), 1e-9)[:, None]
     tl = tq[np.clip(np.searchsorted(dn, sn), 0, len(near) - 1)]
     al = np.abs((Tg * tl).sum(1)) / np.maximum(np.linalg.norm(Tg, axis=1), 1e-9)
-    return X[(d < tol) & (al > 0.8) & (sn > 0.5) & (sn < dn[-1] - 0.5)]
+    m = (d < tol) & (al > 0.8) & (sn > 0.5) & (sn < dn[-1] - 0.5)
+    # two built edges running side by side along the strip (roof: the crown's outline AND the side band's inner edge
+    # on the side line, 4 mm apart where the drip strip ends): keep, at each position, only the edge that lies closer
+    # to the Kunos side (median distance per edge); a mix of both is not one curve
+    if len(np.unique(Ei[m])) > 1:
+        order = sorted(np.unique(Ei[m]), key=lambda k: np.median(d[m & (Ei == k)]))
+        keep = np.zeros(len(X), bool); taken = np.zeros(0)
+        for k in order:
+            sel = np.where(m & (Ei == k))[0]
+            if len(taken): sel = sel[np.abs(sn[sel][:, None] - taken[None, :]).min(1) > 1.5]
+            keep[sel] = True; taken = np.r_[taken, sn[sel]]
+        m = keep
+    return X[m]
 
 
 def side_curve(st, sd):

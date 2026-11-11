@@ -1,6 +1,7 @@
 # Next session: Blender Work / AE86 replica (handover, 2026-11-11 midday)
 
-**Start here.** Next job: the roof's neighbours from its built edges (Next 3b, item 2), then bonnet -> hatch -> bumpers -> sills.
+**Start here.** Roof neighbour strips DONE (11 Nov, 12:00). Next job: the C-pillar-top corners (rear header strip ends + r18/r19 + C-pillar
+top r1x00, Next 3b item 2 "Left"), then bonnet -> hatch -> bumpers -> sills.
 The rear roll is done and waits for Nik's verdict on the whole car.
 1. Read this page (where we are, how to run, what's next).
 2. `PANEL_FIT_TECHNIQUE.md`: the method that works, with every lesson we paid for (bottom of the file).
@@ -18,7 +19,7 @@ model now; later they will come from photos.
 | Door (80 faces incl. glass, mirror, trims; 23 strips) | done | 88.5 % / 99.7 % | - |
 | Front wing (arch lip, sub-panels) | done, small items left | 70.5 % / 96.1 % | 92.5 % / 99.3 % |
 | Rear quarter + C-pillar (17 strips) | done 11 Nov: pillar + foot = one swept surface (sweep_build.py); small join items left (Next 0) | 85.9 % / 99.3 % | 90.1 % / 98.2 % |
-| Roof (crown + rear band + 2 side bands + rear roll) | 11 Nov (roof_build.py): fair crown, G2 rear roll done; neighbours not refitted | 65.2 % / 100.0 % | 67.9 % within 0.3 mm, 97.0 % within 1 mm (median 0.18, max 1.2) |
+| Roof (crown + rear band + 2 side bands + rear roll) + 7 neighbour strips | 11 Nov (roof_build.py): fair crown, G2 rear roll, strips on its built edges | 65.0 % / 100.0 % | 72.4 % within 0.3 mm, 97.0 % within 1 mm (median 0.13, max 1.2); strips median 0.07-0.27 mm |
 | Bonnet, hatch, bumpers, sills | not started | | |
 
 The **vertex** score is the honest one: Kunos uses 100-150 mm flat triangles that cut chords across curves, so the
@@ -33,7 +34,7 @@ cd /d/Claude/Claude-/blender/kn5-study
 ./regress.sh all          # rebuild + score door, wing, quarter, roof (~7 min). Run after EVERY change to the fitters.
 ```
 Reference (2026-11-11, + pillar/foot sweep): **door 88.5 / 99.7, wing 70.5 / 96.1, quarter 85.9 / 99.3** (area within 1 / 3 mm; quarter vertices 90.1 / 98.2);
-**roof vertices 67.9 / 97.0 % within 0.3 / 1 mm** (`./regress.sh roof`, 30 s).
+**roof vertices 72.4 / 97.0 % within 0.3 / 1 mm** (`./regress.sh roof`, 50 s; also prints the neighbour strips).
 
 One panel by hand (the quarter as an example):
 ```bash
@@ -191,8 +192,23 @@ Lessons (paid for, all with isophote maps - `iso()` stripes of n.L, islands = wa
 Left (in order):
 1. Nik (11 Nov): the roll "looks ok"; he will judge it properly later, with the complete car. Keep RF_ROLL_A / _B
    (25 / 21 mm) until then; narrower = sharper. Don't spend more time on it now.
-2. Neighbours from the roof's built edges (report table): drip strips r12/r13 (strip_build on the crown edge), windscreen
-   header r11, rear header strips r9/r10, C-pillar top r1x00 refit with roof samples (quarter build), A-pillar tops.
+2. Neighbours - DONE 11 Nov 12:00 (`neighbour_strips` in roof_build.py, `RF_STRIPS=0` = off). Every roof neighbour in
+   Kunos is a thin return 2-4 mm wide (crease pieces of GEO_body above y 1.0; piece 0 = roof): windscreen header r11,
+   drip strips r12/r13, rear header strips r9 (on the roof) + r10 (on r9 and the hatch surround r1), corners r18/r19.
+   Built by strip_build: the roof side's nb_name is the prefix 'roof:' (every roof face), so its rail IS the roof's
+   built edge (0.02 mm); strips are named 'roofnb:rN'; a side on a region not built here = Kunos vertices.
+   Kunos strip vertices -> ours (median / max): r9 0.11, r10 0.18, r11 0.17/0.42, r12/r13 0.07/0.38, r18/r19 0.27/1.10.
+   Fixes on the way: the roof outline sides are now fitted to the polyline resampled every 5 mm (fitted to vertices
+   50 mm apart they wiggled +-2 mm and the drip strip could not use the edge; roof vertices 67.9 -> 72.4 % within
+   0.3 mm); `face_edge_points` keeps, where two built edges run side by side, only the one nearer the Kunos side
+   (crown outline vs side-line edge at the drip strip's rear end); `regress.sh all` unsets PF_CLIP before the roof
+   (the quarter's clip box broke the roof step). Picture `images/roof_v3_neighbour_strips_grey.png`.
+   **Left - the C-pillar-top corners (next):** the rear header strips r9/r10 wrap ~30 mm down round each rear roof
+   corner (x 491 -> 507, y 1215 -> 1191) and the strip builder drops those ends (sides kept only where ds/darc > 0.7
+   along the straight axis): 8 Kunos vertices per end uncovered. Build them together with r18/r19 (56 mm corner
+   strips, roof side still from Kunos vertices: the roof run is too short for 20 edge samples) and the C-pillar top
+   r1x00 refit with roof samples (quarter build), as the research's corner patches (MakeFilling G1, <= 4 sides).
+   A-pillar tops: below y 1.0, not in this set - with the front end.
 3. The side line itself is a ~9 mm roll in Kunos (holding loops 457 / 466) and still a crease in ours - same quintic
    roll machinery along x if Nik wants it softer.
 
@@ -221,6 +237,10 @@ skin UV, baked AO, LODs, standard dummy names, two-layer glass.
 ### 7. Afterwards
 Lamps, grille, badges; interior survey; then **from photos** (Nova first: it has solved cameras and traced windows):
 trace outlines and character lines, run the same fit/trim/cut, check by eye. Parked: steward app, Nova grading.
+
+## What happened on 11 Nov (noon)
+- Roof neighbour strips (7 per car) built on the roof's own edges; roof outline resampling; edge sampler picks the
+  nearer of two parallel edges; regress.sh PF_CLIP fix. Door / wing / quarter unchanged (88.5 / 70.5 / 85.8).
 
 ## What happened on 11 Nov (midday)
 - Roof rear line rebuilt as an exact G2 quintic roll (3 faces), neighbours cut back on its edges; roof added to

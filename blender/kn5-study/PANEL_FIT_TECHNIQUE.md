@@ -172,4 +172,8 @@ not a station polyline; give the neighbour face the sweep's flat band as tangent
   crossing line's crease fades out across the roll.
 - Cut the neighbours back with plan polygons on the exact edge at ~10 mm segments (1 mm segments: 4x the triangles,
   8 min to mesh one face). The FreeCAD stage takes a per-face `maxlen` for big gentle faces.
-
+- Neighbours of a master surface are built ON its edges: every AE86 roof neighbour is a 2-4 mm Kunos return, so they
+  are strip_build strips whose roof-side rail is the roof's built edge (nb_name = a name prefix covering every roof
+  face). Two lessons: fit outline trim curves to the polyline resampled every 5 mm, also in special builders (the
+  roof's drip edge wiggled +-2 mm between vertices 50 mm apart); where two built edges run side by side near a strip
+  side, take only the one nearer the Kunos side, never a mix.
