@@ -132,3 +132,12 @@ the facet is meant flat, so its inside is real surface; where they differ it cut
 vertices only, our C-pillar (r1) bulged up to 9.8 mm over the pillar's flat top facet (45 mm with no vertex across it):
 it reads as a round tube in grey, though the vertex score is fine. Samples of the flat facets (every 15 mm) as extra fit
 data: flat-facet misses p95 3.9 -> 1.2 mm. See `images/cpillar_sections_kunos_vs_ours.png` (sections z = const).
+
+### Soft-shoulder pillars: station profiles (2026-11-11, `blend_build.py`, spec `:pillarN`)
+A region whose cross-section is flat face -> shoulder -> flat face with no crease (the C-pillar) is NOT one fitted
+surface (a height field rounds it into a tube) and vertex-neighbourhood segmentation can't split it (its top face has
+no vertex of its own). Measure the turn per cross-section instead (research report "Smooth region segmentation into
+faces"): station sections every 25 mm; top and side = straight lines through the points outside the turn (5 % / 95 %
+of the signed cumulative turn); shoulder = G2 quintic Bezier tangent to both lines, fitted only to the turn points (on
+Kunos row edges, so on the surface). Smooth the profile's defining points along the length, not grid columns (column
+smoothing moved points 1-2 mm). Ends: ordinary faces given the pillar's last rows as data + exact plane cuts.

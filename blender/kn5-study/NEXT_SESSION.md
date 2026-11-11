@@ -16,7 +16,7 @@ model now; later they will come from photos.
 |---|---|---|---|
 | Door (80 faces incl. glass, mirror, trims; 23 strips) | done | 88.5 % / 99.7 % | - |
 | Front wing (arch lip, sub-panels) | done, small items left | 70.5 % / 96.1 % | 92.5 % / 99.3 % |
-| Rear quarter + C-pillar (17 strips) | drip rail + window flange done 11 Nov; C-pillar face r1 NOT right (see Next 0) | 79.4 % / 96.9 % | 88.2 % / 98.6 % |
+| Rear quarter + C-pillar (17 strips) | drip rail, window flange, C-pillar profile surface done 11 Nov; foot left (Next 0) | 84.4 % / 99.5 % | 88.3 % / 98.6 % |
 | Roof, bonnet, hatch, bumpers, sills | not started | | |
 
 The **vertex** score is the honest one: Kunos uses 100-150 mm flat triangles that cut chords across curves, so the
@@ -30,7 +30,7 @@ Pictures (local, not in git): `D:\Claude\_scratch_research\kn5_study\images\` - 
 cd /d/Claude/Claude-/blender/kn5-study
 ./regress.sh all          # rebuild + score door, wing, quarter (~6 min). Run after EVERY change to the fitters.
 ```
-Reference (2026-11-11, chain strips + fold flanges): **door 88.5 / 99.7, wing 70.5 / 96.1, quarter 79.4 / 96.9** (area within 1 / 3 mm).
+Reference (2026-11-11 morning, + C-pillar profile surface): **door 88.5 / 99.7, wing 70.5 / 96.1, quarter 84.4 / 99.5** (area within 1 / 3 mm).
 
 One panel by hand (the quarter as an example):
 ```bash
@@ -72,19 +72,29 @@ fallback), `FH_CHORD` (hole filler ignores Kunos chord sag). `PF_WRAP` = wrap cu
 
 ## Next (in order)
 
-### 0. C-pillar face r1 (found 11 Nov, by eye) - START HERE
-Grey render (`images/quarter_v3_chain_strips_grey.png`): our C-pillar reads as a round TUBE; Kunos has a flat top
-face, a shoulder bend, then the side. Sections (`images/cpillar_sections_kunos_vs_ours.png`, made by
-`sections.py` (now in this folder)) show why:
-- r1 is fitted to vertices only and bulges up to 9.8 mm over the flat top facet (no vertex across its 45 mm).
-  Fix: flat-facet samples (corner normals within 4 deg) as fit data - tested standalone (`flat_test.py` in the same
-  tmp folder): flat misses p95 3.9 -> 1.2 mm, but vertex p95 2.36 -> 2.62, so ONE surface is not enough.
-- r1 is pillar top + shoulder + side + a broad fan at its foot (z -1.9..-2.06, the deck beside the hatch, 467 cm2):
-  normals turn ~75 deg across every station. The 45 deg wrap split runs along the pillar; a split by the normal's
-  component along the pillar's axis only cuts off a 21-tri end cap (main part still p95 2.7 mm).
-- So: research first (Nik's rule), e.g. "segmenting a smooth region of a low-poly mesh into designer surface patches
-  (flat face / blend / side) using vertex-normal cues", then build r1 as top face + shoulder blend + side + foot fan,
-  with flat facets as data in fit_panel AND fit_bands. Check by eye in grey + sections, then regress.
+### 0. C-pillar r1 - PILLAR DONE 11 Nov (morning); foot + joins left - START HERE
+Research: `blender/research/reports/Smooth region segmentation into faces.md` (12-step pipeline). Built
+(`blend_build.py`, spec `GEO_body:pillar1`, in regress.sh):
+- Sections square to r1's main axis; on 'pillar-like' stations (total turn 40-85 deg, < 110 mm wide) the designer
+  profile = top LINE + G2 quintic shoulder blend + side LINE. A / D (blend ends) = where the signed cumulative turn
+  passes 5 % / 95 %; the blend is fitted only to the TURN points (they lie on Kunos row edges = on the surface; points
+  on diagonal edges are chords). The profile's defining data (edge points, A, D, blend tensions) is smoothed along the
+  length, then every profile rebuilt; FreeCAD `approximate` through the grid (tol 0.02 mm).
+- Stretch s -645..+135 mm (PF_PILLAR_S): 32 stations; top 34 mm, shoulder chord 22 mm turning 63 deg, side <= 21 mm;
+  the shoulder widens to 37 mm at the foot. Pillar vertices p50 0.17, p95 0.50, max 0.73 mm (was p95 2.4 mm).
+- Ends (roof junction `r1x00`, foot `r1x10`) = ordinary faces with the pillar's 3 end station rows as extra data
+  (PF_PILLAR_JOIN) and an exact plane cut (`cut_planes`, new in the FreeCAD stage) at the end stations.
+- Quarter 79.4 / 96.9 -> **84.4 / 99.5 %** area within 1 / 3 mm (vertices 88.3 / 98.6 %). Grey:
+  `images/quarter_v5_pillar_grey.png`, sections `images/cpillar_sections_v5.png`.
+Left:
+- **Foot (r1x10)** = the whole tail-top corner (deck wrapping ~90 deg into the rear panel), one height field, p95
+  2.4 mm; join to the pillar 0.5 mm median / 2.7 mm p95, visible as a soft line. MakeFilling on its Kunos outline
+  failed (10 edges incl. clip teeth; `BRep_API: command not done` with points). Next try: split it like the pillar
+  (deck top line + corner blend + rear face, stations along the car's x axis) or `:w` corner split, with the pillar's
+  end rows as data; then a small G1 fill only where the shoulder dies out.
+- Roof end (r1x00): faint line at the join (0.36 / 1.15 mm) - judge again once the roof is built.
+- Flat-facet samples (corner normals within theta_max = 8 tau / L, tau 0.3 mm) as data in fit_panel / fit_bands:
+  tested, not yet switched on.
 
 ### 1. Thin strips - DONE 10 Nov late (`strip_build.py`, see PANEL_FIT_TECHNIQUE.md "Thin strips")
 Narrow crease faces are ruled surfaces on shared side curves; a side on a wide face is that face's own built edge.

@@ -29,6 +29,23 @@ built = {}                                # face name -> built shape (strips are
 for p in res:
     if ONLY and not any(k in p['name'] for k in ONLY.split(',')): continue
     if p.get('strip'): continue           # thin strips: after every wide face (below)
+    if p.get('grid'):                     # station-profile surface (blend_build.pillar_grid): through the grid points
+        tf = time.time(); G_ = np.array(p['grid'])
+        srf = Part.BSplineSurface()
+        srf.approximate(Points=[[App.Vector(*q) for q in row] for row in G_], DegMin=3, DegMax=5, Tolerance=0.02)
+        face = srf.toShape()
+        dev = max(srf.toShape().distToShape(Part.Vertex(App.Vector(*q)))[0] for q in G_.reshape(-1, 3)[::7])
+        shapes.append(face); built[p['name']] = face
+        m = MeshPart.meshFromShape(Shape=face, MaxLength=float(os.environ.get('PF_MAXLEN', 6)))
+        pts, fc = m.Topology
+        nn = []
+        for q in pts:
+            u_, v_ = srf.parameter(q); n_ = srf.normal(u_, v_); nn.append([n_.x, n_.y, n_.z])
+        nn = np.array(nn); nn *= np.sign((nn @ np.array(p['frame'][3])).mean() or 1.0)
+        mesh[p['name'] + '_P'] = np.array([[q.x, q.y, q.z] for q in pts]) / 1000.0; mesh[p['name'] + '_F'] = np.array(fc, int)
+        normals[p['name']] = nn
+        print(f"{p['name']:24s} GRID area {face.Area / 1e6:.3f} m2  poles {srf.NbUPoles}x{srf.NbVPoles} deg {srf.UDegree}x{srf.VDegree}  grid dev {dev:.3f} mm  mesh {len(fc)} tris  {time.time() - tf:.1f} s", flush=True)
+        continue
     tf = time.time()
     fr = p['frame']; P = np.array(p['poles'])                 # (nu, nv, 3) plane mm
     W = np.array([[to_world(fr, *P[i, j]) for j in range(P.shape[1])] for i in range(P.shape[0])])
@@ -161,6 +178,15 @@ for p in res:
             cc = face.cut(poly_prism(p['cut_poly'], p['cut_frame']))
             if cc.Faces and cc.Area > 1: face = Part.makeShell(cc.Faces) if len(cc.Faces) > 1 else cc.Faces[0]
         except Exception as ex: print(p['name'], 'cut_poly failed:', ex, flush=True)
+    for cpl in p.get('cut_planes') or []:                # exact planar cut: remove the half-space the normal points into
+        try:
+            o_, n_ = App.Vector(*cpl[0]), App.Vector(*cpl[1]); n_.normalize(); Lb = 6000.0
+            a_ = n_.cross(App.Vector(0, 0, 1)) if abs(n_.z) < 0.9 else n_.cross(App.Vector(1, 0, 0)); a_.normalize(); b_ = n_.cross(a_)
+            corner = o_ - a_ * (Lb / 2) - b_ * (Lb / 2)
+            pl = Part.Face(Part.makePolygon([corner, corner + a_ * Lb, corner + a_ * Lb + b_ * Lb, corner + b_ * Lb, corner]))
+            cc = face.cut(pl.extrude(n_ * Lb))
+            if cc.Faces and cc.Area > 1: face = Part.makeShell(cc.Faces) if len(cc.Faces) > 1 else cc.Faces[0]
+        except Exception as ex: print(p['name'], 'plane cut failed:', ex, flush=True)
     for cp in p.get('cut_polys') or []:                  # seams of wrap sub-panels: the far side of a smooth seam curve
         try:
             cc = face.cut(poly_prism(cp['poly'], cp['frame']))

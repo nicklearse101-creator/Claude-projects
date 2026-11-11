@@ -291,12 +291,14 @@ def basis_open_raw(t, kv, n, p=3):
     return N[:, :n]
 
 
-def fit_panel(name, V, F, Nv, verbose=True, fr=None, outline_only=False):
+def fit_panel(name, V, F, Nv, verbose=True, fr=None, outline_only=False, extra=None):
     """one trimmed surface for a piece; fr = a given frame (default: the piece's own best-fit plane);
     outline_only = just the frame and outline wires (for a band patch that brings its own surface)"""
     T = V[F]; P = V[np.unique(F)]
     if fr is None: fr = frame_of(P, Nv[np.unique(F)])
     S = to_plane(P, fr)                      # vertices only
+    if extra is not None and len(extra):     # extra data (metres): e.g. a neighbouring surface's end rows to join
+        S = np.r_[S, to_plane(np.asarray(extra), fr)]
     pad = 0.02
     dom = [S[:, 0].min() - pad, S[:, 0].max() + pad, S[:, 1].min() - pad, S[:, 1].max() + pad]
     if outline_only:
@@ -1303,6 +1305,32 @@ def main():
                         cps_ = [dict(poly=seams[k_]['part'], frame=seams[k_]['frame']) for k_ in seams] if is_main else                                ([dict(poly=seams[wi]['main'], frame=seams[wi]['frame'])] if wi in seams else [])
                         if cps_: e_['cut_polys'] = cps_
                     if is_main and main_fit is None: main_fit = dict(F=Fw, last=fit_bands.last)
+            continue
+        if comp.startswith('pillar'):                  # GEO_body:pillar1 = region 1 is a soft-shoulder pillar
+            # (blend_build.py): station profiles (top line, G2 shoulder blend, side line) lofted over its pillar-like
+            # stretch; the ends (roof junction, the foot fanning into the deck) are ordinary faces cut exactly by the
+            # end stations' planes
+            import blend_build as BB
+            pcs_ = crease_pieces(V, F, Nv)
+            for ri in comp[6:].split(','):
+                ri = int(ri); Fr = pcs_[ri]
+                lim = [float(x) for x in os.environ.get('PF_PILLAR_S', '-0.645,0.135').split(',')]
+                g = BB.pillar_grid(V, Fr, Nv, s_lim=lim)
+                es_, c_ = g['axis'], g['centre']; s0_, s1_ = g['s'][0], g['s'][-1]
+                u_ = np.unique(Fr); nout = Nv[u_].mean(0); nout /= np.linalg.norm(nout)
+                res.append(dict(name=f'{name}:r{ri}p', grid=(g['grid'] * 1000).tolist(), frame=[c_.tolist(), es_.tolist(), np.cross(nout, es_).tolist(), nout.tolist()]))
+                sv_ = (V[Fr] - c_) @ es_
+                nrow = int(os.environ.get('PF_PILLAR_JOIN', 3))     # pillar end rows given to the end faces as data
+                for tag, sel, plane, rows_ in (('x0', (sv_ < s0_).any(1), (c_ + s0_ * es_, es_), g['grid'][:nrow]),
+                                               ('x1', (sv_ > s1_).any(1), (c_ + s1_ * es_, -es_), g['grid'][-nrow:])):
+                    for k_, Fp in enumerate(components(V, Fr[sel])[0]):
+                        if len(Fp) < 4: continue
+                        try:
+                            e_ = fit_panel(f'{name}:r{ri}{tag}{k_}', V, Fp, Nv, extra=rows_.reshape(-1, 3) if nrow else None)
+                            e_['cut_planes'] = [[(plane[0] * 1000).tolist(), plane[1].tolist()]]     # remove the pillar side
+                            res.append(e_)
+                        except Exception as ex: print(f'{name}:r{ri}{tag}{k_} failed: {ex}')
+                print(f'{name}:r{ri}: PILLAR {len(g["s"])} stations s {s0_*1e3:.0f}..{s1_*1e3:.0f} mm + end faces')
             continue
         if comp.startswith('b'):
             for ri in comp[1:].split(','):
