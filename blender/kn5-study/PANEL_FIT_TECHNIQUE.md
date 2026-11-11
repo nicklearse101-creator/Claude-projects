@@ -141,3 +141,11 @@ faces"): station sections every 25 mm; top and side = straight lines through the
 of the signed cumulative turn); shoulder = G2 quintic Bezier tangent to both lines, fitted only to the turn points (on
 Kunos row edges, so on the surface). Smooth the profile's defining points along the length, not grid columns (column
 smoothing moved points 1-2 mm). Ends: ordinary faces given the pillar's last rows as data + exact plane cuts.
+
+### Pillar + foot as one sweep (2026-11-11, `sweep_build.py`)
+A shoulder that runs on past a pillar's end round a corner (the C-pillar's roll between rear deck and skirt) is one
+station-profile sweep along a curved spine, not a vertex blend: march stations along the virtual sharp corner X (top
+line x side tangent), keep the station normal in the deck plane, side = curve c3 u^3 + c4 u^4 (G2 to the blend). Smooth
+the raw profile ROWS column by column, never the parameters one by one. Deck interior = own face cut on the sweep's top
+edge. FreeCAD `approximate` can fail quietly on long uneven grids: check its deviation and fall back to `interpolate`.
+Quarter 84.4 -> 85.9 % (vertices 88.3 -> 90.1 %).

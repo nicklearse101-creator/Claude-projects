@@ -291,11 +291,12 @@ def basis_open_raw(t, kv, n, p=3):
     return N[:, :n]
 
 
-def fit_panel(name, V, F, Nv, verbose=True, fr=None, outline_only=False, extra=None):
+def fit_panel(name, V, F, Nv, verbose=True, fr=None, outline_only=False, extra=None, data_F=None):
     """one trimmed surface for a piece; fr = a given frame (default: the piece's own best-fit plane);
-    outline_only = just the frame and outline wires (for a band patch that brings its own surface)"""
-    T = V[F]; P = V[np.unique(F)]
-    if fr is None: fr = frame_of(P, Nv[np.unique(F)])
+    outline_only = just the frame and outline wires (for a band patch that brings its own surface);
+    data_F = the triangles whose vertices are the fit data (default F; the outline always comes from F)"""
+    T = V[F]; Fd = F if data_F is None else data_F; P = V[np.unique(Fd)]
+    if fr is None: fr = frame_of(P, Nv[np.unique(Fd)])
     S = to_plane(P, fr)                      # vertices only
     if extra is not None and len(extra):     # extra data (metres): e.g. a neighbouring surface's end rows to join
         S = np.r_[S, to_plane(np.asarray(extra), fr)]
@@ -1315,6 +1316,44 @@ def main():
             for ri in comp[6:].split(','):
                 ri = int(ri); Fr = pcs_[ri]
                 lim = [float(x) for x in os.environ.get('PF_PILLAR_S', '-0.645,0.135').split(',')]
+                if os.environ.get('PF_PILLAR_FOOT', '1') == '1':
+                    # pillar + foot as ONE swept surface (sweep_build.py): the shoulder carries on as the roll between
+                    # the rear deck and the skirt; the deck interior is its own face, cut exactly on the sweep's top edge
+                    import sweep_build as SW
+                    g = SW.sweep_grid(V, Fr, Nv, s_lim=lim)
+                    G_ = g['grid']; es_, c_ = g['axis'], g['centre']; s0_, s1_ = g['s']; npil = g['npil']
+                    u_ = np.unique(Fr); nout = Nv[u_].mean(0); nout /= np.linalg.norm(nout)
+                    res.append(dict(name=f'{name}:r{ri}p', grid=(G_ * 1000).tolist(), frame=[c_.tolist(), es_.tolist(), np.cross(nout, es_).tolist(), nout.tolist()]))
+                    sv_ = (V[Fr] - c_) @ es_
+                    nrow = int(os.environ.get('PF_PILLAR_JOIN', 3))
+                    for k_, Fp in enumerate(components(V, Fr[(sv_ < s0_).any(1)])[0]):      # roof junction, as before
+                        if len(Fp) < 4: continue
+                        try:
+                            e_ = fit_panel(f'{name}:r{ri}x0{k_}', V, Fp, Nv, extra=G_[:nrow].reshape(-1, 3) if nrow else None)
+                            e_['cut_planes'] = [[((c_ + s0_ * es_) * 1000).tolist(), es_.tolist()]]
+                            res.append(e_)
+                        except Exception as ex: print(f'{name}:r{ri}x0{k_} failed: {ex}')
+                    # deck: foot vertices on the deck side of the sweep's top edge (E0 row of the foot stations)
+                    Ft = Fr[(sv_ > s1_).any(1)]
+                    E0r = G_[npil - 1:, 0]; Dr = G_[npil - 1:, 6] - E0r; Dr /= np.linalg.norm(Dr, axis=1)[:, None]
+                    uu = np.unique(Ft); kk = np.argmin(np.linalg.norm(V[uu][:, None] - E0r[None], axis=2), axis=1)
+                    dd = np.full(len(V), np.inf); dd[uu] = ((V[uu] - E0r[kk]) * Dr[kk]).sum(1)
+                    F_out = Ft[(dd[Ft] < 0.003).any(1)]; F_dat = Ft[(dd[Ft] < -0.001).all(1)]
+                    row = np.r_[[E0r[0] - 0.03 * (E0r[1] - E0r[0]) / np.linalg.norm(E0r[1] - E0r[0])], E0r,
+                                [E0r[-1] + 0.03 * (E0r[-1] - E0r[-2]) / np.linalg.norm(E0r[-1] - E0r[-2])]]
+                    Drx = np.r_[Dr[:1], Dr, Dr[-1:]]
+                    for k_, Fp in enumerate(components(V, F_out)[0]):
+                        vs_ = set(np.unique(Fp).tolist()); Fd_ = np.array([t_ for t_ in F_dat if t_[0] in vs_], int).reshape(-1, 3)
+                        if len(Fp) < 4 or len(Fd_) < 3: continue
+                        try:
+                            e_ = fit_panel(f'{name}:r{ri}d{k_}', V, Fp, Nv, extra=G_[npil - 1:, 0:3].reshape(-1, 3), data_F=Fd_)
+                            fr_ = [np.array(x) for x in e_['frame']]
+                            band = np.r_[row, (row + 0.3 * Drx)[::-1]]
+                            e_['cut_polys'] = [dict(poly=(to_plane(band, fr_)[:, :2] * 1000).tolist(), frame=e_['frame'])]
+                            res.append(e_)
+                        except Exception as ex: print(f'{name}:r{ri}d{k_} failed: {ex}')
+                    print(f'{name}:r{ri}: PILLAR+FOOT sweep {npil}+{g["nfoot"]} stations, spine {g["arc"][-1]*1e3:.0f} mm, deck {len(F_dat)} tris')
+                    continue
                 g = BB.pillar_grid(V, Fr, Nv, s_lim=lim)
                 es_, c_ = g['axis'], g['centre']; s0_, s1_ = g['s'][0], g['s'][-1]
                 u_ = np.unique(Fr); nout = Nv[u_].mean(0); nout /= np.linalg.norm(nout)

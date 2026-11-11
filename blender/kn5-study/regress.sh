@@ -8,6 +8,7 @@
 # Thin strips (strip_build.py, 10 Nov late): door 88.4 / 99.7, wing 70.5 / 96.1, quarter 78.3 / 96.8 (vertices 86.3 / 97.9).
 # Chain sides + fold flanges (11 Nov): door 88.5 / 99.7, wing 70.5 / 96.1, quarter 79.4 / 96.9 (vertices 88.2 / 98.6).
 # C-pillar station-profile surface (pillar1, 11 Nov morning): quarter 84.4 / 99.5 (vertices 88.3 / 98.6).
+# Pillar + foot one sweep (sweep_build.py, 11 Nov): door 88.5 / 99.7, wing 70.5 / 96.1, quarter 85.9 / 99.3 (vertices 90.1 / 98.2).
 set -e
 cd "$(dirname "$0")"
 C=D:/SteamLibrary/steamapps/common/assettocorsa/content/cars/ks_toyota_ae86

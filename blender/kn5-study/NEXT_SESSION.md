@@ -1,4 +1,4 @@
-# Next session: Blender Work / AE86 replica (handover, 2026-11-10 late)
+# Next session: Blender Work / AE86 replica (handover, 2026-11-11 morning)
 
 **Start here.**
 1. Read this page (where we are, how to run, what's next).
@@ -16,21 +16,21 @@ model now; later they will come from photos.
 |---|---|---|---|
 | Door (80 faces incl. glass, mirror, trims; 23 strips) | done | 88.5 % / 99.7 % | - |
 | Front wing (arch lip, sub-panels) | done, small items left | 70.5 % / 96.1 % | 92.5 % / 99.3 % |
-| Rear quarter + C-pillar (17 strips) | drip rail, window flange, C-pillar profile surface done 11 Nov; foot left (Next 0) | 84.4 % / 99.5 % | 88.3 % / 98.6 % |
+| Rear quarter + C-pillar (17 strips) | done 11 Nov: pillar + foot = one swept surface (sweep_build.py); small join items left (Next 0) | 85.9 % / 99.3 % | 90.1 % / 98.2 % |
 | Roof, bonnet, hatch, bumpers, sills | not started | | |
 
 The **vertex** score is the honest one: Kunos uses 100-150 mm flat triangles that cut chords across curves, so the
 area score marks a correct smooth surface as "off" between vertices.
 
 Pictures (local, not in git): `D:\Claude\_scratch_research\kn5_study\images\` - `door_complete_vs_original_grey.png`,
-`wing_v4_zebra.png`, `quarter_v2b_grid_grey.png` (latest quarter: v2 / v2b / Kunos).
+`wing_v4_zebra.png`, `quarter_v6_foot_sweep_grey.png` (latest quarter: Kunos / before / now, foot close-ups).
 
 ## How to run (Nik's PC, everything on D:)
 ```bash
 cd /d/Claude/Claude-/blender/kn5-study
 ./regress.sh all          # rebuild + score door, wing, quarter (~6 min). Run after EVERY change to the fitters.
 ```
-Reference (2026-11-11 morning, + C-pillar profile surface): **door 88.5 / 99.7, wing 70.5 / 96.1, quarter 84.4 / 99.5** (area within 1 / 3 mm).
+Reference (2026-11-11, + pillar/foot sweep): **door 88.5 / 99.7, wing 70.5 / 96.1, quarter 85.9 / 99.3** (area within 1 / 3 mm; quarter vertices 90.1 / 98.2).
 
 One panel by hand (the quarter as an example):
 ```bash
@@ -72,7 +72,24 @@ fallback), `FH_CHORD` (hole filler ignores Kunos chord sag). `PF_WRAP` = wrap cu
 
 ## Next (in order)
 
-### 0. C-pillar r1 - PILLAR DONE 11 Nov (morning); foot + joins left - START HERE
+### 0. C-pillar foot - DONE 11 Nov (sweep_build.py); small join items left
+The foot is NOT a 3-way vertex blend: it is a flat deck + one wrapped skirt (side -> broad plan corner -> rear face)
+joined by one tight roll that continues the pillar's shoulder. So the pillar's stations carry on past its end, marched
+along the roll's spine (steered on the virtual sharp corner X, normal kept parallel to the deck) round the corner and
+across the rear: 32 pillar + 22 foot stations, ONE grid surface (no pillar/foot join). Foot profile = top line (last
+60 mm) + G2 blend + side curve c3 u^3 + c4 u^4; blend ends by a model search, pass 2 near smoothed setbacks; raw rows
+smoothed column by column. The deck interior = face `r1d0` (fit to its own vertices + the sweep's top rows, cut on the
+sweep's top edge by a band poly). `PF_PILLAR_FOOT=0` restores the old pillar + `r1x10` foot face.
+Lessons (paid for): smoothing profile PARAMETERS separately broke their coupling (rows 7.7 mm off); smoothing the
+setbacks hard can't follow the real 30 -> 3 mm change at the corner (77 %); FreeCAD `approximate` failed QUIETLY on the
+54 x 32 grid (6 poles, 17 mm off) - the grid face now falls back to `interpolate` when approximate misses by > 0.5 mm.
+Left (by eye, `images/quarter_v6_foot_sweep_grey.png`):
+- soft dent where the pillar base meets the deck (the window-flange notch);
+- a pinhole + hairline cracks where the deck face meets the sweep (hole filler patches): trim the deck on the sweep's
+  real top EDGE (research: `Part.Face(srf, wire of 3D edges)` sews; our own 2D pcurves don't);
+- the ramp of the station normal from pillar axis to deck plane (4 stations) - check zebra there.
+
+### 0b. C-pillar r1 - pillar part (11 Nov morning, kept as the first 32 stations)
 Research: `blender/research/reports/Smooth region segmentation into faces.md` (12-step pipeline). Built
 (`blend_build.py`, spec `GEO_body:pillar1`, in regress.sh):
 - Sections square to r1's main axis; on 'pillar-like' stations (total turn 40-85 deg, < 110 mm wide) the designer
@@ -118,6 +135,12 @@ Left to do:
 - The small roll behind the arch (rear:b1, 38 vertices, 5.9 mm), fragments at the bottom-rear corner.
 
 ### 4. Rest of the body, panel by panel
+**Roof research done:** `blender/research/reports/Roof surfacing.md` (16-step build table). Key points: roof = master
+surface, one full-width face overshooting 20-40 mm, degree 5 single span vs cubic by cross-validation; fit VERTICES only
+(roof facets are chords: the 4 deg flat-facet rule would wrongly feed sagged samples - use 8 tau / L ~ 0.9 deg);
+third-derivative fairing, not thin-plate (it flattens the crown); score vertex RMS + signed crown bias, not area within
+1 mm; own numpy least squares with G1/G2 rows (MakeFilling can't do G2); trim with `Part.Face(srf, wire)`; then refit
+r1x00 and the drip strips from the roof's own edge.
 Order: **roof** -> bonnet -> hatch -> front and rear bumpers -> sills. Kunos keeps the shell as one mesh (`GEO_body`)
 with doors, bonnet, hatch and bumpers separate; we follow that split, pick each panel out with a clip box, then the
 crease / band / wrap machinery. Rules that already hold:

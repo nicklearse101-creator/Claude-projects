@@ -35,6 +35,10 @@ for p in res:
         srf.approximate(Points=[[App.Vector(*q) for q in row] for row in G_], DegMin=3, DegMax=5, Tolerance=0.02)
         face = srf.toShape()
         dev = max(srf.toShape().distToShape(Part.Vertex(App.Vector(*q)))[0] for q in G_.reshape(-1, 3)[::7])
+        if dev > 0.5:     # approximate can fail quietly on a long, unevenly spaced grid (6 poles over 54 stations, 17 mm
+            srf = Part.BSplineSurface(); srf.interpolate([[App.Vector(*q) for q in row] for row in G_])   # off): interpolate it
+            face = srf.toShape()
+            dev = max(face.distToShape(Part.Vertex(App.Vector(*q)))[0] for q in G_.reshape(-1, 3)[::7])
         shapes.append(face); built[p['name']] = face
         m = MeshPart.meshFromShape(Shape=face, MaxLength=float(os.environ.get('PF_MAXLEN', 6)))
         pts, fc = m.Topology
