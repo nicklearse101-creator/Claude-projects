@@ -2,15 +2,15 @@
 
 Nik's list, in order. Tick items off here when they are done and checked on his cars.
 
-1. [ ] **Tinted windows** – option to tint the car's glass (colour and how dark), on the Windows tab.
-2. [ ] **Undo my flat-top rule** (`OFF_LIMIT` in skingen.py, added 10 Nov): it cuts the tops off wing writing where
+1. [x] **Tinted windows** – option to tint the car's glass (colour and how dark), on the Windows tab.
+2. [x] **Undo my flat-top rule** (`OFF_LIMIT` in skingen.py, added 10 Nov): it cuts the tops off wing writing where
    the wing curves over (Kadett, Talbot). Nik's rule: pictures are never cut, they stretch over curves. Take it out.
    (Any bonnet-corner streaks can be moved by hand on the preview, so no other fix is needed.)
-3. [ ] Window stickers (banner, number, name) can't be moved or deleted on the preview yet.
-4. [ ] Smaller skin files (compressed DDS) – 4K skins are about 90 MB each.
-5. [ ] **Preinstalled logos** – the logo library comes with a starter set of logos already in it after install.
-6. [ ] **Headlights: lens colour only** – remove the cast-light (CSP beam colour) option; keep only the lens colour change.
-7. [ ] **Name dictionary from Nik's car library** (after 1-6): scan every car's kn5 (mesh, material and texture
+3. [x] Window stickers (banner, number, name) can't be moved or deleted on the preview yet.
+4. [x] Smaller skin files (compressed DDS) – 4K skins are about 90 MB each.
+5. [x] **Preinstalled logos** – the logo library comes with a starter set of logos already in it after install.
+6. [x] **Headlights: lens colour only** – remove the cast-light (CSP beam colour) option; keep only the lens colour change.
+7. [~] **Name dictionary from Nik's car library** (after 1-6): scan every car's kn5 (mesh, material and texture
    names) and collect all the different names modders use for the same part (glass, body/paint, wings, doors,
    bonnet, boot, banner, lights, rims, interior...). Make the app recognise them, so logos and window stickers work
    on cars where they are refused now. Check on the cars where it fails today.
@@ -19,3 +19,17 @@ Dropped (Nik, 11 Nov): Talbot lower-door name behind the sill trim, Escort Mk2 t
 `NICK3_KIT_ATLAS.dds` – no fix needed.
 
 Details of earlier fixes: `PLAN_next_session.md`.
+
+## Done 11 Nov (code + checked on the Kadett / Talbot previews; in-game check by Nik still to do)
+- 1 tinted windows (Windows tab: colour, how dark, windscreen optional), 2 flat-top rule gone, 3 window stickers have
+  preview boxes (move / size / delete), 4 "Smaller files" (DXT1/DXT5 with mipmaps, on by default), 5 starter logos
+  (`python make_starter_logos.py` before `build.py`; 233 from Nik's library), 6 beam colour option gone.
+- Nik 11 Nov: no mirroring at all. Logos go exactly where asked; several logos on one panel sit side by side, each
+  movable; nothing is moved / shrunk / left off for overlapping. NOTE: where the car itself uses one picture for both
+  halves of a panel (Kadett bonnet), a logo also shows mirrored on the other half - that is the car's model, the app
+  cannot stop it.
+- 7 so far: wheel/rim names no longer match inside words (primera, trim, root 'FBX:' node) -> 29 refused cars now
+  work (BTCC 1991-99 set); glass names in pt/es/fr/de/fi/nl, Kunos 'WCWINDOW_COCKPIT', 'carpaint' no longer 'int';
+  window sticker sheets (window_sticker, windows_decals, decal_glass, Glass_Sticker...) recognised as sticker sheets;
+  light words (farol, pisca, milha, tulipa, fara, fog, ltl/rtl, covers) kept off the glass. Tools:
+  tests/catalogue_all_cars.py (all cars -> JSON) to compare before / after.

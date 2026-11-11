@@ -27,6 +27,8 @@ if not d['logos']:
     d['logos'] = [dict(path=os.path.join(app, 'logos', 'ratty_racing_logo.jpg'), place='front_wings', tint=False)]
 for kv in sys.argv[3:]:
     k, v = kv.split('=', 1)
+    if k == 'add_logo':           # add_logo=FILE@PLACE  (a file in the logo library)
+        f_, p_ = v.split('@'); d['logos'].append(dict(path=os.path.join(app, 'logos', f_), place=p_, tint=False)); continue
     try: v = json.loads(v)
     except ValueError: pass
     d[k] = v

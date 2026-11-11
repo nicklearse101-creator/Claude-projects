@@ -133,7 +133,9 @@ class Car:
     def _find_body_textures(self):
         """Body textures = txDiffuse textures that skins override, ranked by 3D area."""
         area = {}
-        wheelish = re.compile(r'WHEEL_|SUSP_|HUB_|DISC_|rim|tyre|tire', re.I)
+        # AC's wheel dummies by their exact names; parts by a word in their own name (never inside another word:
+        # 'primera', 'trim' and the model's root node 'FBX: ...' once made whole cars count as a wheel)
+        wheelish = re.compile(r'(?<![a-z])(?:WHEEL_|SUSP_|HUB_|DISC_|rims?(?=[^a-z]|lf|rf|lr|rr|$)|tyres?|tires?)', re.I)
         for m in self.kn5.meshes:
             if m.mat is None or not len(m.idx): continue
             if any(wheelish.search(p) for p in m.parents) or wheelish.search(m.name): continue
@@ -147,7 +149,7 @@ class Car:
             if any(wheelish.search(p) for p in m.parents) or wheelish.search(m.name):
                 t = m.mat.samplers.get('txDiffuse')
                 if t: warea[t] = warea.get(t, 0) + tri_area3(m).sum()
-        rimish = re.compile(r'rim|cerchi|wheel|felge|jante', re.I)
+        rimish = re.compile(r'(?<![a-z])rims?(?=[^a-z]|lf|rf|lr|rr|$)|cerchi|wheel|felge|jante', re.I)
         notrim = re.compile(r'tyre|tire|blur|disc|brake|calip|hub|susp|nut|logo|badge', re.I)
         rim_tex = {m.mat.samplers.get('txDiffuse') for m in self.kn5.meshes if m.mat is not None and len(m.idx)
                    and rimish.search(m.name + ' ' + m.mat.name) and not notrim.search(m.name + ' ' + m.mat.name)}
@@ -1078,12 +1080,13 @@ def place_decals(car, tm, paint, design, prof, base, acc, acc2, txt, log):
     for k_ in ('bonnet', 'roof', 'boot'):
         if k_ in pan: room[k_] = 0.85 * pan[k_][2]
 
-    def put(place, img, scale=1.0, glow=None, b_shift=0.0, what='logo', key=None):
+    def put(place, img, scale=1.0, glow=None, b_shift=0.0, what='logo', key=None, share=1, a_shift=0.0):
         for view, a, b, h, reg, facing, rot in geo(place):
             hh = h * scale
             lim = room.get(place)
-            if lim and hh * img.width / img.height > lim:      # long writing: shrink it to the panel, never run off it
-                hh = lim * img.height / img.width
+            if lim and hh * img.width / img.height > lim / share:   # long writing: shrink it to the panel, never run off it
+                hh = lim / share * img.height / img.width
+            if a_shift: a = a + (-a_shift if view == 'right' else a_shift)   # along the car, the same way on both sides
             decals.append(Decal(img, view, a, b + b_shift * h, hh, rot=rot, region=reg, glow=glow, facing=facing,
                                 label=f'{what} on the {PLACES[place].lower()} ({view})',
                                 key=key or f'{what}:{place}', kind='logo' if what == 'logo' else 'text'))
@@ -1099,6 +1102,7 @@ def place_decals(car, tm, paint, design, prof, base, acc, acc2, txt, log):
     if design.get('logo'):
         logos += [dict(path=design['logo'], place=p, tint=design.get('tint_logo', True)) for p in ('doors', 'bonnet')]
     taken = set()
+    by_place = {}                                  # every logo asked for goes on: several on one panel sit side by side
     for lg in logos:
         p = lg.get('place')
         if p not in PLACES or not lg.get('path') or not os.path.isfile(lg['path']): continue
@@ -1106,10 +1110,28 @@ def place_decals(car, tm, paint, design, prof, base, acc, acc2, txt, log):
             img = prep_logo(lg['path'], acc2 if lg.get('tint') else None, lg.get('bg', 'auto'))
         except Exception as e:
             log(f'logo {os.path.basename(lg["path"])}: cannot read it ({e})'); continue
-        is_pic = bool(img.info.get('picture'))
-        # a place with writing as well: the logo is made smaller and moved up, the writing goes under it
-        put(p, img, glow=acc2 if p in ('doors', 'bonnet') and not is_pic else None, key=f'logo:{p}',
-            **(dict(scale=0.68, b_shift=0.16) if p in written else {}))
+        by_place.setdefault(p, []).append(img)
+    for p, imgs in by_place.items():
+        n = len(imgs)
+        sc = (0.68 if p in written else 1.0) * (1.0 if n == 1 else max(0.45, 1.0 / n ** 0.5))
+        h0 = geo(p)[0][3] * sc if geo(p) else 0.0
+        lim = room.get(p)
+        ws = []
+        for img in imgs:
+            hh = h0
+            if lim and hh * img.width / img.height > lim / n: hh = lim / n * img.height / img.width
+            ws.append(hh * img.width / img.height)
+        gap = 0.03
+        total = sum(ws) + gap * (n - 1)
+        x = -total / 2
+        for i, img in enumerate(imgs):
+            is_pic = bool(img.info.get('picture'))
+            # a place with writing as well: the logo is made smaller and moved up, the writing goes under it
+            put(p, img, glow=acc2 if p in ('doors', 'bonnet') and not is_pic else None,
+                key=f'logo:{p}' if i == 0 else f'logo:{p}:{i + 1}', share=n, a_shift=x + ws[i] / 2 if n > 1 else 0.0,
+                scale=sc, **(dict(b_shift=0.16) if p in written else {}))
+            x += ws[i] + gap
+        if n > 1: log(f'{n} logos on the {PLACES[p].lower()}: side by side - move them on the preview')
         taken.add(p)
 
     # racing number
@@ -1179,47 +1201,14 @@ def _set_centre(dc, a, b):
 
 
 def arrange_decals(decals, design, log, limits=None):
-    """Placement check: no decal may cover another. Logos keep their place, then numbers, then writing;
-    a decal that would cover one already placed moves just clear of it (or shrinks if there is no room).
-    Then the hand adjustments from the preview (move / size / turn / flip) are applied."""
+    """Decals go where they were asked for - overlapping ones too (Nik, 11 Nov: never moved, shrunk or left off
+    because they cover each other; they can be moved on the preview). Deleted ones are left off, then the hand
+    adjustments from the preview (move / size / turn / flip) are applied."""
     adj = design.get('adjust') or {}
     gone = [d for d in decals if adj.get(d.key, {}).get('deleted')]
     if gone:
         decals = [d for d in decals if d not in gone]
         log(f'left off (deleted on the preview): {", ".join(sorted({d.label.split(" (")[0] for d in gone}))}')
-    rank = {'logo': 0, 'number': 1, 'text': 2}
-    placed, moved, stuck = [], 0, 0
-
-    def clash(g, a, b, w, h, skip=None):
-        for o in placed:
-            if o is skip: continue
-            g2, a2, b2, w2, h2 = _rect(o)
-            if g2 == g and abs(a - a2) < (w + w2) / 2 + 0.004 and abs(b - b2) < (h + h2) / 2 + 0.004: return o
-        return None
-    for dc in sorted(decals, key=lambda d: rank.get(d.kind, 2)):
-        if dc.key in adj or dc.coords is not None:
-            placed.append(dc); continue                 # placed by hand: left alone
-        for shrink in range(4):
-            g, a, b, w, h = _rect(dc)
-            o = clash(g, a, b, w, h)
-            if o is None: break
-            _, a2, b2, w2, h2 = _rect(o)
-            opts = [(a, b2 - (h2 + h) / 2 - 0.02), (a, b2 + (h2 + h) / 2 + 0.02),
-                    (a2 - (w2 + w) / 2 - 0.02, b), (a2 + (w2 + w) / 2 + 0.02, b)]
-            lo_, hi_ = (limits or {}).get(g, (-9, 9))             # stay on the panel (sides: sill to window line)
-            opts = [q for q in opts if abs(q[0] - a) < 0.45 and abs(q[1] - b) < 0.3 and clash(g, q[0], q[1], w, h) is None
-                    and (q[1] == b or (q[1] - h / 2 > lo_ + 0.01 and q[1] + h / 2 < hi_))]
-            if opts:
-                q = min(opts, key=lambda q: abs(q[0] - a) + abs(q[1] - b))
-                _set_centre(dc, *q); moved += 1
-                log(f'  placement check: {dc.label} moved clear of the {o.label.split(" on ")[0]}')
-                break
-            dc.height *= 0.8
-        else:
-            stuck += 1
-            log(f'  placement check: no room to keep {dc.label} clear of the other decals there')
-        placed.append(dc)
-    if decals and not moved and not stuck: log(f'placement check: {len(decals)} decals, none covers another')
     return hand_adjust(decals, adj)
 
 
@@ -1380,9 +1369,7 @@ def place_hits(tm, dc, hm, wm, log, inside=False, allow_move=True, no_shared=Fal
     if not len(idx): return None
     name = dc.label or dc.view
     if no_shared and not dc.mirror_ok and tm.shared[tm.yy[idx], tm.xx[idx]].mean() >= 0.004:
-        # glass: texels used by two windows at once would show the sticker twice
-        log(f'  {name}: left off - this glass shares its picture with another window, it would show up twice')
-        return False
+        log(f'  {name}: note - this glass shares its picture with another window, so it shows there too')
     if allow_move and img is not None and dc.coords is None and not getattr(dc, 'by_hand', False):
         # placement check: is the whole picture on the panel? If part of it hangs off (over the sill, a
         # panel edge, an opening) it is slid to where it fits best
@@ -1391,10 +1378,8 @@ def place_hits(tm, dc, hm, wm, log, inside=False, allow_move=True, no_shared=Fal
             best = (cov, 0.0, 0.0, idx, a, b)
             g, ra, rb, rw, rh = _rect(dc)
 
-            def free(da, db):                           # would it cover another decal there?
-                if dc.view == 'roof_l': da, db = -db, da
-                return not any(g == g2 and abs(ra + da - a2) < (rw + w2) / 2 and abs(rb + db - b2) < (rh + h2) / 2
-                               for g2, a2, b2, w2, h2 in (_rect(o) for o in others if o is not dc))
+            def free(da, db):                           # other decals may overlap it: moved on the preview if wanted
+                return True
             for da, db in ((0, .02), (0, -.02), (0, .04), (0, -.04), (0, .06), (0, -.06), (0, .1), (0, -.1), (.05, 0), (-.05, 0),
                            (.1, 0), (-.1, 0), (.05, -.04), (-.05, -.04), (0, .15)):
                 if not free(da, db): continue
@@ -1409,77 +1394,9 @@ def place_hits(tm, dc, hm, wm, log, inside=False, allow_move=True, no_shared=Fal
             elif cov < 0.85:
                 log(f'  placement check: only {cov * 100:.0f}% of the {name} fits on the car there - move or shrink it on the preview')
     frac = tm.mirrored[tm.yy[idx], tm.xx[idx]].mean()
-    if frac < 0.004 or dc.mirror_ok: return idx, a, b
-    if allow_move and dc.coords is None and (dc.movable or dc.view in ('left', 'right')):
-        g, ra, rb, rw, rh = _rect(dc)
-        others_r = [_rect(o) for o in others if o is not dc]
-
-        def clear(da, db):
-            return not any(g == g2 and abs(ra + da - a2) < (rw + w2) / 2 and abs(rb + db - b2) < (rh + h2) / 2
-                           for g2, a2, b2, w2, h2 in others_r)
-        # nearest spot first: along the car, then up / down, then both
-        steps = sorted({(da, db) for da in np.arange(-0.4, 0.41, 0.05) for db in np.arange(-0.15, 0.151, 0.03)}
-                       - {(0.0, 0.0)}, key=lambda q: abs(q[0]) + 1.5 * abs(q[1]))
-        # a 2 cm grid of the surface facing this view: how many texels, and how many of them mirrored, per cell;
-        # every candidate spot is then a quick box sum, and only the chosen one is placed for real
-        vdir, fa, fb = VIEWS[dc.view]
-        sel = (tm.N @ vdir > 0.3) & ((dc.region(tm.P) if dc.region is not None else True))
-        A0, B0 = fa(tm.P[sel]) - dc.a, fb(tm.P[sel]) - dc.b
-        cs, ext_a, ext_b = 0.02, 0.4 + wm, 0.15 + hm
-        keep_ = (np.abs(A0) < ext_a) & (np.abs(B0) < ext_b)
-        ia = ((A0[keep_] + ext_a) / cs).astype(int); ib = ((B0[keep_] + ext_b) / cs).astype(int)
-        na, nb = int(2 * ext_a / cs) + 2, int(2 * ext_b / cs) + 2
-        tot = np.zeros((na, nb)); mir = np.zeros((na, nb))
-        np.add.at(tot, (ia, ib), 1)
-        np.add.at(mir, (ia, ib), tm.mirrored[tm.yy[sel][keep_], tm.xx[sel][keep_]])
-        It = np.zeros((na + 1, nb + 1)); It[1:, 1:] = tot.cumsum(0).cumsum(1)
-        Im = np.zeros((na + 1, nb + 1)); Im[1:, 1:] = mir.cumsum(0).cumsum(1)
-
-        def box(I, da, db):
-            a0 = int((da - wm / 2 + ext_a) / cs); a1 = int((da + wm / 2 + ext_a) / cs)
-            b0 = int((db - hm / 2 + ext_b) / cs); b1 = int((db + hm / 2 + ext_b) / cs)
-            a0, b0 = max(a0, 0), max(b0, 0); a1, b1 = min(a1, na), min(b1, nb)
-            return I[a1, b1] - I[a0, b1] - I[a1, b0] + I[a0, b0]
-        here = box(It, 0.0, 0.0)
-        best = None
-        for da, db in steps:
-            da, db = float(round(da, 3)), float(round(db, 3))
-            if not clear(da, db): continue
-            n_ = box(It, da, db)
-            if n_ < 0.7 * here or box(Im, da, db) > 0.002 * n_: continue    # off the panel, or still mirrored
-            i2, a2, b2 = decal_hits(tm, dc, hm, wm, da, inside, db)
-            if len(i2) >= 0.7 * len(idx) and tm.mirrored[tm.yy[i2], tm.xx[i2]].mean() < 0.004:
-                best = (da, db, i2, a2, b2); break
-        if best:
-            da, db, idx, a, b = best
-            dc.a += da; dc.b += db; frac = 0.0
-            how = ' and '.join(t for t, v in ((f'{abs(da) * 100:.0f} cm along the car', da), (f'{abs(db) * 100:.0f} cm {"up" if db > 0 else "down"}', db)) if v)
-            log(f'  {name}: moved {how}, off a part whose left and right share one picture')
-    if frac >= 0.004 and dc.view in ('top', 'front', 'rear') and dc.coords is None and not getattr(dc, 'by_hand', False):
-        # centre of the car, but its left and right halves share one picture: put it on the left half only; the
-        # car repeats it (mirrored) on the right half, so it shows twice, once each side, like a pair of stickers
-        sgn = 1 if dc.view in ('top', 'front') else -1          # which way is the car's left in this view
-        da = sgn * (wm / 2 + 0.03) - dc.a if abs(dc.a) < wm / 2 else 0.0
-        if da:
-            dc.a += da
-            dc.region0 = dc.region
-            half = (lambda P, r=dc.region: (P[:, 0] > 0.01) & (r(P) if r is not None else True))
-            dc.region = half
-            dc.twin = True                              # apply_decals draws the mirrored copy on the right half
-            idx, a, b = decal_hits(tm, dc, hm, wm, 0.0, inside)
-            if img is not None:                         # too wide for its half: smaller, until it fits
-                for _ in range(5):
-                    if coverage(img, a, b, wm, hm, tm.last_sharp) >= 0.95: break
-                    k_ = 0.87
-                    dc.height *= k_; hm *= k_; wm *= k_
-                    dc.a = sgn * (wm / 2 + 0.03)
-                    idx, a, b = decal_hits(tm, dc, hm, wm, 0.0, inside)
-            log(f'  {name}: this panel\'s left and right halves share one picture, so it goes on the left half and the '
-                f'car shows it mirrored on the right half too')
-            return idx, a, b
-    if frac >= 0.004:
-        log(f'  {name}: put on - note the left and right of the car share one picture here, so it shows '
-            f'mirrored on the other side. Move it on the preview if you do not like it.')
+    if frac >= 0.25 and not dc.mirror_ok:          # only worth a note when much of it is shared
+        log(f'  {name}: put where asked - note the car uses one picture for both sides here, so it also shows '
+            f'(mirrored) on the other side. Move it on the preview if you do not like it.')
     return idx, a, b
 
 
@@ -1536,7 +1453,7 @@ def bilinear(arr, u, v):
 
 
 # ------------------------------------------------------------------ paint mask + shading from stock skins
-NOT_PAINT_RE = re.compile(r'light|lamp|glass|window|grill|grid|mesh|(?<![a-z])int_|interior|badge|logo|plate|exhaust|tyre|tire|rim', re.I)
+NOT_PAINT_RE = re.compile(r'light|lamp|glass|window|grill|grid|mesh|(?<![a-z])int_|interior|badge|logo|plate|exhaust|tyre|tire|(?<![a-z])rims?(?=[^a-z]|lf|rf|lr|rr|$)', re.I)
 def stock_analysis(car, tex, W, H, tm, log=print):
     """Compare the stock skins one at a time (memory stays small even with many 4K skins).
     The comparison runs at up to 2048 px; the masks are then scaled to the texture size."""
@@ -1824,14 +1741,19 @@ def merge_ini(path, text):
 
 
 # ------------------------------------------------------------------ window stickers
-GLASS_RE = re.compile(r'window|windscreen|windshield|glass|(?<![a-z])win_|_win(?![a-z])|parabrezza|vetr|lunotto|scheibe', re.I)
-NOT_GLASS_RE = re.compile(r'damage|crack|broken|light|lamp|head|lens|emissive|faro|fanal|mirror|gauge|dial|display|screen_|lcd|'
+GLASS_RE = re.compile(r'window|windscr|windshield|glass|(?<![a-z])win_|_win(?![a-z])|parabrezza|vetr|lunotto|scheibe|'
+                      r'vidro|vidrio|parabris|luneta|cristal|verre|vitre|pare.?brise|glas(?![a-z])|lasi(?![a-z])|ruit(?![a-z])', re.I)
+NOT_GLASS_RE = re.compile(r'damage|crack|broken|light|lamp|(?<!over)head|lens|emissive|faro|fanal|mirror|gauge|dial|display|(?<!wind)screen_|lcd|'
                           r'visor|helmet|mold|mould|trim|seal|rubber|frame|gasket|wiper|stop|brake|tail|indicat|blink|gabarit|'
-                          r'chrom|crome|dash|instr|cluster|defrost|sbrina|netting|plastic|revers|[rl]hl', re.I)
-INSIDE_RE = re.compile(r'(?<![a-z])int_|_int\b|interior|inside|cockpit|inner|\.int\b|glassint|int$', re.I)
+                          r'chrom|crome|dash|instr|cluster|defrost|sbrina|netting|plastic|revers|[rl]hl|'
+                          r'farol|lanterna|pisca|milha|medios|maximos|tulipa|nevoeiro|neblin|faros?(?![a-z])|feux|phare|clignot|'
+                          r'cover|guard|(?<!wind)shield|sticker|decal|cambio|shifter|sunblock|deflect|visier|(?<![a-z])fara|fog|[lr]tl_|'
+                          r'vetrovik|plate|logo|number|rim_glass|red_glass|orange|amber|wing|spoiler', re.I)
+INSIDE_RE = re.compile(r'(?<![a-z])int_|_int\b|interior|inside|inner|\.int\b|glassint|(?<![a-z])int$', re.I)
 
 
-OVERLAY_RE = re.compile(r'banner|sun.?strip|visor_?decal|window.?decal|glass.?decal|win.?decal', re.I)
+OVERLAY_RE = re.compile(r'banner|sun.?strip|visor_?decal|(?:window|windows|glass|win|wind)[\W_]*(?:decal|sticker)|'
+                        r'(?:decal|sticker)s?[\W_]*(?:glass|window)|windowforstickers|numglass|glasstickers', re.I)
 DECAL_RE = re.compile(r'decal|sticker', re.I)
 SIDE_PLACES = {'rear': 'Rear side windows', 'door': 'Front door windows', 'both': 'Both'}
 
@@ -1854,12 +1776,17 @@ def window_meshes(car, with_overlays=False, log=None):
         label = f'{m.name} {m.mat.name}'
         inside = bool(INSIDE_RE.search(label)) or m.mat.shader.lower() == 'kswindscreen'
         painted = m.mat.samplers['txDiffuse'] in body
-        if not painted and (OVERLAY_RE.search(label) or
+        if not painted and not re.search(r'light|lens|lamp|dash', m.name, re.I) and (OVERLAY_RE.search(label) or
                             (DECAL_RE.search(label) and 'door' in label.lower() and m.pos.mean(0)[1] > y_min)):
             if tri_area3(m).sum() > 0.02:          # tiny patches (door-pin labels etc.) are not sticker sheets
                 (ov_inner if inside else ov_ext).append(m)
             continue
-        if painted or not GLASS_RE.search(label) or NOT_GLASS_RE.search(label + ' ' + m.mat.samplers['txDiffuse']): continue
+        tex = m.mat.samplers['txDiffuse']
+        named = GLASS_RE.search(label) or (see_through(m.mat) and GLASS_RE.search(tex) and
+                                           # named only by its texture: must be window-sized, at window height
+                                           tri_area3(m).sum() >= 0.05 and m.pos.mean(0)[1] > car.lo[1] + 0.5 * (car.hi[1] - car.lo[1]))
+        if painted or not named or NOT_GLASS_RE.search(label) or re.search(r'damage|crack|broken', tex, re.I) or \
+                (not GLASS_RE.search(label) and NOT_GLASS_RE.search(tex)): continue
         loose.append((m, inside))
         if see_through(m.mat) and tri_area3(m).sum() >= 0.015: strict.append((m, inside))
     use = strict if any(not i for _, i in strict) else loose
