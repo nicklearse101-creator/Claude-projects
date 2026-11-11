@@ -91,6 +91,11 @@ pick the skin and click "Update preview".
    (panes = connected pieces of glass), sized to fit inside it. Small glass textures are enlarged
    by texel size; tiled glass textures and glass shared between windows are skipped. Inside glass
    only gets the backs of stickers that landed outside.
+   **CSP stickers:** where the glass picture is shared with another window (or both sides are one mesh), the
+   window gets its own copy of the picture through the skin's `ext_config.ini` (`[SHADER_REPLACEMENT] MESHES=` the
+   pane; for a both-sides mesh first `[MESH_SPLIT]` at the centre line, original = +X = left, cut = -X). Only
+   ext_config + textures in the skin folder: no kn5 is added or changed (online checksums). Research:
+   `reports/CSP window stickers on shared glass.md`.
    Tint: the glass texels get a film colour behind what is already on the glass (see-through textures)
    or are blended towards it (opaque ones); window stickers are drawn over the tint.
 7. Headlights: front light meshes found by name and position; lens tint on their texels. Pop-up

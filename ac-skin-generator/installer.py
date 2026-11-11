@@ -7,7 +7,7 @@ from tkinter import ttk, messagebox
 APP = "Ratty's4Skin Generator"
 FOLDER = 'Rattys4SkinGenerator'
 EXE = 'Rattys4SkinGenerator.exe'
-VERSION = '1.7.0'
+VERSION = '1.7.1'
 TARGET = os.path.join(os.environ['LOCALAPPDATA'], 'Programs', FOLDER)
 UNINSTALL_KEY = r'Software\Microsoft\Windows\CurrentVersion\Uninstall\Rattys4SkinGenerator'
 

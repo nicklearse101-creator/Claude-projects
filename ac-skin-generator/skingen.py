@@ -16,7 +16,7 @@ import copy, glob, io, json, os, re, shutil, struct
 import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont, ImageColor, ImageOps
 
-from kn5 import KN5
+from kn5 import KN5, Mesh
 
 Image.MAX_IMAGE_PIXELS = None
 FONT_DIR = r"C:\Windows\Fonts"
@@ -1797,6 +1797,46 @@ def beam_config(car, lights, colour, log=print):
     return '\n'.join(lines) + '\n'
 
 
+def csp_stickers(jobs, made, layers, log=print):
+    """The CSP window stickers: for each window (or half of a mesh holding both sides) a copy of its final glass
+    picture with its own stickers, and the ext_config.ini text that gives it that picture.
+    CSP's own left/right split (common/oldschool_lights_reflections.ini): the original mesh keeps the +X side (the
+    car's left), the cut part gets -X. Two cuts give each half its own material; the stickers go on those materials
+    only, so if a cut ever did not happen nothing would change on the car."""
+    imgs, splits, reps = {}, [], {}
+    for j in jobs:
+        base = made.get(j['tex'])
+        if base is None: continue
+        tag = re.sub(r'[^a-z0-9]+', '_', f"{j['mesh']}_{j['side'] or 'own'}".lower()).strip('_')
+        name = f'r4s_{tag}.dds'
+        if name not in imgs:
+            imgs[name] = np.asarray(base.convert('RGBA')).copy()
+        arr = imgs[name]
+        tm = j['tm']
+        if arr.shape[:2] != (tm.H, tm.W): continue
+        col = arr[tm.yy, tm.xx, :3].astype(np.float32); alp = arr[tm.yy, tm.xx, 3].astype(np.float32)
+        col, alp, _, got = apply_decals(col, tm, [j['decal']], lambda m: None, alp=alp, allow_move=False, quiet=True)
+        if not got: continue
+        arr[tm.yy, tm.xx, :3] = np.clip(col, 0, 255).astype(np.uint8); arr[tm.yy, tm.xx, 3] = np.clip(alp, 0, 255).astype(np.uint8)
+        if j['side']:
+            if j['mesh'] not in [m_ for m_, _ in splits]: splits.append((j['mesh'], j['mat']))
+            reps[name] = f"MATERIALS = {j['mat']}__r4s_{j['side']}"
+        else:
+            reps[name] = f"MESHES = {j['mesh']}"
+            layers.append((tm, arr))          # a window of its own: the preview can show it
+    ini = []
+    for k, (mesh, mat) in enumerate(splits):
+        for sfx, axis in (('r', '1, 0, 0'), ('l', '-1, 0, 0')):
+            ini += [f'[MESH_SPLIT_R4S_{k}_{sfx.upper()}]', f'MESHES = {mesh}', 'MODE = PLANE', f'SPLIT_AXIS = {axis}',
+                    'SPLIT_THRESHOLD = 0', 'MODEL_SPACE = 1', f'SPLIT_POSTFIX = __r4s_{sfx}', f'SPLIT_MATERIAL_POSTFIX = __r4s_{sfx}', '']
+    for k, (name, target) in enumerate(reps.items()):
+        ini += [f'[SHADER_REPLACEMENT_R4S_{k}]', target, 'RESOURCE_0 = txDiffuse', f'RESOURCE_FILE_0 = {name}', '']
+    out = {n: Image.fromarray(a, 'RGBA') for n, a in imgs.items() if n in reps}
+    if splits: log('windows: CSP stickers on a window that shares its mesh with the other side do not show on the preview - '
+                   'check them in the game')
+    return out, '\n'.join(ini)
+
+
 def merge_ini(path, text):
     """Add/replace sections of `text` in the ini at `path` (keeps everything else)."""
     def parse(t):
@@ -2099,7 +2139,7 @@ def find_sunstrips(car, glass_pts):
     return out
 
 
-def make_window_stickers(car, design, made, copy_from=None, log=print, resolution=None, info=None):
+def make_window_stickers(car, design, made, copy_from=None, log=print, resolution=None, info=None, csp=None):
     """Window stickers. Returns {texture: image} and the preview layers [(texel map, rgba array)]."""
     seen = set()
 
@@ -2370,12 +2410,38 @@ def make_window_stickers(car, design, made, copy_from=None, log=print, resolutio
                     touched[tex] = touched.get(tex, np.zeros((H, W), bool)) | m_
                     if kind != 'strip': layers.append((tm, arr))
                 names.setdefault(tex, []).extend(m.name for m in meshes)
+    # ---- stickers the shared glass picture cannot take (the car uses it for another window too): with CSP the
+    #      window - or its half, for a mesh holding both sides - gets its own copy of the picture through the skin's
+    #      ext_config.ini. No model file is touched, so nothing changes for the online checksum.
+    by_csp = set()
+    if csp is not None and design.get('win_csp', True):
+        for i, dc in enumerate(decals):
+            if i in hit: continue
+            for m in ext:
+                tex = m.mat.samplers['txDiffuse']
+                if tex not in arrs or uv_overlap([m]) > 3.0: continue
+                H, W = arrs[tex].shape[:2]
+                side, sub = None, m
+                if dc.view in ('left', 'right'):
+                    sg = 1 if dc.view == 'left' else -1
+                    cx = m.pos[m.idx].mean(1)[:, 0]
+                    if (cx * sg > 0.05).sum() and (cx * sg < -0.05).sum():      # both sides in one mesh: split it
+                        side = 'l' if sg > 0 else 'r'
+                        sub = Mesh(name=m.name, pos=m.pos, nrm=m.nrm, uv=m.uv, idx=m.idx[cx * sg > 0], mat=m.mat, parents=m.parents)
+                tm = TexelMap([sub], W, H, log=lambda s_: None)
+                _, hm, wm = decal_size(dc, tm.texel_m)
+                if len(decal_hits(tm, dc, hm, wm)[0]) < 20: continue
+                csp.append(dict(tex=tex, mesh=m.name, mat=m.mat.name, side=side, tm=tm, decal=dc))
+                by_csp.add(i)
+        for i in sorted(by_csp):
+            wlog(f'windows: {decals[i].label}: made as a CSP sticker (the window gets its own glass picture through the '
+                 f'skin\'s ext_config.ini - needs Custom Shaders Patch)')
     out = {}
-    if not hit:
+    if not hit and not by_csp:
         log('windows: this car has no glass texture with room for stickers - window stickers skipped')
         return out, []
     for i, d in enumerate(decals):
-        if i not in hit and not any(d.label in m for m in seen):
+        if i not in hit and i not in by_csp and not any(d.label in m for m in seen):
             wlog(f'windows: {d.label}: not placed (no glass texture with room for it there)')
     for tex in changed:
         out[tex] = Image.fromarray(arrs[tex], 'RGBA')
@@ -2804,9 +2870,9 @@ def generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pri
             wheel_out[tex] = recolour_wheels(car, tex, design['tyre_colour'], log, only=car.tyre_meshes[tex] if both else None,
                                              start=wheel_out.get(tex), what='tyres')
     made = dict(tex_out); made.update(wheel_out)
-    glass_layers = []
+    glass_layers, csp_jobs = [], []
     if design.get('win_enable'):
-        win, glass_layers = make_window_stickers(car, design, made, copy_other_from, log, resolution, info)
+        win, glass_layers = make_window_stickers(car, design, made, copy_other_from, log, resolution, info, csp_jobs)
         made.update(win)
         for t in win:
             if t in tex_out: tex_out[t] = win[t]
@@ -2818,6 +2884,7 @@ def generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pri
         # the tinted textures already carry the stickers: they replace the sticker layers of the same meshes
         names = {nm for tm_, _ in tint_layers for nm in tm_.mesh_of_tri.tolist()}
         glass_layers = [l for l in glass_layers if not set(l[0].mesh_of_tri.tolist()) & names] + tint_layers
+    csp_tex, csp_ini = csp_stickers(csp_jobs, made, glass_layers, log)
     lights = find_headlights(car) if (design.get('lens_colour') or design.get('beam_colour')) else []
     if design.get('lens_colour'):
         painted = {t_: m_['stock'][2] for t_, m_ in _MEMO.get('tex', {}).items() if 'stock' in m_}
@@ -2832,6 +2899,11 @@ def generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pri
                     continue
                 if os.path.isfile(os.path.join(src, f)):
                     shutil.copyfile(os.path.join(src, f), os.path.join(out, f))
+        for name_, img_ in csp_tex.items():
+            write_dds(img_, os.path.join(out, name_), compress=design.get('compress', True))
+        if csp_ini:
+            merge_ini(os.path.join(out, 'ext_config.ini'), csp_ini)
+            log(f'wrote ext_config.ini (CSP window stickers: {", ".join(csp_tex)})')
         step(0.8, 'Writing the textures')
         for tex, img in made.items():
             name = os.path.splitext(tex)[0] + '.dds'

@@ -1,4 +1,4 @@
-RATTY'S4SKIN GENERATOR  v1.7.0
+RATTY'S4SKIN GENERATOR  v1.7.1
 Makes liveries (skins) for Assetto Corsa cars. No AI, no internet needed.
 
 WHAT YOU NEED
@@ -29,6 +29,9 @@ MAKE A SKIN (2 minutes)
    and number / name on the windows (move, resize or delete them on the preview).
    Tick "Tint the windows" for dark glass: pick the colour and how dark; the windscreen
    is only tinted if you tick that too.
+   Some cars use one glass picture for several windows. There the app adds the sticker
+   through the skin's ext_config.ini (needs Custom Shaders Patch; no car files are changed,
+   so nothing changes online). Other drivers see it if they have the skin and CSP.
 6. LIGHTS & WHEELS tab (optional): headlight lens colour, rim colour and tyre colour
    (rims and tyres are separate).
 7. Press PREVIEW. Wait for the bar to finish (up to about a minute).
