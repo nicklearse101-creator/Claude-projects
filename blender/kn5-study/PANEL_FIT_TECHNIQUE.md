@@ -107,3 +107,28 @@ it meet them afterwards.
   triangle with its normal flipped - the lamp-top wall came out dark although the geometry matched to 0.1 mm.
 - Result (rear quarter): 14 strips, each within 0.1 mm median of Kunos; joins on shared edges 0.00-0.01 mm median.
   Kunos bends the vertex normals of its returns 25-45 deg (soft look); we keep exact normals.
+
+### Chain sides, fold flanges, sanity checks (2026-11-11)
+- **Chain sides:** when no two single-neighbour runs make the long sides, the strip's ends are the two outline vertices
+  farthest apart (first from the centroid, then from that one) and the outline between them is the two sides, each a
+  chain of runs (drip rail r7: [r4 roof + r1 C-pillar] and [free gutter lip + strip r21]). ONE curve per side, fitted
+  to the built edges of every wide neighbour along it (0.02 mm per point) plus Kunos vertices where no edge reaches
+  (0.3 mm per point; `fit_graph` takes a per-point tolerance). The curve is also stored under each run's key, so a
+  neighbouring strip (r21) reuses it: exact join. Chain strips are built first.
+- **Fold flanges:** a region up to 30 mm wide and > 25 x as long counts as a strip when it is straight across (no
+  vertex inside) or has ONE fold row (inside vertices at a constant distance from a side, std < 1.5 mm): two ruled
+  strips side A -> fold curve -> side B, sharing the fold curve (C-pillar window flange r6: 7 mm step + 14 mm flange,
+  was an ordinary face at p95 5.2 mm).
+- **Sanity checks** (strip dropped, region stays an ordinary face): each side a graph over the spine within 3 mm; ruled
+  area 0.5-2 x the region's; for chains, no corner sharper than 20 deg per 20 mm (the door's U-shaped window-frame strip:
+  inner and outer rails differ in length round the corner and the rulings skew - covered 50 % instead of 94 %).
+  In FreeCAD, a side curve that misses its face-edge samples by > 1 mm is refitted from the Kunos vertices alone.
+- Results: drip rail 0.09 mm median (97 % of vertices within 1 mm); quarter area 78.3 -> 79.4 % within 1 mm, vertices
+  86.3 -> 88.2 %; door 88.4 -> 88.5 %; wing unchanged.
+
+### Flat facets are data, chords are not (2026-11-11 finding, not yet in the fitters)
+Kunos's vertex normals tell a flat facet from a chord: where a triangle's three corner normals agree (within ~4 deg)
+the facet is meant flat, so its inside is real surface; where they differ it cuts a chord across a curve. Fitting to
+vertices only, our C-pillar (r1) bulged up to 9.8 mm over the pillar's flat top facet (45 mm with no vertex across it):
+it reads as a round tube in grey, though the vertex score is fine. Samples of the flat facets (every 15 mm) as extra fit
+data: flat-facet misses p95 3.9 -> 1.2 mm. See `images/cpillar_sections_kunos_vs_ours.png` (sections z = const).

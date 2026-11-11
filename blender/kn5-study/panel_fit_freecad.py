@@ -191,6 +191,7 @@ _sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) if '__file__' in 
 _sys.path.insert(0, r'D:\Claude\Claude-\blender\kn5-study')
 import strip_build as SB
 strips = [p for p in res if p.get('strip') and not (ONLY and not any(k in p['name'] for k in ONLY.split(',')))]
+strips.sort(key=lambda p: p['strip'].get('mode') != 'chain')   # chain strips first: their curves are reused
 dbg = {}
 curves_maker = {}
 curves = {}                               # curve key -> (Part.BSplineCurve, source, fit error mm)
@@ -224,7 +225,13 @@ def side_curve(st, sd):
     if key in curves: return curves[key]
     Sp = np.array(st['spine']) * 1000; Q = np.array(sd['pts']) * 1000
     X, src = np.zeros((0, 3)), 'vertices'
-    if sd.get('nb_name') and not sd.get('nb_strip'):
+    if sd.get('chain'):
+        # a chain side (runs along several neighbours): the built edges of every wide neighbour along it, ONE curve
+        X = np.zeros((0, 3))
+        for r_ in sd['runs']:
+            if r_.get('nb_name') and not r_.get('nb_strip'):
+                X = np.r_[X, face_edge_points(r_['nb_name'], np.array(r_['pts']) * 1000)]
+    elif sd.get('nb_name') and not sd.get('nb_strip'):
         X = face_edge_points(sd['nb_name'], Q)
     s_q, _ = SB.spine_s(Sp, Q)
     if len(X) >= 20:
@@ -233,21 +240,32 @@ def side_curve(st, sd):
         if cover > 0.6:
             # the face edge where it exists; the Kunos side polyline only where the face edge does not reach
             far = np.array([np.abs(s_x - v).min() > 3.0 for v in s_q])
-            X = np.r_[X, Q[far]]; s_all = np.r_[s_x, s_q[far]]; src = f'face edge ({cover*100:.0f} %)'; tol = 0.02
+            X = np.r_[X, Q[far]]; s_all = np.r_[s_x, s_q[far]]; src = f'face edge ({cover*100:.0f} %)'
+            tol = np.r_[np.full(len(s_x), 0.02), np.full(int(far.sum()), 0.3)]
         else: X = np.zeros((0, 3))
     if src == 'vertices':
-        X, s_all, tol = Q, s_q, 0.3
-    o = np.argsort(s_all); X, s_all = X[o], s_all[o]
+        X, s_all, tol = Q, s_q, np.full(len(Q), 0.3)
+    o = np.argsort(s_all); X, s_all, tol = X[o], s_all[o], tol[o]
     dbg.setdefault('keys', []).append(key); dbg[key + '_X'] = X; dbg[key + '_s'] = s_all; dbg[key + '_Q'] = Q
     L = s_all[-1] - s_all[0]
     # face edge: dense exact samples, follow them (0.02 mm); Kunos vertices: one control per 20 mm at most (more
     # chases the chord corners of the boundary polyline)
-    nmax = int(np.clip(L / (8.0 if tol < 0.1 else 20.0), 4, 80))
-    f = SB.fit_graph(s_all, X, [s_all[0], s_all[-1]], tol=tol, nmax=nmax, mu=1e-8 if tol < 0.1 else 1e-6)
+    exact = tol.min() < 0.1
+    nmax = int(np.clip(L / (8.0 if exact else 20.0), 4, 200 if sd.get('chain') else 80))
+    f = SB.fit_graph(s_all, X, [s_all[0], s_all[-1]], tol=tol, nmax=nmax, mu=1e-8 if exact else 1e-6)
+    if exact and f['err'] > 1.0:
+        # face-edge samples that do not make one curve (a chain round a window corner picked up edges of the wrong
+        # face): the Kunos side vertices alone
+        print('   side', key, f"face edge fit {f['err']:.1f} mm -> Kunos vertices", flush=True)
+        o = np.argsort(s_q); X, s_all, src = Q[o], s_q[o], 'vertices (fallback)'; L = s_all[-1] - s_all[0]
+        f = SB.fit_graph(s_all, X, [s_all[0], s_all[-1]], tol=np.full(len(X), 0.3), nmax=int(np.clip(L / 20.0, 4, 80)), mu=1e-6)
     vals, cnt = np.unique(np.round(f['kv'], 9), return_counts=True)
     cu = Part.BSplineCurve()
     cu.buildFromPolesMultsKnots([App.Vector(*q) for q in f['C']], [int(c) for c in cnt], [float(v) for v in vals], False, 3)
     curves[key] = (cu, src, f['err']); curves_maker[key] = cur_strip[0]
+    for r_ in sd.get('runs', []):          # a neighbouring strip along the chain reuses this curve (exact join)
+        if r_.get('nb_strip'): curves[r_['key']] = curves[key]; curves_maker[r_['key']] = cur_strip[0]
+    print('   side', key, src, f"err {f['err']:.3f} mm", f"{f['n']} controls", flush=True)
     return curves[key]
 
 

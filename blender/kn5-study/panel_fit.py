@@ -1324,13 +1324,25 @@ def main():
                 if A_ < amin: continue
                 if ri in strips_:
                     st_ = strips_[ri]
-                    for sd_ in st_['sides']:
+                    for sd_ in [x for sub_ in st_.get('subs', [st_]) for x in sub_['sides']]:
                         sd_['nb_name'] = None if sd_['nb'] is None else f'{name}:r{sd_["nb"]}'
                         sd_['nb_strip'] = sd_['nb'] in strips_
                         sd_['key'] = f'{name}:' + '|'.join(sd_['key'])
-                    res.append(dict(name=f'{name}:r{ri}', strip=st_, frame=st_['frame']))
-                    print(f'{name}:r{ri}: STRIP {st_["width"]*1e3:.1f} x {st_["length"]*1e3:.0f} mm, sides ' +
-                          ', '.join(('free' if s_['nb'] is None else f'r{s_["nb"]}' + (' (strip)' if s_['nb_strip'] else '')) for s_ in st_['sides']))
+                        for r_ in sd_.get('runs', []):                 # chain side: one run per neighbour
+                            r_['nb_name'] = None if r_['nb'] is None else f'{name}:r{r_["nb"]}'
+                            r_['nb_strip'] = r_['nb'] in strips_
+                            r_['key'] = f'{name}:' + '|'.join(r_['key'])
+                    if 'subs' in st_:                                  # flange with a fold row: two strips
+                        for k_, sub_ in enumerate(st_['subs']):
+                            res.append(dict(name=f'{name}:r{ri}f{k_}', strip=sub_, frame=sub_['frame']))
+                    else:
+                        res.append(dict(name=f'{name}:r{ri}', strip=st_, frame=st_['frame']))
+                    def side_txt(s_):
+                        if s_.get('chain'):
+                            return '[' + ' + '.join('free' if r_['nb'] is None else f'r{r_["nb"]}' + (' (strip)' if r_['nb_strip'] else '') for r_ in s_['runs']) + ']'
+                        return 'free' if s_['nb'] is None else f'r{s_["nb"]}' + (' (strip)' if s_['nb_strip'] else '')
+                    print(f'{name}:r{ri}: STRIP {st_["width"]*1e3:.1f} x {st_["length"]*1e3:.0f} mm ({st_["mode"]}), sides ' +
+                          ', '.join(side_txt(s_) for s_ in st_['sides']) + (' + fold' if 'subs' in st_ else ''))
                     continue
                 parts = wrap_split(V, Fr, Nv)
                 for wi, Fw in enumerate(parts):

@@ -14,9 +14,9 @@ model now; later they will come from photos.
 
 | Panel | State | Area within 1 / 3 mm | Kunos vertices within 1 / 3 mm |
 |---|---|---|---|
-| Door (80 faces incl. glass, mirror, trims; 21 strips) | done | 88.4 % / 99.7 % | - |
+| Door (80 faces incl. glass, mirror, trims; 23 strips) | done | 88.5 % / 99.7 % | - |
 | Front wing (arch lip, sub-panels) | done, small items left | 70.5 % / 96.1 % | 92.5 % / 99.3 % |
-| Rear quarter + C-pillar (14 strips) | lamp-top step done, small items left | 78.3 % / 96.8 % | 86.3 % / 97.9 % |
+| Rear quarter + C-pillar (17 strips) | drip rail + window flange done 11 Nov; C-pillar face r1 NOT right (see Next 0) | 79.4 % / 96.9 % | 88.2 % / 98.6 % |
 | Roof, bonnet, hatch, bumpers, sills | not started | | |
 
 The **vertex** score is the honest one: Kunos uses 100-150 mm flat triangles that cut chords across curves, so the
@@ -30,7 +30,7 @@ Pictures (local, not in git): `D:\Claude\_scratch_research\kn5_study\images\` - 
 cd /d/Claude/Claude-/blender/kn5-study
 ./regress.sh all          # rebuild + score door, wing, quarter (~6 min). Run after EVERY change to the fitters.
 ```
-Reference (2026-11-10 late, with thin strips): **door 88.4 / 99.7, wing 70.5 / 96.1, quarter 78.3 / 96.8** (area within 1 / 3 mm).
+Reference (2026-11-11, chain strips + fold flanges): **door 88.5 / 99.7, wing 70.5 / 96.1, quarter 79.4 / 96.9** (area within 1 / 3 mm).
 
 One panel by hand (the quarter as an example):
 ```bash
@@ -72,6 +72,20 @@ fallback), `FH_CHORD` (hole filler ignores Kunos chord sag). `PF_WRAP` = wrap cu
 
 ## Next (in order)
 
+### 0. C-pillar face r1 (found 11 Nov, by eye) - START HERE
+Grey render (`images/quarter_v3_chain_strips_grey.png`): our C-pillar reads as a round TUBE; Kunos has a flat top
+face, a shoulder bend, then the side. Sections (`images/cpillar_sections_kunos_vs_ours.png`, made by
+`sections.py` (now in this folder)) show why:
+- r1 is fitted to vertices only and bulges up to 9.8 mm over the flat top facet (no vertex across its 45 mm).
+  Fix: flat-facet samples (corner normals within 4 deg) as fit data - tested standalone (`flat_test.py` in the same
+  tmp folder): flat misses p95 3.9 -> 1.2 mm, but vertex p95 2.36 -> 2.62, so ONE surface is not enough.
+- r1 is pillar top + shoulder + side + a broad fan at its foot (z -1.9..-2.06, the deck beside the hatch, 467 cm2):
+  normals turn ~75 deg across every station. The 45 deg wrap split runs along the pillar; a split by the normal's
+  component along the pillar's axis only cuts off a 21-tri end cap (main part still p95 2.7 mm).
+- So: research first (Nik's rule), e.g. "segmenting a smooth region of a low-poly mesh into designer surface patches
+  (flat face / blend / side) using vertex-normal cues", then build r1 as top face + shoulder blend + side + foot fan,
+  with flat facets as data in fit_panel AND fit_bands. Check by eye in grey + sections, then regress.
+
 ### 1. Thin strips - DONE 10 Nov late (`strip_build.py`, see PANEL_FIT_TECHNIQUE.md "Thin strips")
 Narrow crease faces are ruled surfaces on shared side curves; a side on a wide face is that face's own built edge.
 Lamp-top channel (r17 / r13 / r14 / r18) now matches Kunos in grey (`images/lamptop_strips_vs_kunos_grey.png`).
@@ -112,6 +126,13 @@ skin UV, baked AO, LODs, standard dummy names, two-layer glass.
 ### 7. Afterwards
 Lamps, grille, badges; interior survey; then **from photos** (Nova first: it has solved cameras and traced windows):
 trace outlines and character lines, run the same fit/trim/cut, check by eye. Parked: steward app, Nova grading.
+
+## What happened on 11 Nov (night)
+- Chain sides (drip rail r7, door SUB1 r12/r14), fold flanges (C-pillar window flange r6 as two strips), sanity checks
+  incl. the sharp-corner rule (door SUB0 r4 stays a face). Commit 7b29ae3.
+- Blender was not running: grey pictures made with `grey_render.py` (numpy z-buffer,
+  smooth shading, same ortho camera for Kunos and ours).
+- Found the C-pillar "tube" (Next 0).
 
 ## What happened on 10 Nov late (thin strips)
 - Deep research (3 threads + report) on narrow strips between panels; report in `blender/research/reports/`.
