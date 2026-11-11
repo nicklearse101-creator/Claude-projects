@@ -2,9 +2,9 @@
 
 **Start here.** BONNET in progress (research report `blender/research/reports/Bonnet surfacing.md`, 15-step build table).
 Built (11 Nov, `bonnet_build.py` + `bonnet_score.py`, `./regress.sh bonnet` 2.5 min): centre panel C, outer panels O, the G2
-step band (steps 1-7), the NOSE (steps 8-9: straight -52.5 deg front face + degree-7 G2 roll). NEXT = outline details at the
-notch corner (step 10), edge strips (step 11: chamfers, returns, walls, rear flange, nose lip), corner fills, sew + clearance,
-underside cap + nozzles (step 14).
+step band (steps 1-7), the NOSE (steps 8-9: straight -52.5 deg front face + degree-7 G2 roll), the EDGES (steps 10-12: notch
+skin gap, 13 edge strips, 12 corner fills incl. G1 rounded wall corners). NEXT = sew + clearance (step 13: also closes the
+~1-2 mm pin-holes on top of each rounded corner), underside cap + nozzles (step 14), then the hatch.
 1. Read this page (where we are, how to run, what's next).
 2. `PANEL_FIT_TECHNIQUE.md`: the method that works, with every lesson we paid for (bottom of the file).
 3. `ACHIEVEMENTS_REPORT.md`: the story so far (section 7 = the 10 Nov work on the door, wing and rear quarter).
@@ -265,6 +265,31 @@ Left (in order):
 - Lesson: cut polygons with 10 mm segments across the centre face made Mefisto mesh it 4x finer (99k tris, 4 min); 42 mm
   segments (chord sag 0.02 mm) -> 25k / 34 s. panel_fit_freecad.py now says when Mefisto fails and falls back.
 
+**Edges - DONE 11 Nov evening** (`edge_strips` in bonnet_build.py, `BN_STRIPS=0` = skin only; picture
+`images/bonnet_v3_edges_grey.png`; build 3.5 min):
+- Every Kunos edge crease region of GEO_hood_SUB1 is a ruled strip (strip_build): side chamfers r9/r10 (1.2 mm) -> side
+  returns r2/r3 (13.6 mm); nose chamfer r11 -> lip r4 (7.3 mm); notch chamfers r12/r13 (1.3 mm, CHAIN round the R 9.3
+  notch corner) -> lamp-bay walls r5/r6 + tongue walls r7/r8; rear flange r1 (15.7 mm straight wall). Skin side = the
+  skin's built edge ('hood:' prefix, 0.01-0.12 mm); strip-strip curves shared.
+- strip_build options (default off, the bonnet turns them on): `corner_free_w` (chains narrower than this skip the
+  sharp-corner check: the 1.3 mm notch chamfer turns 90 deg), `ruled_inside` (a region with inside vertices that are within
+  `SA_TOL` 0.3 mm of the rulings is a plain strip: the flange's holding rows), `vctrl_mm` per strip (Kunos-vertex rail
+  control spacing; 4 mm on the notch chamfers: their wall-side rail was 1.9 mm off round the corner, now 0.28).
+  `SB_PAR_MAX` (parallel-rulings exemption) exists but is off: merging corner patches into walls lost the corners.
+- Corner fills (new FreeCAD stage, `corner_fill` entries): the Kunos corner patch outline (1 mm) is snapped onto the
+  nearest built edge (1.5 mm); its SIDES are the snap runs. Two long runs on two strips (wall ends) -> **G1 round**: cubic
+  Hermite sections leaving each wall along its own surface (arc handle length), lofted (r14-r21: front outer corners,
+  notch corners, rear corners, nose corners - they now read rounded like Kunos's averaged normals). Otherwise a Coons
+  patch on the 4 runs (r22-r25). `makeFilledFace` ballooned 10-14 mm off - never use it here; Part.makeFilling does
+  not exist in FreeCAD 1.1.
+- Notch skin gap fixed: C's cut at the band's notch end now follows the band's slanted end edge (a wedge was uncovered).
+- `pack_build.py` bug fixed: normals were looked up by name PREFIX ('hoodnb:r1' took 'hoodnb:r10' -> zeros -> black
+  flange). Exact name first now; any earlier build with r1/r10-style names may have had zero normals on some faces.
+- Scores: skin 695 vertices median 0.13, 100 % within 1 mm; edges (526 Kunos vertices r1-r13) median 0.06, p95 0.50,
+  max 1.2 mm, 99.2 % within 1 mm (the rounds sit up to ~1.2 mm off Kunos's flat corner triangles).
+- Left: pin-holes ~1-2 mm on top of each round (round top vs chamfer ends + skin corner) -> sew step; the rounds' outline
+  is 1.8-2.8 mm off Kunos's chord outline by design (a real radius); seams.py still reads narrow strips' far edges as joins.
+
 ### 4. Rest of the body, panel by panel
 **Roof research done:** `blender/research/reports/Roof surfacing.md` (16-step build table). Key points: roof = master
 surface, one full-width face overshooting 20-40 mm, degree 5 single span vs cubic by cross-validation; fit VERTICES only
@@ -290,6 +315,9 @@ skin UV, baked AO, LODs, standard dummy names, two-layer glass.
 ### 7. Afterwards
 Lamps, grille, badges; interior survey; then **from photos** (Nova first: it has solved cameras and traced windows):
 trace outlines and character lines, run the same fit/trim/cut, check by eye. Parked: steward app, Nova grading.
+
+## What happened on 11 Nov (evening)
+- Bonnet edges: 13 edge strips, 12 corner fills (G1 rounds on wall corners), notch skin gap, pack_build normals bug.
 
 ## What happened on 11 Nov (afternoon, late)
 - Bonnet nose: straight front face + degree-7 G2 roll (shape chosen by eye, R_min 68 mm); bonnet build 2.5 min.

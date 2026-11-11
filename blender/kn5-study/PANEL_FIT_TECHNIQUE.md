@@ -191,3 +191,8 @@ not a station polyline; give the neighbour face the sweep's flat band as tangent
   by best vertex fit: the tightest fit (R 43 mm) showed a dark band, R 68 mm read like the original.
 - Cut polygons: keep segments as long as the chord sag allows (~0.02 mm). Many short segments across a big face make
   Mefisto mesh it far finer (4x triangles, 7x time).
+- Corner patches where strips end (bonnet, 11 Nov): snap the Kunos patch outline onto our built edges and read its
+  sides from WHICH neighbour each point snapped to; between two wall ends build a G1 round (Hermite sections leaving each
+  wall along its own surface) - it reads like Kunos's averaged-normal corners; Coons on the 4 runs otherwise. Never
+  makeFilledFace on a polygon outline (balloons 10+ mm).
+- Name lookups by prefix bite: 'r1' matches 'r10'. Look up exact names first (pack_build normals, 11 Nov).

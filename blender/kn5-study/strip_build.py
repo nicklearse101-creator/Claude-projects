@@ -19,6 +19,8 @@ RATIO = 10.0        # ... and length above 10 x width
 import os
 DBG = bool(os.environ.get('SB_DBG'))
 CORNER_MAX = float(os.environ.get('SB_CORNER_MAX', 20))   # chain strips: max spine turn per 20 mm (deg)
+SA_TOL = 3e-4
+PAR_MAX = float(os.environ.get('SB_PAR_MAX', 0))   # > 0: chain strips with rulings within this angle of parallel skip the corner check
 WMAX2, RATIO2 = 0.030, 25.0   # or below 30 mm, more than 25 x as long, and straight across (no vertex inside)
 
 
@@ -88,8 +90,13 @@ def spine_s(Sp, X):
     return out, dist
 
 
-def find_strips(V, F, Nv, pcs, components, boundary_loops, wmax=WMAX, ratio=RATIO, amin=3e-4):
+def find_strips(V, F, Nv, pcs, components, boundary_loops, wmax=WMAX, ratio=RATIO, amin=3e-4, corner_free_w=0.0,
+                ruled_inside=False):
     """{region index: strip dict} for the narrow regions of pcs (crease pieces of one mesh).
+    corner_free_w (m): chain strips narrower than this skip the sharp-corner check (the bonnet's 1.5 mm notch chamfer
+    turns 90 deg round an R 9.3 mm plan corner: the rulings skew by only ~width x turn). ruled_inside: a region with
+    vertices inside its outline that is not one fold is still a plain strip when every inside vertex lies within
+    0.3 mm of a ruling between its two sides (the bonnet's rear flange: a straight 15 mm wall with holding rows).
     strip dict: axis frame (c, es, et, en), s range, outward normal, and its two long sides, each with the key of
     the curve it lies on ((i, j) shared with region j, or ('free', i)), the neighbour j (or None) and the side's
     boundary polyline (metres, ordered along s, resampled every 5 mm)."""
@@ -204,7 +211,14 @@ def find_strips(V, F, Nv, pcs, components, boundary_loops, wmax=WMAX, ratio=RATI
                     out_.append(dict(key=['chain', str(ri), str(k)], nb=None, chain=True, runs=runs_, pts=resample(Q[ch]).tolist()))
             if not any(sd.get('chain') for sd in out_): return None
             return out_
-        finish = lambda sd_, md_, W_=W, At_=None: _finish_strip(V, ri, sd_, md_, W_, Ln, c, es, et, en, s, A, sig, At_)
+        finish = lambda sd_, md_, W_=W, At_=None: _finish_strip(V, ri, sd_, md_, W_, Ln, c, es, et, en, s, A, sig, At_,
+                                                                corner_free_w)
+        def straight_across(sides):
+            """max distance (m) of the inside vertices from the segment joining their nearest points on the two sides"""
+            Xi = V[[rep[w] for w in inside]]; Aq = resample(np.array(sides[0]['pts']), 0.0002); Bq = resample(np.array(sides[1]['pts']), 0.0002)
+            a_ = Aq[np.linalg.norm(Xi[:, None] - Aq[None], axis=2).argmin(1)]; b_ = Bq[np.linalg.norm(Xi[:, None] - Bq[None], axis=2).argmin(1)]
+            d_ = b_ - a_; t_ = np.clip(((Xi - a_) * d_).sum(1) / np.maximum((d_ * d_).sum(1), 1e-12), 0, 1)
+            return float(np.linalg.norm(Xi - (a_ + t_[:, None] * d_), axis=1).max())
         res_ = None
         modes = (('runs', two_run_sides), ('chain', chain_sides)) if os.environ.get('SB_CHAIN', '1') == '1' else (('runs', two_run_sides),)
         for mode, make in modes:
@@ -213,6 +227,12 @@ def find_strips(V, F, Nv, pcs, components, boundary_loops, wmax=WMAX, ratio=RATI
             if inside:
                 res_ = fold_split(sides, mode)
                 if res_ is not None: break
+                if ruled_inside and DBG: print(f'  r{ri} {mode}: not one fold; inside vertices off the rulings by {straight_across(sides) * 1e3:.2f} mm')
+                if ruled_inside and straight_across(sides) < SA_TOL:
+                    res_ = finish(sides, mode)
+                    if res_ is not None:
+                        if DBG: print(f'  r{ri} {mode}: straight across ({len(inside)} inside vertices)')
+                        break
                 continue
             r2_ = finish(sides, mode)
             if r2_ is None: continue
@@ -225,7 +245,7 @@ def find_strips(V, F, Nv, pcs, components, boundary_loops, wmax=WMAX, ratio=RATI
     return out
 
 
-def _finish_strip(V, ri, sides, mode, W, Ln, c, es, et, en, s, A, sig, A_tot=None):
+def _finish_strip(V, ri, sides, mode, W, Ln, c, es, et, en, s, A, sig, A_tot=None, corner_free_w=0.0):
     if A_tot is None: A_tot = A
     if True:
         # spine: the strip's midline from nearest-point pairs between the two sides (not equal arc fractions: one side
@@ -290,7 +310,11 @@ def _finish_strip(V, ri, sides, mode, W, Ln, c, es, et, en, s, A, sig, A_tot=Non
             if DBG: print(f'  r{ri} chain: max turn {turn_:.0f} deg per 20 mm')
             # the rulings skew by about width x turn: a 3-4 mm return may turn 30 deg per 20 mm (rear header strips at
             # the roof corners, 24 deg), a wider strip only 20 (door window-frame strip, 28 deg)
-            if turn_ > (CORNER_MAX if W > 0.005 else max(CORNER_MAX, 30.0)):
+            # rulings all parallel (a vertical wall: both rails on one plan curve) = a cylinder: it may turn any corner
+            tp_ = np.linspace(lo_, hi_, 200); Dr = eval_graph(gg_[1], tp_) - eval_graph(gg_[0], tp_); Dr /= np.maximum(np.linalg.norm(Dr, axis=1), 1e-12)[:, None]
+            dm = Dr.mean(0); dm /= np.linalg.norm(dm); par = np.degrees(np.arccos(np.clip(Dr @ dm, -1, 1))).max()
+            if DBG: print(f'  r{ri} chain: rulings within {par:.1f} deg of parallel')
+            if W >= corner_free_w and par > PAR_MAX and turn_ > (CORNER_MAX if W > 0.005 else max(CORNER_MAX, 30.0)):
                 if DBG: print(f'  r{ri} chain: sharp corner')
                 return None
         for sd in sides: sd['maker'] = ri

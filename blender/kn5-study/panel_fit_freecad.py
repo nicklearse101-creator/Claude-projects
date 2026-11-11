@@ -35,7 +35,7 @@ for _fs in [x for x in os.environ.get('PF_FOREIGN', '').split(';') if x]:
     print('foreign faces', _tag, len(json.load(open(os.path.join(_dir, 'faces.json')))), flush=True)
 for p in res:
     if ONLY and not any(k in p['name'] for k in ONLY.split(',')): continue
-    if p.get('strip'): continue           # thin strips: after every wide face (below)
+    if p.get('strip') or p.get('corner_fill'): continue   # thin strips / corner fills: after every wide face (below)
     if p.get('grid'):                     # station-profile surface (blend_build.pillar_grid): through the grid points
         tf = time.time(); G_ = np.array(p['grid'])
         srf = Part.BSplineSurface()
@@ -346,7 +346,7 @@ def side_curve(st, sd):
     # face edge: dense exact samples, follow them (0.02 mm); Kunos vertices: one control per 20 mm at most (more
     # chases the chord corners of the boundary polyline)
     exact = tol.min() < 0.1
-    nmax = int(np.clip(L / (8.0 if exact else 20.0), 4, 200 if sd.get('chain') else 80))
+    nmax = int(np.clip(L / (8.0 if exact else float(st.get('vctrl_mm', 20.0))), 4, 200 if sd.get('chain') else 80))   # vctrl_mm: tight plan corners (bonnet notch R 9.3)
     f = SB.fit_graph(s_all, X, [s_all[0], s_all[-1]], tol=tol, nmax=nmax, mu=1e-8 if exact else 1e-6)
     if exact and f['err'] > 1.0:
         # face-edge samples that do not make one curve (a chain round a window corner picked up edges of the wrong
@@ -413,6 +413,159 @@ for p in strips:
     normals[p['name']] = nn
     print(f"{p['name']:24s} STRIP area {face.Area / 1e6:.4f} m2 (Kunos {st['area']:.4f})  sides " +
           ', '.join(f'{curves[sd["key"]][1]} {curves[sd["key"]][2]:.2f} mm' for sd in st['sides']) + f'  {time.time() - tf:.1f} s', flush=True)
+# ---- corner fills: the tiny Kunos patches where strips and faces end at a corner (bonnet r14-r27, < 50 mm2) ----
+# The patch's Kunos outline (1 mm resampled) is snapped onto the nearest BUILT edge within CF_SNAP mm (so it meets its
+# neighbours, G0), points further off stay Kunos (free edges); the patch = MakeFilling through that closed polygon
+# (makeFilledFace, G0); the Kunos inside vertices are only checked. Too small for tangency to matter (research step 12).
+CF_SNAP = float(os.environ.get('PF_CF_SNAP', 1.5))
+def coons_face(X, n=14, cs=None):
+    """bilinear Coons patch on a closed polyline X (mm): sides = the runs between its 4 sharpest turns (3 turns: the
+    longest side split at its middle). G0 along every side by construction; B-spline through the 14 x 14 grid.
+    (makeFilledFace on the same outlines ballooned 10-14 mm off the Kunos patches.)"""
+    m = len(X); k = max(2, m // 16)
+    if cs is not None: return _coons(X, sorted(cs), n), 4
+    a = X[(np.arange(m) - k) % m] - X; b = X[(np.arange(m) + k) % m] - X
+    turn = 180 - np.degrees(np.arccos(np.clip((a * b).sum(1) / np.maximum(np.linalg.norm(a, axis=1) * np.linalg.norm(b, axis=1), 1e-12), -1, 1)))
+    cs = []
+    for i in np.argsort(-turn):
+        if all(min(abs(i - j), m - abs(i - j)) > max(2, m // 10) for j in cs): cs.append(int(i))
+        if len(cs) == 4: break
+    if len(cs) < 3:                                       # a 3 mm2 patch with a handful of outline points
+        cs = [int(round(i * m / 4)) % m for i in range(4)]
+    elif len(cs) < 4 or turn[cs[3]] < 30:
+        cs = sorted(cs[:3]); segs = [(cs[i], cs[(i + 1) % 3]) for i in range(3)]
+        ln = [((b_ - a_) % m) for a_, b_ in segs]; j = int(np.argmax(ln)); a_, b_ = segs[j]
+        cs = sorted(cs + [int((a_ + ln[j] // 2) % m)])
+    return _coons(X, sorted(cs), n), len(cs)
+def round_corner(X, cs, fA, fB, n=12, m=9):
+    """G1 round between two strip ends (the bonnet's vertical wall corners): sides cs[0]->cs[1] (on fA) and
+    cs[2]->cs[3] reversed (on fB) are the two walls' end edges; section i = cubic Hermite from A[i] to B[i], leaving
+    each wall along its own surface square to the end edge (pointing into the gap), handle length of a circular arc
+    through the same turn. Lofted through the n sections. Returns (face, mean turn deg) or (None, 0) if not a corner."""
+    mm = len(X)
+    def side(i0, i1, cnt):
+        idx = [(i0 + t) % mm for t in range(((i1 - i0) % mm) + 1)]; Q = X[idx]
+        d = np.r_[0, np.cumsum(np.linalg.norm(np.diff(Q, axis=0), axis=1))]; t = np.linspace(0, d[-1], cnt)
+        return np.c_[[np.interp(t, d, Q[:, c]) for c in range(3)]].T
+    A = side(cs[0], cs[1], n); B = side(cs[2], cs[3], n)[::-1]
+    def out_dir(f, P, Q):
+        """unit direction in face f at P, square to the edge direction Q (tangent), pointing away from f's interior"""
+        sf_ = f.Faces[0].Surface; u_, v_ = sf_.parameter(App.Vector(*P)); nn_ = sf_.normal(u_, v_); nn_ = np.array([nn_.x, nn_.y, nn_.z])
+        d_ = np.cross(nn_, Q); d_ /= max(np.linalg.norm(d_), 1e-12)
+        dp = f.distToShape(Part.Vertex(App.Vector(*(P + 0.5 * d_))))[0]; dm = f.distToShape(Part.Vertex(App.Vector(*(P - 0.5 * d_))))[0]
+        return d_ if dp > dm else -d_
+    G = np.zeros((n, m, 3)); ths = []
+    if np.linalg.norm(B - A, axis=1).max() < 0.5: print('    round: no gap'); return None, 0.0
+    t = np.linspace(0, 1, m)[:, None]
+    h00, h10, h01, h11 = 2 * t ** 3 - 3 * t ** 2 + 1, t ** 3 - 2 * t ** 2 + t, -2 * t ** 3 + 3 * t ** 2, t ** 3 - t ** 2
+    for i in range(n):
+        ta = A[min(i + 1, n - 1)] - A[max(i - 1, 0)]; tb = B[min(i + 1, n - 1)] - B[max(i - 1, 0)]
+        dA = out_dir(fA, A[i], ta / np.linalg.norm(ta)); dB = out_dir(fB, B[i], tb / np.linalg.norm(tb))
+        c = np.linalg.norm(B[i] - A[i]); th = np.arccos(np.clip(dA @ -dB, -1, 1)); ths.append(np.degrees(th))
+        # a wedge (the notch corner: the walls nearly meet at the bottom): sections with no room get a plain line
+        k = 3 * (4 / 3) * np.tan(th / 4) / (2 * np.sin(th / 2)) * c if th > np.radians(5) else c   # Hermite = 3 x arc handle
+        G[i] = h00 * A[i] + h10 * k * dA + h01 * B[i] + h11 * k * (-dB)
+    if np.mean(ths) < 15: print(f'    round: turn {np.mean(ths):.0f} deg'); return None, 0.0
+    keep = np.linalg.norm(B - A, axis=1) > 0.3                # a wedge's tip (walls touching): no section there
+    if keep.sum() < 4: print(f'    round: {keep.sum()} sections'); return None, 0.0
+    srf = Part.BSplineSurface()
+    try: srf.interpolate([[App.Vector(*q) for q in row] for row in G[keep]])
+    except Exception as ex_: print('    round: interpolate', ex_); return None, 0.0
+    return srf.toShape(), float(np.mean(ths))
+
+
+def _coons(X, cs, n):
+    m = len(X)
+    def side(i0, i1, cnt):
+        idx = [(i0 + t) % m for t in range(((i1 - i0) % m) + 1)]; Q = X[idx]
+        d = np.r_[0, np.cumsum(np.linalg.norm(np.diff(Q, axis=0), axis=1))]; t = np.linspace(0, d[-1], cnt)
+        return np.c_[[np.interp(t, d, Q[:, c]) for c in range(3)]].T
+    S0 = side(cs[0], cs[1], n); S1 = side(cs[1], cs[2], n); S2 = side(cs[2], cs[3], n)[::-1]; S3 = side(cs[3], cs[0], n)[::-1]
+    u = np.linspace(0, 1, n)
+    G = np.zeros((n, n, 3))
+    for i, uu in enumerate(u):
+        for j, vv in enumerate(u):
+            G[i, j] = ((1 - vv) * S0[i] + vv * S2[i] + (1 - uu) * S3[j] + uu * S1[j]
+                       - ((1 - uu) * (1 - vv) * S0[0] + uu * (1 - vv) * S0[-1] + (1 - uu) * vv * S2[0] + uu * vv * S2[-1]))
+    srf = Part.BSplineSurface(); srf.interpolate([[App.Vector(*q) for q in row] for row in G])
+    return srf.toShape()
+cfs = [p for p in res if p.get('corner_fill')]
+cfs.sort(key=lambda p: -p['corner_fill']['area'])          # big ones (wall rounds) first: the small chamfer corners snap onto them
+for p in cfs:
+    tf = time.time(); cf = p['corner_fill']
+    try:
+        L_ = np.array(cf['outline'])
+        own = {n_: sh for n_, sh in built.items() if '/' not in n_}
+        snapped, owner, nsn = [], [], 0
+        for q in L_:
+            best = (1e9, None, None)
+            for n_, sh in own.items():
+                bb = sh.BoundBox; bb.enlarge(CF_SNAP + 1)
+                if not bb.isInside(App.Vector(*q)): continue
+                for e in sh.Edges:
+                    if e.Length < 0.2: continue
+                    d_, pr_, _ = e.distToShape(Part.Vertex(App.Vector(*q)))
+                    if d_ < best[0]: best = (d_, pr_[0][0], n_)
+            if best[0] < CF_SNAP: snapped.append(best[1]); owner.append(best[2]); nsn += 1
+            else: snapped.append(App.Vector(*q)); owner.append('free')
+        runs_ = []
+        for o_ in owner:
+            if runs_ and runs_[-1][0] == o_: runs_[-1][1] += 1
+            else: runs_.append([o_, 1])
+        print('   ', p['name'], 'outline snaps:', ' '.join(f'{o_.split(":")[-1]}x{c_}' for o_, c_ in runs_), flush=True)
+        # drop near-duplicates (two outline points snapped onto one corner)
+        pts_, own_ = [snapped[0]], [owner[0]]
+        for v_, o_ in zip(snapped[1:], owner[1:]):
+            if (v_ - pts_[-1]).Length > 0.15: pts_.append(v_); own_.append(o_)
+        if (pts_[0] - pts_[-1]).Length < 0.15: pts_, own_ = pts_[:-1], own_[:-1]
+        X_ = np.array([[v_.x, v_.y, v_.z] for v_ in pts_]); m_ = len(X_)
+        # sides from the snap runs: two long runs on two different neighbours (a wall corner between two wall ends,
+        # the nose corner between the lip and the tongue wall) = two Coons sides, each the neighbour's REAL edge
+        # sampled exactly; the outline between them = the other two sides
+        st_ = next((i for i in range(m_) if own_[i] != own_[i - 1]), 0); rr_ = []
+        for k_ in range(m_):
+            i = (st_ + k_) % m_
+            if rr_ and own_[i] == rr_[-1][0]: rr_[-1][1].append(i)
+            else: rr_.append([own_[i], [i]])
+        lng = sorted([r for r in rr_ if r[0] != 'free' and len(r[1]) >= 5], key=lambda r: -len(r[1]))[:2]   # the two longest
+        cs_ = None
+        if len(lng) == 2 and lng[0][0] != lng[1][0]:
+            for o_, idx in lng:
+                mid = X_[idx[len(idx) // 2]]
+                e_ = min((e for e in own[o_].Edges if e.Length > 0.2), key=lambda e: e.distToShape(Part.Vertex(App.Vector(*mid)))[0])
+                ua = e_.Curve.parameter(App.Vector(*X_[idx[0]])); ub = e_.Curve.parameter(App.Vector(*X_[idx[-1]]))
+                for k_, uu in zip(idx, np.linspace(ua, ub, len(idx))):
+                    q_ = e_.Curve.value(uu); X_[k_] = [q_.x, q_.y, q_.z]
+            cs_ = sorted([lng[0][1][0], lng[0][1][-1], lng[1][1][0], lng[1][1][-1]])
+            if len(set(cs_)) < 4: cs_ = None
+        face = None
+        if cs_ is not None and all(o_.startswith('hoodnb:') for o_, _ in lng):
+            rA = lng[0] if cs_[0] in lng[0][1] else lng[1]; rB = lng[1] if rA is lng[0] else lng[0]
+            if not ((cs_[1] - cs_[0]) % m_ == len(rA[1]) - 1 and cs_[2] in rB[1]): print('    round: runs out of order', cs_, len(rA[1]), m_)
+            if (cs_[1] - cs_[0]) % m_ == len(rA[1]) - 1 and cs_[2] in rB[1]:          # both runs in index order
+                face, th_ = round_corner(X_, cs_, own[rA[0]], own[rB[0]])
+                if face is not None: ncorner = f'G1 round ({th_:.0f} deg)'
+        if face is None: face, ncorner = coons_face(X_, cs=cs_)
+        pts_ = [App.Vector(*q) for q in X_]
+        if cf.get('inner'): print('   ', p['name'], f"{len(cf['inner'])} Kunos inside vertices off the patch:",
+                                  ' '.join(f'{face.distToShape(Part.Vertex(App.Vector(*q)))[0]:.2f}' for q in cf['inner']), flush=True)
+        gap = max(face.distToShape(Part.Vertex(v_))[0] for v_ in pts_)
+    except Exception as ex:
+        print(p['name'], 'corner fill failed:', ex, flush=True); continue
+    shapes.append(face); built[p['name']] = face
+    m = MeshPart.meshFromShape(Shape=face, MaxLength=1.0); pts, fc = m.Topology
+    if not fc:
+        m = MeshPart.meshFromShape(Shape=face, LinearDeflection=0.01, AngularDeflection=0.1, Relative=False); pts, fc = m.Topology
+    if not fc:
+        print(p['name'], 'corner fill mesh failed', flush=True); continue
+    sf = face.Surface; nn = []
+    for q in pts:
+        u_, v_ = sf.parameter(q); n_ = sf.normal(u_, v_); nn.append([n_.x, n_.y, n_.z])
+    nn = np.array(nn); nn *= np.sign((nn @ np.array(cf['normal'])).mean() or 1.0)
+    mesh[p['name'] + '_P'] = np.array([[q.x, q.y, q.z] for q in pts]) / 1000.0; mesh[p['name'] + '_F'] = np.array(fc, int)
+    normals[p['name']] = nn
+    print(f"{p['name']:24s} CORNER area {face.Area:.1f} mm2 (Kunos {cf['area']:.1f})  outline {len(pts_)} pts, {nsn} snapped, {ncorner} sides;"
+          f" boundary off the filling {gap:.3f} mm  {time.time() - tf:.1f} s", flush=True)
 # ---- shut-line returns: a ruled strip turned in square to the skin along every FREE outer edge ----
 # (an edge no other face shares). Kunos: ~5 mm return. PF_RETURNS = depth in mm (0 = off).
 RET = float(os.environ.get('PF_RETURNS', 0))

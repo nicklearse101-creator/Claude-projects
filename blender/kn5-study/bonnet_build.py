@@ -207,7 +207,9 @@ def main():
     mir = lambda Pl: [[q[0], -q[1]] for q in Pl]
     thin = lambda Pl: Pl[np.r_[np.arange(0, len(Pl) - 1, max(1, int(len(Pl) * 5.0 / line.L))), len(Pl) - 1]]   # ~5 mm segments
     A_, B_ = thin(A_), thin(B_)
-    polyO = xz(np.r_[A_, [[700.0, A_[-1, 1]], [700.0, 600.0], Sfar]])          # O territory + band (cut from C)
+    # O territory + band (cut from C); at the notch end it follows the band's (slanted) end edge A -> B before turning
+    # out at A's z (a constant-z cut from A left a wedge between the band end and O that no face covered)
+    polyO = xz(np.r_[A_, [B_[-1]], [[B_[-1, 0], A_[-1, 1]]], [[700.0, A_[-1, 1]], [700.0, 600.0], Sfar]])
     polyC = xz(np.r_[B_, [[B_[-1, 0], 2000.0], [200.0, 2000.0], [200.0, 600.0], Sfar]])   # C territory + band (cut from O)
     res = []
     cC = [polyO, mir(polyO)]
@@ -216,6 +218,8 @@ def main():
         cC.append(cut_c)
         res.append(nose['face'](wires, cut_f)); res.append(roll)
     res.append(hf_face('hood:centre', C, wires, cC, maxlen=10.0))
+    if os.environ.get('BN_STRIPS', '1') != '0':
+        res += edge_strips(car)
     res.append(hf_face('hood:outerR', O, wires, [polyC]))
     res.append(hf_face('hood:outerL', O, [[dict(e, poles=mir(e['poles'])) for e in w] for w in wires], [mir(polyC)], mirror=True))
     for nm, P_ in (('hood:bandR', band['P']), ('hood:bandL', band['P'] * [1, -1, 1])):
@@ -300,6 +304,52 @@ def nose_roll(nose, C, Pr, wires, a=None, b=None):
     cut_c = np.c_[e(xx) - a, xx].tolist() + [[2100.0, 420.0], [2100.0, -420.0]]
     cut_f = np.c_[e(xx) - b, xx].tolist() + [[1600.0, 420.0], [1600.0, -420.0]]
     return roll, cut_c, cut_f
+
+
+def edge_strips(car):
+    """the skin's edges (research step 11), all Kunos crease regions of GEO_hood_SUB1 built as ruled strips
+    (strip_build.py): side chamfers r9/r10 (1.2 mm) -> side returns r2/r3 (13.6 mm); nose chamfer r11 (1.0 mm) -> lip
+    r4 (7.3 mm); notch chamfers r12/r13 (1.3 mm, round the R 9.3 mm notch corner: chain strips, corner check waived
+    below 2 mm wide) -> lamp-bay walls r5/r6 (14 mm) + tongue walls r7/r8 (12 mm); rear flange r1 (15.7 mm straight
+    wall with holding rows: 'straight across'). A side on the skin (crease region 0) = the skin's BUILT edge (every
+    face named 'hood:...'); a side on another strip = one curve shared by both; a free side = Kunos vertices.
+    The corner fills r14-r27 (< 50 mm2 each) are not strips: later."""
+    import strip_build as SB
+    V, F, N = PF.load_mesh(car, MESH, raw=True)
+    pcs = PF.crease_pieces(V, F, N)
+    st = SB.find_strips(V, F, N, pcs, PF.components, PF.boundary_loops, amin=1e-7, corner_free_w=0.002, ruled_inside=True)
+    name = lambda nb: None if nb is None else ('hood:' if nb == 0 else (f'hoodnb:r{nb}' if nb in st else None))
+    out = []
+    for ri in sorted(st):
+        s = st[ri]
+        for sd in s['sides']:
+            for r in [sd] + list(sd.get('runs', [])):
+                r['nb_name'] = name(r['nb']); r['nb_strip'] = r['nb'] in st
+                r['key'] = 'hoodnb:' + '|'.join(str(x) for x in r['key'])
+        if s['mode'] == 'chain' and s['width'] < 0.002:
+            s['vctrl_mm'] = 4.0                                # its Kunos-vertex rail turns round the R 9.3 mm notch corner
+        out.append(dict(name=f'hoodnb:r{ri}', strip=s, frame=s['frame']))
+        nbs = [r['nb'] for sd in s['sides'] for r in (sd.get('runs') or [sd])]
+        print(f'hoodnb:r{ri}: STRIP {s["width"] * 1e3:.1f} x {s["length"] * 1e3:.0f} mm ({s["mode"]}), neighbours {nbs}')
+    # corner fills (research step 12): every other crease region; FreeCAD snaps its outline onto the built edges
+    _, wid = PF.components(V, F); rep = {}
+    for i, w in enumerate(wid): rep.setdefault(w, i)
+    cf = []
+    for ri in range(1, len(pcs)):
+        if ri in st: continue
+        Fr = pcs[ri]; loops = PF.boundary_loops(Fr, wid)
+        if len(loops) != 1: print(f'hoodcf:r{ri}: {len(loops)} outlines - skipped'); continue
+        Q = V[[rep[w] for w in loops[0]]] * 1000; Q = np.r_[Q, Q[:1]]
+        dq = np.r_[0, np.cumsum(np.linalg.norm(np.diff(Q, axis=0), axis=1))]
+        t = np.r_[np.arange(0, dq[-1], 1.0)]
+        R = np.c_[[np.interp(t, dq, Q[:, k]) for k in range(3)]].T
+        inner = V[[rep[w] for w in sorted(set(wid[Fr.ravel()]) - set(loops[0]))]] * 1000
+        T = V[Fr] * 1000; A = np.linalg.norm(np.cross(T[:, 1] - T[:, 0], T[:, 2] - T[:, 0]), axis=1).sum() / 2
+        nrm = N[Fr].mean((0, 1)); nrm /= np.linalg.norm(nrm)
+        out.append(dict(name=f'hoodcf:r{ri}', frame=FRAME, corner_fill=dict(outline=R.tolist(), inner=inner.tolist(), area=float(A), normal=nrm.tolist())))
+        cf.append(ri)
+    print(f'edge strips: {len(st)}; corner fills: {["r%d" % r for r in cf]}')
+    return out
 
 
 def hf_face(name, f, wires, cut_polys, maxlen=6.0, mirror=False):

@@ -14,3 +14,16 @@ allm = np.ones(len(P), bool) if BB.NOSE else ~nose
 for nm, m in (('all' if BB.NOSE else 'all (no nose)', allm), ('step band rows', band), ('panels', ~nose & ~band), ('nose', nose)):
     x = dv[m]
     print(f'{nm:22s} {m.sum():4d} vertices: median {np.median(x):.3f}  p95 {np.percentile(x, 95):.3f}  max {x.max():.3f} mm  within 0.3 / 1 mm {np.mean(x < 0.3) * 100:.1f} / {np.mean(x < 1) * 100:.1f} %')
+# edge strips: Kunos vertices of each edge crease region (r1-r13) -> our build (skin + strips)
+import panel_fit as PF
+if os.environ.get('BN_STRIPS', '1') != '0':
+    Vh, Fh, Nh = PF.load_mesh(sys.argv[1], BB.MESH, raw=True); pcs = PF.crease_pieces(Vh, Fh, Nh)
+    names = {1: 'rear flange', 2: 'side return L', 3: 'side return R', 4: 'nose lip', 5: 'lamp-bay wall L', 6: 'lamp-bay wall R',
+             7: 'tongue wall L', 8: 'tongue wall R', 9: 'side chamfer L', 10: 'side chamfer R', 11: 'nose chamfer',
+             12: 'notch chamfer L', 13: 'notch chamfer R'}
+    allv = []
+    for ri, nm in names.items():
+        X = Vh[np.unique(pcs[ri])]; dd = point_to_tris(X, TB) * 1000; allv.append(dd)
+        print(f'  r{ri:<2d} {nm:16s} {len(X):3d} vertices: median {np.median(dd):.3f}  max {dd.max():.3f} mm')
+    dd = np.concatenate(allv)
+    print(f'edges (r1-r13) {len(dd):4d} vertices: median {np.median(dd):.3f}  p95 {np.percentile(dd, 95):.3f}  max {dd.max():.3f} mm  within 0.3 / 1 mm {np.mean(dd < 0.3) * 100:.1f} / {np.mean(dd < 1) * 100:.1f} %')
