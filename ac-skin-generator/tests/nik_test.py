@@ -20,6 +20,7 @@ try:
     d['logos'].append(dict(path=os.path.join(app, 'logos', 'ratty_racing_logo.jpg'), place='front_wings', tint=False))
 except Exception as e:
     print('settings not read:', e)
+d['beam_colour'] = None     # cast-light option removed from the app
 if d.get('pattern') == 'picture' and not d.get('pattern_image'): d['pattern'] = 'sweep'
 d.setdefault('logos', [])
 if not d['logos']:

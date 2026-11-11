@@ -98,6 +98,7 @@ class App(tk.Tk):
         self.cfg = self.load_cfg()
         self.vars = {}
         self.library = self.load_library()
+        self.add_starter_logos()
         self.thumbs = {}
         self.preview_img = None
         self.busy = False
@@ -115,7 +116,7 @@ class App(tk.Tk):
     def load_cfg(self):
         d = dict(skingen.DEFAULT_DESIGN)
         d.update(cars_dir='', car='', skin_name='My Skin', copy_from='', use_wheels=False, wheel_colour='#7020d2', use_tyres=False, tyre_colour='#ff8000',
-                 use_lens=False, lens_colour='#ffd21f', use_beam=False, beam_colour='#fff2c8')
+                 use_lens=False, lens_colour='#ffd21f', use_tint=False, win_tint_colour='#14181c', win_tint_pct='50', compress=True)
         try: d.update(json.load(open(SETTINGS, encoding='utf8')))
         except Exception: pass
         if not d.get('cars_dir') or not os.path.isdir(d['cars_dir']): d['cars_dir'] = find_ac_cars()
@@ -139,6 +140,30 @@ class App(tk.Tk):
         try: lib = json.load(open(LIBRARY, encoding='utf8'))
         except Exception: lib = []
         return [l for l in lib if os.path.isfile(os.path.join(LOGO_DIR, l.get('file', '')))]
+
+    def add_starter_logos(self):
+        """The logos that come with the app go into the library once. Ones the user deletes stay deleted."""
+        src = resource('starter_logos')
+        try: starters = json.load(open(os.path.join(src, 'starter.json'), encoding='utf8'))
+        except Exception: return
+        done_file = os.path.join(DATA_DIR, 'starter_logos_added.json')
+        try: done = set(json.load(open(done_file, encoding='utf8')))
+        except Exception: done = set()
+        have = {l.get('file') for l in self.library}
+        added = 0
+        for st in starters:
+            f = st.get('file')
+            if not f or f in done or not os.path.isfile(os.path.join(src, f)): continue
+            done.add(f)
+            if f in have: continue
+            try: shutil.copyfile(os.path.join(src, f), os.path.join(LOGO_DIR, f))
+            except OSError: continue
+            self.library.append(dict(file=f, name=st.get('name') or os.path.splitext(f)[0], place='', tint=False))
+            added += 1
+        if added: self.save_library()
+        try:
+            with open(done_file, 'w', encoding='utf8') as fh: json.dump(sorted(done), fh)
+        except OSError: pass
 
     def save_library(self):
         with open(LIBRARY, 'w', encoding='utf8') as f:
@@ -188,6 +213,8 @@ class App(tk.Tk):
         note('car', 'Optional: copies the other files (windows, interior…) from one of the car\'s skins.')
         row('car', '', lambda f: ttk.Checkbutton(f, text='Sharper textures (4K) - crisper writing and logos, bigger files',
                                                  variable=self.var('hires', tk.BooleanVar)))
+        row('car', '', lambda f: ttk.Checkbutton(f, text='Smaller files (compressed textures, about a quarter of the size)',
+                                                 variable=self.var('compress', tk.BooleanVar)))
 
         # --- livery
         for key, label in (('base', 'Base colour'), ('accent', 'Accent colour'), ('accent2', 'Highlight colour'),
@@ -302,14 +329,19 @@ class App(tk.Tk):
                         'you choose (8-25 cm). Number and driver name go on the rear window and the side windows '
                         'chosen here. Logos can go on the windscreen, rear window or side windows (Logos tab). '
                         'Number and name come from the "Number & names" tab.')
+        ttk.Separator(tabs['windows']).pack(fill='x', pady=6)
+        row('windows', '', lambda f: ttk.Checkbutton(f, text='Tint the windows', variable=self.var('use_tint', tk.BooleanVar)))
+        row('windows', 'Tint colour', lambda f: self.colour_button(f, 'win_tint_colour'))
+        self.vars['win_tint_pct'] = tk.StringVar(value=str(self.cfg.get('win_tint_pct') or 50))
+        row('windows', 'How dark (%)', lambda f: ttk.Spinbox(f, from_=5, to=90, increment=5, width=5, textvariable=self.vars['win_tint_pct']))
+        row('windows', '', lambda f: ttk.Checkbutton(f, text='Tint the windscreen too', variable=self.var('win_tint_windscreen', tk.BooleanVar)))
+        note('windows', 'Side and rear glass get the tint; the windscreen stays clear unless ticked. '
+                        'Stickers sit on top of the tint and keep their colours.')
 
         # --- lights & wheels
         row('lights', '', lambda f: ttk.Checkbutton(f, text='Colour the headlight lenses', variable=self.var('use_lens', tk.BooleanVar)))
         row('lights', 'Lens colour', lambda f: self.colour_button(f, 'lens_colour'))
         note('lights', 'Tints the front lamp textures, so the lens and its glow take this colour.')
-        row('lights', '', lambda f: ttk.Checkbutton(f, text='Colour the headlight beam (cast light)', variable=self.var('use_beam', tk.BooleanVar)))
-        row('lights', 'Beam colour', lambda f: self.colour_button(f, 'beam_colour'))
-        note('lights', 'Needs Custom Shaders Patch: written to the skin\'s ext_config.ini.')
         ttk.Separator(tabs['lights']).pack(fill='x', pady=6)
         row('lights', '', lambda f: ttk.Checkbutton(f, text='Recolour the wheel rims', variable=self.var('use_wheels', tk.BooleanVar)))
         row('lights', 'Rim colour', lambda f: self.colour_button(f, 'wheel_colour'))
@@ -573,7 +605,10 @@ class App(tk.Tk):
         d['wheel_colour'] = self.vars['wheel_colour'].get() if self.vars['use_wheels'].get() else None
         d['tyre_colour'] = self.vars['tyre_colour'].get() if self.vars['use_tyres'].get() else None
         d['lens_colour'] = self.vars['lens_colour'].get() if self.vars['use_lens'].get() else None
-        d['beam_colour'] = self.vars['beam_colour'].get() if self.vars['use_beam'].get() else None
+        d['win_tint'] = self.vars['win_tint_colour'].get() if self.vars['use_tint'].get() else None
+        try: d['win_tint_dark'] = min(90.0, max(5.0, float(self.vars['win_tint_pct'].get()))) / 100
+        except ValueError: d['win_tint_dark'] = 0.5
+        d['beam_colour'] = None              # cast-light colour option removed (Nik, 11 Nov): lens colour only
         for key in ('font_team', 'font_name', 'font_number'):
             d[key] = list_fonts().get(self.vars[key + '_name'].get())          # None = the default font
         d['adjust'] = copy.deepcopy(self.adjust_by_car.get(self.vars['car'].get(), {}))
@@ -849,7 +884,7 @@ def selftest(car_dir):
     tmp = tempfile.mkdtemp(prefix='selftest_', dir=work_dir(car_dir))
     lines = []
     try:
-        d = dict(skingen.DEFAULT_DESIGN); d.update(win_enable=True, lens_colour='#ffd21f', beam_colour='#fff2c8')
+        d = dict(skingen.DEFAULT_DESIGN); d.update(win_enable=True, lens_colour='#ffd21f')
         skingen.generate(car_dir, d, 'selftest', out_root=tmp, log=lines.append)
         lines.append('SELFTEST OK: ' + ', '.join(os.listdir(os.path.join(tmp, 'selftest'))))
     except Exception:

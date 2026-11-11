@@ -515,9 +515,10 @@ DEFAULT_DESIGN = dict(
     name='', team='RATTY RACING', wheel_colour=None, tyre_colour=None, lens_colour=None, beam_colour=None,
     team_places=None, name_places=None, pattern_image=None, pattern_mode='side_left', pattern_simplify='medium',
     pattern_recolour=False,
+    win_tint=None, win_tint_dark=0.5, win_tint_windscreen=False,
     win_enable=False, win_clear=True, win_banner='RATTY RACING', win_banner_colour='#111111', win_text_colour='#ffffff',
     win_number=True, win_name=True, win_banner_height=0.12, win_side_place='rear', debug_decals=False,
-    font_team=None, font_name=None, font_number=None, adjust=None,
+    font_team=None, font_name=None, font_number=None, adjust=None, compress=True,
     font=DEFAULT_FONT,
 )
 
@@ -1219,6 +1220,11 @@ def arrange_decals(decals, design, log, limits=None):
             log(f'  placement check: no room to keep {dc.label} clear of the other decals there')
         placed.append(dc)
     if decals and not moved and not stuck: log(f'placement check: {len(decals)} decals, none covers another')
+    return hand_adjust(decals, adj)
+
+
+def hand_adjust(decals, adj):
+    """The changes made on the preview (move / size / turn / flip), the same on both sides of the car."""
     for dc in decals:
         ad = adj.get(dc.key)
         if not ad: continue
@@ -1241,7 +1247,6 @@ def number_board(num, txt, base, edge, fnt):
     return im
 
 
-OFF_LIMIT = 0.9          # a surface facing another view more than this belongs to that view
 MIN_FACING = 0.03          # only surfaces facing completely away (backs of panels) are left out
 DEPTH_CELL = 0.005         # 5 mm grid for the outer-surface test
 DEBUG_COLOURS = [(255, 0, 255), (0, 255, 255), (255, 255, 0), (255, 128, 0), (0, 128, 255), (128, 255, 0),
@@ -1290,10 +1295,7 @@ def decal_hits(tm, dc, hm, wm, a_shift=0.0, inside=False, b_shift=0.0):
     a, b = ab(T.reshape(-1, 3)); a, b = a.reshape(-1, 3), b.reshape(-1, 3)
     f = TN.mean(1) @ vdir
     if inside: f = -f
-    # a surface that faces almost wholly another way (the flat top of a wing, for writing on the side) belongs
-    # to that other view: stretched onto it, a picture turns into streaks
-    off = lambda N_: np.abs(N_ - np.outer(N_ @ vdir, vdir)).max(1) < OFF_LIMIT
-    ok = (a.min(1) < wm / 2) & (a.max(1) > -wm / 2) & (b.min(1) < hm / 2) & (b.max(1) > -hm / 2) & (f > MIN_FACING) & off(TN.mean(1))
+    ok = (a.min(1) < wm / 2) & (a.max(1) > -wm / 2) & (b.min(1) < hm / 2) & (b.max(1) > -hm / 2) & (f > MIN_FACING)
     if dc.region is not None: ok &= dc.region(T.mean(1))
     thin = np.nonzero(ok & ~tm.t_good)[0]        # mouldings / strips with next to no room in the texture
     C = np.nonzero(ok & tm.t_good)[0]
@@ -1350,7 +1352,7 @@ def decal_hits(tm, dc, hm, wm, a_shift=0.0, inside=False, b_shift=0.0):
     fp = N @ vdir
     if inside: fp = -fp
     d = P @ vdir
-    keep = (np.abs(a) < wm / 2) & (np.abs(b) < hm / 2) & (fp > MIN_FACING) & (d < z_lim) & off(N)
+    keep = (np.abs(a) < wm / 2) & (np.abs(b) < hm / 2) & (fp > MIN_FACING) & (d < z_lim)
     idx, a, b, fp, d = idx[keep], a[keep], b[keep], fp[keep], d[keep]
     t = t[keep]
     keep = d > zmax[cell(a, b)] - tol(fp)
@@ -2061,7 +2063,7 @@ def find_sunstrips(car, glass_pts):
     return out
 
 
-def make_window_stickers(car, design, made, copy_from=None, log=print, resolution=None):
+def make_window_stickers(car, design, made, copy_from=None, log=print, resolution=None, info=None):
     """Window stickers. Returns {texture: image} and the preview layers [(texel map, rgba array)]."""
     seen = set()
 
@@ -2147,12 +2149,12 @@ def make_window_stickers(car, design, made, copy_from=None, log=print, resolutio
         if 'windscreen' in logos:
             lg = logo_img('windscreen')
             if lg.width / lg.height > 2.5:     # a wide picture is the banner itself: stretched across the glass
-                decals.append(Decal(lg, 'front', 0.0, -h / 2 + 0.01, h + 0.02, **full))
+                decals.append(Decal(lg, 'front', 0.0, -h / 2 + 0.01, h + 0.02, key='win:banner_front', **full))
             else:
-                decals.append(Decal(banner_image('', band, txt, fnt, fr.S / h), 'front', 0.0, -h / 2 + 0.01, h + 0.02, **full))
-                decals.append(Decal(lg, 'front', 0.0, -h / 2, h * 0.85, label='windscreen logo', **kw))
+                decals.append(Decal(banner_image('', band, txt, fnt, fr.S / h), 'front', 0.0, -h / 2 + 0.01, h + 0.02, key='win:banner_front', **full))
+                decals.append(Decal(lg, 'front', 0.0, -h / 2, h * 0.85, label='windscreen logo', key='win:logo_front', **kw))
         else:
-            decals.append(Decal(banner_image(banner_txt, band, txt, fnt_team, fr.S / h), 'front', 0.0, -h / 2 + 0.01, h + 0.02, **full))
+            decals.append(Decal(banner_image(banner_txt, band, txt, fnt_team, fr.S / h), 'front', 0.0, -h / 2 + 0.01, h + 0.02, key='win:banner_front', **full))
         log(f'windows: windscreen banner {h * 100:.0f} cm high, {fr.S:.2f} m along the top edge of the glass')
     # ---- rear window: banner along the top edge, number / name / logo where they fit below it
     if rear:
@@ -2163,7 +2165,7 @@ def make_window_stickers(car, design, made, copy_from=None, log=print, resolutio
         zmax = Pr[:, 2].max() + 0.08
         reg = lambda Q, zmax=zmax: Q[:, 2] < zmax
         decals.append(Decal(banner_image(banner_txt, band, txt, fnt_team, rf.S / hr), 'rear', 0.0, -hr / 2 + 0.01, hr + 0.02,
-                            width=rf.S * 1.02, coords=rf.ab, region=reg, label='rear window banner'))
+                            width=rf.S * 1.02, coords=rf.ab, region=reg, label='rear window banner', key='win:banner_rear'))
         img = logo_img('rear_window') if 'rear_window' in logos else block()
         if img is not None:
             mask, a0, b0 = footprint(Tr, 'rear', cell, erode=0.03)
@@ -2175,7 +2177,8 @@ def make_window_stickers(car, design, made, copy_from=None, log=print, resolutio
             fit = fit_rect(mask, img.width / img.height, int(0.6 * (np.ptp(ys) + 1)), prefer=((0.0 - a0) / cell, ys.mean())) if len(ys) else None
             if fit:
                 decals.append(Decal(img, 'rear', a0 + fit[0] * cell, b0 + fit[1] * cell, fit[2] * cell, region=reg,
-                                    mirror_ok='rear_window' in logos, label='rear window ' + ('logo' if 'rear_window' in logos else 'number and name')))
+                                    mirror_ok='rear_window' in logos, label='rear window ' + ('logo' if 'rear_window' in logos else 'number and name'),
+                                    key='win:rear'))
             else:
                 log('windows: no room on the rear window under the banner')
     # ---- side windows
@@ -2213,7 +2216,29 @@ def make_window_stickers(car, design, made, copy_from=None, log=print, resolutio
                 wlog(f'windows: no room for the {what} on the {view} {tname}'); continue
             decals.append(Decal(side_img, view, a0 + fit[0] * cell, b0 + fit[1] * cell, fit[2] * cell,
                                 region=lambda Q, sg=sg: Q[:, 0] * sg > 0.1, mirror_ok='side_windows' in logos,
-                                label=f'{what} on the {view} {tname}'))
+                                label=f'{what} on the {view} {tname}', key='win:side_' + tname.split()[0]))
+
+    # ---- hand changes from the preview (move / size / turn / delete), then where each sticker is, for the preview boxes
+    adj = design.get('adjust') or {}
+    gone = [d for d in decals if adj.get(d.key, {}).get('deleted')]
+    if gone:
+        decals = [d for d in decals if d not in gone]
+        log(f'windows: left off (deleted on the preview): {", ".join(sorted({d.label for d in gone}))}')
+    hand_adjust(decals, adj)
+    if info is not None:
+        Pg = sample_tris(np.concatenate([i['T'] for i in isl]), 0.01)
+        for dc in decals:
+            w = dc.width or dc.height * dc.img.width / dc.img.height
+            box = dict(a=float(dc.a), b=float(dc.b), h=float(dc.height), w=float(w), rot=float(dc.rot))
+            if dc.coords is not None:          # follows the glass edge: its box as the view sees it
+                ea, eb = dc.coords(Pg)
+                on = (np.abs(ea - dc.a) < w / 2) & (np.abs(eb - dc.b) < dc.height / 2)
+                if dc.region is not None: on &= dc.region(Pg)
+                if on.sum() > 3:
+                    _, fa, fb = VIEWS[dc.view]
+                    A, B = fa(Pg[on]), fb(Pg[on])
+                    box = dict(a=float(A.min() + A.max()) / 2, b=float(B.min() + B.max()) / 2, w=float(np.ptp(A)), h=float(np.ptp(B)), rot=0.0)
+            info.setdefault('decals', []).append(dict(key=dc.key, label=dc.label, view=dc.view, **box))
 
     # ---- the textures. kind: glass / inner (inside face) / overlay / overlay_in (clear sticker sheets) / strip (painted)
     groups = {}
@@ -2306,10 +2331,58 @@ def make_window_stickers(car, design, made, copy_from=None, log=print, resolutio
     return out, [l for l in layers if any(l[1] is arrs[t] for t in changed)]
 
 
+def tint_windows(car, design, made, copy_from=None, log=print):
+    """Tinted glass: a film of the tint colour behind what is on the glass (stickers stay as they are).
+    Darkness 0..0.9 = how much of the light the film stops. The windscreen is left clear unless asked.
+    Returns {texture: image} and preview layers [(texel map, rgba array)]."""
+    tint = rgb(design['win_tint'])
+    dark = float(np.clip(design.get('win_tint_dark') or 0.5, 0.05, 0.9))
+    ext, inner = window_meshes(car, log=None)
+    if not ext:
+        log('windows: no glass found on this car - tint skipped'); return {}, []
+    groups = {}
+    for m in ext + inner: groups.setdefault(m.mat.samplers.get('txDiffuse'), []).append(m)
+    mid = (car.hi[2] + car.lo[2]) / 2
+    out, layers = {}, []
+    for tex, ms in groups.items():
+        img = current_texture(car, tex, made, copy_from) if tex else None
+        if img is None: continue
+        arr = np.asarray(img.convert('RGBA')).copy()
+        H, W = arr.shape[:2]
+        tm = TexelMap(ms, W, H, log=lambda s_: None)
+        sel = np.ones(len(tm.yy), bool)
+        if not design.get('win_tint_windscreen'):
+            # the windscreen: glass facing forwards (not sideways) in the front half of the car
+            sel &= ~((np.abs(tm.N[:, 0]) < 0.5) & (tm.P[:, 2] > mid))
+        if not sel.any(): continue
+        yy, xx = tm.yy[sel], tm.xx[sel]
+        px = arr[yy, xx].astype(np.float32)
+        a = px[:, 3] / 255
+        if np.median(a) < 0.9:
+            # see-through by its texture alpha: lay the film behind (the "over" rule) - opaque stickers keep their look
+            a2 = a + (1 - a) * dark
+            px[:, :3] = (px[:, :3] * a[:, None] + tint * (a2 - a)[:, None]) / np.maximum(a2, 1e-6)[:, None]
+            px[:, 3] = a2 * 255
+        else:
+            # the material makes it see-through, not the texture: colour the glass itself
+            px[:, :3] = px[:, :3] * (1 - dark) + tint * dark
+        arr[yy, xx] = np.clip(px, 0, 255).astype(np.uint8)
+        out[tex] = Image.fromarray(arr, 'RGBA')
+        layers.append((tm, arr))
+        log(f'windows: tinted {tex} ({int(dark * 100)} % dark{", windscreen too" if design.get("win_tint_windscreen") else ", windscreen left clear"})')
+    return out, layers
+
+
 # ------------------------------------------------------------------ DDS writer
-def write_dds(img, path):
-    """Uncompressed A8R8G8B8 with a full mip chain (what AC reads without tools)."""
+def write_dds(img, path, compress=False):
+    """DDS with a full mip chain. compress: DXT1 (no see-through parts) or DXT5 (with alpha) - about a quarter
+    of the size (DXT5) or an eighth (DXT1), which AC reads like its own textures. Otherwise uncompressed A8R8G8B8."""
     img = img.convert('RGBA')
+    if compress and img.width % 4 == 0 and img.height % 4 == 0:
+        try:
+            return _write_dxt(img, path)
+        except Exception:
+            pass                                    # anything odd: the plain uncompressed file instead
     # mips: colour and alpha shrink separately. (Resizing RGBA premultiplies alpha, and car textures often
     # have alpha 0 everywhere - that turned every distance level black.)
     rgb_, a_ = img.convert('RGB'), img.getchannel('A')
@@ -2326,6 +2399,31 @@ def write_dds(img, path):
         f.write(hdr)
         for lv in levels:
             f.write(np.asarray(lv)[..., [2, 1, 0, 3]].copy().tobytes())
+
+
+def _mips(img):
+    rgb_, a_ = img.convert('RGB'), img.getchannel('A')
+    levels = []
+    while True:
+        im = rgb_.copy(); im.putalpha(a_); levels.append(im)
+        if rgb_.width == 1 and rgb_.height == 1: return levels
+        size = (max(1, rgb_.width // 2), max(1, rgb_.height // 2))
+        rgb_, a_ = rgb_.resize(size, Image.LANCZOS), a_.resize(size, Image.LANCZOS)
+
+
+def _write_dxt(img, path):
+    fmt = 'DXT1' if img.getchannel('A').getextrema()[0] == 255 else 'DXT5'
+    data = []
+    for lv in _mips(img):
+        b = io.BytesIO()
+        lv.save(b, 'DDS', pixel_format=fmt)          # Pillow's block encoder, one level at a time
+        data.append(b.getvalue()[128:])
+    hdr = struct.pack('<4sIIIIIII44x', b'DDS ', 124, 0xA1007, img.height, img.width, len(data[0]), 0, len(data))
+    hdr += struct.pack('<II4sIIIII', 32, 0x4, fmt.encode(), 0, 0, 0, 0, 0)
+    hdr += struct.pack('<IIIII', 0x401008, 0, 0, 0, 0)
+    with open(path, 'wb') as f:
+        f.write(hdr)
+        for d in data: f.write(d)
 
 
 # ------------------------------------------------------------------ preview renderer
@@ -2371,9 +2469,9 @@ def render_view(car, view, tex_imgs, tms=None, width=1000, bg=(235, 236, 240), l
             H, W = tex.shape[:2]
             u = (uv[sel, 0] * W).astype(np.int64) % W; v = (uv[sel, 1] * H).astype(np.int64) % H
             c = tex[v, u].astype(np.float32) * St[sel, None].astype(np.float32)
-            if alphas[k] is not None:                      # glass: only the stickers show
-                keep = alphas[k][v, u] > 128
-                sel, c = sel[keep], c[keep]
+            if alphas[k] is not None:                      # glass: stickers and tint show, clear glass stays grey
+                al = alphas[k][v, u].astype(np.float32)[:, None] / 255
+                c = col[tx[sel]] * (1 - al) + c * al
             col[tx[sel]] = c
     out[ys, xs] = col
     img = Image.fromarray(np.clip(out, 0, 255).astype(np.uint8))
@@ -2656,10 +2754,18 @@ def generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pri
     made = dict(tex_out); made.update(wheel_out)
     glass_layers = []
     if design.get('win_enable'):
-        win, glass_layers = make_window_stickers(car, design, made, copy_other_from, log, resolution)
+        win, glass_layers = make_window_stickers(car, design, made, copy_other_from, log, resolution, info)
         made.update(win)
         for t in win:
             if t in tex_out: tex_out[t] = win[t]
+    if design.get('win_tint'):
+        tinted, tint_layers = tint_windows(car, design, made, copy_other_from, log)
+        made.update(tinted)
+        for t in tinted:
+            if t in tex_out: tex_out[t] = tinted[t]
+        # the tinted textures already carry the stickers: they replace the sticker layers of the same meshes
+        names = {nm for tm_, _ in tint_layers for nm in tm_.mesh_of_tri.tolist()}
+        glass_layers = [l for l in glass_layers if not set(l[0].mesh_of_tri.tolist()) & names] + tint_layers
     lights = find_headlights(car) if (design.get('lens_colour') or design.get('beam_colour')) else []
     if design.get('lens_colour'):
         made.update(tint_lenses(car, lights, design['lens_colour'], made, copy_other_from, log))
@@ -2679,7 +2785,7 @@ def generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pri
             for s_ in car.skins:     # use the file-name spelling the car's own skins use
                 f_ = find_skin_file(os.path.join(car_dir, 'skins', s_), tex)
                 if f_: name = os.path.splitext(os.path.basename(f_))[0] + '.dds'; break
-            write_dds(img, os.path.join(out, name))
+            write_dds(img, os.path.join(out, name), compress=design.get('compress', True))
             log(f'wrote {name}')
         # Kunos-style paint: the colour lives in the body material's detail texture (e.g. metal_detail.dds),
         # multiplied over the diffuse. Give the new skin a plain white one so the livery shows its own colours.

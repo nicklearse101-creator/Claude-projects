@@ -20,9 +20,11 @@ def main():
     if not os.path.isfile(png):     # PNGs are not kept in git: make it from the icon
         from PIL import Image
         Image.open(ico).convert('RGBA').save(png)
-    # 1. the app
+    # 1. the app (with the starter logos, if make_starter_logos.py has been run)
+    st = os.path.join(HERE, 'starter_logos')
+    extra = ['--add-data', f'{st};starter_logos'] if os.path.isfile(os.path.join(st, 'starter.json')) else []
     pyi('--windowed', '--name', 'Rattys4SkinGenerator', '--icon', ico,
-        '--add-data', f'{ico};.', '--add-data', f'{png};.',
+        '--add-data', f'{ico};.', '--add-data', f'{png};.', *extra,
         '--exclude-module', 'matplotlib', '--exclude-module', 'scipy', '--exclude-module', 'pandas',
         os.path.join(HERE, 'rattys4skin.py'))
     app_dir = os.path.join(DIST, 'Rattys4SkinGenerator')
