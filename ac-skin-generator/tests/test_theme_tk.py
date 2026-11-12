@@ -88,3 +88,16 @@ def test_buttonbar_wraps_and_invokes(root):
     bar.invoke('Flip')
     assert hits == ['Flip']
     bar.destroy()
+
+
+def test_dialog_dark_title_and_width(root):
+    seen = {}
+
+    def check():
+        d = theme._open_dialogs[-1]
+        seen.update(dark=getattr(d, 'dark_title', None), width=d.winfo_width())
+        d.buttons['OK'].invoke()
+    root.after(400, check)
+    theme.messagebox.showerror('Ratty\'s4Skin Generator', 'Pick a car first (Car tab).', parent=root)
+    assert seen['dark'] is True                       # dark title bar set once the window is shown
+    assert seen['width'] >= 360                       # wide enough for the app's name in the title

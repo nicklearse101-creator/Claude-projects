@@ -20,7 +20,7 @@ R.messagebox.askyesno = lambda t, m, **k: (dialogs.append(('ASK', m)), True)[1]
 problems = []
 
 app = R.App()
-app.geometry('1500x950+20+20'); app.attributes('-topmost', True)
+app.geometry(os.environ.get('R4S_GEOM', '1500x950+20+20'))      # R4S_GEOM: another window size; app.attributes('-topmost', True)
 for _ in range(20): app.update(); time.sleep(0.05)
 
 
@@ -87,7 +87,9 @@ def next_car():
         if again > 1: problems.append(f'ghost from disk took {again:.1f} s')
         print('PROBLEMS:', problems or 'none', flush=True)
         for i in range(6): show_tab(i); shot(f'tab_{i}')
-        show_tab(3); shot('end_logos_tab'); app.destroy(); return
+        show_tab(3); shot('end_logos_tab')
+        app.view_var.set('left'); app.on_view(); shot('end_logos_left')
+        app.destroy(); return
     car = cars_left.pop(0)
     pick_car(car)
     print(f'== {car}: Windows etc. from = "{app.vars["copy_from"].get()}"', flush=True)

@@ -638,7 +638,7 @@ def _dialog(heading, title, message, parent=None, buttons=('OK',), warn=False):
     root = parent or tk._default_root
     win = tk.Toplevel(root)
     win.withdraw(); win.title(title); win.resizable(False, False)
-    style_toplevel(win)
+    win.configure(bg=PANEL)
     if root is not None and root.winfo_viewable(): win.transient(root)
     f = ttk.Frame(win, padding=(20, 16, 20, 14)); f.pack(fill='both', expand=True)
     ttk.Label(f, text=heading, style='Section.TLabel', foreground=ACC if warn else TEXT).pack(anchor='w')
@@ -659,7 +659,10 @@ def _dialog(heading, title, message, parent=None, buttons=('OK',), warn=False):
         x = root.winfo_rootx() + (root.winfo_width() - win.winfo_reqwidth()) // 2
         y = root.winfo_rooty() + (root.winfo_height() - win.winfo_reqheight()) // 3
         win.geometry(f'+{x}+{y}')
+    win.minsize(360, 0)
     win.deiconify()
+    win.update_idletasks()
+    win.dark_title = dark_title_bar(win)              # only takes once the window is shown
     try: win.grab_set()
     except tk.TclError: pass
     win.focus_set()
