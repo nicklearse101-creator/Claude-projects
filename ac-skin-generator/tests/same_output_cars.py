@@ -3,7 +3,7 @@
 Fingerprints: every view, the decal positions, the log text and (Create) every file written.
 Design = Nik's saved settings and logos (read only), window stickers, wheels and lens colour on.
 python tests/same_output_cars.py SRC_DIR OUT_JSON CAR [CAR ...]
-  SRC_DIR = the code to test (a copy of the old version, or this folder). Works in D:/ClaudeData/tmp/r4s_cars.
+  SRC_DIR = the code to test (a copy of the old version, or this folder). Scratch folder: OUT_JSON + '_out'.
 Compare two runs with:  python tests/same_output_cars.py --compare OLD_JSON NEW_JSON"""
 import hashlib, json, os, shutil, sys, time, warnings
 warnings.filterwarnings('ignore')
@@ -29,7 +29,7 @@ import rattys4skin
 assert os.path.abspath(skingen.__file__).startswith(os.path.abspath(src)), skingen.__file__
 
 ROOT = r'D:\SteamLibrary\steamapps\common\assettocorsa\content\cars'
-TMP = r'D:\ClaudeData\tmp\r4s_cars\out'
+TMP = os.path.abspath(out_json) + '_out'           # each run its own scratch folder (two runs at once must not clash)
 APP = os.path.join(os.environ['APPDATA'], 'Rattys4SkinGenerator')
 
 d = dict(skingen.DEFAULT_DESIGN)
@@ -69,6 +69,7 @@ for car in cars:
             for k, im in views.items(): sums[f'{step} view {k}'] = img_sum(im)
             sums[f'{step} info'] = h(json.dumps(info, sort_keys=True, default=str).encode())
             sums[f'{step} log'] = h(chr(10).join(map(str, lines)).encode())
+            open(out_json + f'.{car}.{step}.log.txt', 'w', encoding='utf-8').write(chr(10).join(map(str, lines)))
             if write:
                 for root, _, files in os.walk(out):
                     for f in files:
