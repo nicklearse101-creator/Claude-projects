@@ -19,6 +19,20 @@ def to_world(fr, s, t, h):
     return c * 1000 + s * e1 + t * e2 + h * w
 
 
+def dp_keep(X, tol):
+    """Douglas-Peucker: indices of a polyline's points needed to stay within tol of it (iterative, keeps both ends)"""
+    keep = np.zeros(len(X), bool); keep[0] = keep[-1] = True; stack = [(0, len(X) - 1)]
+    while stack:
+        i, j = stack.pop()
+        if j <= i + 1: continue
+        a, b = X[i], X[j]; ab = b - a; L = np.linalg.norm(ab)
+        P = X[i + 1:j] - a
+        d = np.linalg.norm(P, axis=1) if L < 1e-12 else np.linalg.norm(np.cross(P, ab / L), axis=1)
+        k = int(np.argmax(d))
+        if d[k] > tol: keep[i + 1 + k] = True; stack += [(i, i + 1 + k), (i + 1 + k, j)]
+    return np.nonzero(keep)[0]
+
+
 def mults(kv):
     vals, cnt = np.unique(np.round(kv, 9), return_counts=True)
     return [float(v) for v in vals], [int(c) for c in cnt]
@@ -221,6 +235,9 @@ for p in res:
                 elif cur_: runs_.append(cur_); cur_ = []
             if cur_: runs_.append(cur_)
             X_ = X_[max(runs_, key=len)]
+            # keep only the points the chord sag needs (0.02 mm): a 1 mm polyline along a 3 m edge made Mefisto mesh
+            # the hatch deck 30x too fine (155k triangles, 19 min)
+            X_ = X_[dp_keep(X_, float(os.environ.get('PF_CUT_SAG', 0.02)))]
             kk_ = np.argmin(np.linalg.norm(X_[:, None] - near[None], axis=2), axis=1); D_ = dirs[kk_]
             t0_ = (X_[0] - X_[5]) / np.linalg.norm(X_[0] - X_[5]); t1_ = (X_[-1] - X_[-6]) / np.linalg.norm(X_[-1] - X_[-6])
             X_ = np.r_[[X_[0] + 30 * t0_], X_, [X_[-1] + 30 * t1_]]; D_ = np.r_[D_[:1], D_, D_[-1:]]

@@ -72,6 +72,11 @@ def load_mesh(car_dir, name, raw=False):
         import roof_build as RB_
         own = {tuple(sorted(t)) for t in RB_.roof_owned(car_dir)}
         F = F[np.array([tuple(sorted(t)) not in own for t in F], bool)]
+    if name == 'GEO_body' and os.environ.get('PF_NOHATCH') == '1':
+        # leave out the hatch (skin + returns): hatch_build.py owns them (the quarter's old 'C-pillar' r1 was the hatch)
+        import hatch_build as HB_
+        own = {tuple(sorted(t)) for t in HB_.hatch_owned(car_dir)}
+        F = F[np.array([tuple(sorted(t)) not in own for t in F], bool)]
     clip = os.environ.get('PF_CLIP')            # 'xmin,xmax,ymin,ymax,zmin,zmax' (AC metres): one panel of a shell
     if clip:
         b = np.array([float(x) for x in clip.split(',')]).reshape(3, 2); c = V[F].mean(1)

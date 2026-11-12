@@ -45,6 +45,17 @@ if [ "$what" = roof ] || [ "$what" = all ]; then
   python pack_build.py $R/roof $R/roof/build.npz >> $R/roof.log
   echo "roof: $(python roof_score.py $C $R/roof/build.npz | head -1)"
 fi
+if [ "$what" = hatch ] || [ "$what" = all ]; then
+  # the hatch (tailgate) is part of GEO_body: hatch_build.py owns its skin + returns; built after the roof (its top
+  # edge lies on the roof's rear header strip: PF_MASTER) and before the quarter (the drip rail takes its edges)
+  unset PF_CLIP PF_NOROOF
+  [ -f $R/roof/build.npz ] && export PF_MASTER=$R/roof/build.npz
+  python hatch_build.py $C $R/hatch > $R/hatch.log 2>&1
+  PF_IN="$(cygpath -w $R/hatch)" ./fcrun.sh panel_fit_freecad.py >> $R/hatch.log 2>&1
+  python pack_build.py $R/hatch $R/hatch/build.npz >> $R/hatch.log
+  echo "hatch: $(python hatch_score.py $C $R/hatch/build.npz | head -1)"
+  unset PF_MASTER
+fi
 if [ "$what" = quarter ] || [ "$what" = all ]; then
   export PF_CLIP=0.45,1,0,1.3,-2.2,-0.5          # y up to the roof: the roof triangles are left out by PF_NOROOF
   export PF_NOROOF=1                                 # the roof build owns the roof + its strips (one owner per surface)

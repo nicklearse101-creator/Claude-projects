@@ -36,19 +36,36 @@ def _chain_near(segs, tri, p):
     return np.array(Pp), np.array(Tt, int)
 
 
+SIDE_C2 = False     # hatch_build sets it: the side curve gets a u^2 term (curvature at D) and the blend is made G2 to it
+
+
 def _side_fit(Sd, A_, nph=21, span=0.35, u0=None, pn=None):
-    """side curve off D (Sd = side points - D, Sd[0] = 0): tangent angle searched, h = c3 u^3 + c4 u^4 by least squares"""
+    """side curve off D (Sd = side points - D, Sd[0] = 0): tangent angle searched, h = c3 u^3 + c4 u^4 by least squares.
+    SIDE_C2: h = c2 u^2 + c3 u^3 + c4 u^4, c returned as (c3, c4, c2). The AE86 hatch skirt is close to an arc
+    (R ~ 320 mm) from the knee down: with zero curvature at D the quartic missed it by 0.6-1 mm rms per station, and
+    the misfit shifted from station to station (ripples along the tail)."""
     best = None
     for ph in np.linspace(-span, span, nph):
         ds = np.cos(ph) * u0 + np.sin(ph) * np.cross(pn, u0)
         ns = A_ - ((A_) @ ds) * ds; ns /= np.linalg.norm(ns)
         u = Sd[1:] @ ds; h = Sd[1:] @ ns
         if (u <= 0).any(): continue
-        Mx = np.c_[u ** 3, u ** 4]
-        c = np.linalg.lstsq(np.r_[Mx, np.diag([1e-3, 1e-2])], np.r_[h, 0, 0], rcond=None)[0]
+        if SIDE_C2:
+            Mx = np.c_[u ** 3, u ** 4, u ** 2]
+            c = np.linalg.lstsq(np.r_[Mx, np.diag([1e-3, 1e-2, 1e-4])], np.r_[h, 0, 0, 0], rcond=None)[0]
+        else:
+            Mx = np.c_[u ** 3, u ** 4]
+            c = np.linalg.lstsq(np.r_[Mx, np.diag([1e-3, 1e-2])], np.r_[h, 0, 0], rcond=None)[0]
         e2 = ((Mx @ c - h) ** 2).sum()
         if best is None or e2 < best[0]: best = (e2, ds, ns, c, u.max())
     return best
+
+
+def _w2(sf, b):
+    """offset of the blend's 4th control point that makes the quintic G2 to the side curve's curvature at D:
+    kappa_end = 4/5 w / b^2 and kappa_side = 2 c2  ->  w = 2.5 c2 b^2 along ns (zero without the u^2 term)"""
+    c = sf[3]
+    return 2.5 * c[2] * b * b * sf[2] if len(c) > 2 else 0.0 * sf[2]
 
 
 def _corner(ct, dt, D_, ds, A_):
@@ -94,7 +111,7 @@ def roll_profile(Q, top_max=None, rate_min=0.6, win=0.006, tmin=1.5, reach=6, ch
             bb = None
             for a in np.linspace(0.02, 0.6, 12) * chord:
                 for b in np.linspace(0.02, 0.6, 12) * chord:
-                    C_ = np.array([A_, A_ + a * dt, A_ + 2 * a * dt, D_ - 2 * b * ds, D_ - b * ds, D_])
+                    C_ = np.array([A_, A_ + a * dt, A_ + 2 * a * dt, D_ - 2 * b * ds + _w2(sf, b), D_ - b * ds, D_])
                     if mid:
                         B = _bez(C_, tb); e = (wts * np.array([np.linalg.norm(B - Q[i], axis=1).min() ** 2 for i in mid])).sum()
                     else: e = abs(a - b) * 1e-9
@@ -111,12 +128,12 @@ def roll_profile(Q, top_max=None, rate_min=0.6, win=0.006, tmin=1.5, reach=6, ch
     wts = np.array([1.0 if abs(tn[i - 1]) > tmin else chord_w for i in mid]); tb = np.linspace(0, 1, 200)
     for a in np.linspace(max(0.01, bb[1] / chord - 0.06), bb[1] / chord + 0.06, 13) * chord:
         for b in np.linspace(max(0.01, bb[2] / chord - 0.06), bb[2] / chord + 0.06, 13) * chord:
-            C_ = np.array([A_, A_ + a * dt, A_ + 2 * a * dt, D_ - 2 * b * ds, D_ - b * ds, D_])
+            C_ = np.array([A_, A_ + a * dt, A_ + 2 * a * dt, D_ - 2 * b * ds + _w2(sf, b), D_ - b * ds, D_])
             e = (wts * np.array([np.linalg.norm(_bez(C_, tb) - Q[i], axis=1).min() ** 2 for i in mid])).sum() if mid else abs(a - b) * 1e-9
             if e < bb[0]: bb = (e, a, b)
     E0 = _proj(Q[0], ct, dt)
     if top_max is not None and np.linalg.norm(A_ - E0) > top_max: E0 = A_ - top_max * dt   # (a constant arm put a hump over the window edge)
-    C_ = np.array([A_, A_ + bb[1] * dt, A_ + 2 * bb[1] * dt, D_ - 2 * bb[2] * ds, D_ - bb[2] * ds, D_])
+    C_ = np.array([A_, A_ + bb[1] * dt, A_ + 2 * bb[1] * dt, D_ - 2 * bb[2] * ds + _w2(sf, bb[2]), D_ - bb[2] * ds, D_])
     nside = max(len(Q) - idd - 1, 1); X_, sA, sD = _corner(ct, dt, D_, ds, A_)
     return dict(E0=E0, A=A_, D=D_.copy(), Dt=D_ + 0.01 * ds, ab=np.array([bb[1], bb[2]]) / chord, Ls=np.array([sf[4]]), c=sf[3],
                 rms_side=float(np.sqrt(sf[0] / nside)), rms_blend=float(np.sqrt(bb[0] / max(len(mid), 1))),
@@ -137,24 +154,38 @@ def build_profile(E0, A_, D_, Dt, ab, Ls, c, nu=(6, 14, 12)):
     dt = A_ - E0; dt /= np.linalg.norm(dt); ds = Dt - D_; ds /= np.linalg.norm(ds)
     ns = (A_ - D_) - ((A_ - D_) @ ds) * ds; ns /= np.linalg.norm(ns)
     ch = np.linalg.norm(D_ - A_); a, b = ab * ch
-    C_ = np.array([A_, A_ + a * dt, A_ + 2 * a * dt, D_ - 2 * b * ds, D_ - b * ds, D_])
+    c2 = c[2] if len(c) > 2 else 0.0
+    C_ = np.array([A_, A_ + a * dt, A_ + 2 * a * dt, D_ - 2 * b * ds + 2.5 * c2 * b * b * ns, D_ - b * ds, D_])
     u = np.linspace(0, Ls, nu[2])
-    side = D_ + u[:, None] * ds + (c[0] * u ** 3 + c[1] * u ** 4)[:, None] * ns
+    side = D_ + u[:, None] * ds + (c[0] * u ** 3 + c[1] * u ** 4 + c2 * u ** 2)[:, None] * ns
     return np.r_[np.linspace(0, 1, nu[0], endpoint=False)[:, None] * (A_ - E0) + E0,
                  _bez(C_, np.linspace(0, 1, nu[1], endpoint=False)), side]
 
 
-def sweep_grid(V, Fr, Nv, s_lim=(-0.645, 0.135), step_p=0.025, step_f=0.015, x_stop=0.46, Rd=0.2, ramp=4, verbose=True):
+def sweep_grid(V, Fr, Nv, s_lim=(-0.645, 0.135), step_p=0.025, step_f=0.015, x_stop=0.46, Rd=0.2, ramp=4, verbose=True, Fm=None, edge_cos=None):
     """Returns dict(grid (ns, nu, 3) metres, E0 row, arc, deck normal nd, st = [(plane origin, normal, profile)],
-    nfoot, axis, centre, s = pillar range)."""
+    nfoot, axis, centre, s = pillar range, raw = unsmoothed rows).
+    Fm: triangles the FOOT stations are cut from (default Fr). The hatch build passes the whole hatch skin (both halves)
+    with x_stop 0, so the march runs on round the corner and across the tail to the centreline, while the pillar
+    stations still come from Fr alone (the proven pillar piece: same axis, same stations).
+    edge_cos: foot sections keep only the points on edges crossing the plane steeply (|cos(edge, plane normal)| >=
+    edge_cos) plus the section's two ends. Kunos's tail is rows of vertices joined by diagonals: a plane between two
+    rows cuts the diagonals at CHORD points (~1 mm inside a curved skirt), so the profile wobbled with the row spacing
+    (ripples in grey); the edges running across the plane join two rows at the same profile position = surface points."""
     sp = split_shoulder(V, Fr, Nv, step=0.005)
     ps = [x['s'] for x in sp['stations'] if x['pillar']]
     s0, s1 = max(min(ps), s_lim[0]), min(max(ps), s_lim[1])
-    T = V[Fr]; cen = T.mean(1); es, c0 = sp['axis'], sp['centre']
-    nt = np.cross(T[:, 1] - T[:, 0], T[:, 2] - T[:, 0]); nt /= np.maximum(np.linalg.norm(nt, axis=1), 1e-12)[:, None]
-    nt *= np.sign((nt * Nv[Fr].mean(1)).sum(1))[:, None]
+    T0 = V[Fr]; cen0 = T0.mean(1); es, c0 = sp['axis'], sp['centre']
+    nt0 = np.cross(T0[:, 1] - T0[:, 0], T0[:, 2] - T0[:, 0]); nt0 /= np.maximum(np.linalg.norm(nt0, axis=1), 1e-12)[:, None]
+    nt0 *= np.sign((nt0 * Nv[Fr].mean(1)).sum(1))[:, None]
 
-    def section(o, nrm, rd):
+    Fm = Fr if Fm is None else Fm
+    Tm = V[Fm]; cenm = Tm.mean(1)
+    ntm = np.cross(Tm[:, 1] - Tm[:, 0], Tm[:, 2] - Tm[:, 0]); ntm /= np.maximum(np.linalg.norm(ntm, axis=1), 1e-12)[:, None]
+    ntm *= np.sign((ntm * Nv[Fm].mean(1)).sum(1))[:, None]
+
+    def section(o, nrm, rd, foot=False):
+        T, cen, nt = (Tm, cenm, ntm) if foot else (T0, cen0, nt0)
         m = np.linalg.norm(cen - o, axis=1) < rd
         if m.sum() < 3: return None
         segs, tri = _section(T[m], o, nrm)
@@ -162,6 +193,16 @@ def sweep_grid(V, Fr, Nv, s_lim=(-0.645, 0.135), step_p=0.025, step_f=0.015, x_s
         Q, tr = _chain_near(segs, tri, o); idx = np.nonzero(m)[0][tr]
         if nt[idx[0]] @ UP < nt[idx[-1]] @ UP: Q = Q[::-1]
         ok = np.r_[True, np.linalg.norm(np.diff(Q, axis=0), axis=1) > 1e-6]; Q = Q[ok]
+        if foot and edge_cos is not None and len(Q) > 6:
+            Tc = T[m]; dd_ = (Tc - o) @ nrm; cs = {}
+            for t_, e_ in zip(Tc, dd_):
+                for i, j in ((0, 1), (1, 2), (2, 0)):
+                    if e_[i] * e_[j] < 0:
+                        q_ = t_[i] + e_[i] / (e_[i] - e_[j]) * (t_[j] - t_[i]); ev = t_[j] - t_[i]
+                        cs[tuple(np.round(q_ / 1e-6).astype(np.int64))] = abs(ev @ nrm) / np.linalg.norm(ev)
+            c_ = np.array([cs.get(tuple(np.round(q_ / 1e-6).astype(np.int64)), 1.0) for q_ in Q])
+            keep = c_ >= edge_cos; keep[0] = keep[-1] = True
+            if keep.sum() >= 6: Q = Q[keep]
         return Q if len(Q) >= 5 else None
 
     st = []
@@ -180,12 +221,12 @@ def sweep_grid(V, Fr, Nv, s_lim=(-0.645, 0.135), step_p=0.025, step_f=0.015, x_s
 
     M = st[-1][2]['X']; t = es.copy(); nfoot = 0
     for k in range(150):                      # march on the virtual corner X (stable whatever the blend split)
-        p = M + step_f * t; Q = section(p, t, Rd)
+        p = M + step_f * t; Q = section(p, t, Rd, foot=True)
         pr = roll_profile(Q, top_max) if Q is not None else None
         if pr is None: break
         tn_ = pr['X'] - M; tn_ /= np.linalg.norm(tn_)
         t2 = proj_t(0.6 * t + 0.4 * tn_, k)
-        p2 = M + step_f * t2; Q2 = section(p2, t2, Rd)
+        p2 = M + step_f * t2; Q2 = section(p2, t2, Rd, foot=True)
         pr2 = roll_profile(Q2, top_max) if Q2 is not None else None
         if pr2 is None or np.linalg.norm(pr2['X'] - M) < 0.006: break
         t = t2; M = pr2['X']; st.append((p2, t2, pr2)); nfoot += 1
@@ -229,4 +270,4 @@ def sweep_grid(V, Fr, Nv, s_lim=(-0.645, 0.135), step_p=0.025, step_f=0.015, x_s
         print(f'sweep_grid: {npil} pillar + {nfoot} foot stations, spine {arc[-1]*1e3:.0f} mm, top arm max {top_max*1e3:.0f} mm; '
               f'smoothing (mm) E0 {e0*1e3:.2f} A {ea*1e3:.2f} D {ed*1e3:.2f}; raw rms side p95 {np.percentile(rs, 95):.2f}, '
               f'blend p95 {np.percentile(rb, 95):.2f}', flush=True)
-    return dict(grid=G, E0=E0, arc=arc, nd=nd, st=st, npil=npil, nfoot=nfoot, axis=es, centre=c0, s=(s0, s1), top_max=top_max)
+    return dict(grid=G, E0=E0, arc=arc, nd=nd, st=st, npil=npil, nfoot=nfoot, axis=es, centre=c0, s=(s0, s1), top_max=top_max, raw=Gr)
