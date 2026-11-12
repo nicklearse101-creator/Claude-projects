@@ -2573,10 +2573,11 @@ def view_frame(car, view):
     return float(a0 - pad), float(a1 + pad), float(b0 - pad), float(b1 + pad)
 
 
-def render_view(car, view, tex_imgs, tms=None, width=1000, bg=(235, 236, 240), layers=()):
+def render_view(car, view, tex_imgs, tms=None, width=1000, bg=(235, 236, 240), layers=(), alpha=False):
     """The car from one side, drawn from its real triangles the way the game maps the textures onto
     them: far triangles first, near ones over them. Meshes on a texture in tex_imgs show that texture,
-    window stickers (layers: [(texel map, rgba array)]) show on the glass, everything else is grey."""
+    window stickers (layers: [(texel map, rgba array)]) show on the glass, everything else is grey.
+    alpha=True: RGBA, the same RGB plus the car's coverage as alpha (for a cut-out on any background)."""
     vdir, fa, fb = VIEWS[view]
     ss = 2 if width <= 1700 else 1                         # drawn double size and scaled down: smooth edges
     a0, a1, b0, b1 = view_frame(car, view)
@@ -2612,7 +2613,17 @@ def render_view(car, view, tex_imgs, tms=None, width=1000, bg=(235, 236, 240), l
     out[ys, xs] = col
     img = Image.fromarray(np.clip(out, 0, 255).astype(np.uint8))
     if ss > 1: img = img.resize((width, Hp // ss), Image.LANCZOS)
+    if alpha:          # coverage scaled down on its own: the RGB stays exactly as without alpha
+        cov = np.zeros((Hp, Wp), np.uint8); cov[ys, xs] = 255
+        a = Image.fromarray(cov)
+        if ss > 1: a = a.resize(img.size, Image.LANCZOS)
+        img = Image.merge('RGBA', (*img.split(), a))
     return img
+
+
+def ghost_view(car, width=1200):
+    """The car from the front, untextured (no badges), on black with its coverage as alpha: the app's ghost."""
+    return render_view(car, 'front', {}, width=width, bg=(0, 0, 0), alpha=True)
 
 
 def _view_geometry(car, view, width, tex_id, layer_of, n_tex, vdir, fa, fb, ss, a0, a1, b0, b1, light):
@@ -2682,9 +2693,9 @@ def _view_geometry(car, view, width, tex_id, layer_of, n_tex, vdir, fa, fb, ss, 
     return Hp, Wp, ys.astype(np.int32), xs.astype(np.int32), Gt, tx, uv, TI[tt].astype(np.int16), S[tt].astype(np.float16)
 
 
-def preview_views(car, tex_imgs, tms, width=1600, layers=()):
-    v = {k: render_view(car, k, tex_imgs, tms, width, layers=layers) for k in ('left', 'right', 'front', 'rear')}
-    v['top'] = render_view(car, 'top', tex_imgs, tms, width, layers=layers).rotate(90, expand=True)
+def preview_views(car, tex_imgs, tms, width=1600, layers=(), alpha=False):
+    v = {k: render_view(car, k, tex_imgs, tms, width, layers=layers, alpha=alpha) for k in ('left', 'right', 'front', 'rear')}
+    v['top'] = render_view(car, 'top', tex_imgs, tms, width, layers=layers, alpha=alpha).rotate(90, expand=True)
     return v
 
 
@@ -2957,7 +2968,7 @@ def generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pri
     step(0.9, 'Drawing the preview')
     global LAST_LAYERS
     LAST_LAYERS = glass_layers                      # for tests that draw their own views
-    if views is not None: views.update(preview_views(car, tex_out, tms, layers=glass_layers))
+    if views is not None: views.update(preview_views(car, tex_out, tms, layers=glass_layers, alpha=True))
     sheet = preview_sheet(car, tex_out, tms, layers=glass_layers) if (views is None or preview_path or write) else None
     if info is not None: info['frames'] = {v: view_frame(car, v) for v in ('left', 'right', 'front', 'rear', 'top')}
     step(1.0, 'Done')

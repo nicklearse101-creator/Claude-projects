@@ -754,7 +754,8 @@ class App(tk.Tk):
 
     @staticmethod
     def compose(v):
-        L, R, F, B, T = v['left'], v['right'], v['front'], v['rear'], v['top']
+        # views come with alpha (for the preview's cut-out); the saved sheet is made from their RGB, as before
+        L, R, F, B, T = (v[k].convert('RGB') for k in ('left', 'right', 'front', 'rear', 'top'))
         w = L.width
         fh = int(F.height * (w / 2) / F.width)
         F2, B2 = F.resize((w // 2, fh), Image.LANCZOS), B.resize((w // 2, fh), Image.LANCZOS)

@@ -1,11 +1,20 @@
-# Next session: Blender Work / AE86 replica (handover, 2026-11-11 midday)
+# Next session: Blender Work / AE86 replica (handover, 2026-11-12 morning)
 
-**Start here.** BONNET in progress (research report `blender/research/reports/Bonnet surfacing.md`, 15-step build table).
-Built (11 Nov, `bonnet_build.py` + `bonnet_score.py`, `./regress.sh bonnet` 2.5 min): centre panel C, outer panels O, the G2
-step band (steps 1-7), the NOSE (steps 8-9: straight -52.5 deg front face + degree-7 G2 roll), the EDGES (steps 10-12: notch
-skin gap, 13 edge strips, 12 corner fills incl. G1 rounded wall corners), watertight check + clearance (step 13) and the
-underside cap + washer nozzles (step 14): the bonnet is COMPLETE (`build_full.npz`). NEXT = the HATCH (+ hatch surround),
-then bumpers, sills.
+**Start here.** HATCH in progress (report `blender/research/reports/Hatch surfacing.md`). The hatch is NOT a separate Kunos
+mesh: it is GEO_body crease piece 2 + returns (pieces 4, 14, 22, 116/117), and the quarter's old "C-pillar" sweep (r1p,
+r1x00, r1d0) WAS its side band. Built 12 Nov (`hatch_build.py` + `hatch_score.py`, `./regress.sh hatch` ~4 min): ONE U-shaped
+sweep (side bands + tail roll, left half marched to the centreline and mirrored, symmetric to 0.0004 mm) + header + deck.
+Skin vertices median 0.15 mm, 94 % within 1 mm; pillars 100 % within 1 mm. NEXT (in order):
+- **Lower corners** (the weak spot): Kunos wraps them in a FAN of straight vertex rows 15-20 deg apart; sections between
+  rows see only chord points (up to ~4 mm sag), so the corner creases. Build the corner stations THROUGH the Kunos rows
+  (find the rows from the bottom-edge vertices up to the knee) or a dedicated corner patch; the outline's small corner tab
+  (x +-673, z -1964, up to 12 mm miss) needs its own small patch (with the corner bits 116/117).
+- Header / pillar-top join: plane cut + fitted header; looks clean in v3 grey, header max 1.1 mm.
+- Returns: ring (piece 4, 20 mm, closed: cut at x = 0), glass-bottom wall (14), bottom return (22) with strip_build on the
+  built edges; then watertight check, clearance.
+- Quarter: rebuild with `PF_NOHATCH=1` (spec without `pillar1`, `rall!0`), its drip rail's hatch-side rail from the
+  hatch's faces (`PF_FOREIGN`); regress order roof -> hatch -> quarter (regress.sh already builds the hatch before the
+  quarter, but the quarter step does NOT use PF_NOHATCH yet: both builds still make the left side band).
 1. Read this page (where we are, how to run, what's next).
 2. `PANEL_FIT_TECHNIQUE.md`: the method that works, with every lesson we paid for (bottom of the file).
 3. `ACHIEVEMENTS_REPORT.md`: the story so far (section 7 = the 10 Nov work on the door, wing and rear quarter).
@@ -24,7 +33,8 @@ model now; later they will come from photos.
 | Rear quarter + C-pillar (17 strips) | done 11 Nov: pillar + foot = one swept surface (sweep_build.py); small join items left (Next 0) | 85.9 % / 99.3 % | 90.1 % / 98.2 % |
 | Roof (crown + rear band + 2 side bands + rear roll) + 7 neighbour strips | 11 Nov (roof_build.py): fair crown, G2 rear roll, strips on its built edges | 65.0 % / 100.0 % | 72.4 % within 0.3 mm, 97.0 % within 1 mm (median 0.13, max 1.2); strips median 0.07-0.27 mm |
 | Bonnet (skin, nose, 13 edge strips, corner rounds, underside, nozzles) | done 11 Nov | | skin 100 % within 1 mm, edges 99.2 % |
-| Hatch, bumpers, sills | not started | | |
+| Hatch (U sweep + header + deck) | skin built 12 Nov (hatch_build.py); lower corners, returns, quarter switch left | | skin median 0.15 mm, 94.4 % within 1 mm (pillars 100 %, tail 90.5 %: corners) |
+| Bumpers, sills | not started | | |
 
 The **vertex** score is the honest one: Kunos uses 100-150 mm flat triangles that cut chords across curves, so the
 area score marks a correct smooth surface as "off" between vertices.
@@ -335,6 +345,22 @@ skin UV, baked AO, LODs, standard dummy names, two-layer glass.
 ### 7. Afterwards
 Lamps, grille, badges; interior survey; then **from photos** (Nova first: it has solved cameras and traced windows):
 trace outlines and character lines, run the same fit/trim/cut, check by eye. Parked: steward app, Nova grading.
+
+## What happened on 12 Nov (morning)
+- Hatch measured: part of GEO_body (piece 2, 1270 tris), exactly symmetric; the quarter's 'C-pillar' was its side band.
+- `hatch_build.py`: U sweep = sweep_build's pillar stations (unchanged) + the foot march run on to x = 0 over the whole
+  skin (`Fm`), then: pass 2 re-cut square to a smooth spine (the march's own planes swung +-0.3 rad round the corner);
+  rows anchored at the 15 deg turn point (the old anchor / blend ends jittered 2-24 mm); top arm 25 mm (deck is its own
+  face); rows end ON a fair outer-edge curve (scalloped skirt edge before); one symmetric smoothing spline along the spine
+  (30 mm knots); mirrored; FreeCAD `approximate` deg 5 (dev 0.001 mm) with a STRUCTURED mesh from the grid's (u, v)
+  (5 min of srf.parameter() normals -> 20 s).
+- `sweep_build`: `SIDE_C2` = skirt curve with curvature at D (u^2 term) and the quintic blend made G2 to it
+  (w = 2.5 c2 b^2 on the 4th control point): side rms 0.6-0.8 -> 0.15-0.45 mm. `edge_cos` (steep-edge filter) kept as an
+  option, off: it starved the corner sections.
+- `panel_fit_freecad`: deck cut polygon thinned by Douglas-Peucker (0.02 mm): 155k triangles / 19 min -> 10-40k / 10-80 s.
+- Tried and dropped: vertex refinement of the grid (offset field on Kunos vertices, `HT_REFINE=1`): vertices median 0.10
+  but ridges along the knee and pillars in grey (index-space bicubic vs the real surface, field too free).
+- Pictures (local): `D:/ClaudeData/tmp/hatch/hatch_v3_grey.png`, `v3_botcorner.png`, `wire_corner_b.png` (Kunos fan).
 
 ## What happened on 11 Nov (night)
 - Bonnet complete: mesh watertight check (C flap over O fixed, 8 pin-holes filled), clearance = Kunos, underside cap, nozzles.

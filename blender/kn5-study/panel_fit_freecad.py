@@ -61,7 +61,30 @@ for p in res:
             face = srf.toShape()
             dev = max(face.distToShape(Part.Vertex(App.Vector(*q)))[0] for q in G_.reshape(-1, 3)[::7])
         shapes.append(face); built[p['name']] = face
-        m = MeshPart.meshFromShape(Shape=face, MaxLength=float(os.environ.get('PF_MAXLEN', 6)))
+        ml_ = float(os.environ.get('PF_MAXLEN') or p.get('maxlen') or 6)
+        if p.get('structured'):
+            # mesh straight from the grid's own (u, v): rows of quads along the sweep, exact normals by srf.normal
+            # (no srf.parameter() projection per point: the hatch U took 5 min that way)
+            u0_, u1_, v0_, v1_ = srf.bounds()
+            Lu_ = max(float(np.linalg.norm(np.diff(G_[:, j], axis=0), axis=1).sum()) for j in (0, G_.shape[1] // 2, -1))
+            Lv_ = max(float(np.linalg.norm(np.diff(G_[i], axis=0), axis=1).sum()) for i in range(0, len(G_), max(1, len(G_) // 20)))
+            nu_ = max(2, int(np.ceil(Lu_ / ml_)) + 1); nv_ = max(2, int(np.ceil(Lv_ / (ml_ * 0.5))) + 1)   # finer across (tight knee)
+            us_, vs_ = np.linspace(u0_, u1_, nu_), np.linspace(v0_, v1_, nv_)
+            pts_, nn = [], []
+            for u_ in us_:
+                for v_ in vs_:
+                    q = srf.value(u_, v_); n_ = srf.normal(u_, v_); pts_.append([q.x, q.y, q.z]); nn.append([n_.x, n_.y, n_.z])
+            idx_ = np.arange(nu_ * nv_).reshape(nu_, nv_)
+            a_, b_, c_, d_ = idx_[:-1, :-1].ravel(), idx_[1:, :-1].ravel(), idx_[1:, 1:].ravel(), idx_[:-1, 1:].ravel()
+            fc = np.r_[np.c_[a_, b_, c_], np.c_[a_, c_, d_]]
+            Pm_ = np.array(pts_); nn = np.array(nn); nn *= np.sign((nn @ np.array(p['frame'][3])).mean() or 1.0)
+            tn_ = np.cross(Pm_[fc[:, 1]] - Pm_[fc[:, 0]], Pm_[fc[:, 2]] - Pm_[fc[:, 0]])     # winding agrees with the normals
+            flip_ = (tn_ * nn[fc].mean(1)).sum(1) < 0; fc[flip_] = fc[flip_][:, [0, 2, 1]]
+            mesh[p['name'] + '_P'] = Pm_ / 1000.0; mesh[p['name'] + '_F'] = np.array(fc, int)
+            normals[p['name']] = nn
+            print(f"{p['name']:24s} GRID area {face.Area / 1e6:.3f} m2  poles {srf.NbUPoles}x{srf.NbVPoles} deg {srf.UDegree}x{srf.VDegree}  grid dev {dev:.3f} mm  structured mesh {nu_}x{nv_} ({len(fc)} tris)  {time.time() - tf:.1f} s", flush=True)
+            continue
+        m = MeshPart.meshFromShape(Shape=face, MaxLength=ml_)
         pts, fc = m.Topology
         nn = []
         for q in pts:

@@ -200,3 +200,20 @@ not a station polyline; give the neighbour face the sweep's flat band as tangent
   other face. It found a hidden flap (one face lying over another = two owners) that no score showed.
 - Small parts (nozzles): measure the original per section (width, height per station) before modelling; a guessed taper
   was backwards and 2.5 mm too tall.
+
+### Hatch: one U sweep across a symmetric panel (2026-11-12, `hatch_build.py`)
+- A Kunos "panel" may not be a mesh of its own: find it as a crease piece and check what other builds already make
+  (the quarter's C-pillar sweep was the hatch's side band, cut by a clip box on a triangle zig-zag). One owner per surface.
+- Symmetric half-model: march the left half to the centreline, mirror the rows, fit ONE smoothing spline to both halves
+  (symmetric data + uniform knots = symmetric result) and resample evenly across x = 0: no seam, nothing to stitch.
+- Grid rows must sample STABLE features or the columns slide along the surface and the spine smoothing cuts corners:
+  anchor at a fixed turn angle (15 deg from the top line), not at fitted blend ends or a virtual corner; end every row
+  on one fair edge curve fitted to the Kunos boundary; keep a fixed arm only where the data reaches.
+- A side curve that starts with zero curvature cannot follow a near-arc skirt (0.7 mm rms, parameters jitter = ripples):
+  give it a u^2 term and keep the blend G2 to it (4th control point offset w = 2.5 c2 b^2 along the side normal).
+- March planes steered on jittery points swing: re-cut the stations square to a smooth spine fitted through the march.
+- Kunos wraps a corner in a fan of straight rows joined by flat facets: between rows a section sees chords only (up to
+  ~4 mm sag). Build corner stations through the rows, not between them (open item).
+- Mesh a grid face from its own (u, v) (structured, srf.normal): srf.parameter() per mesh point took minutes.
+- Cut polygons along a built edge: Douglas-Peucker to the chord sag (0.02 mm); a 1 mm polyline made Mefisto mesh 30x finer.
+

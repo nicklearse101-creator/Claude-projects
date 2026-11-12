@@ -55,7 +55,89 @@ def hatch_owned(car):
     return np.vstack(list(pieces(car)[3].values()))
 
 
-def steady_rows(g, verbose=True, n_top=10, n_near=12, near=0.030, n_far=10, ramp=4, phi0=15.0):
+def outer_edge(car, step=0.005, corner_deg=35.0, tol=3e-4):
+    """the hatch skin's OUTER boundary (Kunos), as a fair dense 3D polyline (1 mm): the boundary loop resampled every
+    5 mm, split at its corners (turn > corner_deg), each run one smoothing cubic (fewest controls within tol, at most
+    one per 20 mm). The U's rows end ON it, so the U's free edge (skirt bottom, side faces) is fair: rows ending where
+    their own sections stopped left a scalloped bottom edge."""
+    import strip_build as SB
+    V, F, N, pcs = pieces(car)
+    skin = pcs['skin']; _, wid = PF.components(V, skin)
+    loops = PF.boundary_loops(skin, wid)
+    pos = {}
+    for i, w in enumerate(wid):
+        pos.setdefault(int(w), V[i])
+    L3 = [np.array([pos[int(w)] for w in lp]) for lp in loops]
+    L = max(L3, key=lambda q: np.linalg.norm(np.diff(np.r_[q, q[:1]], axis=0), axis=1).sum())   # outer = longest
+    cs = PF.vertex_corners(L, corner_deg)
+    if not cs: cs = [0]
+    out = []
+    for a, b in zip(cs, cs[1:] + [cs[0] + len(L)]):
+        run = np.array([L[i % len(L)] for i in range(a, b + 1)])
+        d = np.r_[0, np.cumsum(np.linalg.norm(np.diff(run, axis=0), axis=1))]
+        if d[-1] < 0.01: out.append(run); continue
+        s = np.linspace(0, d[-1], max(3, int(np.ceil(d[-1] / step)) + 1))
+        R = np.c_[[np.interp(s, d, run[:, i]) for i in range(3)]].T
+        f = SB.fit_graph(s, R, [0, d[-1]], tol=tol, nmax=int(np.clip(d[-1] / 0.02, 4, 80)), mu=1e-6)
+        sd = np.linspace(0, d[-1], max(3, int(np.ceil(d[-1] / 0.001)) + 1))
+        Rf = SB.eval_graph(f, sd); Rf[0], Rf[-1] = run[0], run[-1]
+        out.append(Rf)
+    return np.vstack(out), L[cs]
+
+
+def edge_point(E, o, t, near):
+    """where the plane (o, t) crosses the dense polyline E, the crossing nearest 'near' (None if no crossing)"""
+    d = (E - o) @ t; k = np.nonzero(np.sign(d[:-1]) * np.sign(d[1:]) < 0)[0]
+    if not len(k): return None
+    P = E[k] + (d[k] / (d[k] - d[k + 1]))[:, None] * (E[k + 1] - E[k])
+    return P[np.argmin(np.linalg.norm(P - near, axis=1))]
+
+
+def recut_foot(car, g, step=0.015, tol=1e-3, Rd=0.2, verbose=True):
+    """pass 2 of the foot: the march steers on its own jittery corner points, so its station planes swung back and
+    forth (station normal x-component -0.36..+0.34 round the corner) and the rows fanned in and out (wrinkles in grey).
+    Here a smooth spine is fitted through the march's corner points X (one cubic, fewest controls within tol), and the
+    foot is re-cut every `step` along it with planes square to the spine; each section gets its roll profile again.
+    Returns a copy of g with the new foot stations (pillar stations unchanged)."""
+    import sweep_build as SW
+    import strip_build as SB
+    from blend_build import _section, UP
+    V, F, N, pcs = pieces(car)
+    Fm = pcs['skin']; T = V[Fm]; cen = T.mean(1)
+    nt = np.cross(T[:, 1] - T[:, 0], T[:, 2] - T[:, 0]); nt /= np.maximum(np.linalg.norm(nt, axis=1), 1e-12)[:, None]
+    nt *= np.sign((nt * N[Fm].mean(1)).sum(1))[:, None]
+    st, npil = g['st'], g['npil']
+    X = np.array([p['X'] for _, _, p in st[npil - 1:]])
+    X = X[X[:, 0] > -0.03]
+    a = np.r_[0, np.cumsum(np.linalg.norm(np.diff(X, axis=0), axis=1))]
+    f = SB.fit_graph(a, X, [0, a[-1]], tol=tol, nmax=int(np.clip(a[-1] / 0.03, 4, 60)), mu=1e-5)
+    sd = np.linspace(0, a[-1], int(a[-1] / 0.0005) + 1); Sp = SB.eval_graph(f, sd)
+    ar = np.r_[0, np.cumsum(np.linalg.norm(np.diff(Sp, axis=0), axis=1))]
+    new, k = [], 0
+    for s in np.arange(step, ar[-1] + 1e-9, step):
+        i = int(np.searchsorted(ar, s)); i = min(max(i, 1), len(Sp) - 2)
+        o = Sp[i]; t = Sp[i + 1] - Sp[i - 1]; t /= np.linalg.norm(t)
+        m = np.linalg.norm(cen - o, axis=1) < Rd
+        if m.sum() < 3: continue
+        segs, tri = _section(T[m], o, t)
+        if len(segs) < 3: continue
+        Q, tr = SW._chain_near(segs, tri, o); idx = np.nonzero(m)[0][tr]
+        if nt[idx[0]] @ UP < nt[idx[-1]] @ UP: Q = Q[::-1]
+        ok = np.r_[True, np.linalg.norm(np.diff(Q, axis=0), axis=1) > 1e-6]; Q = Q[ok]
+        if len(Q) < 5: continue
+        pr = SW.roll_profile(Q, g['top_max'])
+        if pr is None: continue
+        new.append((o, t, pr)); k += 1
+        if o[0] < 0: break
+    if verbose:
+        tx = np.array([t[0] for _, t, _ in new])
+        print(f'recut foot: spine {ar[-1] * 1e3:.0f} mm through {len(X)} march points (fit max {f["err"] * 1e3:.2f} mm), '
+              f'{len(new)} stations square to it; station normal x steps max {np.abs(np.diff(tx)).max():.3f}', flush=True)
+    g2 = dict(g); g2['st'] = list(st[:npil]) + new; g2['nfoot'] = len(new)
+    return g2
+
+
+def steady_rows(g, verbose=True, n_top=10, n_near=12, near=0.030, n_far=10, ramp=4, phi0=15.0, edge=None):
     """ALL rows (pillar + foot) sampled from a STABLE feature, so the columns do not slide along the surface from
     station to station. sweep_build anchors a row on the profile point nearest the virtual corner X; with a free
     curvature at D (SIDE_C2) the split between blend and side curve is ambiguous, so A, D and X jitter (setbacks 2-24
@@ -83,9 +165,24 @@ def steady_rows(g, verbose=True, n_top=10, n_near=12, near=0.030, n_far=10, ramp
         i = int(np.argmax(ang >= phi0))
         a0 = am[i] if i == 0 else np.interp(phi0, ang[i - 1:i + 1], am[i - 1:i + 1])
         return P, ar, a0, dt
-    rows = [dense(p, float(Lsm[k] if k < npil else min(Lsm[k], p['Ls'][0] + 0.006))) + (k,) for k, (_, _, p) in enumerate(st)]
+    prevB = [None]
+    def end_on_edge(o, t, p):
+        # side length that ends the profile on the fair outer edge (where this station's plane crosses it). Round the
+        # outline's corner the plane crosses the edge twice: take the crossing that follows on from the last station's
+        if edge is None: return None
+        B = edge_point(edge, o, t, p['Q'][-1] if prevB[0] is None else prevB[0])
+        if B is None or np.linalg.norm(B - p['Q'][-1]) > 0.02: return None
+        prevB[0] = B
+        P = SW.build_profile(p['E0'], p['A'], p['D'], p['Dt'], p['ab'], float(p['Ls'][0]) + 0.03, p['c'], nu=(2, 2, 600))[4:]
+        u = np.linspace(0, float(p['Ls'][0]) + 0.03, 600)
+        return float(u[np.argmin(np.linalg.norm(P - B, axis=1))])
+    Le = [end_on_edge(o, t, p) if k >= npil else None for k, (o, t, p) in enumerate(st)]
+    n_edge = sum(x is not None for x in Le)
+    rows = [dense(p, float(Le[k] if Le[k] is not None else (Lsm[k] if k < npil else min(Lsm[k], p['Ls'][0] + 0.006)))) + (k,)
+            for k, (_, _, p) in enumerate(st)]
     L_pil = rows[npil - 1][2]                                                # pillar's last top arm (E0 -> anchor)
-    L_top = float(np.median([r[2] for r in rows[npil:]]))
+    L_top = min(float(np.median([r[2] for r in rows[npil:]])), float(os.environ.get('HT_TOP', 0.025)))
+    # (the deck is its own face: a long arm ran past the section's deck data and tilted 1-2.5 mm off it at the corners)
     out = []
     for P, ar, a0, dt, k in rows:
         if k < npil: Lt = a0
@@ -97,7 +194,7 @@ def steady_rows(g, verbose=True, n_top=10, n_near=12, near=0.030, n_far=10, ramp
         out.append(np.r_[top, rest])
     if verbose:
         print(f'steady rows: anchor = {phi0:.0f} deg turn point, top arm {L_pil * 1e3:.1f} (pillar end) -> {L_top * 1e3:.1f} mm, '
-              f'skirt length {Ls[npil:].min() * 1e3:.0f}-{Ls[npil:].max() * 1e3:.0f} mm smoothed (max change {np.abs(Lsm - Ls)[npil:].max() * 1e3:.1f} mm)', flush=True)
+              f'skirt length {Ls[npil:].min() * 1e3:.0f}-{Ls[npil:].max() * 1e3:.0f} mm; {n_edge} of {len(st) - npil} foot rows end on the fair outer edge', flush=True)
     return np.array(out)
 
 
@@ -128,6 +225,59 @@ def smooth_rows(A_, R_, spacing=0.03, nrm_rms=1e-4, nrm_max=5e-4):
     return (lambda a: (PF.basis(np.asarray(a, float), kv, n) @ C).reshape(len(a), R_.shape[1], 3)), best[1], best[2], best[3]
 
 
+def refine_to_vertices(G, X, ds=3.0, dt=3.0, lam=None, dmax=0.004, t_min=1.0, verbose=True):
+    """refine the U grid G (rows, cols, 3) to Kunos VERTICES X (both halves): the station profiles are fitted to
+    section points, and between Kunos vertex rows those are chord points (the lower corners wrap in a fan of rows
+    15-20 deg apart: facets sag up to ~4 mm inside the curve, so sections between rows saw a flattened profile and the
+    grid creased). Each vertex is located on the grid's bicubic surface (row index s, column index t), its signed
+    offset along the surface normal measured, and ONE smooth offset field D(s, t) (cubic B-spline, knots every ds rows
+    / dt columns, second-derivative fairing) fitted to the offsets; the grid moves by D along its normals.
+    Vertices further than dmax from the grid, or next to the deck seam (t < t_min), are not data."""
+    from scipy.interpolate import RectBivariateSpline
+    from scipy.spatial import cKDTree
+    nr, nc, _ = G.shape
+    si, ti = np.arange(nr, dtype=float), np.arange(nc, dtype=float)
+    Sp = [RectBivariateSpline(si, ti, G[:, :, k], kx=3, ky=3, s=0) for k in range(3)]
+    def ev(s, t, ds_=0, dt_=0): return np.stack([Sp[k].ev(s, t, dx=ds_, dy=dt_) for k in range(3)], -1)
+    def nrm(s, t):
+        n = np.cross(ev(s, t, 1, 0), ev(s, t, 0, 1)); return n / np.maximum(np.linalg.norm(n, axis=-1), 1e-12)[..., None]
+    # closest point: dense samples + Gauss-Newton steps
+    ss, tt = np.meshgrid(np.arange(0, nr - 1 + 1e-9, 0.25), np.arange(0, nc - 1 + 1e-9, 0.25), indexing='ij')
+    Pd = ev(ss.ravel(), tt.ravel()); _, k = cKDTree(Pd).query(X)
+    s, t = ss.ravel()[k].copy(), tt.ravel()[k].copy()
+    for _ in range(6):
+        P = ev(s, t); Su, Sv = ev(s, t, 1, 0), ev(s, t, 0, 1); r = X - P
+        A11, A12, A22 = (Su * Su).sum(1), (Su * Sv).sum(1), (Sv * Sv).sum(1); b1, b2 = (r * Su).sum(1), (r * Sv).sum(1)
+        det = A11 * A22 - A12 ** 2 + 1e-18
+        s = np.clip(s + (A22 * b1 - A12 * b2) / det, 0, nr - 1); t = np.clip(t + (A11 * b2 - A12 * b1) / det, 0, nc - 1)
+    P = ev(s, t); n = nrm(s, t); d = ((X - P) * n).sum(1); tang = np.linalg.norm((X - P) - d[:, None] * n, axis=1)
+    use = (np.abs(d) < dmax) & (tang < 1e-3) & (t >= t_min)
+    # offset field: tensor cubic B-spline over (s, t)
+    nu, nv = int(np.ceil((nr - 1) / ds)) + 3, int(np.ceil((nc - 1) / dt)) + 3
+    ku, kv = PF.knots(nu, 0.0, nr - 1.0), PF.knots(nv, 0.0, nc - 1.0)
+    Bu, Bv = PF.basis(s[use], ku, nu), PF.basis(t[use], kv, nv)
+    A = (Bu[:, :, None] * Bv[:, None, :]).reshape(use.sum(), -1)
+    D2u = PF.diff2(nu); D2v = PF.diff2(nv)
+    R = np.r_[np.kron(D2u, np.eye(nv)), np.kron(np.eye(nu), D2v)]
+    AtA, Atd, RtR = A.T @ A, A.T @ d[use], R.T @ R
+    fits = []
+    for lm in ([lam] if lam is not None else 10.0 ** np.arange(-6, 1.01, 0.5)):
+        c = np.linalg.solve(AtA + lm * len(A) * RtR + 1e-9 * np.eye(A.shape[1]), Atd)
+        fits.append((lm, float(np.sqrt(((A @ c - d[use]) ** 2).mean())), c))
+    ok = [f for f in fits if f[1] <= 1.2e-4]                              # the smoothest field within 0.12 mm rms
+    lm, rr, c = max(ok, key=lambda f: f[0]) if ok else min(fits, key=lambda f: f[1])
+    Bg = PF.basis(si, ku, nu); Cg = PF.basis(ti, kv, nv)
+    Dg = Bg @ c.reshape(nu, nv) @ Cg.T                                   # (nr, nc) offsets at the grid nodes
+    Ng = nrm(*np.meshgrid(si, ti, indexing='ij'))
+    G2 = G + Dg[..., None] * Ng
+    G2 = (G2 + (G2 * MIR)[::-1]) / 2                                      # keep it exactly symmetric
+    if verbose:
+        print(f'refine to vertices: {use.sum()} of {len(X)} Kunos vertices; before |d| median {np.median(np.abs(d[use])) * 1e3:.3f} rms {np.sqrt((d[use] ** 2).mean()) * 1e3:.3f} '
+              f'p95 {np.percentile(np.abs(d[use]), 95) * 1e3:.3f} max {np.abs(d[use]).max() * 1e3:.2f} mm; field {nu}x{nv}, lambda {lm:.0e}, '
+              f'residual rms {rr * 1e3:.3f} mm; grid moved max {np.abs(Dg).max() * 1e3:.2f} mm', flush=True)
+    return G2
+
+
 def u_grid(car, verbose=True):
     """the U sweep: dict(grid (rows, cols, 3) m, E0 row, npil, rows_pil, sweep = sweep_grid's dict)"""
     import sweep_build as SW
@@ -145,9 +295,14 @@ def u_grid(car, verbose=True):
                           edge_cos=float(os.environ.get('HT_EDGE_COS', 0)) or None)   # chord filter: off (upset the corner march)
         if cache:
             import pickle; pickle.dump(g, open(cache, 'wb'))
-    X = np.array([p['X'] for _, _, p in g['st']]); raw = g['raw'].copy(); npil = g['npil']
-    if os.environ.get('HT_STEADY', '1') == '1':
-        raw = steady_rows(g, verbose, phi0=float(os.environ.get('HT_PHI0', 15)))
+    if os.environ.get('HT_RECUT', '1') == '1':
+        g = recut_foot(car, g, step=STEP_F, verbose=verbose)
+    X = np.array([p['X'] for _, _, p in g['st']]); npil = g['npil']
+    X[npil:] = np.array([o for o, _, _ in g['st'][npil:]])                 # foot arcs along the smooth spine
+    raw = g['raw'].copy() if len(g['raw']) == len(g['st']) else None
+    if os.environ.get('HT_STEADY', '1') == '1' or raw is None:
+        edge = outer_edge(car)[0] if os.environ.get('HT_EDGE', '1') == '1' else None
+        raw = steady_rows(g, verbose, phi0=float(os.environ.get('HT_PHI0', 15)), edge=edge)
     keep = X[:, 0] > 0.002                                                   # left half only (the march overshoots)
     keep[:npil] = True
     X, raw = X[keep], raw[keep]
@@ -170,6 +325,10 @@ def u_grid(car, verbose=True):
     # exact symmetry: average each row with its mirror partner (removes round-off; the fit is symmetric already)
     Gm = (G + (G * MIR)[::-1]) / 2
     asym = float(np.abs(G - Gm).max()); G = Gm
+    if os.environ.get('HT_REFINE', '0') == '1':      # off: v4 (12 Nov) scored better but left ridges along the knee and pillars
+        Xv = V[np.unique(skin)]
+        for it_ in range(int(os.environ.get('HT_REF_IT', 2))):
+            G = refine_to_vertices(G, Xv, ds=float(os.environ.get('HT_REF_DS', 2)), dt=float(os.environ.get('HT_REF_DT', 2)), verbose=verbose)
     if verbose:
         print(f'U grid: {npil} pillar + {len(a_f)} foot stations per side, {len(a_all)} rows x {nc}, spine {2 * Lc * 1e3:.0f} mm, '
               f'smoothing: lambda {lam:.0e}, normal rms {nrms * 1e3:.3f} max {nmax_ * 1e3:.3f} mm (shift max {Graw_err * 1e3:.2f} mm), asymmetry {asym * 1e3:.4f} mm, '
@@ -186,7 +345,7 @@ def build(car, out):
     esR, c0R = es * MIR, c0 * MIR
     res = []
     u_ = np.unique(skin); nout = N[u_].mean(0); nout /= np.linalg.norm(nout)
-    res.append(dict(name='hatch:U', grid=(G * 1000).tolist(), frame=[c0.tolist(), es.tolist(), np.cross(nout, es).tolist(), nout.tolist()]))
+    res.append(dict(name='hatch:U', maxlen=float(os.environ.get('HT_MAXLEN', 8)), structured=True, grid=(G * 1000).tolist(), frame=[c0.tolist(), es.tolist(), np.cross(nout, es).tolist(), nout.tolist()]))
 
     # which side of the pillar planes each skin triangle lies on (left half by the left pillar's axis, right by its mirror)
     cx = V[skin].mean(1)[:, 0]
