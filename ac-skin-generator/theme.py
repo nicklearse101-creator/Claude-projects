@@ -38,16 +38,49 @@ def _font(size, style):
     return _FONTS[key]
 
 
+SYMBOLS = set('↺↻←→↑↓')                    # not in Bahnschrift: drawn with Segoe UI Symbol
+SYM_FONT = os.path.join(FONT_DIR, 'seguisym.ttf')
+
+
+def _runs(text, size, style):
+    """The text cut into pieces with the font each one is drawn in: [(piece, font)]."""
+    runs = []
+    for ch in text:
+        sym = ch in SYMBOLS
+        if not runs or runs[-1][2] != sym: runs.append([ch, None, sym])
+        else: runs[-1][0] += ch
+    for r in runs:
+        if r[2]:
+            try: r[1] = ImageFont.truetype(SYM_FONT, max(1, int(round(size))))
+            except Exception: r[1] = _font(size, style)
+        else:
+            r[1] = _font(size, style)
+    return [(s, f) for s, f, _ in runs]
+
+
 def text_image(text, size, colour=TEXT, style='Bold Condensed', italic=0.18, glow=None):
     """Words as an RGBA picture: slanted like the NFS menus (italic = shear), with an optional soft glow."""
-    f = _font(size, style)
-    l, t, r, b = f.getbbox(text or ' ')
-    w, h = max(1, r - l + 4), max(1, b - t + 4)
+    fill = hexc(colour) if isinstance(colour, str) else colour
     pad = 10 if glow else 2
-    H = h + 2 * pad
-    extra = int(italic * H) + 1 if italic else 0
-    lay = Image.new('RGBA', (w + extra + 2 * pad, H), (0, 0, 0, 0))
-    ImageDraw.Draw(lay).text((pad - l, pad - t), text, font=f, fill=hexc(colour) if isinstance(colour, str) else colour)
+    runs = _runs(text or ' ', size, style)
+    if len(runs) == 1:
+        f = runs[0][1]
+        l, t, r, b = f.getbbox(text or ' ')
+        w, h = max(1, r - l + 4), max(1, b - t + 4)
+        H = h + 2 * pad
+        extra = int(italic * H) + 1 if italic else 0
+        lay = Image.new('RGBA', (w + extra + 2 * pad, H), (0, 0, 0, 0))
+        ImageDraw.Draw(lay).text((pad - l, pad - t), text, font=f, fill=fill)
+    else:                                     # mixed fonts: pieces side by side on one baseline
+        asc, desc = _font(size, style).getmetrics()
+        w, h = int(sum(f.getlength(s) for s, f in runs)) + 4, asc + desc + 2
+        H = h + 2 * pad
+        extra = int(italic * H) + 1 if italic else 0
+        lay = Image.new('RGBA', (w + extra + 2 * pad, H), (0, 0, 0, 0))
+        d, x = ImageDraw.Draw(lay), pad
+        for s, f in runs:
+            d.text((x, pad + asc), s, font=f, fill=fill, anchor='ls')
+            x += f.getlength(s)
     if italic:
         lay = lay.transform(lay.size, Image.AFFINE, (1, italic, -italic * H, 0, 1, 0), Image.BICUBIC)
     if glow:
@@ -201,7 +234,7 @@ def compose_preview(background, car, view, title, pill, prompt):
     img = background.copy().convert('RGBA')
     W, H = img.size
     fy = floor_of(H)
-    top_m, bot_m, side_m = min(70, int(H * 0.12)), min(20, int(H * 0.05)), min(20, int(W * 0.03))
+    top_m, bot_m, side_m = min(70, int(H * 0.12)), min(48, int(H * 0.07)), min(20, int(W * 0.03))   # bottom: clear of the stripes
     geom = None
     if car is not None:
         side = view in ('left', 'right', 'front', 'rear')
@@ -317,6 +350,7 @@ def apply_style(root):
     s.configure('Section.TLabel', foreground=TEXT, font=(HEAD, 12))
     s.configure('Status.TLabel', background=BG, foreground=MUTED, font=UI_FONT)
     s.configure('Hint.TLabel', background=BG, foreground=MUTED, font=UI_FONT)
+    s.configure('WField.TLabel', background=BG, foreground=MUTED, font=(HEAD, 10))
     s.configure('Pct.TLabel', background=BG, foreground=ACC, font=(HEAD, 11))
     # entry / combobox / spinbox: dark field with an orange underline (whole border orange with focus)
     s.configure('TEntry', foreground=TEXT, padding=(6, 4))
@@ -653,3 +687,57 @@ def _askyesno(title, message, parent=None, icon=None, **kw):
 
 # same names and call shape as tkinter.messagebox, so the app (and its tests) use it the same way
 messagebox = types.SimpleNamespace(showerror=_showerror, showwarning=_showwarning, showinfo=_showinfo, askyesno=_askyesno)
+
+
+class ButtonBar(tk.Canvas):
+    """A row of slanted outline buttons that wraps onto more lines when the window is narrow."""
+
+    def __init__(self, parent, items, size=13, height=26, bg=None, kind='outline'):
+        super().__init__(parent, height=height + 2 * PAD, bg=bg or _parent_bg(parent), highlightthickness=0, bd=0, cursor='hand2')
+        self.items, self._size, self._h, self._kind = list(items), size, height, kind
+        self._widths = [text_image(t.upper(), size).width + 18 for t, _ in self.items]
+        self._imgs, self._pos, self._hover, self._pressed, self.rows = {}, [], None, None, 1
+        self.bind('<Configure>', lambda e: self._layout())
+        self._layout()
+
+    def invoke(self, label):
+        return dict(self.items)[label]()
+
+    def _layout(self):
+        W = self.winfo_width()
+        if W <= 1: W = 10 ** 6
+        x = y = 0; rows = 1; self._pos = []
+        for w in self._widths:
+            if x > 0 and x + w + 2 * PAD > W:
+                x, y, rows = 0, y + self._h + PAD, rows + 1
+            self._pos.append((x, y)); x += w - 4
+        self.rows = rows
+        need = rows * (self._h + PAD) + PAD
+        if self.winfo_reqheight() != need: super().configure(height=need)
+        self._draw()
+
+    def _img(self, i, state):
+        if (i, state) not in self._imgs:
+            self._imgs[(i, state)] = ImageTk.PhotoImage(
+                slant_image(self._widths[i], self._h, self.items[i][0], self._kind, state, self._size), master=self)
+        return self._imgs[(i, state)]
+
+    def _draw(self):
+        self.delete('all')
+        for i, (x, y) in enumerate(self._pos):
+            st = 'pressed' if self._pressed == i else 'hover' if self._hover == i else 'normal'
+            tag = f'b{i}'
+            self.create_image(x, y, image=self._img(i, st), anchor='nw', tags=tag)
+            self.tag_bind(tag, '<Enter>', lambda e, i=i: self._state(hover=i))
+            self.tag_bind(tag, '<Leave>', lambda e: self._state(hover=None, pressed=None))
+            self.tag_bind(tag, '<ButtonPress-1>', lambda e, i=i: self._state(pressed=i))
+            self.tag_bind(tag, '<ButtonRelease-1>', lambda e, i=i: self._release(i))
+
+    def _state(self, **kw):
+        for k, v in kw.items(): setattr(self, '_' + k, v)
+        self._draw()
+
+    def _release(self, i):
+        was = self._pressed == i
+        self._state(pressed=None)
+        if was: self.items[i][1]()

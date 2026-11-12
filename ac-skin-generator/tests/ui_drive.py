@@ -25,8 +25,7 @@ for _ in range(20): app.update(); time.sleep(0.05)
 
 
 def show_tab(i):
-    nb_ = app.nametowidget(app.tree.winfo_parent()).master
-    nb_.select(i); app.update()
+    app.tabbar.select(i); app.update()
 
 
 def shot(name):
@@ -41,7 +40,6 @@ def pick_car(name):
 
 
 # --- logos tab: two logos on the bonnet, one on the doors; the 'On the car' list; Clear all; set again
-nb = app.nametowidget(app.tree.winfo_parent())
 lib = app.library
 def set_place(i, place_name):
     app.tree.selection_set(str(i)); app.on_logo_select(); app.place_var.set(place_name); app.on_place(); app.update()
@@ -80,12 +78,37 @@ state = {}
 
 def next_car():
     if not cars_left:
+        first, _ = state['first']                  # picking a car again: its ghost comes back from disk at once
+        pick_car(cars[-1] if len(cars) > 1 else '')
+        t = time.time(); pick_car(first)
+        while app.ghost_car != first and time.time() - t < 5: app.update(); time.sleep(0.02)
+        again = time.time() - t
+        print(f'ghost of {first} again after {again:.2f} s', flush=True)
+        if again > 1: problems.append(f'ghost from disk took {again:.1f} s')
         print('PROBLEMS:', problems or 'none', flush=True)
+        for i in range(6): show_tab(i); shot(f'tab_{i}')
         show_tab(3); shot('end_logos_tab'); app.destroy(); return
     car = cars_left.pop(0)
     pick_car(car)
     print(f'== {car}: Windows etc. from = "{app.vars["copy_from"].get()}"', flush=True)
-    state.update(car=car, n0=len(dialogs), t0=time.time())
+    state.update(car=car, tg=time.time())
+    app.after(200, wait_ghost)
+
+
+def wait_ghost():
+    # the ghost of the car just picked: drawn in the background (or loaded from its kept picture)
+    car = state['car']
+    if app.ghost_car != car and time.time() - state['tg'] < 60:
+        app.after(200, wait_ghost); return
+    took = time.time() - state['tg']
+    print(f'   ghost: {"ready" if app.ghost_car == car else "MISSING"} after {took:.1f} s', flush=True)
+    if app.ghost_car != car or app.ghost is None: problems.append(f'{car}: no ghost')
+    if not os.path.isfile(R.ghost_cache_path(os.path.join(app.vars['cars_dir'].get(), car))):
+        problems.append(f'{car}: ghost not kept on disk')
+    state.setdefault('first', (car, took))
+    if not state.get('shot_before'):
+        state['shot_before'] = True; app.views = {}; app.redraw(); shot('before_preview')
+    state.update(n0=len(dialogs), t0=time.time())
     app.run(save=False)
     app.after(500, wait_car)
 
@@ -101,7 +124,12 @@ def wait_car():
     print(f'   {time.time() - state["t0"]:.0f} s, errors in log: {bad[:3]}, dialogs: {new_d[:3]}', flush=True)
     if bad or new_d: problems.append(f'{car}: {bad[:2]} {new_d[:2]}')
     if app.busy: problems.append(f'{car}: still busy after 15 min')
-    app.after(1500, lambda: (shot(car + '_preview'), next_car()))
+    def side_shots():
+        shot(car + '_preview')
+        app.view_var.set('left'); app.on_view(); shot(car + '_left')
+        app.view_var.set('all'); app.on_view()
+        next_car()
+    app.after(1500, side_shots)
 
 
 app.after(200, next_car)

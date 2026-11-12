@@ -92,3 +92,19 @@ def test_text_image_fallback(monkeypatch):
     im = theme.text_image('CREATE SKIN IN CAR', 20, theme.TEXT)
     assert im.width > 50 and np.asarray(im)[..., 3].max() > 0
     theme._FONTS.clear()
+
+
+def test_text_image_symbols():
+    """'Turn ↺' / 'Turn ↻': Bahnschrift has no arrows; they come from Segoe UI Symbol."""
+    runs = theme._runs('TURN ↺', 15, 'Bold Condensed')
+    assert runs[0][0] == 'TURN ' and runs[-1][0] == '↺'
+    assert runs[-1][1].path.lower().endswith('seguisym.ttf')
+    assert theme.text_image('TURN ↻', 15).width > theme.text_image('TURN ', 15).width
+
+
+def test_compose_all_above_stripes():
+    W, H = 640, 760
+    bg = theme.preview_background(W, H, None)
+    sheet = Image.new('RGBA', (1600, 2600), (200, 30, 30, 255))      # 'all sides': a tall sheet
+    _, (ox, oy, w, h) = theme.compose_preview(bg, sheet, 'all', 'ALL SIDES', 'PREVIEW ONLY · NOT SAVED', None)
+    assert oy + h <= H - 46                                           # clear of the hazard stripes and the pill

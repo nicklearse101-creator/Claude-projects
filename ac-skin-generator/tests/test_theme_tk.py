@@ -75,3 +75,16 @@ def test_header_long_name(root):
     car_w, skin_w = h.last_widths
     assert car_w <= 500 and skin_w <= 500
     h.destroy()
+
+
+def test_buttonbar_wraps_and_invokes(root):
+    hits = []
+    labels = ['Bigger', 'Smaller', 'Turn ↺', 'Turn ↻', 'Flip', 'Edit text…', 'Delete', 'Reset', 'Reset all']
+    bar = theme.ButtonBar(root, [(t, lambda t=t: hits.append(t)) for t in labels])
+    bar.place(x=0, y=0, width=300); root.update()
+    assert bar.rows > 1                                  # too narrow for one line: wraps
+    bar.place(x=0, y=0, width=1400); root.update()
+    assert bar.rows == 1
+    bar.invoke('Flip')
+    assert hits == ['Flip']
+    bar.destroy()
