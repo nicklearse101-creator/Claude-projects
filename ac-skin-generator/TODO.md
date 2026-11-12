@@ -20,6 +20,12 @@ Dropped (Nik, 11 Nov): Talbot lower-door name behind the sill trim, Escort Mk2 t
 
 Details of earlier fixes: `PLAN_next_session.md`.
 
+## Done 12 Nov (v1.8.0)
+- Game look (Nik: "like a need for speed home screen"): carbon + orange reskin, same layout; garage preview
+  with a ghost of the car being edited. Spec / plan: `docs/2026-11-12-game-look-ui-*.md`. Skins byte-identical
+  to v1.7.2 (`tests/same_output.py`). Tests: `tests/test_theme_*.py`, `test_ghost_cache.py`,
+  `test_render_alpha.py`, `ui_drive.py`, `ui_dialogs.py`.
+
 ## Done 11 Nov (code + checked on the Kadett / Talbot previews; in-game check by Nik still to do)
 - 1 tinted windows (Windows tab: colour, how dark, windscreen optional), 2 flat-top rule gone, 3 window stickers have
   preview boxes (move / size / delete), 4 "Smaller files" (DXT1/DXT5 with mipmaps, on by default), 5 starter logos

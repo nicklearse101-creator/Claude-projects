@@ -14,7 +14,9 @@ Python is not needed. Windows SmartScreen may warn because the exe is not signed
 Settings and the logo library live in `%APPDATA%\Rattys4SkinGenerator` (kept on uninstall).
 
 ## Use
-Tabs on the left, preview on the right.
+Tabs on the left, preview on the right. **Look (v1.8.0):** dark carbon and orange, slanted 'game' tabs and
+buttons, the car's name and skin in the strip on top, dark pop-ups and a dark title bar (`theme.py` holds the
+whole look; the layout and every setting are as before).
 - **Car** - the AC cars folder (found automatically through Steam), the car, the skin name,
   and optionally a skin to copy the other files from.
 - **Livery** - base / accent / highlight / text colours and a pattern: sweep, twin centre stripes,
@@ -46,6 +48,11 @@ Tabs on the left, preview on the right.
 **Preview** renders left, right, front, rear and top views (1600 px) without writing anything (the skin in
 the car does not change - press **Create skin in car** for that); pick a
 view or "Open full size".
+The preview shows the car cut out on a garage floor (carbon background, hazard stripes, a reflection) with a
+**ghost** of the car being edited behind it: its own front view drawn from its 3D model as orange lines (no
+textures, so no badges). The ghost is drawn in the background when a car is picked and kept in
+`%APPDATA%\Rattys4SkinGenerator\ghosts` (redrawn if the car's model changes). "PREVIEW ONLY · NOT SAVED"
+shows until the skin is created.
 **Edit on the preview:** pick one side, click a logo, number or name (each has a dashed box), then drag to
 move it, mouse wheel to resize, Shift+wheel to turn, or use the Bigger / Smaller / Turn / Flip / Reset buttons.
 **Edit text...** changes the words, font and colour of one team / driver box; **Delete** removes a logo, number or

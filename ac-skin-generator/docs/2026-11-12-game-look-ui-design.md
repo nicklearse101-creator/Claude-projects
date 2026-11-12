@@ -70,4 +70,5 @@ position stays as it is in v1.7.2. How skins are made does not change.
 
 ## 5. Release
 Version 1.8.0. README (look + preview area), TODO. `python build.py` → `release/Rattys4SkinGenerator_Setup.exe` and
-`release/Rattys4SkinGenerator_v1.8.0.zip`; install it once and run the installed exe as a smoke test. Commit and push.
+`release/Rattys4SkinGenerator_v1.8.0.zip`; smoke test: run the built exe from `dist/` with a copy of the app's data
+(installing would write to C:, which is Nik's to do). Commit and push.
