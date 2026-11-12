@@ -12,7 +12,7 @@ Pipeline
 
 AC axes: +X = car's left, +Y = up, +Z = forward (right-handed).
 """
-import copy, glob, io, json, os, re, shutil, struct
+import copy, glob, io, json, os, re, shutil, struct, threading
 from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont, ImageColor, ImageOps
@@ -741,6 +741,7 @@ def load_pattern_picture(path, mode, simplify, recolour, palette):
 
 
 _PICTURE_CACHE = {}
+_PICTURE_LOCK = threading.Lock()
 
 
 def picture_pattern(design, P, N, car, sill, belt, palette, log=print):
@@ -750,10 +751,11 @@ def picture_pattern(design, P, N, car, sill, belt, palette, log=print):
     mode = design.get('pattern_mode') or 'wrap'
     key = (path, os.path.getmtime(path), mode, design.get('pattern_simplify') or 'medium', bool(design.get('pattern_recolour')),
            tuple(tuple(np.asarray(c).tolist()) for c in palette))
-    if key not in _PICTURE_CACHE:                      # the pattern is worked out several times per skin: load it once
-        _PICTURE_CACHE.clear()
-        _PICTURE_CACHE[key] = load_pattern_picture(path, mode, key[3], key[4], palette)
-    a = _PICTURE_CACHE[key]
+    with _PICTURE_LOCK:              # worked out several times per skin, on several cores at once: load it once
+        if key not in _PICTURE_CACHE:
+            _PICTURE_CACHE.clear()
+            _PICTURE_CACHE[key] = load_pattern_picture(path, mode, key[3], key[4], palette)
+        a = _PICTURE_CACHE[key]
     H, W = a.shape[:2]
     x, y, z = P[:, 0], P[:, 1], P[:, 2]
     L = car.length
@@ -1088,13 +1090,15 @@ def render_design(car, tm, paint, design, log=print, info=None, ctx=None, mem=No
     L = car.length
     log(f"side panels: sill {sill:.2f} m, belt line {belt:.2f} m, doors z {prof['door_rear']:+.2f}..{prof['door_front']:+.2f}")
 
-    # patterns are worked out at four points inside every texel and averaged, so edges are smooth, not stepped
+    # patterns are worked out at four points inside every texel and averaged, so edges are smooth, not stepped.
+    # What the pattern says is only said when it is worked out (not kept for a Create to say again: see _paint_texture)
+    plog = getattr(log, 'unkept', log)
     if mem is not None and 'pattern' in mem:
         col = mem['pattern'].copy()                    # same pattern as last time: only the decals change
     elif PATTERN_AA and tm is not None and getattr(tm, 't_px', None) is not None:
-        col = aa_pattern(design, tm, car, sill, belt, log)
+        col = aa_pattern(design, tm, car, sill, belt, plog)
     else:
-        col = pattern_colours(design, P, N, car, sill, belt, log)
+        col = pattern_colours(design, P, N, car, sill, belt, plog)
     if mem is not None and 'pattern' not in mem: mem['pattern'] = col.copy()
 
     # ---- decals
@@ -2892,9 +2896,11 @@ PATTERN_KEYS = ('base', 'accent', 'accent2', 'text', 'pattern', 'halftone', 'car
 
 def _paint_texture(car, tm, mem, base, paint, shade, design, said, info, ctx, log):
     """One body texture painted with the design (before the write-out): the picture and the texels spot_parts filled.
-    Every message is also put in `said`."""
+    Every message is also put in `said` (to be said again when a Create reuses this), except the pattern's own: a Create
+    straight after its Preview always had the pattern ready and never said those."""
     def log(m_, out=log):
         said.append(m_); out(m_)
+    log.unkept = log.__defaults__[0]
     if 'prof' in _MEMO and not ctx: ctx['prof'] = _MEMO['prof']
     cols, forced = render_design(car, tm, paint, design, log, info, ctx, mem)
     if 'prof' in ctx: _MEMO['prof'] = ctx['prof']

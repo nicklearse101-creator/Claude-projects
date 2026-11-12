@@ -123,10 +123,31 @@ def test_pattern_threads_same(small_car):
     assert np.array_equal(one, many)
 
 
+def test_picture_pattern_loaded_once_on_several_cores(small_car, monkeypatch):
+    """The pattern picture is loaded once even when four cores ask for it at the same moment (no clash between them)."""
+    tex = small_car.body_textures[0]
+    tm = skingen.TexelMap(small_car.meshes_for(tex), 512, 512, lambda *a: None)
+    logo = os.path.join(HERE, 'starter_logos', 'ratty_racing_logo.jpg')
+    d = dict(skingen.DEFAULT_DESIGN, pattern='picture', pattern_image=logo, pattern_mode='side_left')
+    loads, real = [], skingen.load_pattern_picture
+
+    def slow_load(*a, **k):
+        loads.append(1); time.sleep(0.5); return real(*a, **k)
+    monkeypatch.setattr(skingen, 'load_pattern_picture', slow_load)
+    skingen._PICTURE_CACHE.clear()
+    many = skingen.aa_pattern(d, tm, small_car, 0.3, 0.8, workers=4, chunk=1 << 14)
+    assert len(loads) == 1
+    skingen._PICTURE_CACHE.clear()
+    one = skingen.aa_pattern(d, tm, small_car, 0.3, 0.8, workers=1, chunk=1 << 14)
+    assert np.array_equal(one, many)
+
+
 # ---------------------------------------------------------------- Preview, then Create
 def design():
-    return dict(skingen.DEFAULT_DESIGN, number='7', name='NIK', team='RATTY',
-                logos=[dict(path=os.path.join(HERE, 'starter_logos', 'ratty_racing_logo.jpg'), place='doors', tint=False, bg='auto')])
+    """A picture pattern too: it says what it did when it is worked out (only then - v1.8.0's Create had it ready)."""
+    logo = os.path.join(HERE, 'starter_logos', 'ratty_racing_logo.jpg')
+    return dict(skingen.DEFAULT_DESIGN, number='7', name='NIK', team='RATTY', pattern='picture', pattern_image=logo,
+                logos=[dict(path=logo, place='doors', tint=False, bg='auto')])
 
 
 def sums(out):
