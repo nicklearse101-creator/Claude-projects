@@ -1,6 +1,6 @@
 """Ratty's4Skin Generator - window app.
 No AI: the livery is projected onto the car from its own 3D model."""
-import copy, glob, json, math, os, re, shutil, sys, tempfile, threading, traceback
+import copy, glob, json, math, os, queue, re, shutil, sys, tempfile, threading, traceback
 import tkinter as tk
 import tkinter.font as tkfont
 from tkinter import ttk, filedialog, colorchooser
@@ -80,10 +80,27 @@ def ghost_cache_path(car_dir):
     return os.path.join(DATA_DIR, 'ghosts', os.path.basename(os.path.normpath(car_dir)) + '.png')
 
 
+def kn5_signature(kn5):
+    """The model file as it is now: size and modified time (a copied update can carry an OLDER date, so: equal or not)."""
+    st = os.stat(kn5)
+    return f'{st.st_size}:{st.st_mtime_ns}'
+
+
+def save_ghost(img, cache, kn5):
+    """Keep a car's ghost, with a note of the model it was drawn from."""
+    from PIL.PngImagePlugin import PngInfo
+    info = PngInfo(); info.add_text('kn5', kn5_signature(kn5))
+    os.makedirs(os.path.dirname(cache), exist_ok=True)
+    img.save(cache, pnginfo=info)
+
+
 def ghost_cache_valid(cache, kn5):
-    """The kept ghost is still right: made after the car's model last changed."""
-    try: return os.path.getmtime(cache) >= os.path.getmtime(kn5)
-    except OSError: return False
+    """The kept ghost was drawn from the car's model exactly as it is now."""
+    try:
+        with Image.open(cache) as im:
+            return im.text.get('kn5') == kn5_signature(kn5)
+    except (OSError, ValueError, AttributeError):
+        return False
 
 
 VIEW_TITLES = {'all': 'ALL SIDES', 'left': 'LEFT SIDE', 'right': 'RIGHT SIDE', 'front': 'FRONT', 'rear': 'REAR', 'top': 'TOP'}
@@ -153,6 +170,8 @@ class App(tk.Tk):
         self.sel = None                                  # decal picked on the preview
         self.geom = None
         self.ghost, self.ghost_car, self.ghost_token = None, '', 0   # the car's ghost behind the preview
+        self.ghost_sig = None                            # the model the ghost was drawn from (kn5_signature)
+        self._ghost_q, self._ghost_pending = queue.Queue(), 0          # drawing threads hand their ghost back here
         self._bg_cache = None                            # garage + ghost for the preview's current size
         self.saved = False                               # the views on screen were saved in the car
         self.build()
@@ -411,25 +430,30 @@ class App(tk.Tk):
         note('lights', 'Rims and tyres are separate. Only cars with their own rim / tyre textures can change.')
 
         # --- buttons + log
-        bf = ttk.Frame(left, style='Window.TFrame'); bf.pack(fill='x', pady=(10, 0))
+        # Preview / Create / progress / log always stay in the window: packed first, at the bottom; the tab pages get
+        # what is left and scroll when that is not enough
+        bot = ttk.Frame(left, style='Window.TFrame')
+        bf = ttk.Frame(bot, style='Window.TFrame'); bf.pack(fill='x', pady=(10, 0))
         self.btn_prev = theme.SlantButton(bf, 'Preview', command=lambda: self.run(save=False), kind='secondary',
                                           size=19, height=40, width=150)
         self.btn_prev.pack(side='left')
         self.btn_save = theme.SlantButton(bf, 'Create skin in car', command=lambda: self.run(save=True), kind='primary',
                                           size=21, height=40, width=300)
         self.btn_save.pack(side='left')
-        self.prog = ttk.Progressbar(left, mode='determinate', maximum=100, style='Orange.Horizontal.TProgressbar')
+        self.prog = ttk.Progressbar(bot, mode='determinate', maximum=100, style='Orange.Horizontal.TProgressbar')
         self.prog.pack(fill='x', pady=(8, 0))
-        sf = ttk.Frame(left, style='Window.TFrame'); sf.pack(fill='x')
+        sf = ttk.Frame(bot, style='Window.TFrame'); sf.pack(fill='x')
         self.status = ttk.Label(sf, text='Ready', style='Status.TLabel')
         self.status.pack(side='left')
         self.pct = ttk.Label(sf, text='', style='Pct.TLabel')
         self.pct.pack(side='right')
-        self.log_box = tk.Text(left, height=10, width=60, font=('Consolas', 8), bg=theme.FIELD, fg=theme.MUTED,
+        self.log_box = tk.Text(bot, height=7, width=60, font=('Consolas', 8), bg=theme.FIELD, fg=theme.MUTED,
                                insertbackground=theme.TEXT, selectbackground=theme.ACC, relief='flat', bd=0, padx=6, pady=4,
                                highlightthickness=1, highlightbackground=theme.LINE, highlightcolor=theme.LINE)
         self.log_box.tag_configure('warn', foreground=theme.ACC)
-        self.log_box.pack(fill='both', expand=True, pady=(6, 0))
+        self.log_box.pack(fill='x', pady=(6, 0))
+        bot.pack(side='bottom', fill='x')
+        self.tabbar.pack_forget(); self.tabbar.pack(side='top', fill='both', expand=True)
 
         vb = ttk.Frame(right, style='Window.TFrame'); vb.pack(fill='x', pady=(0, 2))
         ttk.Label(vb, text='VIEW', style='WField.TLabel').pack(side='left')
@@ -623,30 +647,39 @@ class App(tk.Tk):
         token, name = self.ghost_token, os.path.basename(os.path.normpath(car_dir))
         if not self.vars['car'].get() or not os.path.isdir(car_dir):
             self._set_ghost(token, None, ''); return
-        if name == self.ghost_car and self.ghost is not None: return
         cache = ghost_cache_path(car_dir)
-        try: kn5 = skingen.find_main_kn5(car_dir)
+        try: kn5 = skingen.find_main_kn5(car_dir); sig = kn5_signature(kn5)
         except Exception: self._set_ghost(token, None, name); return
+        if name == self.ghost_car and self.ghost is not None and self.ghost_sig == sig: return
         if ghost_cache_valid(cache, kn5):
             try:
-                self._set_ghost(token, Image.open(cache).convert('RGBA'), name); return
+                self._set_ghost(token, Image.open(cache).convert('RGBA'), name, sig); return
             except Exception: pass
         self._set_ghost(token, None, '')
 
-        def work():
-            try:
-                img = skingen.ghost_view(skingen.Car(car_dir, log=lambda *a: None))
-                os.makedirs(os.path.dirname(cache), exist_ok=True)
-                img.save(cache)
-            except Exception:
-                img = None
-            try: self.after(0, self._set_ghost, token, img, name)
-            except (RuntimeError, tk.TclError): pass           # the window was closed meanwhile
+        def work():                     # no Tk here: the ghost goes back through the queue (see _poll_ghost)
+            try: img = skingen.ghost_view(skingen.Car(car_dir, log=lambda *a: None))
+            except Exception: img = None
+            if img is not None:
+                try: save_ghost(img, cache, kn5)
+                except OSError: pass
+            self._ghost_q.put((token, img, name, sig))
+        self._ghost_pending += 1
         threading.Thread(target=work, daemon=True).start()
+        if self._ghost_pending == 1: self.after(150, self._poll_ghost)
 
-    def _set_ghost(self, token, img, car):
+    def _poll_ghost(self):
+        """Pick up ghosts the drawing threads finished (main thread; also fine before the window's main loop runs)."""
+        while True:
+            try: item = self._ghost_q.get_nowait()
+            except queue.Empty: break
+            self._ghost_pending -= 1
+            self._set_ghost(*item)
+        if self._ghost_pending > 0: self.after(150, self._poll_ghost)
+
+    def _set_ghost(self, token, img, car, sig=None):
         if token != self.ghost_token: return                  # a car picked before this one: too late
-        self.ghost, self.ghost_car, self._bg_cache = img, car, None
+        self.ghost, self.ghost_car, self.ghost_sig, self._bg_cache = img, car, sig, None
         self.redraw()
 
     # ---------------------------------------------------------------- logo library

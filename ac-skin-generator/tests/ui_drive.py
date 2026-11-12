@@ -6,9 +6,7 @@ import os, sys, time, json
 os.environ['APPDATA'] = os.path.abspath(sys.argv[1])          # before the app is imported: its data folder
 out = sys.argv[2]; cars = sys.argv[3:]
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import ctypes
-try: ctypes.windll.shcore.SetProcessDpiAwareness(2)   # screen pixels = window pixels, for the screenshots
-except Exception: pass
+# not DPI aware, like the built exe: Windows scales the whole window (pictures are grabbed in screen pixels)
 import rattys4skin as R
 from PIL import ImageGrab
 
@@ -30,8 +28,9 @@ def show_tab(i):
 
 def shot(name):
     app.update(); time.sleep(0.3); app.update()
+    full = ImageGrab.grab(); k = full.width / app.winfo_screenwidth()
     x, y, w, h = app.winfo_rootx(), app.winfo_rooty(), app.winfo_width(), app.winfo_height()
-    ImageGrab.grab(bbox=(x, y, x + w, y + h)).save(os.path.join(out, name + '.png'))
+    full.crop((int(x * k), int(y * k), int((x + w) * k), int((y + h) * k))).save(os.path.join(out, name + '.png'))
 
 
 def pick_car(name):

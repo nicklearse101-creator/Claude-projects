@@ -5,9 +5,7 @@ import os, sys, time
 os.environ['APPDATA'] = os.path.abspath(sys.argv[1])
 out = sys.argv[2]
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import ctypes
-try: ctypes.windll.shcore.SetProcessDpiAwareness(2)
-except Exception: pass
+# not DPI aware, like the built exe: Windows scales the whole window (pictures are grabbed in screen pixels)
 import rattys4skin as R
 import theme
 from PIL import ImageGrab
@@ -21,8 +19,9 @@ problems = []
 
 def grab(win, name, pad=30):
     win.update(); time.sleep(0.3); win.update()
+    full = ImageGrab.grab(); k = full.width / win.winfo_screenwidth()
     x, y, w, h = win.winfo_rootx(), win.winfo_rooty(), win.winfo_width(), win.winfo_height()
-    ImageGrab.grab(bbox=(x - pad, y - pad - 30, x + w + pad, y + h + pad)).save(os.path.join(out, name + '.png'))
+    full.crop((int((x - pad) * k), int((y - pad - 30) * k), int((x + w + pad) * k), int((y + h + pad) * k))).save(os.path.join(out, name + '.png'))
 
 
 def message(fn, args, name, button, expect):

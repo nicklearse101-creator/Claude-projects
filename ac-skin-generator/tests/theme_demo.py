@@ -4,9 +4,7 @@ import os, sys, time
 import tkinter as tk
 from tkinter import ttk
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import ctypes
-try: ctypes.windll.shcore.SetProcessDpiAwareness(2)
-except Exception: pass
+# not DPI aware, like the built exe: Windows scales the whole window (pictures are grabbed in screen pixels)
 import theme
 from PIL import ImageGrab
 
@@ -46,7 +44,8 @@ ttk.Label(body, text='Stage 4 / 6 - logos', style='Status.TLabel').pack(anchor='
 var = tk.StringVar(value='left')
 theme.ChipGroup(body, [('all', 'All sides'), ('left', 'Left'), ('right', 'Right'), ('top', 'Top')], var).pack(anchor='w')
 for _ in range(15): root.update(); time.sleep(0.05)
+full = ImageGrab.grab(); k = full.width / root.winfo_screenwidth()
 x, y, w, h = root.winfo_rootx(), root.winfo_rooty(), root.winfo_width(), root.winfo_height()
-ImageGrab.grab(bbox=(x, y, x + w, y + h)).save(sys.argv[1])
+full.crop((int(x * k), int(y * k), int((x + w) * k), int((y + h) * k))).save(sys.argv[1])
 root.destroy()
 print('saved', sys.argv[1])

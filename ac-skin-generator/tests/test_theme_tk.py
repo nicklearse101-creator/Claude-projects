@@ -101,3 +101,32 @@ def test_dialog_dark_title_and_width(root):
     theme.messagebox.showerror('Ratty\'s4Skin Generator', 'Pick a car first (Car tab).', parent=root)
     assert seen['dark'] is True                       # dark title bar set once the window is shown
     assert seen['width'] >= 360                       # wide enough for the app's name in the title
+
+
+def test_buttonbar_hover_no_redraw_loop(root):
+    """Hovering a button must not redraw over and over (recreated items under the pointer fire <Enter> again)."""
+    bar = theme.ButtonBar(root, [('Bigger', lambda: None), ('Smaller', lambda: None)])
+    bar.place(x=0, y=0, width=600); root.update()
+    calls = {'n': 0}
+    orig = bar._restyle if hasattr(bar, '_restyle') else bar._draw
+    def counted(*a):
+        calls['n'] += 1
+        if calls['n'] > 50: raise RuntimeError('redraw loop')
+        return orig(*a)
+    if hasattr(bar, '_restyle'): bar._restyle = counted
+    else: bar._draw = counted
+    bar.event_generate('<Motion>', x=20, y=16); root.update()
+    bar.event_generate('<Motion>', x=21, y=16); root.update()
+    assert calls['n'] <= 4
+    bar.destroy()
+
+
+def test_tabs_scroll_when_page_too_tall(root):
+    tabs = theme.SlantTabs(root)
+    p = tabs.add('Logos')
+    for i in range(40): ttk.Label(p, text=f'row {i}').pack()
+    tabs.place(x=0, y=0, width=400, height=250); tabs.select(0); root.update()
+    assert tabs.needs_scroll()                            # the page is taller than the room: it scrolls
+    tabs.place(x=0, y=0, width=400, height=2000); root.update()
+    assert not tabs.needs_scroll()
+    tabs.destroy()

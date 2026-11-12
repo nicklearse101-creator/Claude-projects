@@ -481,9 +481,19 @@ class SlantTabs(ttk.Frame):
         self.strip = tk.Canvas(self, height=height + 2 * PAD, bg=BG, highlightthickness=0, bd=0)
         self.strip.pack(fill='x')
         tk.Frame(self, height=2, bg=ACC).pack(fill='x')
-        self.body = ttk.Frame(self, style='TFrame')
-        self.body.pack(fill='both', expand=True)
+        # the pages sit in a scrollable view: when the window is too short for a page, it scrolls (scroll bar and
+        # mouse wheel) instead of pushing the controls below it out of the window
+        self.sb = ttk.Scrollbar(self, orient='vertical')
+        self.view = tk.Canvas(self, bg=PANEL, highlightthickness=0, bd=0, yscrollcommand=self.sb.set)
+        self.sb.configure(command=self.view.yview)
+        self.view.pack(side='left', fill='both', expand=True)
+        self.body = ttk.Frame(self.view, style='TFrame')
+        self._win = self.view.create_window(0, 0, window=self.body, anchor='nw')
         self.body.columnconfigure(0, weight=1)
+        self._sb_on = False
+        self.body.bind('<Configure>', lambda e: self._fit())
+        self.view.bind('<Configure>', lambda e: self._fit())
+        self.bind_all('<MouseWheel>', self._wheel, add='+')
         self.pages, self.titles, self.current, self._hover = [], [], 0, None
         self._imgs = {}
 
@@ -503,11 +513,37 @@ class SlantTabs(ttk.Frame):
         self.update_idletasks()
         self.body.grid_rowconfigure(0, minsize=max(p.winfo_reqheight() for p in self.pages))
         self.body.grid_columnconfigure(0, minsize=max(p.winfo_reqwidth() for p in self.pages))
+        self._fit()
+        self.view.yview_moveto(0)
         self._draw()
         self.event_generate('<<TabChanged>>')
 
     def index(self):
         return self.current
+
+    def needs_scroll(self):
+        return self.body.winfo_reqheight() > self.view.winfo_height() + 1
+
+    def _fit(self):
+        bw, bh = self.body.winfo_reqwidth(), self.body.winfo_reqheight()
+        if self.view.winfo_reqwidth() != bw or self.view.winfo_reqheight() != bh:
+            self.view.configure(width=bw, height=bh)              # asks for the whole page; gets what there is
+        vw = max(self.view.winfo_width(), bw)
+        self.view.itemconfigure(self._win, width=vw)
+        self.view.configure(scrollregion=(0, 0, vw, bh))
+        need = self.needs_scroll() and self.view.winfo_height() > 1
+        if need and not self._sb_on:
+            self.sb.pack(side='right', fill='y', before=self.view); self._sb_on = True
+        elif not need and self._sb_on:
+            self.sb.pack_forget(); self._sb_on = False; self.view.yview_moveto(0)
+
+    def _wheel(self, e):
+        try:
+            w = str(e.widget)
+            if self._sb_on and (w.startswith(str(self.body)) or w == str(self.view)):
+                self.view.yview_scroll(-1 if e.delta > 0 else 1, 'units')
+        except (tk.TclError, AttributeError):
+            pass
 
     def _img(self, i, w, state):
         kind = 'tab_active' if i == self.current else 'tab'
@@ -726,19 +762,32 @@ class ButtonBar(tk.Canvas):
         return self._imgs[(i, state)]
 
     def _draw(self):
+        """Lay the buttons out once per size; hover / press only swap one button's picture (see _restyle): items
+        made again under the pointer would fire <Enter> again, over and over."""
         self.delete('all')
+        self._ids = []
         for i, (x, y) in enumerate(self._pos):
-            st = 'pressed' if self._pressed == i else 'hover' if self._hover == i else 'normal'
             tag = f'b{i}'
-            self.create_image(x, y, image=self._img(i, st), anchor='nw', tags=tag)
+            self._ids.append(self.create_image(x, y, image=self._img(i, self._st(i)), anchor='nw', tags=tag))
             self.tag_bind(tag, '<Enter>', lambda e, i=i: self._state(hover=i))
             self.tag_bind(tag, '<Leave>', lambda e: self._state(hover=None, pressed=None))
             self.tag_bind(tag, '<ButtonPress-1>', lambda e, i=i: self._state(pressed=i))
             self.tag_bind(tag, '<ButtonRelease-1>', lambda e, i=i: self._release(i))
 
+    def _st(self, i):
+        return 'pressed' if self._pressed == i else 'hover' if self._hover == i else 'normal'
+
+    def _restyle(self, i):
+        if 0 <= i < len(self._ids): self.itemconfigure(self._ids[i], image=self._img(i, self._st(i)))
+
     def _state(self, **kw):
-        for k, v in kw.items(): setattr(self, '_' + k, v)
-        self._draw()
+        touched = {self._hover, self._pressed}
+        changed = False
+        for k, v in kw.items():
+            if getattr(self, '_' + k) != v: setattr(self, '_' + k, v); changed = True
+        if not changed: return
+        for i in touched | {self._hover, self._pressed}:
+            if i is not None: self._restyle(i)
 
     def _release(self, i):
         was = self._pressed == i
