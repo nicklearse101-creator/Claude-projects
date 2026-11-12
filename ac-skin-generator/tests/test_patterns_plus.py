@@ -1,4 +1,4 @@
-"""The v1.10 patterns: sane colours, the same every time, drawn on the sides and the top, quick enough.
+r"""The v1.10 patterns: sane colours, the same every time, drawn on the sides and the top, quick enough.
 python -m pytest -p no:cacheprovider tests/test_patterns_plus.py -q --basetemp=D:\ClaudeData\tmp\pytest"""
 import os, sys, time
 import numpy as np

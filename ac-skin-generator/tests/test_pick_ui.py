@@ -1,4 +1,4 @@
-"""The app side of 'pick it on the car' and 'Report this car' (Nik, 12 Nov). Real window, test data, faked painting
+r"""The app side of 'pick it on the car' and 'Report this car' (Nik, 12 Nov). Real window, test data, faked painting
 (see test_car_change.py). python -m pytest -p no:cacheprovider tests/test_pick_ui.py -q --basetemp=D:\ClaudeData\tmp\pytest"""
 import json, os, sys, types, zipfile
 import pytest
