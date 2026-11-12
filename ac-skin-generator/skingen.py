@@ -64,6 +64,7 @@ def stock_skins(car_dir):
 
 def find_skin_file(skin_dir, texname):
     want = texname.lower()
+    if not os.path.isdir(skin_dir): return None
     for f in os.listdir(skin_dir):
         if f.lower() == want: return os.path.join(skin_dir, f)
     return None
@@ -543,7 +544,7 @@ DEFAULT_DESIGN = dict(
     win_tint=None, win_tint_dark=0.5, win_tint_windscreen=False,
     win_enable=False, win_clear=True, win_banner='RATTY RACING', win_banner_colour='#111111', win_text_colour='#ffffff',
     win_number=True, win_name=True, win_banner_height=0.12, win_side_place='rear', debug_decals=False,
-    font_team=None, font_name=None, font_number=None, adjust=None, compress=True,
+    font_team=None, font_name=None, font_number=None, adjust=None, compress=True, avoid_mirror=False,
     font=DEFAULT_FONT,
 )
 
@@ -1029,6 +1030,7 @@ def render_design(car, tm, paint, design, log=print, info=None, ctx=None, mem=No
 
     # ---- decals
     decals = ctx['decals'] = place_decals(car, tm, paint, design, prof, base, acc, acc2, txt, log) if first else ctx['decals']
+    for dc in decals: dc.avoid_mirror = bool(design.get('avoid_mirror'))
     col, _, forced, _ = apply_decals(col, tm, decals, log if first else (lambda m: None),
                                      debug=bool(design.get('debug_decals')), allow_move=first)
     if info is not None:            # where each decal went (after any slide onto its panel), for the preview boxes
@@ -1453,8 +1455,24 @@ def place_hits(tm, dc, hm, wm, log, inside=False, allow_move=True, no_shared=Fal
                 log(f'  placement check: only {cov * 100:.0f}% of the {name} fits on the car there - move or shrink it on the preview')
     frac = tm.mirrored[tm.yy[idx], tm.xx[idx]].mean()
     if frac >= 0.25 and not dc.mirror_ok:          # only worth a note when much of it is shared
-        log(f'  {name}: put where asked - note the car uses one picture for both sides here, so it also shows '
-            f'(mirrored) on the other side. Move it on the preview if you do not like it.')
+        if not getattr(dc, 'avoid_mirror', False):
+            log(f'  {name}: put where asked - note the car uses one picture for both sides here, so it also shows '
+                f'(mirrored) on the other side. Move it on the preview, or tick "Keep logos off areas the car mirrors".')
+            return idx, a, b
+        # the user's option: never a backwards copy - the nearest spot the car does not mirror, else left off
+        _, hm, wm = decal_size(dc, tm.texel_m)
+        if allow_move and not getattr(dc, 'by_hand', False) and dc.coords is None:
+            for da, db in ((0, .05), (0, -.05), (0, .1), (0, -.1), (.1, 0), (-.1, 0), (0, .15), (0, -.15), (.2, 0), (-.2, 0),
+                           (0, .25), (0, -.25), (.3, 0), (-.3, 0), (.4, 0), (-.4, 0)):
+                i2, a2, b2 = decal_hits(tm, dc, hm, wm, da, inside, db)
+                if len(i2) < 0.5 * len(idx) or tm.mirrored[tm.yy[i2], tm.xx[i2]].mean() >= 0.03: continue
+                dc.a += da; dc.b += db
+                dc.slid = (getattr(dc, 'slid', (0, 0))[0] + da, getattr(dc, 'slid', (0, 0))[1] + db)
+                log(f'  {name}: moved {abs(da + db) * 100:.0f} cm off the area the car mirrors (no backwards copy)')
+                return i2, a2, b2
+        log(f'  {name}: left off - the car uses one picture for both sides all over this panel, so it would show a '
+            f'backwards copy ("Keep logos off areas the car mirrors" is ticked)')
+        return False
     return idx, a, b
 
 
@@ -2768,6 +2786,9 @@ def generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pri
     info (a dict), when given, is filled with where every decal went and each view's frame, so the
     app can let the user move them on the preview."""
     step = progress or (lambda f, t: None)
+    if copy_other_from and not os.path.isdir(os.path.join(car_dir, 'skins', copy_other_from)):
+        log(f'"{copy_other_from}" is not a skin of this car - nothing copied from it')
+        copy_other_from = None
     step(0.02, 'Reading the car model')
     kn5_ = find_main_kn5(car_dir)
     car_key = (os.path.normpath(car_dir), os.path.getmtime(kn5_), os.path.getsize(kn5_), resolution)

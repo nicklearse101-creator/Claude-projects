@@ -8,13 +8,23 @@ from PIL import Image, ImageFont, ImageTk
 import skingen
 
 APP_NAME = skingen.APP_NAME
-VERSION = '1.7.1'
+VERSION = '1.7.2'
 DATA_DIR = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'Rattys4SkinGenerator')
 LOGO_DIR = os.path.join(DATA_DIR, 'logos')
 SETTINGS = os.path.join(DATA_DIR, 'settings.json')
 LIBRARY = os.path.join(DATA_DIR, 'logos.json')
 PLACE_NAMES = {'': 'Not used'}; PLACE_NAMES.update(skingen.PLACES)
 BG_MODES = {'auto': 'Auto', 'remove': 'Remove background', 'keep': 'Keep whole picture'}
+LENS_COLOURS = ['#ff8080', '#ffff80', '#80ff80', '#00ff80', '#80ffff', '#0080ff', '#ff80c0', '#ff80ff',
+                '#ff0000', '#ffff00', '#80ff00', '#00ff40', '#00ffff', '#0080c0', '#8080c0', '#ff00ff']
+
+
+def nearest_lens(c):
+    """The allowed lens colour nearest to c (old settings may hold a dark one)."""
+    try: r, g, b = (int(c[i:i + 2], 16) for i in (1, 3, 5))
+    except (ValueError, TypeError): return LENS_COLOURS[1]
+    if max(r, g, b) < 128: return LENS_COLOURS[1]      # a dark one: plain pale headlight yellow
+    return min(LENS_COLOURS, key=lambda x: sum((int(x[i:i + 2], 16) - v) ** 2 for i, v in zip((1, 3, 5), (r, g, b))))
 TEXT_PLACES = ['front_wings', 'lower_doors', 'doors', 'rear_quarters', 'bonnet', 'roof', 'boot', 'rear', 'front']
 TEAM_DEFAULT = ['front_wings', 'boot', 'rear', 'front']
 NAME_DEFAULT = ['front_wings']
@@ -116,7 +126,7 @@ class App(tk.Tk):
     def load_cfg(self):
         d = dict(skingen.DEFAULT_DESIGN)
         d.update(cars_dir='', car='', skin_name='My Skin', copy_from='', use_wheels=False, wheel_colour='#7020d2', use_tyres=False, tyre_colour='#ff8000',
-                 use_lens=False, lens_colour='#ffd21f', use_tint=False, win_tint_colour='#14181c', win_tint_pct='50', compress=True)
+                 use_lens=False, lens_colour='#ffd21f', use_tint=False, win_tint_colour='#14181c', win_tint_pct='50', compress=True, avoid_mirror=False)
         try: d.update(json.load(open(SETTINGS, encoding='utf8')))
         except Exception: pass
         if not d.get('cars_dir') or not os.path.isdir(d['cars_dir']): d['cars_dir'] = find_ac_cars()
@@ -298,6 +308,9 @@ class App(tk.Tk):
         bf = ttk.Frame(lt); bf.pack(fill='x', pady=4)
         ttk.Button(bf, text='Add logos…', command=self.add_logos).pack(side='left')
         ttk.Button(bf, text='Remove', command=self.remove_logo).pack(side='left', padx=4)
+        ttk.Button(bf, text='Clear all (not used)', command=self.clear_logos).pack(side='left', padx=4)
+        ttk.Checkbutton(lt, text='Keep logos off areas the car mirrors (no backwards copies; a logo with nowhere else to go is left off)',
+                        variable=self.var('avoid_mirror', tk.BooleanVar)).pack(anchor='w', pady=(2, 0))
         pf = ttk.Frame(lt); pf.pack(fill='x', pady=2)
         ttk.Label(pf, text='Place on car', width=18).pack(side='left')
         self.place_var = tk.StringVar(value='Not used')
@@ -311,6 +324,14 @@ class App(tk.Tk):
         note('logos', 'Auto removes a plain one-colour background and keeps pictures with busy backgrounds whole.')
         self.tint_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(pf, text='Tint glow to highlight colour', variable=self.tint_var, command=self.on_place).pack(side='left', padx=6)
+        uf = ttk.LabelFrame(lt, text='On the car'); uf.pack(fill='x', pady=(6, 2))
+        self.used_tree = ttk.Treeview(uf, columns=('place',), height=5, selectmode='browse', show='headings')
+        self.used_tree.heading('place', text='Place'); self.used_tree.column('place', width=150)
+        self.used_tree['columns'] = ('logo', 'place')
+        self.used_tree.heading('logo', text='Logo'); self.used_tree.heading('place', text='Place')
+        self.used_tree.column('logo', width=230); self.used_tree.column('place', width=150)
+        self.used_tree.pack(fill='x')
+        self.used_tree.bind('<<TreeviewSelect>>', self.on_used_select)
 
         # --- windows
         row('windows', '', lambda f: ttk.Checkbutton(f, text='Make new window stickers', variable=self.var('win_enable', tk.BooleanVar)))
@@ -340,7 +361,8 @@ class App(tk.Tk):
 
         # --- lights & wheels
         row('lights', '', lambda f: ttk.Checkbutton(f, text='Colour the headlight lenses', variable=self.var('use_lens', tk.BooleanVar)))
-        row('lights', 'Lens colour', lambda f: self.colour_button(f, 'lens_colour'))
+        row('lights', 'Lens colour', lambda f: self.colour_button(f, 'lens_colour', LENS_COLOURS))
+        note('lights', 'Lens colours are the bright ones only - darker colours would look like a dead lamp.')
         note('lights', 'Tints the front lamp textures, so the lens and its glow take this colour.')
         ttk.Separator(tabs['lights']).pack(fill='x', pady=6)
         row('lights', '', lambda f: ttk.Checkbutton(f, text='Recolour the wheel rims', variable=self.var('use_wheels', tk.BooleanVar)))
@@ -481,8 +503,9 @@ class App(tk.Tk):
             ttk.Checkbutton(fr, text=label, variable=self.var(key, tk.BooleanVar)).pack(side='left', padx=(0, 10))
         return fr
 
-    def colour_button(self, parent, key):
+    def colour_button(self, parent, key, choices=None):
         v = self.var(key)
+        if choices and v.get().lower() not in choices: v.set(nearest_lens(v.get()))
         b = tk.Button(parent, width=12, relief='groove')
         def paint(*_):
             c = v.get() or '#000000'
@@ -491,10 +514,20 @@ class App(tk.Tk):
                 b.configure(bg=c, activebackground=c, text=c, fg='black' if lum > 0.5 else 'white')
             except tk.TclError: pass
         def pick():
+            if choices: return self.swatch_picker(b, v, choices)
             c = colorchooser.askcolor(v.get(), parent=self)[1]
             if c: v.set(c)
         b.configure(command=pick); v.trace_add('write', paint); paint()
         return b
+
+    def swatch_picker(self, anchor, var, choices, cols=8):
+        """A small chart of the allowed colours under the button; a click picks one."""
+        top = tk.Toplevel(self); top.title('Lens colour'); top.transient(self); top.resizable(False, False)
+        top.geometry(f'+{anchor.winfo_rootx()}+{anchor.winfo_rooty() + anchor.winfo_height()}')
+        for k, c in enumerate(choices):
+            tk.Button(top, bg=c, activebackground=c, width=4, height=1, relief='sunken' if c == var.get().lower() else 'raised',
+                      command=lambda c=c: (var.set(c), top.destroy())).grid(row=k // cols, column=k % cols, padx=2, pady=2)
+        top.grab_set(); top.focus_set()
 
     # ---------------------------------------------------------------- car pickers
     def pick_cars_dir(self):
@@ -521,7 +554,9 @@ class App(tk.Tk):
 
     def refresh_skins(self):
         car = os.path.join(self.vars['cars_dir'].get(), self.vars['car'].get())
-        self.copy_box['values'] = [''] + (skingen.stock_skins(car) if os.path.isdir(car) else [])
+        skins = skingen.stock_skins(car) if os.path.isdir(car) else []
+        self.copy_box['values'] = [''] + skins
+        if self.vars['copy_from'].get() not in skins: self.vars['copy_from'].set('')   # a skin of another car
 
     # ---------------------------------------------------------------- logo library
     def refresh_library(self):
@@ -538,6 +573,31 @@ class App(tk.Tk):
             self.tree.insert('', 'end', iid=str(i), text='  ' + lg.get('name', lg['file']),
                              values=(PLACE_NAMES.get(lg.get('place', ''), 'Not used'), BG_MODES.get(lg.get('bg', 'auto'), 'Auto'),
                                      'yes' if lg.get('tint') else ''), **kw)
+        self.refresh_used()
+
+    def refresh_used(self):
+        """The 'On the car' list: every logo that has a place, in the order of the car's places."""
+        if not hasattr(self, 'used_tree'): return
+        self.used_tree.delete(*self.used_tree.get_children())
+        order = list(PLACE_NAMES)
+        used = sorted((i for i, lg in enumerate(self.library) if lg.get('place')),
+                      key=lambda i: order.index(self.library[i]['place']) if self.library[i]['place'] in order else 99)
+        for i in used:
+            lg = self.library[i]
+            self.used_tree.insert('', 'end', iid=str(i), values=(lg.get('name', lg['file']), PLACE_NAMES.get(lg['place'], lg['place'])))
+        if not used: self.used_tree.insert('', 'end', iid='none', values=('(no logos chosen yet)', ''))
+
+    def on_used_select(self, e=None):
+        sel = self.used_tree.selection()
+        if sel and sel[0] != 'none' and self.tree.exists(sel[0]):
+            self.tree.selection_set(sel[0]); self.tree.see(sel[0])
+
+    def clear_logos(self):
+        if not any(lg.get('place') for lg in self.library): return
+        if not messagebox.askyesno(APP_NAME, 'Take every logo off the car (all set to "Not used")?\n'
+                                             'The logos stay in the library.'): return
+        for lg in self.library: lg['place'] = ''
+        self.save_library(); self.refresh_library(); self.on_logo_select()
 
     def add_logos(self):
         files = filedialog.askopenfilenames(title='Add logos or pictures',
@@ -604,7 +664,7 @@ class App(tk.Tk):
         d['name_places'] = [p for p, v in self.np_vars.items() if v.get()] or ['none']
         d['wheel_colour'] = self.vars['wheel_colour'].get() if self.vars['use_wheels'].get() else None
         d['tyre_colour'] = self.vars['tyre_colour'].get() if self.vars['use_tyres'].get() else None
-        d['lens_colour'] = self.vars['lens_colour'].get() if self.vars['use_lens'].get() else None
+        d['lens_colour'] = nearest_lens(self.vars['lens_colour'].get()) if self.vars['use_lens'].get() else None
         d['win_tint'] = self.vars['win_tint_colour'].get() if self.vars['use_tint'].get() else None
         try: d['win_tint_dark'] = min(90.0, max(5.0, float(self.vars['win_tint_pct'].get()))) / 100
         except ValueError: d['win_tint_dark'] = 0.5
