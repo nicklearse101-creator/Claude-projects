@@ -1,4 +1,4 @@
-RATTY'S4SKIN GENERATOR  v1.8.0
+RATTY'S4SKIN GENERATOR  v1.9.0
 Makes liveries (skins) for Assetto Corsa cars. No AI, no internet needed.
 
 WHAT YOU NEED
@@ -10,7 +10,13 @@ INSTALL
 1. Run "Rattys4SkinGenerator_Setup.exe".
 2. Windows may show "Windows protected your PC" because the app is not signed.
    Click "More info", then "Run anyway".
-3. Click Install. No admin rights needed. You get a Desktop and Start-menu shortcut.
+3. Choose where it goes: press "Change..." to pick a folder (for example on your D: drive).
+   The app always gets its own Rattys4SkinGenerator folder in the one you pick.
+   Tick "Keep my logos and settings in that folder too" to keep them there as well
+   (then nothing of the app is kept on C:).
+4. Click Install. No admin rights needed. You get a Desktop and Start-menu shortcut.
+To update: run the new Setup - it offers the folder the app is in now. Your logos and
+settings are never deleted by an update or by removing the app.
 To remove it later: Windows Settings > Apps > Installed apps > Ratty's4Skin Generator.
 
 MAKE A SKIN (2 minutes)
@@ -37,8 +43,9 @@ MAKE A SKIN (2 minutes)
    so nothing changes online). Other drivers see it if they have the skin and CSP.
 6. LIGHTS & WHEELS tab (optional): headlight lens colour (bright colours only), rim colour and tyre colour
    (rims and tyres are separate).
-7. Press PREVIEW. Wait for the bar to finish (up to about a minute).
-8. Happy? Press CREATE SKIN IN CAR.
+7. Press PREVIEW. Wait for the bar to finish (up to about a minute the first time for a car).
+8. Happy? Press CREATE SKIN IN CAR. Straight after a preview this only takes a few seconds
+   (it uses the preview's work, as long as nothing was changed in between).
 9. In Content Manager pick the car, pick the new skin and click "Update preview".
    (Without Content Manager: the skin is simply there in the game's car menu.)
 
@@ -68,8 +75,9 @@ GOOD TO KNOW
     * wheels and headlights only change on cars that have their own texture for them;
     * cars locked (encrypted) by their maker cannot be read at all.
   The log says so when this happens.
-- Your settings and logo library are kept in
-  %APPDATA%\Rattys4SkinGenerator  (they survive an uninstall).
+- Your settings and logo library are kept in the app's folder ("data") if you ticked
+  "Keep my logos and settings in that folder too" when installing, otherwise in
+  %APPDATA%\Rattys4SkinGenerator. Either way they survive an update and an uninstall.
 
 PROBLEMS
 - "Pick a car first": choose the car on the Car tab.

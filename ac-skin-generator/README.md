@@ -6,12 +6,16 @@ texture layout looks like.
 
 ## Install (for anyone)
 Run `Rattys4SkinGenerator_Setup.exe` (built into `release/` together with `Rattys4SkinGenerator_vX.Y.Z.zip`, the installer plus "READ ME FIRST.txt" to share). It installs for
-the current user - no admin needed - into `%LOCALAPPDATA%\Programs\Rattys4SkinGenerator`,
-adds a Desktop and Start-menu shortcut, and appears in Windows "Installed apps" for removal.
+the current user - no admin needed - into a folder they choose (**Change…**; default
+`%LOCALAPPDATA%\Programs`), always in its own `Rattys4SkinGenerator` folder there; an update offers the folder the
+app is in now (moving it removes the old program files). It adds a Desktop and Start-menu shortcut, and appears
+in Windows "Installed apps" for removal.
 Python is not needed. Windows SmartScreen may warn because the exe is not signed:
 "More info" -> "Run anyway".
 
-Settings and the logo library live in `%APPDATA%\Rattys4SkinGenerator` (kept on uninstall).
+Settings, the logo library, saved ghosts and car catalogues (the app's data folder) live in `%APPDATA%\Rattys4SkinGenerator`,
+or in a `data` folder next to the installed app when "Keep my logos and settings in that folder too" was ticked
+(v1.9.0; copied from AppData, the old copy is left). Updates, moves and the uninstaller never delete it.
 
 ## Use
 Tabs on the left, preview on the right. **Look (v1.8.0):** dark carbon and orange, slanted 'game' tabs and
@@ -51,7 +55,7 @@ view or "Open full size".
 The preview shows the car cut out on a garage floor (carbon background, hazard stripes, a reflection) with a
 **ghost** of the car being edited behind it: its own front view drawn from its 3D model as orange lines (no
 textures, so no badges). The ghost is drawn in the background when a car is picked and kept in
-`%APPDATA%\Rattys4SkinGenerator\ghosts` (redrawn if the car's model changes). "PREVIEW ONLY · NOT SAVED"
+`ghosts` in the app's data folder (redrawn if the car's model changes). "PREVIEW ONLY · NOT SAVED"
 shows until the skin is created.
 **Edit on the preview:** pick one side, click a logo, number or name (each has a dashed box), then drag to
 move it, mouse wheel to resize, Shift+wheel to turn, or use the Bigger / Smaller / Turn / Flip / Reset buttons.
@@ -133,7 +137,13 @@ pick the skin and click "Update preview".
 8. The painted colours are spread into the texture's gaps between panels (12 texels), so the old skin's
    colour cannot show as a line along seams and lamp surrounds.
 9. `car_catalogue()` lists what was found in a car (body / wheel textures, glass, lights, every material and
-   its textures) into `%APPDATA%\Rattys4SkinGenerator\catalogue\CAR.json`, reused while the model is unchanged.
+   its textures) into `catalogue\CAR.json` in the app's data folder, reused while the model is unchanged.
+11. **Speed (v1.9.0, same skins byte for byte):** the gap spreading (8) looks only at empty texels near paint
+   (15 s -> under 1 s per 4K texture); a Create straight after a Preview of the same design reuses the painted
+   textures (with the same messages and decal boxes); logos are prepared once (kept until the file changes) and
+   their enclosed parts found on runs of pixels, not by a pixel flood fill; the 4-point pattern is worked out on up
+   to 4 cores and added up in the same order; the Create no longer draws an extra preview sheet the app never
+   used. Checked with `tests/same_output_cars.py` (old vs new code, 9 cars incl. Kunos) and `tests/test_speed.py`.
 10. Output: mipmapped DDS (compressed DXT1 / DXT5 by default, uncompressed with "Smaller files" off),
    `ui_skin.json`, `livery.png`.
 

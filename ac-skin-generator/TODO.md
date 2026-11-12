@@ -20,6 +20,17 @@ Dropped (Nik, 11 Nov): Talbot lower-door name behind the sill trim, Escort Mk2 t
 
 Details of earlier fixes: `PLAN_next_session.md`.
 
+## Done 12 Nov (v1.9.0)
+- Speed (Nik: "can we optimise it to work faster"): Create straight after a Preview: Talbot 68 -> 15 s, Kadett
+  54 -> 15 s, S13 71 -> 24 s, Lacetti 27 -> 11 s, Ferrari 296 GT3 75 -> 19 s; first Preview of a car ~15-20 %
+  faster, Preview after a change ~30 % (Talbot 52 -> 36 s). Skins, preview pictures, logo boxes and messages
+  identical to v1.8.0 on 9 cars (Nik's 4 + E30, 296 GT3, quattro rally, 500, 155) - `tests/same_output_cars.py`;
+  all 480 logo files prepared identically (1920 checks). Old code's window-sticker messages come in a random order
+  from run to run (set order) - harmless, the compare allows it. Not done yet (bigger job): decal placement
+  (`decal_hits`) and drawing the five views, the rest of a Preview's time.
+- Installer: choose the folder; option to keep logos and settings in it (`data` next to the exe).
+  Tests: `tests/test_installer.py`, `tests/test_speed.py`.
+
 ## Done 12 Nov (v1.8.0)
 - Game look (Nik: "like a need for speed home screen"): carbon + orange reskin, same layout; garage preview
   with a ghost of the car being edited. Spec / plan: `docs/2026-11-12-game-look-ui-*.md`. Skins byte-identical

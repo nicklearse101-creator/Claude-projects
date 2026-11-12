@@ -15,7 +15,15 @@ if sys.argv[1] == '--compare':
         if car not in new: print(f'{car}: missing in the new run'); bad += 1; continue
         o, n = old[car]['sums'], new[car]['sums']
         diff = sorted(k for k in set(o) | set(n) if o.get(k) != n.get(k))
-        t = '  '.join(f'{s}: {old[car]["times"][s]:5.1f}s -> {new[car]["times"][s]:5.1f}s' for s in old[car]['times'])
+        for k in [k for k in diff if k.endswith(' log')]:
+            # the window-sticker messages come in a different order from run to run (old code too): same lines = same
+            texts = []
+            for p, tag in ((sys.argv[2], 'old'), (sys.argv[3], 'new')):
+                f = f'{p}.{car}.{k.split()[0]}.log.txt'
+                texts.append(sorted(open(f, encoding='utf-8').read().replace(os.path.abspath(p) + '_out', '<out>')
+                                    .splitlines()) if os.path.isfile(f) else None)
+            if texts[0] is not None and texts[0] == texts[1]: diff.remove(k)
+        t = '  '.join(f'{s}: {old[car]["times"].get(s, 0):5.1f}s -> {new[car]["times"].get(s, 0):5.1f}s' for s in old[car]['times'])
         print(f'{car:48s} {"IDENTICAL" if not diff else "DIFFERENT"} ({len(o)} items)   {t}')
         for k in diff[:8]: print('     differs:', k)
         bad += bool(diff)
