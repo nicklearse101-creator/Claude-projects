@@ -13,7 +13,17 @@ messagebox = theme.messagebox      # dark dialogs, same calls as tkinter.message
 
 APP_NAME = skingen.APP_NAME
 VERSION = '1.8.0'
-DATA_DIR = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'Rattys4SkinGenerator')
+
+
+def find_data_dir(exe_dir, appdata):
+    """Where the logos, settings and saved ghosts live: a "data" folder next to the installed app when the installer
+    made one ("keep my logos and settings in that folder too"), else %APPDATA%\\Rattys4SkinGenerator as before."""
+    own = os.path.join(exe_dir, 'data') if exe_dir else None
+    return own if own and os.path.isdir(own) else os.path.join(appdata, 'Rattys4SkinGenerator')
+
+
+DATA_DIR = find_data_dir(os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else None,
+                         os.environ.get('APPDATA', os.path.expanduser('~')))
 LOGO_DIR = os.path.join(DATA_DIR, 'logos')
 SETTINGS = os.path.join(DATA_DIR, 'settings.json')
 LIBRARY = os.path.join(DATA_DIR, 'logos.json')

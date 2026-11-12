@@ -13,6 +13,7 @@ Pipeline
 AC axes: +X = car's left, +Y = up, +Z = forward (right-handed).
 """
 import copy, glob, io, json, os, re, shutil, struct
+from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont, ImageColor, ImageOps
 
@@ -468,8 +469,58 @@ def text_image(text, px_height, color, font_path=DEFAULT_FONT, style='Bold Conde
     return im.crop(bb) if bb else im
 
 
+def enclosed(solid):
+    """The solid part of a mask plus every hole it closes in: all but the background that joins up with the edge of
+    the picture (4-connected; the same as v1.8.0's flood fill from the border, done on runs of pixels, not pixels)."""
+    solid = np.asarray(solid, bool)
+    free = np.pad(~solid, 1, constant_values=True)          # a clear ring round it: all the outside joins up
+    Hp, Wp = free.shape
+    d = np.diff(free.astype(np.int8), axis=1, prepend=0, append=0)
+    rr, s0 = np.nonzero(d == 1); _, e0 = np.nonzero(d == -1)        # runs of clear pixels: row, start, end (excl.)
+    n = len(rr)
+    big = Wp + 2
+    k_start, k_end = rr * big + s0, rr * big + e0
+    j = np.nonzero(rr > 0)[0]                                   # each run against the runs of the row above it
+    lo = np.searchsorted(k_end, (rr[j] - 1) * big + s0[j], 'right')
+    hi = np.searchsorted(k_start, (rr[j] - 1) * big + e0[j], 'left')
+    cnt = np.maximum(hi - lo, 0)
+    u = np.repeat(j, cnt)
+    v = np.repeat(lo, cnt) + (np.arange(cnt.sum()) - np.repeat(np.cumsum(cnt) - cnt, cnt))
+    lab = np.arange(n)
+    while len(u):                                               # join touching runs: smallest run number wins
+        prev = lab.copy()
+        m = np.minimum(lab[u], lab[v])
+        for w in (u, v, lab[u], lab[v]): np.minimum.at(lab, w, m)
+        while True:
+            nxt = lab[lab]
+            if np.array_equal(nxt, lab): break
+            lab = nxt
+        if np.array_equal(lab, prev): break
+    out = lab == lab[0]                                         # run 0 = the top of the ring
+    mark = np.zeros((Hp, Wp + 1), np.int32)
+    np.add.at(mark, (rr[out], s0[out]), 1); np.add.at(mark, (rr[out], e0[out]), -1)
+    outside = np.cumsum(mark, axis=1)[:, :Wp] > 0
+    return ~outside[1:-1, 1:-1]
+
+
+_LOGOS = {}     # logos already prepared: (file, its date and size, tint, background) -> picture
+
+
 def prep_logo(path, tint=None, bg='auto'):
-    """Key out the logo's background (colour taken from its border) and optionally re-tint its glow."""
+    """Key out the logo's background (colour taken from its border) and optionally re-tint its glow.
+    Kept once made (redone if the file changes); every caller gets its own copy."""
+    try:
+        st = os.stat(path)
+        key = (os.path.abspath(path), st.st_mtime_ns, st.st_size, None if tint is None else tuple(float(v) for v in tint), bg)
+    except (OSError, TypeError):
+        return _prep_logo(path, tint, bg)
+    if key not in _LOGOS:
+        if len(_LOGOS) >= 24: _LOGOS.pop(next(iter(_LOGOS)))
+        _LOGOS[key] = _prep_logo(path, tint, bg)
+    return _LOGOS[key].copy()
+
+
+def _prep_logo(path, tint=None, bg='auto'):
     im = Image.open(path).convert('RGBA')
     a = np.asarray(im).astype(np.float32)
     rgbv = a[..., :3]
@@ -506,9 +557,7 @@ def prep_logo(path, tint=None, bg='auto'):
         out = np.dstack([out[..., :3] * (1 - w[..., None]) + rgbt * w[..., None], out[..., 3]])
     # make the inside of the logo solid: only background connected to the border stays clear
     solid = Image.fromarray(((out[..., 3] > 128) * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(5))
-    pad = Image.new('L', (solid.width + 2, solid.height + 2), 0); pad.paste(solid, (1, 1))
-    ImageDraw.floodfill(pad, (0, 0), 128)
-    inside = np.asarray(pad)[1:-1, 1:-1] != 128
+    inside = enclosed(np.asarray(solid) > 0)
     inside = np.asarray(Image.fromarray((inside * 255).astype(np.uint8)).filter(ImageFilter.MinFilter(5))
                         .filter(ImageFilter.GaussianBlur(1.5))).astype(np.float32)
     out[..., 3] = np.maximum(out[..., 3], inside)
@@ -901,6 +950,32 @@ def top_panels(car, tm, paint, belt, tm_tex=None):
 
 
 PATTERN_AA = True       # patterns worked out at 4 points per texel (smooth edges)
+PATTERN_WORKERS = min(4, os.cpu_count() or 1)      # CPU cores the pattern is worked out on
+AA_POINTS = ((-0.125, -0.375), (0.375, -0.125), (0.125, 0.375), (-0.375, 0.125))
+
+
+def aa_pattern(design, tm, car, sill, belt, log=None, workers=None, chunk=1 << 21):
+    """The pattern at four points inside every texel of tm, averaged (smooth edges, not stepped). The pieces are worked
+    out on several cores and added up in the same order as one core would, so the colours are exactly the same."""
+    n = len(tm.P)
+    quiet = lambda m: None
+    jobs = [(k, c0) for k in range(len(AA_POINTS)) for c0 in range(0, n, chunk)]   # in pieces: 4K textures need less memory
+
+    def one(job):
+        k, c0 = job
+        dx, dy = AA_POINTS[k]
+        sl = slice(c0, min(n, c0 + chunk))
+        Pk, Nk = locate_texels(tm.t_px, tm.t_pos, tm.t_nrm, tm.tri[sl], tm.xx[sl] + dx, tm.yy[sl] + dy)
+        return sl, pattern_colours(design, Pk, Nk, car, sill, belt, (log or quiet) if job == jobs[0] else quiet)
+    col = np.zeros((n, 3))
+    workers = PATTERN_WORKERS if workers is None else workers
+    if workers > 1 and len(jobs) > 1:
+        with ThreadPoolExecutor(workers) as ex:
+            for sl, c in ex.map(one, jobs): col[sl] += c
+    else:
+        for job in jobs:
+            sl, c = one(job); col[sl] += c
+    return col / 4
 
 
 def pattern_colours(design, P, N, car, sill, belt, log=print):
@@ -1017,13 +1092,7 @@ def render_design(car, tm, paint, design, log=print, info=None, ctx=None, mem=No
     if mem is not None and 'pattern' in mem:
         col = mem['pattern'].copy()                    # same pattern as last time: only the decals change
     elif PATTERN_AA and tm is not None and getattr(tm, 't_px', None) is not None:
-        col = np.zeros((n, 3))
-        for k, (dx, dy) in enumerate(((-0.125, -0.375), (0.375, -0.125), (0.125, 0.375), (-0.375, 0.125))):
-            for c0 in range(0, n, 1 << 21):            # in pieces, so 4K textures do not need much memory
-                sl = slice(c0, min(n, c0 + (1 << 21)))
-                Pk, Nk = locate_texels(tm.t_px, tm.t_pos, tm.t_nrm, tm.tri[sl], tm.xx[sl] + dx, tm.yy[sl] + dy)
-                col[sl] += pattern_colours(design, Pk, Nk, car, sill, belt, log if (k == 0 and c0 == 0) else (lambda m: None))
-        col /= 4
+        col = aa_pattern(design, tm, car, sill, belt, log)
     else:
         col = pattern_colours(design, P, N, car, sill, belt, log)
     if mem is not None and 'pattern' not in mem: mem['pattern'] = col.copy()
@@ -2715,15 +2784,31 @@ def preview_sheet(car, tex_imgs, tms, width=900, layers=()):
 def pad_texture(img, covered, reach=12):
     """Spread the painted colours out over the texels no triangle owns (the gaps between panels in the
     texture and thin seam triangles). The game blends neighbouring texels, so without this the old
-    skin's colour shows as a line along door seams, lamp surrounds and panel edges."""
-    img = img.copy()
-    have = Image.fromarray((covered * 255).astype(np.uint8))
+    skin's colour shows as a line along door seams, lamp surrounds and panel edges.
+    Each round fills every empty texel whose neighbour to the left, then right, top, bottom has a colour (the texture
+    wraps round at its edges). Only empty texels within `reach` of a painted one are looked at (v1.8.0 shifted the
+    whole texture 48 times: the same result, 15 s per 4K texture)."""
+    a = np.array(img)
+    H, W = covered.shape
+    flat = a.reshape(H * W, -1)
+    have = np.asarray(covered, bool).ravel().copy()
+    near = np.asarray(covered, bool)
+    for ax in (1, 0):                                  # texels within reach (a box, wrapping like the texture)
+        g = near.copy()
+        for k in range(1, reach + 1): g |= np.roll(near, k, ax) | np.roll(near, -k, ax)
+        near = g
+    todo = np.flatnonzero(near.ravel() & ~have)
     for _ in range(reach):
         for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-            new = ImageChops.subtract(ImageChops.offset(have, dx, dy), have)      # filled next door, empty here
-            img.paste(ImageChops.offset(img, dx, dy), (0, 0), new)
-            have = ImageChops.lighter(have, new)
-    return img
+            if not len(todo): break
+            y, x = np.divmod(todo, W)
+            src = ((y - dy) % H) * W + (x - dx) % W   # the neighbour this texel takes its colour from
+            got = have[src]
+            if got.any():
+                flat[todo[got]] = flat[src[got]]
+                have[todo[got]] = True
+                todo = todo[~got]
+    return Image.fromarray(a)
 
 
 def spot_parts(tm, out_rgb, colour, log=print):
@@ -2786,9 +2871,54 @@ def car_catalogue(car_dir, cache_dir=None):
     return d
 
 
-_MEMO = {}       # the last car worked on: its model, texel maps, stock-skin analysis and painted pattern
+_MEMO = {}       # the last car worked on: its model, texel maps, stock-skin analysis, painted pattern and textures
+
+
+def design_key(design, resolution=None):
+    """What a painted texture depends on: the whole design, and the date and size of every file it names (logos,
+    pattern picture), so that a changed file is painted again."""
+    files = []
+
+    def walk(v):
+        if isinstance(v, dict): [walk(x) for x in v.values()]
+        elif isinstance(v, (list, tuple)): [walk(x) for x in v]
+        elif isinstance(v, str) and len(v) < 400 and os.path.isfile(v):
+            st = os.stat(v); files.append((v, st.st_mtime_ns, st.st_size))
+    walk(design)
+    return json.dumps([design, files, resolution], sort_keys=True, default=repr)
 PATTERN_KEYS = ('base', 'accent', 'accent2', 'text', 'pattern', 'halftone', 'carbon', 'pattern_image', 'pattern_mode',
                 'pattern_simplify', 'pattern_recolour')
+
+
+def _paint_texture(car, tm, mem, base, paint, shade, design, said, info, ctx, log):
+    """One body texture painted with the design (before the write-out): the picture and the texels spot_parts filled.
+    Every message is also put in `said`."""
+    def log(m_, out=log):
+        said.append(m_); out(m_)
+    if 'prof' in _MEMO and not ctx: ctx['prof'] = _MEMO['prof']
+    cols, forced = render_design(car, tm, paint, design, log, info, ctx, mem)
+    if 'prof' in ctx: _MEMO['prof'] = ctx['prof']
+    # a decal is never broken: texels inside it that the paint mask left out (a stock logo, a
+    # separate trim panel) are painted too - but not lights, grilles or glass
+    ok_mesh = np.array([not not_paint(nm) for nm in tm.mesh_of_tri])
+    extra = forced & ~paint[tm.yy, tm.xx] & ok_mesh[tm.tri]
+    if extra.any():
+        paint = paint.copy(); paint[tm.yy[extra], tm.xx[extra]] = True
+        names = sorted(set(tm.mesh_of_tri[np.unique(tm.tri[extra])]))
+        log(f'decals also cover {extra.sum()} texels outside the paint area ({", ".join(names)[:90]})')
+    canvas = base.copy()
+    sel = paint[tm.yy, tm.xx]
+    yy, xx = tm.yy[sel], tm.xx[sel]
+    canvas[yy, xx] = cols[sel] * shade[yy, xx, None]
+    # soften the mask edge by one texel
+    m = Image.fromarray((paint * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(0.8))
+    mm = np.asarray(m).astype(np.float32)[..., None] / 255
+    painted = np.clip(canvas, 0, 255)
+    out_rgb = base * (1 - mm) + painted * mm
+    out_rgb[paint] = painted[paint]
+    filled = spot_parts(tm, out_rgb, rgb(design['base']), log)
+    rgb_img = Image.fromarray(np.clip(out_rgb, 0, 255).astype(np.uint8))
+    return rgb_img, filled
 
 
 def generate(car_dir, design, skin_name, out_root=None, resolution=None, log=print, preview_path=None,
@@ -2820,6 +2950,7 @@ def generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pri
     if write and os.path.exists(out) and os.listdir(out):
         raise FileExistsError(f'skin folder already exists: {out}')
     tex_out, tms, ctx = {}, {}, {}
+    key = design_key(design, resolution)
     for tex in car.body_textures:
         ref = None
         for s in car.skins:
@@ -2863,29 +2994,20 @@ def generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pri
         tm = mem['tm']
         base, alpha, paint, shade = mem['stock']
         step(0.1 + 0.55 * (k_ + 0.6 / len(car.body_textures)), 'Painting the livery')
-        if 'prof' in _MEMO and not ctx: ctx['prof'] = _MEMO['prof']
-        cols, forced = render_design(car, tm, paint, design, log, info, ctx, mem)
-        if 'prof' in ctx: _MEMO['prof'] = ctx['prof']
-        # a decal is never broken: texels inside it that the paint mask left out (a stock logo, a
-        # separate trim panel) are painted too - but not lights, grilles or glass
-        ok_mesh = np.array([not not_paint(nm) for nm in tm.mesh_of_tri])
-        extra = forced & ~paint[tm.yy, tm.xx] & ok_mesh[tm.tri]
-        if extra.any():
-            paint = paint.copy(); paint[tm.yy[extra], tm.xx[extra]] = True
-            names = sorted(set(tm.mesh_of_tri[np.unique(tm.tri[extra])]))
-            log(f'decals also cover {extra.sum()} texels outside the paint area ({", ".join(names)[:90]})')
-        canvas = base.copy()
-        sel = paint[tm.yy, tm.xx]
-        yy, xx = tm.yy[sel], tm.xx[sel]
-        canvas[yy, xx] = cols[sel] * shade[yy, xx, None]
-        # soften the mask edge by one texel
-        m = Image.fromarray((paint * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(0.8))
-        mm = np.asarray(m).astype(np.float32)[..., None] / 255
-        painted = np.clip(canvas, 0, 255)
-        out_rgb = base * (1 - mm) + painted * mm
-        out_rgb[paint] = painted[paint]
-        filled = spot_parts(tm, out_rgb, rgb(design['base']), log)
-        rgb_img = Image.fromarray(np.clip(out_rgb, 0, 255).astype(np.uint8))
+        # the same design as the last run (a Create straight after its Preview): its painted texture is used again,
+        # with what was said and where the decals went - only the write-out below differs
+        kept = _MEMO.get('render')
+        if kept and kept['key'] == key and tex in kept['tex']:
+            rgb_img, filled, said, ctx_, decals_ = kept['tex'][tex]
+            for m_ in said: log(m_)
+            ctx.clear(); ctx.update(ctx_)
+            if 'prof' in ctx: _MEMO['prof'] = ctx['prof']
+            if info is not None and decals_ is not None: info['decals'] = copy.deepcopy(decals_)
+        else:
+            rgb_img, filled = _paint_texture(car, tm, mem, base, paint, shade, design, said := [], info, ctx, log)
+            if not kept or kept['key'] != key: kept = _MEMO['render'] = dict(key=key, tex={})
+            kept['tex'][tex] = (rgb_img, filled, said, dict(ctx),
+                                copy.deepcopy(info.get('decals')) if info is not None else None)
         if write: rgb_img = pad_texture(rgb_img, tm.covered | filled)       # the gaps only matter in the game
         img = rgb_img.copy(); img.putalpha(Image.fromarray(alpha))
         tex_out[tex] = img; tms[tex] = tm
@@ -2969,7 +3091,7 @@ def generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pri
     global LAST_LAYERS
     LAST_LAYERS = glass_layers                      # for tests that draw their own views
     if views is not None: views.update(preview_views(car, tex_out, tms, layers=glass_layers, alpha=True))
-    sheet = preview_sheet(car, tex_out, tms, layers=glass_layers) if (views is None or preview_path or write) else None
+    sheet = preview_sheet(car, tex_out, tms, layers=glass_layers) if (views is None or preview_path) else None
     if info is not None: info['frames'] = {v: view_frame(car, v) for v in ('left', 'right', 'front', 'rear', 'top')}
     step(1.0, 'Done')
     if preview_path: sheet.save(preview_path)
