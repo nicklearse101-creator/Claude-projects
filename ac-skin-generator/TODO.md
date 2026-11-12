@@ -27,6 +27,17 @@ Details of earlier fixes: `PLAN_next_session.md`.
   (`lacetti-ratty-skin/`); some built-in ones are too simple.
 - [x] **Colour theme choice for the app** (Nik 12 Nov night) - 7 themes - the carbon + orange look, plus others to pick from.
 
+## Found by the 233-car check (12 Nov night) - to do
+- [ ] **43 GT3 / GT4 / touring cars only get a plain colour** (17 GT4s incl. gt4_mclaren_570s, gt4_alpine_a110,
+  gt4_bmw_m4; 12 Supercars; fsr_* BTCC; cf_ferrari_296_gt3, mclaren_mp412c_gt3, trr_* GT3s, wtcc_alfa_romeo_156_gta).
+  Their livery texture's UVs run v = -1..2 (not 0..1), so `uv_overlap` reads thousands and the app treats the
+  paint as shared; several (ACC-style ports) also split paint colour (metal_detail), a baked AO map and a separate
+  decals texture (EXT_Decals_Colour). Needs: find how the game maps those UVs, then paint them. List:
+  D:/ClaudeData/tmp/r4s_places_gt/_plain_split.json.
+- 14 cars have one place refused (mostly boot): they now get the NOT PLACED bar, so the user can pick the spot.
+- 2 cars unreadable: gravygarage_street_e36_touring (locked by its maker), ks_ferrari_488_gt3_2020 (only a skins
+  folder, no car).
+
 ## Next - Nik 12 Nov evening (REMIND NIK, "no need to fix these just yet")
 - [ ] **Logo list won't scroll with the mouse wheel** unless the app is full screen.
 - [ ] **Window tint doesn't always reach the window edges**: on the Corvette (`corvette_z06_gt3r`, his skin
