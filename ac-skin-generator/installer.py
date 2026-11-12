@@ -140,9 +140,18 @@ def registered_location():
         return None
 
 
+def previous_install():
+    """The folder of an earlier install: the one Windows knows about, else ours in the default place (an install whose
+    Installed-apps entry has gone missing)."""
+    reg = registered_location()
+    if reg: return reg
+    d = os.path.join(DEFAULT_PARENT, FOLDER)
+    return d if os.path.isfile(os.path.join(d, EXE)) else None
+
+
 def install(parent, desktop=True, keep_data=True):
     target = install_dir(parent)
-    old = registered_location()
+    old = previous_install()
     check_target(target)
     check_space(target, space_needed(res('app.zip'), data_source(target, APPDATA_DIR, old), keep_data))
     exe = install_files(res('app.zip'), target, keep_data, APPDATA_DIR, old_target=old)
@@ -191,7 +200,7 @@ class Setup(tk.Tk):
         ttk.Label(f, text=f'Version {VERSION} - livery maker for Assetto Corsa cars').pack()
         ttk.Label(f, text='Install to:').pack(anchor='w', pady=(14, 2))
         row = ttk.Frame(f); row.pack(fill='x')
-        reg = registered_location()                     # an update goes where the last version is, unless changed
+        reg = previous_install()                        # an update goes where the last version is, unless changed
         start = os.path.dirname(os.path.normpath(reg)) if reg and os.path.basename(os.path.normpath(reg)).lower() == FOLDER.lower() \
             else (reg or DEFAULT_PARENT)
         self.parent = tk.StringVar(value=start)

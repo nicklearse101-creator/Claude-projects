@@ -155,3 +155,16 @@ def test_app_uses_data_folder_next_to_it(tmp_path):
     assert R.find_data_dir(str(exe_dir), appdata) == os.path.join(appdata, I.FOLDER)   # installed without the option
     os.makedirs(exe_dir / 'data')
     assert R.find_data_dir(str(exe_dir), appdata) == str(exe_dir / 'data')
+
+
+def test_previous_install_found_without_registry_entry(monkeypatch, tmp_path):
+    """An install whose Installed-apps entry is gone is still found in the default place (and only if it is ours)."""
+    monkeypatch.setattr(I, 'registered_location', lambda: None)
+    monkeypatch.setattr(I, 'DEFAULT_PARENT', str(tmp_path / 'Programs'))
+    assert I.previous_install() is None
+    old = tmp_path / 'Programs' / I.FOLDER; os.makedirs(old)
+    assert I.previous_install() is None                                       # a folder, but not our program
+    open(old / I.EXE, 'w').write('old')
+    assert I.previous_install() == str(old)
+    monkeypatch.setattr(I, 'registered_location', lambda: r'D:\Elsewhere\Rattys4SkinGenerator')
+    assert I.previous_install() == r'D:\Elsewhere\Rattys4SkinGenerator'      # the registered one comes first
