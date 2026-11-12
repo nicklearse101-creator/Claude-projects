@@ -168,3 +168,52 @@ def test_previous_install_found_without_registry_entry(monkeypatch, tmp_path):
     assert I.previous_install() == str(old)
     monkeypatch.setattr(I, 'registered_location', lambda: r'D:\Elsewhere\Rattys4SkinGenerator')
     assert I.previous_install() == r'D:\Elsewhere\Rattys4SkinGenerator'      # the registered one comes first
+
+
+@pytest.mark.parametrize('typed', ['', 'Games', r'Q:\Nowhere\Games', r'relative\path'])
+def test_window_refuses_bad_folder(monkeypatch, typed):
+    got, errors = [], []
+    monkeypatch.setattr(I, 'registered_location', lambda: None)
+    monkeypatch.setattr(I, 'install', lambda *a, **k: got.append(a) or 'x.exe')
+    monkeypatch.setattr(I.messagebox, 'showerror', lambda *a, **k: errors.append(a))
+    if os.path.isdir('Q:/'): pytest.skip('this PC has a Q: drive')
+    w = I.Setup(); w.update()
+    w.set_parent(typed); w.go(); w.update()
+    assert got == [] and len(errors) == 1                                     # told, nothing installed
+    assert str(w.btn.cget('text')) == 'Install' and 'disabled' not in w.btn.state()
+    w.destroy()
+
+
+def test_window_keep_unticked(monkeypatch, tmp_path):
+    got = []
+    monkeypatch.setattr(I, 'registered_location', lambda: None)
+    monkeypatch.setattr(I, 'install', lambda parent, desktop=True, keep_data=True: got.append((parent, desktop, keep_data)) or 'x.exe')
+    monkeypatch.setattr(I.messagebox, 'askyesno', lambda *a, **k: False)
+    w = I.Setup(); w.update()
+    w.set_parent(str(tmp_path)); w.keep.set(False); w.desk.set(False); w.go()
+    assert got == [(str(tmp_path), False, False)]
+
+
+def test_install_failure_shown_and_retry_possible(monkeypatch, tmp_path):
+    errors = []
+    monkeypatch.setattr(I, 'registered_location', lambda: None)
+    def boom(*a, **k): raise ValueError('Not enough free space on D:')
+    monkeypatch.setattr(I, 'install', boom)
+    monkeypatch.setattr(I.messagebox, 'showerror', lambda *a, **k: errors.append(a[1]))
+    w = I.Setup(); w.update()
+    w.set_parent(str(tmp_path)); w.go(); w.update()
+    assert 'Not enough free space' in errors[0] and 'disabled' not in w.btn.state()
+    w.destroy()
+
+
+def test_quotes_in_paths(tmp_path):
+    """A folder with an apostrophe and spaces (e.g. "Nik's Games") works in the uninstaller."""
+    t = str(tmp_path / "Nik's Games" / I.FOLDER)
+    I.install_files(app_zip(tmp_path / 'a.zip'), t, keep_data=True, appdata=data(tmp_path / 'appdata'))
+    link = tmp_path / "Nik's link.lnk"; link.write_text('x')
+    ps = I.uninstall_script(t, [str(link)], key=r'Software\R4S_pytest_dummy_key_never_real', message=False)
+    open(os.path.join(t, 'uninstall.ps1'), 'w', encoding='utf8').write(ps)
+    subprocess.run(['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', os.path.join(t, 'uninstall.ps1')],
+                   check=True, creationflags=0x08000000, timeout=60)
+    assert not link.exists() and not os.path.exists(os.path.join(t, I.EXE))
+    assert os.path.isfile(os.path.join(t, 'data', 'settings.json'))

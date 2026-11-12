@@ -129,6 +129,18 @@ def shortcut(path, target, icon):
                    check=True, creationflags=0x08000000)
 
 
+def desktop_dir():
+    """The user's desktop folder (also when OneDrive or Windows has moved it)."""
+    d = os.path.join(os.path.expanduser('~'), 'Desktop')
+    try:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders') as k:
+            d = os.path.expandvars(winreg.QueryValueEx(k, 'Desktop')[0])
+    except OSError:
+        pass
+    return d
+
+
 def registered_location():
     """The folder of the install Windows knows about (an earlier version), or None."""
     try:
@@ -156,16 +168,12 @@ def install(parent, desktop=True, keep_data=True):
     check_space(target, space_needed(res('app.zip'), data_source(target, APPDATA_DIR, old), keep_data))
     exe = install_files(res('app.zip'), target, keep_data, APPDATA_DIR, old_target=old)
     links = [os.path.join(os.environ['APPDATA'], r'Microsoft\Windows\Start Menu\Programs', APP + '.lnk')]
+    desk = os.path.join(desktop_dir(), APP + '.lnk')
+    moved = old and os.path.normcase(os.path.abspath(old)) != os.path.normcase(os.path.abspath(target))
     if desktop:
-        links.append(os.path.join(os.path.expanduser('~'), 'Desktop', APP + '.lnk'))
-        try:   # OneDrive-redirected desktops
-            import winreg
-            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders') as k:
-                d = os.path.expandvars(winreg.QueryValueEx(k, 'Desktop')[0])
-                if os.path.normcase(d) != os.path.normcase(os.path.dirname(links[-1])):
-                    links[-1] = os.path.join(d, APP + '.lnk')
-        except OSError:
-            pass
+        links.append(desk)
+    elif moved and os.path.isfile(desk):
+        os.remove(desk)                              # it pointed at the program that was just removed
     for l in links:
         shortcut(l, exe, exe)
     data_dir = os.path.join(target, DATA) if os.path.isdir(os.path.join(target, DATA)) else None

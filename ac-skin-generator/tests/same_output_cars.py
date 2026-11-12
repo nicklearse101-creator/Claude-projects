@@ -1,5 +1,7 @@
 """Old code vs new code on several cars: the same three steps a user does, every output fingerprinted and timed.
   1. Preview (design A)   2. Preview after changing the colours (design B)   3. Create skin in car (design B)
+R4S_VARIANT=2: a second design with the other features (tint, tyres, picture pattern, carbon, compressed, not 4K,
+hand edits on the preview, copy from a stock skin).
 Fingerprints: every view, the decal positions, the log text and (Create) every file written.
 Design = Nik's saved settings and logos (read only), window stickers, wheels and lens colour on.
 python tests/same_output_cars.py SRC_DIR OUT_JSON CAR [CAR ...]
@@ -50,6 +52,15 @@ d.update(win_enable=True, wheel_colour='#d0d0d0', lens_colour='#ffd21f', beam_co
 if d.get('pattern') == 'picture' and not d.get('pattern_image'): d['pattern'] = 'sweep'
 d2 = dict(d, base='#1a3a8a', accent='#ff6a00')
 RES = 4096 if s.get('hires', True) else None
+VARIANT = os.environ.get('R4S_VARIANT', '1')
+if VARIANT == '2':      # the other features: tint, tyres, picture pattern, carbon, compressed, not 4K, hand edits, copy-from
+    HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    d = dict(d, win_tint='#203040', win_tint_dark=0.6, win_tint_windscreen=True, tyre_colour='#303030', carbon=True,
+             avoid_mirror=True, compress=True, pattern='picture', pattern_mode='side_left', pattern_simplify='medium',
+             pattern_image=os.path.join(HERE, 'starter_logos', 'ratty_racing_logo.jpg'), team_places=['doors', 'bonnet'],
+             name_places=['doors'])
+    d2 = dict(d, accent='#ff6a00')                # + hand edits made after the first preview (see below)
+    RES = None
 
 
 def h(b): return hashlib.sha256(b).hexdigest()
@@ -64,12 +75,20 @@ for car in cars:
     skingen._MEMO.clear()
     sums, times = {}, {}
     try:
+        skins = sorted(e for e in os.listdir(os.path.join(ROOT, car, 'skins')) if os.path.isdir(os.path.join(ROOT, car, 'skins', e)))
+        copy_from = skins[0] if VARIANT == '2' and skins else None
         for step, design, write in (('preview_A', d, False), ('preview_B', d2, False), ('create_B', d2, True)):
+            if VARIANT == '2' and step == 'preview_B':    # move / size / turn one box, delete another, edit the team text
+                keys = [x['key'] for x in info.get('decals', [])]
+                adj = {'team name:doors': dict(text='NIK RACING', colour='#ff0000')}
+                if keys: adj[keys[0]] = dict(da=0.08, db=-0.03, scale=1.2, rot=6, flip=['left'])
+                if len(keys) > 1: adj[keys[-1]] = dict(deleted=True)
+                d2['adjust'] = adj
             shutil.rmtree(TMP, ignore_errors=True); os.makedirs(TMP)
             views, info, lines = {}, {}, []
             t = time.time()
             out, *_ = skingen.generate(os.path.join(ROOT, car), dict(design), 'same_test', out_root=TMP, resolution=RES,
-                                       log=lines.append, views=views, info=info, write=write)
+                                       log=lines.append, views=views, info=info, write=write, copy_other_from=copy_from)
             views['all'] = rattys4skin.App.compose(views)
             views['all_rgba'] = rattys4skin.App.compose(views, rgba=True)
             if write: views['all'].save(os.path.join(out, 'generator_preview.png'))
