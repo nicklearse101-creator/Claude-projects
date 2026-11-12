@@ -20,6 +20,19 @@ Dropped (Nik, 11 Nov): Talbot lower-door name behind the sill trim, Escort Mk2 t
 
 Details of earlier fixes: `PLAN_next_session.md`.
 
+## Next - Nik 12 Nov evening (REMIND NIK, "no need to fix these just yet")
+- [ ] **Logo list won't scroll with the mouse wheel** unless the app is full screen.
+- [ ] **Window tint doesn't always reach the window edges**: on the Corvette (`corvette_z06_gt3r`, his skin
+  `test_overwrite`, 12 Nov 18:14) some of the SIDE window tint came out on the windscreen.
+- Left for now (Nik): the other 1.8.0 small points (resize redraw, several ghost drawings at once, dark "All sides"
+  edges, preview look fault could stop a Create, long names push the version off, fonts folder assumed on C:, Tab key,
+  special characters in car names, ghost pictures never cleared).
+
+## Done 12 Nov evening (source only, not in an installer yet)
+- 1.8.0 small point 8: picking another car clears the last car's preview (picture + logo boxes); a preview of the old
+  car that finishes after the switch is not shown on the new one. `tests/test_car_change.py` (real window, test data
+  folder, faked painting).
+
 ## Done 12 Nov (v1.9.0)
 - Speed (Nik: "can we optimise it to work faster"): Create straight after a Preview: Talbot 68 -> 15 s, Kadett
   54 -> 15 s, S13 71 -> 24 s, Lacetti 27 -> 11 s, Ferrari 296 GT3 75 -> 19 s; first Preview of a car ~15-20 %

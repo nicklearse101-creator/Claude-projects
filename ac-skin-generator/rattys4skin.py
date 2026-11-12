@@ -184,6 +184,7 @@ class App(tk.Tk):
         self._ghost_q, self._ghost_pending = queue.Queue(), 0          # drawing threads hand their ghost back here
         self._bg_cache = None                            # garage + ghost for the preview's current size
         self.saved = False                               # the views on screen were saved in the car
+        self.views_car = None                            # the car the views on screen are of
         self.build()
         self.refresh_cars()
         self.refresh_library()
@@ -648,7 +649,19 @@ class App(tk.Tk):
         self.copy_box['values'] = [''] + skins
         if self.vars['copy_from'].get() not in skins: self.vars['copy_from'].set('')   # a skin of another car
         self.update_header()
+        self.forget_other_preview()
         self.request_ghost(car)
+
+    def car_key(self, car=None):
+        """The picked car's folder (or the one given), written the same way every time, to compare cars."""
+        if car is None: car = os.path.join(self.vars['cars_dir'].get(), self.vars['car'].get())
+        return os.path.normcase(os.path.normpath(car))
+
+    def forget_other_preview(self):
+        """Another car picked: the last car's preview (its picture and logo boxes) goes (Nik, 12 Nov)."""
+        if not self.views or self.views_car == self.car_key(): return
+        self.views, self.info, self.adjust_gen, self.sel, self.saved, self.views_car = {}, {}, {}, None, False, None
+        self.redraw()
 
     # ---------------------------------------------------------------- the ghost behind the preview
     def request_ghost(self, car_dir):
@@ -870,7 +883,7 @@ class App(tk.Tk):
                 self.log('PREVIEW ONLY - the skin in the car has NOT changed. Press "Create skin in car" to save it.')
             self.set_progress(1.0, 'Done - skin saved in the car' if save else
                               'Preview only - press "Create skin in car" to save it')
-            self.after(0, lambda: self.show_views(views, info, saved=save))
+            self.after(0, lambda: self.show_views(views, info, saved=save, car=car))
             try:      # a list of what was found in this car (textures, glass, lights ...), kept for next time
                 cat = os.path.join(work_dir(car), 'catalogue')
                 skingen.car_catalogue(car, cat)
@@ -915,7 +928,11 @@ class App(tk.Tk):
         self.busy = False
         for b in (self.btn_prev, self.btn_save): b.state(['!disabled'])
 
-    def show_views(self, views, info=None, saved=False):
+    def show_views(self, views, info=None, saved=False, car=None):
+        if car is not None and self.car_key(car) != self.car_key():      # finished after another car was picked
+            self.log(f'(That preview was of {os.path.basename(car)} - not shown, another car is picked now.)')
+            return
+        self.views_car = self.car_key(car)
         self.views = views
         self.saved = saved
         self.info = info or {}
