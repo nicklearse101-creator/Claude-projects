@@ -2,7 +2,7 @@
 preview of the old car that finishes after the switch is not shown on the new one.
 The real window, with a test data folder and two empty test cars; the painting itself is faked (instant).
 python -m pytest -p no:cacheprovider tests/test_car_change.py -q --basetemp=D:\\ClaudeData\\tmp\\pytest"""
-import os, sys, threading, time
+import copy, os, sys, threading, time
 import pytest
 from PIL import Image
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -19,6 +19,7 @@ def app(tmp_path, monkeypatch):
     monkeypatch.setattr(R.App, 'add_starter_logos', lambda self: None)
     monkeypatch.setattr(R.skingen, 'car_catalogue', lambda *a, **k: None)
     gate = threading.Event(); gate.set()
+    extra = {}                                                 # more for the faked preview to report (tests set it)
 
     def fake_generate(car, design, name, views=None, info=None, **k):
         gate.wait(20)
@@ -26,6 +27,7 @@ def app(tmp_path, monkeypatch):
             views[v] = Image.new('RGBA', (80, 40), (255, 0, 0, 255))
         info.update(decals=[dict(key='logo0', view='left', a=0, b=0, w=1, h=1, rot=0, label='Logo')],
                     frames={v: (-1, 1, -1, 1) for v in ('left', 'right', 'front', 'rear', 'top')})
+        info.update(copy.deepcopy(extra))
         return str(tmp_path / 'out'), None
     monkeypatch.setattr(R.skingen, 'generate', fake_generate)
     cars = tmp_path / 'cars'
@@ -33,7 +35,7 @@ def app(tmp_path, monkeypatch):
         os.makedirs(cars / c / 'skins' / 'stock')
     a = R.App(); a.withdraw()
     a.vars['cars_dir'].set(str(cars)); a.refresh_cars()
-    a.gate = gate
+    a.gate, a.extra = gate, extra
     pick(a, 'car_a')
     yield a
     a.destroy()

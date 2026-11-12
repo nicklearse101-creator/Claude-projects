@@ -1,4 +1,4 @@
-RATTY'S4SKIN GENERATOR  v1.9.0
+RATTY'S4SKIN GENERATOR  v1.10.0
 Makes liveries (skins) for Assetto Corsa cars. No AI, no internet needed.
 
 WHAT YOU NEED
@@ -22,9 +22,12 @@ To remove it later: Windows Settings > Apps > Installed apps > Ratty's4Skin Gene
 MAKE A SKIN (2 minutes)
 1. CAR tab: the Assetto Corsa cars folder is found automatically. Type part of the
    car's name and pick it. Give the skin a name.
+   "App colours" changes the look of the app (Carbon Orange, Ratty Purple, Ice Blue, Racing Green,
+   Red Line, Stealth Grey, Light); the app restarts itself with the new colours.
    Tick "Sharper textures (4K)" for crisper writing (bigger files).
    "Smaller files" (on by default) makes the skin about a quarter of the size.
 2. LIVERY tab: pick the base colour, accent colours and a pattern (a small picture shows it).
+   "Gallery..." shows every pattern (over 50) in your colours - click one to use it.
 3. NUMBER & NAMES tab: racing number, team name, driver name, a font for each (you see it as you pick),
    and tick where each one is written on the car.
 4. LOGOS tab: about 230 logos are already in the library. "Add logos..." to add your own
@@ -59,6 +62,14 @@ MOVE THINGS ABOUT ON THE PREVIEW
 4. Press PREVIEW again to redraw the car with your changes (much quicker the second time).
 Moves apply to both sides of the car. Changes are remembered for each car.
 
+WHEN THE APP CAN'T FIND A SPOT ("NOT PLACED")
+If a logo, name or number has nowhere to go on a car (for example the app can't find its
+bonnet), it is not quietly left off: after Preview a "NOT PLACED" bar shows above the picture.
+1. Pick ONE side (for a bonnet logo: Top).
+2. Choose the item in the NOT PLACED list and press "Pick it on the car".
+3. Click on the car where it should go, then press PREVIEW. It goes there (both sides for
+   side panels) and the spot is remembered for that car. Move / size it like any other.
+
 GOOD TO KNOW
 - Logos, numbers and names go exactly where you asked. They are never moved, shrunk or
   left off because they overlap each other - move them on the preview if you like.
@@ -80,6 +91,10 @@ GOOD TO KNOW
   %APPDATA%\Rattys4SkinGenerator. Either way they survive an update and an uninstall.
 
 PROBLEMS
+- The app gets a car wrong: on the Car tab press "Report this car...". It saves a small zip
+  on your desktop (what the app found in the car, its messages, your design and the
+  preview - no game files). Post it on the Ratty's Racing Discord with a line about what
+  went wrong, so it can be fixed.
 - "Pick a car first": choose the car on the Car tab.
 - The cars folder is empty: on the Car tab press "..." and choose
   ...\steamapps\common\assettocorsa\content\cars

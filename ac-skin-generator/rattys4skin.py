@@ -1,6 +1,6 @@
 """Ratty's4Skin Generator - window app.
 No AI: the livery is projected onto the car from its own 3D model."""
-import copy, glob, json, math, os, queue, re, shutil, sys, tempfile, threading, traceback
+import copy, glob, io, json, math, os, queue, re, shutil, subprocess, sys, tempfile, threading, time, traceback, zipfile
 import tkinter as tk
 import tkinter.font as tkfont
 from tkinter import ttk, filedialog, colorchooser
@@ -12,7 +12,7 @@ import theme
 messagebox = theme.messagebox      # dark dialogs, same calls as tkinter.messagebox (tests replace these)
 
 APP_NAME = skingen.APP_NAME
-VERSION = '1.9.0'
+VERSION = '1.10.0'
 
 
 def find_data_dir(exe_dir, appdata):
@@ -62,6 +62,18 @@ def list_fonts():
                 found.setdefault(fam if sty in ('Regular', '') else f'{fam} {sty}', f)
         _FONTS = dict(sorted(found.items(), key=lambda kv: kv[0].lower()))
     return _FONTS
+
+
+def desktop_dir():
+    """The user's desktop folder (also when OneDrive or Windows has moved it)."""
+    d = os.path.join(os.path.expanduser('~'), 'Desktop')
+    try:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders') as k:
+            d = os.path.expandvars(winreg.QueryValueEx(k, 'Desktop')[0])
+    except OSError:
+        pass
+    return d
 
 
 def work_dir(car_dir=None):
@@ -168,6 +180,7 @@ class App(tk.Tk):
         try: self.iconbitmap(resource('app.ico'))
         except Exception: pass
         self.cfg = self.load_cfg()
+        theme.use(self.cfg.get('ui_theme'))              # the app's colours: chosen on the Car tab, used from the start
         self.vars = {}
         self.library = self.load_library()
         self.add_starter_logos()
@@ -185,6 +198,7 @@ class App(tk.Tk):
         self._bg_cache = None                            # garage + ghost for the preview's current size
         self.saved = False                               # the views on screen were saved in the car
         self.views_car = None                            # the car the views on screen are of
+        self.picking = None                              # the decal whose spot the next click on the preview sets
         self.build()
         self.refresh_cars()
         self.refresh_library()
@@ -210,6 +224,8 @@ class App(tk.Tk):
         d['pattern_simplify'] = next((k for k, v in skingen.SIMPLIFY.items() if v == self.vars['pattern_simplify_name'].get()), 'medium')
         d['win_side_place'] = next((k for k, v in skingen.SIDE_PLACES.items() if v == self.vars['win_side_name'].get()), 'rear')
         d['adjust_by_car'] = self.adjust_by_car
+        names = {v: k for k, v in theme.theme_names().items()}
+        d['ui_theme'] = names.get(d.pop('ui_theme_name', ''), theme.THEME)
         try:
             with open(SETTINGS, 'w', encoding='utf8') as f: json.dump(d, f, indent=2)
         except Exception: pass
@@ -290,6 +306,13 @@ class App(tk.Tk):
         row('car', 'Skin name', lambda f: ttk.Entry(f, textvariable=self.var('skin_name')))
         self.copy_box = row('car', 'Windows etc. from', lambda f: ttk.Combobox(f, textvariable=self.var('copy_from'), width=36))
         note('car', 'Optional: copies the other files (windows, interior…) from one of the car\'s skins.')
+        self.vars['ui_theme_name'] = tk.StringVar(value=theme.theme_names()[theme.THEME])
+        tb = row('car', 'App colours', lambda f: ttk.Combobox(f, textvariable=self.vars['ui_theme_name'], state='readonly',
+                                                            values=list(theme.theme_names().values()), width=20))
+        tb.bind('<<ComboboxSelected>>', lambda e: self.on_theme())
+        row('car', '', lambda f: theme.SlantButton(f, 'Report this car…', command=self.report_car, size=14))
+        note('car', 'App got this car wrong? This saves a small zip on your desktop (what the app found in the car, '
+                    'its messages, your design and the preview - no game files). Post it on the Ratty\'s Racing Discord.')
         row('car', '', lambda f: ttk.Checkbutton(f, text='Sharper textures (4K) - crisper writing and logos, bigger files',
                                                  variable=self.var('hires', tk.BooleanVar)))
         row('car', '', lambda f: ttk.Checkbutton(f, text='Smaller files (compressed textures, about a quarter of the size)',
@@ -300,8 +323,13 @@ class App(tk.Tk):
                            ('text', 'Text colour')):
             row('livery', label, lambda f, k=key: self.colour_button(f, k))
         self.vars['pattern_name'] = tk.StringVar(value=skingen.PATTERNS.get(self.cfg.get('pattern'), skingen.PATTERNS['sweep']))
-        row('livery', 'Pattern', lambda f: ttk.Combobox(f, textvariable=self.vars['pattern_name'], state='readonly',
-                                                       values=list(skingen.PATTERNS.values()), width=32, height=16))
+        def pattern_row(f):
+            fr = ttk.Frame(f)
+            ttk.Combobox(fr, textvariable=self.vars['pattern_name'], state='readonly', values=list(skingen.PATTERNS.values()),
+                         width=30, height=16).pack(side='left', fill='x', expand=True)
+            theme.SlantButton(fr, 'Gallery…', command=self.open_gallery, size=13).pack(side='left', padx=(4, 0))
+            return fr
+        row('livery', 'Pattern', pattern_row)
         self.swatch = ttk.Label(tabs['livery'])            # what the pattern looks like: side over top, front on the left
         self.swatch.pack(anchor='w', padx=(ind, 0), pady=(2, 4))
         self.swatch_img = None
@@ -484,6 +512,13 @@ class App(tk.Tk):
         self.sel_label = ttk.Label(right, text='Pick one side (Left, Right, Front, Rear or Top), then click a logo, number or name to move it.',
                                    style='Hint.TLabel')
         self.sel_label.pack(anchor='w', pady=(0, 4))
+        # what the app could not place: the user picks the spot on the car (shown only when there is something)
+        self.miss_bar = ttk.Frame(right, style='Window.TFrame')
+        ttk.Label(self.miss_bar, text='NOT PLACED', style='WField.TLabel', foreground=theme.ACC).pack(side='left', padx=(0, 6))
+        self.miss_box = ttk.Combobox(self.miss_bar, state='readonly', width=34)
+        self.miss_box.pack(side='left')
+        theme.SlantButton(self.miss_bar, 'Pick it on the car', command=self.start_pick, size=14).pack(side='left', padx=6)
+        self.missing = []
         self.canvas = tk.Canvas(right, background=theme.BG, highlightthickness=0)
         self.canvas.pack(fill='both', expand=True)
         self.canvas.bind('<Configure>', lambda e: self.after_idle(self.redraw))
@@ -503,6 +538,61 @@ class App(tk.Tk):
         self.header.set_car(car_display_name(car) if self.vars['car'].get() and os.path.isdir(car) else '',
                             self.vars['skin_name'].get())
 
+    # ---- the pattern gallery: every pattern as a little picture in the colours chosen; click one to use it
+    def open_gallery(self):
+        if getattr(self, 'gallery', None) is not None and self.gallery.winfo_exists():
+            self.gallery.lift(); return
+        win = self.gallery = tk.Toplevel(self)
+        win.title(f'{APP_NAME} - patterns')
+        win.geometry('1010x720')
+        theme.style_toplevel(win)
+        top = ttk.Frame(win, padding=(12, 10, 12, 4)); top.pack(fill='x')
+        ttk.Label(top, text='PICK A PATTERN', style='Section.TLabel').pack(side='left')
+        ttk.Label(top, text='  shown in your colours - side over top, front on the left', style='Note.TLabel').pack(side='left')
+        body = ttk.Frame(win); body.pack(fill='both', expand=True)
+        cv = tk.Canvas(body, background=theme.PANEL, highlightthickness=0)
+        sb = ttk.Scrollbar(body, orient='vertical', command=cv.yview)
+        cv.configure(yscrollcommand=sb.set)
+        sb.pack(side='right', fill='y'); cv.pack(side='left', fill='both', expand=True)
+        grid = ttk.Frame(cv, padding=8)
+        cv.create_window(0, 0, window=grid, anchor='nw')
+        grid.bind('<Configure>', lambda e: cv.configure(scrollregion=cv.bbox('all')))
+        win.bind('<MouseWheel>', lambda e: cv.yview_scroll(-1 if e.delta > 0 else 1, 'units'))
+        cur = next((k for k, v in skingen.PATTERNS.items() if v == self.vars['pattern_name'].get()), None)
+        self.gallery_tiles, self.gallery_done = {}, False
+        keys = [k for k in skingen.PATTERNS if k != 'picture']
+        for i, k in enumerate(keys):
+            f = tk.Frame(grid, bg=theme.ACC if k == cur else theme.PANEL, padx=3, pady=3, cursor='hand2')
+            f.grid(row=i // 4, column=i % 4, padx=4, pady=4, sticky='n')
+            lab = tk.Label(f, bg=theme.FIELD, width=226, height=110, bd=0, cursor='hand2')
+            lab.pack()
+            name = tk.Label(f, text=skingen.PATTERNS[k], bg=f['bg'], fg=theme.ON_ACC if k == cur else theme.TEXT,
+                            font=theme.UI_FONT, cursor='hand2')
+            name.pack(fill='x')
+            for w in (f, lab, name): w.bind('<Button-1>', lambda e, k=k: self.gallery_pick(k))
+            self.gallery_tiles[k] = dict(lab=lab, img=None, pil=None)
+        try: design = self.design()
+        except Exception: design = dict(skingen.DEFAULT_DESIGN)
+        todo = list(keys)
+
+        def step():                           # one picture at a time: the window stays responsive while they come in
+            if not win.winfo_exists(): return
+            if not todo:
+                self.gallery_done = True; return
+            k = todo.pop(0)
+            try: im = skingen.pattern_swatch(dict(design, pattern=k), 226)
+            except Exception: im = Image.new('RGB', (226, 110), theme.hexc(theme.FIELD)[:3])
+            t = self.gallery_tiles[k]
+            t['pil'], t['img'] = im, ImageTk.PhotoImage(im, master=win)
+            t['lab'].configure(image=t['img'], width=im.width, height=im.height)
+            win.after(1, step)
+        win.after(10, step)
+
+    def gallery_pick(self, key):
+        self.vars['pattern_name'].set(skingen.PATTERNS[key])
+        if getattr(self, 'gallery', None) is not None and self.gallery.winfo_exists():
+            self.gallery.destroy()
+
     def update_swatch(self):
         try:
             d = self.design()
@@ -512,8 +602,9 @@ class App(tk.Tk):
         self.swatch_img = ImageTk.PhotoImage(im)
         self.swatch.configure(image=self.swatch_img)
 
-    def font_image(self, font_path, text, colour=theme.TEXT, width=300, height=40):
-        """The words in that font, on a dark field (for the font previews)."""
+    def font_image(self, font_path, text, colour=None, width=300, height=40):
+        """The words in that font, on the field colour (for the font previews)."""
+        if colour is None: colour = theme.TEXT
         im = Image.new('RGB', (width, height), theme.hexc(theme.FIELD)[:3])
         if text:
             try:
@@ -661,6 +752,7 @@ class App(tk.Tk):
         """Another car picked: the last car's preview (its picture and logo boxes) goes (Nik, 12 Nov)."""
         if not self.views or self.views_car == self.car_key(): return
         self.views, self.info, self.adjust_gen, self.sel, self.saved, self.views_car = {}, {}, {}, None, False, None
+        self.show_missing([])
         self.redraw()
 
     # ---------------------------------------------------------------- the ghost behind the preview
@@ -938,7 +1030,49 @@ class App(tk.Tk):
         self.info = info or {}
         self.adjust_gen = copy.deepcopy(self.info.get('adjust') or {})
         self.sel = None
+        self.show_missing(self.info.get('missing') or [])
         self.redraw()
+
+    # ---- what could not be placed: picked on the car by the user
+    def show_missing(self, missing):
+        self.missing, self.picking = list(missing), None
+        self.canvas.configure(cursor='')
+        if not self.missing:
+            self.miss_bar.pack_forget(); return
+        self.miss_box['values'] = [m['label'] for m in self.missing]
+        self.miss_box.current(0)
+        self.miss_bar.pack(fill='x', pady=(0, 4), before=self.canvas)
+
+    def start_pick(self):
+        if not self.missing: return
+        m = self.missing[max(0, self.miss_box.current())]
+        if self.view_var.get() == 'all' or not self.geom:
+            self.sel_label.configure(text=f"Pick one side first (Left, Right, Front, Rear or Top), then 'Pick it on the car' "
+                                          f"and click where the {m['label']} should go.", foreground=theme.ACC)
+            return
+        self.picking = m['key']
+        self.canvas.configure(cursor='crosshair')
+        self.sel_label.configure(text=f"Click on the car where the {m['label']} should go.", foreground=theme.ACC)
+
+    def from_screen(self, view, x, y):
+        """A point on the preview -> (a, b) in the view (metres): to_screen backwards."""
+        ox, oy, dw, dh = self.geom
+        a0, a1, b0, b1 = self.info['frames'][view]
+        fx, fy = (x - ox) / dw, (y - oy) / dh
+        if view == 'top': fx, fy = 1 - fy, fx
+        return a0 + fx * (a1 - a0), b1 - fy * (b1 - b0)
+
+    def set_pick(self, x, y):
+        key, view = self.picking, self.view_var.get()
+        self.picking = None
+        self.canvas.configure(cursor='')
+        a, b = self.from_screen(view, x, y)
+        ad = self.adj().setdefault(key, {})
+        ad.pop('da', None); ad.pop('db', None)             # the picked spot replaces any earlier move
+        ad['pin'] = {view: [round(float(a), 4), round(float(b), 4)]}
+        lab = next((m['label'] for m in self.missing if m['key'] == key), key)
+        self.sel_label.configure(text=f'{lab}: spot picked. Press Preview to put it there.', foreground=theme.ACC)
+        self.save_cfg()
 
     def on_view(self):
         self.sel = None
@@ -1054,6 +1188,8 @@ class App(tk.Tk):
         self.sel_label.configure(text=text, foreground=theme.ACC if changed else theme.MUTED)
 
     def on_press(self, e):
+        if self.picking and self.geom and self.view_var.get() != 'all':
+            self.set_pick(e.x, e.y); return
         best = None
         for d in self.view_decals():
             p = self.corners(d)
@@ -1113,6 +1249,53 @@ class App(tk.Tk):
                 ad['flip'] = sorted(fl)
         self.draw_boxes()
         self.save_cfg()
+
+    def on_theme(self):
+        """Another colour theme: saved, and the app starts again with it (the design and logos are kept)."""
+        self.save_cfg()
+        names = {v: k for k, v in theme.theme_names().items()}
+        if names.get(self.vars['ui_theme_name'].get()) == theme.THEME: return
+        if self.busy:
+            messagebox.showinfo(APP_NAME, 'The new colours are used the next time you open the app '
+                                          '(a skin is being built now).'); return
+        cmd = [sys.executable] if getattr(sys, 'frozen', False) else [sys.executable, os.path.abspath(__file__)]
+        subprocess.Popen(cmd, cwd=os.path.dirname(os.path.abspath(sys.executable if getattr(sys, 'frozen', False) else __file__)))
+        self.destroy()
+
+    def report_car(self):
+        """A zip on the desktop for the Discord: what the app found in the car, its messages, the design and the
+        preview. No game files; logo pictures by name only; the user's home folder taken out of the messages."""
+        car = os.path.join(self.vars['cars_dir'].get(), self.vars['car'].get())
+        if not self.vars['car'].get() or not os.path.isdir(car):
+            messagebox.showerror(APP_NAME, 'Pick a car first (Car tab).'); return None
+        name = os.path.basename(os.path.normpath(car))
+        home = os.path.expanduser('~')
+        lines = [f'{APP_NAME} v{VERSION}', f'car: {name}', time.strftime('made: %Y-%m-%d %H:%M')]
+        try:
+            kn5 = skingen.find_main_kn5(car)
+            lines.append(f'model: {os.path.basename(kn5)} ({os.path.getsize(kn5)} bytes)')
+        except Exception as e: lines.append(f'model: not found ({e})')
+        mine = self.views_car == self.car_key()
+        if mine and self.missing:
+            lines += ['', 'not placed:'] + [f'  {m["label"]}' for m in self.missing]
+        cat = None
+        try: cat = skingen.car_catalogue(car)
+        except Exception as e: lines += ['', f'could not read the car: {e}']
+        d = self.design()
+        for lg in d.get('logos') or []: lg['path'] = os.path.basename(lg.get('path') or '')
+        for k in ('pattern_image', 'logo'):
+            if d.get(k): d[k] = os.path.basename(d[k])
+        path = os.path.join(desktop_dir(), f'R4S_report_{name}_{time.strftime("%Y%m%d_%H%M%S")}.zip')
+        with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED) as z:
+            z.writestr('report.txt', '\n'.join(lines) + '\n')
+            z.writestr('log.txt', self.log_box.get('1.0', 'end').replace(home, '~'))
+            z.writestr('design.json', json.dumps(d, indent=2, default=str))
+            if cat is not None: z.writestr('catalogue.json', json.dumps(cat, indent=2, default=str))
+            if mine and self.views.get('all') is not None:
+                buf = io.BytesIO(); self.views['all'].convert('RGB').save(buf, 'PNG'); z.writestr('preview.png', buf.getvalue())
+        messagebox.showinfo(APP_NAME, f'Saved on your desktop:\n{os.path.basename(path)}\n\n'
+                                      "Post it on the Ratty's Racing Discord with a line about what went wrong.")
+        return path
 
     def open_full(self):
         im = self.views.get(self.view_var.get()) if self.views else None

@@ -20,6 +20,13 @@ Dropped (Nik, 11 Nov): Talbot lower-door name behind the sill trim, Escort Mk2 t
 
 Details of earlier fixes: `PLAN_next_session.md`.
 
+## Done 12 Nov night (v1.10.0)
+- [x] 'Pick it on the car': a logo / name / number the app can't place is reported, the user clicks the spot on the
+  preview. 'Report this car' button: zip on the desktop (catalogue, log, design, preview) to post on Nik's Discord.
+- [x] **Lots more patterns, snazzier** ("go nuts") - 32 new (`patterns_plus.py`) + a pattern gallery, in the spirit of the hand-made Lacetti skin
+  (`lacetti-ratty-skin/`); some built-in ones are too simple.
+- [x] **Colour theme choice for the app** (Nik 12 Nov night) - 7 themes - the carbon + orange look, plus others to pick from.
+
 ## Next - Nik 12 Nov evening (REMIND NIK, "no need to fix these just yet")
 - [ ] **Logo list won't scroll with the mouse wheel** unless the app is full screen.
 - [ ] **Window tint doesn't always reach the window edges**: on the Corvette (`corvette_z06_gt3r`, his skin

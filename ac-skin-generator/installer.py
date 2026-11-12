@@ -11,7 +11,7 @@ from tkinter import ttk, messagebox, filedialog
 APP = "Ratty's4Skin Generator"
 FOLDER = 'Rattys4SkinGenerator'
 EXE = 'Rattys4SkinGenerator.exe'
-VERSION = '1.9.0'
+VERSION = '1.10.0'
 DEFAULT_PARENT = os.path.join(os.environ.get('LOCALAPPDATA', os.path.expanduser('~')), 'Programs')
 APPDATA_DIR = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), FOLDER)
 UNINSTALL_KEY = r'Software\Microsoft\Windows\CurrentVersion\Uninstall\Rattys4SkinGenerator'

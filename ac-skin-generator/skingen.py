@@ -631,6 +631,10 @@ PATTERNS.update({
     'pinstripes': 'Pinstripe bundle',
     'picture': 'Pattern from a picture…',
 })
+import patterns_plus                             # the v1.10 patterns (Nik 12 Nov: "we need a lot more")
+_pic = PATTERNS.pop('picture')
+PATTERNS.update(patterns_plus.NAMES)
+PATTERNS['picture'] = _pic
 PATTERNS['none'] = PATTERNS.pop('none')          # keep "plain" last
 PICTURE_MODES = {'side_left': 'Side view of a car, front on the left',
                  'side_right': 'Side view of a car, front on the right',
@@ -1032,6 +1036,8 @@ def pattern_colours(design, P, N, car, sill, belt, log=print):
     if pat == 'picture':
         pc = picture_pattern(design, P, N, car, sill, belt, (base, acc, acc2, txt), log)
         if pc is not None: col = pc
+    elif pat in patterns_plus.FUNCS:
+        col = patterns_plus.paint(pat, col, P, N, car, sill, belt, base, acc, acc2, txt)
     elif pat in ('lightning', 'sunburst', 'tiger', 'splatter', 'pinstripes'):
         col = more_patterns(pat, col, P, N, car, sill, belt, base, acc, acc2, txt)
     elif pat not in ('sweep', 'stripes', 'split', 'none'):
@@ -1102,10 +1108,13 @@ def render_design(car, tm, paint, design, log=print, info=None, ctx=None, mem=No
     if mem is not None and 'pattern' not in mem: mem['pattern'] = col.copy()
 
     # ---- decals
-    decals = ctx['decals'] = place_decals(car, tm, paint, design, prof, base, acc, acc2, txt, log) if first else ctx['decals']
+    if first: ctx['missing'] = []
+    decals = ctx['decals'] = place_decals(car, tm, paint, design, prof, base, acc, acc2, txt, log,
+                                          ctx['missing']) if first else ctx['decals']
     for dc in decals: dc.avoid_mirror = bool(design.get('avoid_mirror'))
-    col, _, forced, _ = apply_decals(col, tm, decals, log if first else (lambda m: None),
-                                     debug=bool(design.get('debug_decals')), allow_move=first)
+    col, _, forced, got = apply_decals(col, tm, decals, log if first else (lambda m: None),
+                                       debug=bool(design.get('debug_decals')), allow_move=first)
+    ctx['landed'] = ctx.get('landed', frozenset()) | {(decals[k].key, decals[k].view) for k in got}
     if info is not None:            # where each decal went (after any slide onto its panel), for the preview boxes
         have = {(d_['key'], d_['view']) for d_ in info.setdefault('decals', [])}
         for dc in decals:
@@ -1116,6 +1125,8 @@ def render_design(car, tm, paint, design, log=print, info=None, ctx=None, mem=No
     return np.clip(col, 0, 255), forced
 
 
+PIN_HEIGHT = {'bonnet': 0.5, 'roof': 0.4, 'boot': 0.35, 'rear': 0.15, 'front': 0.12}   # a picked spot, no place found
+
 PLACES = {
     'doors': 'Doors (big)', 'bonnet': 'Bonnet', 'front_wings': 'Front wings', 'rear_quarters': 'Rear quarters',
     'lower_doors': 'Lower doors (sill)', 'roof': 'Roof', 'boot': 'Boot lid', 'rear': 'Rear panel',
@@ -1124,8 +1135,11 @@ PLACES = {
 }
 
 
-def place_decals(car, tm, paint, design, prof, base, acc, acc2, txt, log):
-    """Turn the design's number / names / logos into decals at places found on this car."""
+def place_decals(car, tm, paint, design, prof, base, acc, acc2, txt, log, missing=None):
+    """Turn the design's number / names / logos into decals at places found on this car. A spot picked on the
+    preview (adjust[key]['pin'] = {view: [a, b]}) is used instead of the place found. Ones with no place found and no
+    spot picked go into `missing` (key, label) for the app to ask the user to pick a spot."""
+    missing = [] if missing is None else missing
     sill, belt = prof['sill'], prof['belt']
     sh = belt - sill
     zf, zr, L = car.hi[2], car.lo[2], car.length
@@ -1183,6 +1197,24 @@ def place_decals(car, tm, paint, design, prof, base, acc, acc2, txt, log):
             return [('front', 0.0, sill + 0.24 * sh, sh * 0.16, lambda P: P[:, 2] > zf - 0.5, 0.35, 0)]
         return []
 
+    adj = design.get('adjust') or {}
+
+    def geo_for(place, key):
+        """Where this decal goes: the spot picked on the preview, else the place found on the car."""
+        found = geo(place)
+        pin = (adj.get(key) or {}).get('pin') or {}
+        if not pin: return found
+        h = found[0][3] if found else PIN_HEIGHT.get(place, 0.25)
+        rot = found[0][6] if found and place not in ('roof',) else 0
+        spots = {v: tuple(map(float, ab)) for v, ab in pin.items() if v in VIEWS}
+        for sd, other in (('left', 'right'), ('right', 'left')):    # one side picked: the same spot on the other
+            if sd in spots and other not in spots: spots[other] = (-spots[sd][0], spots[sd][1])
+        return [(v, a, b, h, side_reg.get(v), 0.3, rot) for v, (a, b) in spots.items()]
+
+    def no_place(key, label):
+        missing.append(dict(key=key, label=label))
+        log(f'{label}: no place for it found on this car - pick it on the car (button under the preview)')
+
     decals = []
     wide = car.hi[0] - car.lo[0]
     # how wide a decal may be at each place (metres)
@@ -1192,7 +1224,10 @@ def place_decals(car, tm, paint, design, prof, base, acc, acc2, txt, log):
         if k_ in pan: room[k_] = 0.85 * pan[k_][2]
 
     def put(place, img, scale=1.0, glow=None, b_shift=0.0, what='logo', key=None, share=1, a_shift=0.0):
-        for view, a, b, h, reg, facing, rot in geo(place):
+        key = key or f'{what}:{place}'
+        spots = geo_for(place, key)
+        if not spots: no_place(key, f'{what} on the {PLACES[place].lower()}')
+        for view, a, b, h, reg, facing, rot in spots:
             hh = h * scale
             lim = room.get(place)
             if lim and hh * img.width / img.height > lim / share:   # long writing: shrink it to the panel, never run off it
@@ -1200,10 +1235,9 @@ def place_decals(car, tm, paint, design, prof, base, acc, acc2, txt, log):
             if a_shift: a = a + (-a_shift if view == 'right' else a_shift)   # along the car, the same way on both sides
             decals.append(Decal(img, view, a, b + b_shift * h, hh, rot=rot, region=reg, glow=glow, facing=facing,
                                 label=f'{what} on the {PLACES[place].lower()} ({view})',
-                                key=key or f'{what}:{place}', kind='logo' if what == 'logo' else 'text'))
+                                key=key, kind='logo' if what == 'logo' else 'text'))
 
     team, name = (design.get('team') or '').strip(), (design.get('name') or '').strip()
-    adj = design.get('adjust') or {}
     tplaces = design.get('team_places') or ['front_wings', 'boot', 'rear', 'front']
     nplaces = design.get('name_places') or ['front_wings']
     written = {p for p in PLACES if (team and p in tplaces) or (name and p in nplaces)}
@@ -1225,7 +1259,8 @@ def place_decals(car, tm, paint, design, prof, base, acc, acc2, txt, log):
     for p, imgs in by_place.items():
         n = len(imgs)
         sc = (0.68 if p in written else 1.0) * (1.0 if n == 1 else max(0.45, 1.0 / n ** 0.5))
-        h0 = geo(p)[0][3] * sc if geo(p) else 0.0
+        g0 = geo_for(p, f'logo:{p}') or geo(p)
+        h0 = g0[0][3] * sc if g0 else PIN_HEIGHT.get(p, 0.25) * sc
         lim = room.get(p)
         ws = []
         for img in imgs:
@@ -1258,12 +1293,19 @@ def place_decals(car, tm, paint, design, prof, base, acc, acc2, txt, log):
             for view, a, b, h, reg, facing, rot in sides(z, sill + 0.55 * sh, min(0.42, sh * 0.62)):
                 decals.append(Decal(img, view, a, b, h, region=reg, label=f'number on the doors ({view})',
                                     key='number:doors', kind='number'))
-        if design.get('number_roof', True) and 'roof' in pan:
-            zc, ln, wd = pan['roof']
-            zc_n = zc + (0.12 * ln if 'roof' in taken else 0)
+        pin = ((adj.get('number:roof') or {}).get('pin') or {}).get('top')
+        if design.get('number_roof', True) and ('roof' in pan or pin):
+            if 'roof' in pan:
+                zc, ln, wd = pan['roof']
+                zc_n = zc + (0.12 * ln if 'roof' in taken else 0)
+                ra, rb, rh = -zc_n, 0.0, min(wd * 0.45, ln * 0.45)
+            else: rh = PIN_HEIGHT['roof']
+            if pin: ra, rb = float(pin[1]), -float(pin[0])            # top view (a, b) -> the roof number's own axes
             decals.append(Decal(text_image(num, 300, t_txt, fnt_num, stroke=0.04, stroke_color=base), 'roof_l',
-                                -zc_n, 0.0, min(wd * 0.45, ln * 0.45), region=lambda P: P[:, 1] > car.hi[1] - 0.3,
+                                ra, rb, rh, region=None if pin else (lambda P: P[:, 1] > car.hi[1] - 0.3),
                                 label='number on the roof', key='number:roof', kind='number'))
+        elif design.get('number_roof', True):
+            no_place('number:roof', 'number on the roof')
 
     # team wordmark + driver name, at the places chosen
     scale = {'front_wings': 0.62, 'lower_doors': 1.0, 'rear_quarters': 0.55, 'doors': 0.3, 'bonnet': 0.3,
@@ -3017,6 +3059,17 @@ def generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pri
         if write: rgb_img = pad_texture(rgb_img, tm.covered | filled)       # the gaps only matter in the game
         img = rgb_img.copy(); img.putalpha(Image.fromarray(alpha))
         tex_out[tex] = img; tms[tex] = tm
+    if info is not None:            # what could not be placed: the app asks the user to pick a spot on the preview
+        info['missing'] = list(ctx.get('missing', []))
+        if 'decals' in ctx:
+            landed = ctx.get('landed', frozenset())
+            lost = {}
+            for dc in ctx['decals']:
+                if (dc.key, dc.view) not in landed: lost.setdefault(dc.key, (dc.label.split(' (')[0], []))[1].append(dc.view)
+            for k_, (lab, vs) in lost.items():
+                info['missing'].append(dict(key=k_, label=lab, views=vs))
+                log(f'{lab} ({", ".join(vs)}): did not land on the car - pick it on the car (button under the preview)')
+            info['decals'] = [d_ for d_ in info.get('decals', []) if (d_['key'], d_['view']) in landed]
     step(0.68, 'Wheels, windows and lights')
     wheel_out = {}
     if design.get('wheel_colour'):

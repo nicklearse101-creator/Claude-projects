@@ -5,8 +5,50 @@ import os
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
-BG, PANEL, RAISED, FIELD, LINE = '#0d0d0d', '#171717', '#202020', '#101010', '#363636'
-TEXT, MUTED, ACC, ACC2 = '#f4f4f4', '#8e8e8e', '#ff6a00', '#ffffff'
+# the app's colour themes (Nik 12 Nov: "a colour theme selection for the app"). Each: window, panel, raised, field,
+# line, text, muted text, accent, second accent, words on the accent, words on the second accent, selected list row,
+# dark (True) or light
+THEMES = {
+    'carbon_orange': ('Carbon Orange', '#0d0d0d', '#171717', '#202020', '#101010', '#363636', '#f4f4f4', '#8e8e8e',
+                      '#ff6a00', '#ffffff', '#ffffff', '#111111', '#3a1d08', True),
+    'ratty_purple': ('Ratty Purple', '#0c0a10', '#16121c', '#1f1927', '#100c15', '#3a3047', '#f5f0fb', '#9a8fa8',
+                     '#9b3dff', '#e6d4ff', '#ffffff', '#160c22', '#2a1445', True),
+    'ice_blue': ('Ice Blue', '#0a0e12', '#121820', '#1a222c', '#0d1218', '#2f3b48', '#eef6ff', '#8597a8',
+                 '#1fa8ff', '#ffffff', '#ffffff', '#0b1620', '#0b2b44', True),
+    'racing_green': ('Racing Green', '#0a0f0c', '#121a15', '#1a241d', '#0d130f', '#2f3d33', '#f0f8f2', '#8aa092',
+                     '#22c55e', '#f2e8c9', '#06140b', '#0a0f0c', '#0f3420', True),
+    'red_line': ('Red Line', '#0e0b0b', '#181313', '#221a1a', '#110d0d', '#3d3030', '#fbf2f2', '#a08f8f',
+                 '#e8202a', '#ffffff', '#ffffff', '#160b0b', '#3d0c10', True),
+    'stealth_grey': ('Stealth Grey', '#0b0b0c', '#151517', '#1e1e21', '#0f0f11', '#35353a', '#f2f2f4', '#8c8c94',
+                     '#c9ced6', '#ffffff', '#111214', '#111214', '#2c2e33', True),
+    'light': ('Light', '#e9ebef', '#f6f7f9', '#ffffff', '#ffffff', '#c3c8d0', '#15171b', '#5b6370',
+              '#d35400', '#15171b', '#ffffff', '#ffffff', '#ffe3cc', False),
+}
+THEME = 'carbon_orange'
+
+
+def use(name):
+    """Switch the colours (before any window is made: the app restarts to change them)."""
+    global THEME, BG, PANEL, RAISED, FIELD, LINE, TEXT, MUTED, ACC, ACC2, ON_ACC, ON_ACC2, SEL_BG, DARK, _KINDS
+    if name not in THEMES: name = 'carbon_orange'
+    THEME = name
+    (_, BG, PANEL, RAISED, FIELD, LINE, TEXT, MUTED, ACC, ACC2, ON_ACC, ON_ACC2, SEL_BG, DARK) = THEMES[name]
+    _KINDS = {     # fill, outline, outline width, text colour, text style, glow
+        'primary': (ACC, None, 0, ON_ACC, 'Bold Condensed', True),
+        'tab_active': (ACC, None, 0, ON_ACC, 'Bold Condensed', True),
+        'secondary': (RAISED, ACC2, 2, ACC2, 'Bold Condensed', False),
+        'outline': (RAISED, LINE, 1, TEXT, 'SemiBold Condensed', False),
+        'tab': (RAISED, LINE, 1, MUTED, 'Bold Condensed', False),
+        'chip': (RAISED, LINE, 1, TEXT, 'Bold Condensed', False),
+        'chip_active': (ACC2, None, 0, ON_ACC2, 'Bold Condensed', False),
+    }
+
+
+def theme_names():
+    return {k: v[0] for k, v in THEMES.items()}
+
+
+use('carbon_orange')
 PAD = 6                                    # room round every slanted shape for its glow
 FONT_DIR = r'C:\Windows\Fonts'
 BAHN = os.path.join(FONT_DIR, 'bahnschrift.ttf')
@@ -58,8 +100,9 @@ def _runs(text, size, style):
     return [(s, f) for s, f, _ in runs]
 
 
-def text_image(text, size, colour=TEXT, style='Bold Condensed', italic=0.18, glow=None):
+def text_image(text, size, colour=None, style='Bold Condensed', italic=0.18, glow=None):
     """Words as an RGBA picture: slanted like the NFS menus (italic = shear), with an optional soft glow."""
+    if colour is None: colour = TEXT
     fill = hexc(colour) if isinstance(colour, str) else colour
     pad = 10 if glow else 2
     runs = _runs(text or ' ', size, style)
@@ -94,16 +137,6 @@ def _shade(rgb, k):
     """k > 0 lighter, k < 0 darker."""
     return tuple(int(round(c + (255 - c) * k)) if k > 0 else int(round(c * (1 + k))) for c in rgb[:3]) + (rgb[3],)
 
-
-_KINDS = {     # fill, outline, outline width, text colour, text style, glow
-    'primary': (ACC, None, 0, '#ffffff', 'Bold Condensed', True),
-    'tab_active': (ACC, None, 0, '#ffffff', 'Bold Condensed', True),
-    'secondary': (RAISED, ACC2, 2, ACC2, 'Bold Condensed', False),
-    'outline': (RAISED, LINE, 1, TEXT, 'SemiBold Condensed', False),
-    'tab': (RAISED, LINE, 1, MUTED, 'Bold Condensed', False),
-    'chip': (RAISED, LINE, 1, TEXT, 'Bold Condensed', False),
-    'chip_active': (ACC2, None, 0, '#111111', 'Bold Condensed', False),
-}
 
 
 def slant_image(w, h, label, kind, state='normal', size=13):
@@ -150,10 +183,11 @@ def garage(w, h, floor_y):
     tile = np.zeros((2 * t, 2 * t), np.uint8)
     for i in range(t):
         c1, c2 = 22 + int(14 * i / t), 30 - int(12 * i / t)
+        if not DARK: c1, c2 = c1 + 190, c2 + 190
         tile[i, :t] = c1; tile[t:, t + i] = c1; tile[:t, t + i] = c2; tile[t + i, :t] = c2
     weave = np.tile(tile, (h // (2 * t) + 1, w // (2 * t) + 1))[:h, :w]
     img = Image.fromarray(np.dstack([weave] * 3 + [np.full((h, w), 255, np.uint8)]), 'RGBA')
-    vig = Image.new('L', (w, h), 160)
+    vig = Image.new('L', (w, h), 160 if DARK else 40)
     ImageDraw.Draw(vig).ellipse([w * 0.05, -h * 0.2, w * 0.95, h * 1.0], fill=0)
     img.alpha_composite(Image.merge('RGBA', [Image.new('L', (w, h), 0)] * 3 + [vig.filter(ImageFilter.GaussianBlur(60))]))
     sp = Image.new('RGBA', (w, h), (0, 0, 0, 0))
@@ -161,13 +195,13 @@ def garage(w, h, floor_y):
     img.alpha_composite(sp.filter(ImageFilter.GaussianBlur(26)))
     fl = Image.new('RGBA', (w, h), (0, 0, 0, 0)); fd = ImageDraw.Draw(fl)
     if fy < h:
-        fd.rectangle([0, fy, w, h], fill=(8, 8, 8, 215))
+        fd.rectangle([0, fy, w, h], fill=(8, 8, 8, 215) if DARK else (226, 229, 234, 215))
         step = 13
         for yy in range(fy + step // 2, h, step):
             r = ((yy - fy) / max(1, h - fy)) ** 1.3 * step * 0.40
             if r > 0.6:
                 for xx in range(0, w, step):
-                    fd.ellipse([xx - r, yy - r, xx + r, yy + r], fill=(40, 40, 40, 255))
+                    fd.ellipse([xx - r, yy - r, xx + r, yy + r], fill=(40, 40, 40, 255) if DARK else (198, 202, 209, 255))
     band, sh = 22, min(40, h)
     for i in range(-2, w // (2 * band) + 3):
         x = i * band * 2
@@ -193,7 +227,8 @@ def ghost_image(grey, max_w, max_h):
     edge = np.asarray(Image.fromarray((edge * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(0.8)), np.float32) / 255
     shade = np.clip((g - 100) / 100, 0, 1) * mask
     a = np.clip(mask * (0.05 + 0.10 * shade) + edge * 0.55, 0, 1)
-    rgb = np.array(hexc(ACC)[:3], np.float32) * 0.65 + 255 * 0.35 * edge[..., None]
+    rgb = (np.array(hexc(ACC)[:3], np.float32) * 0.65 + 255 * 0.35 * edge[..., None] if DARK else
+           np.array(hexc(ACC)[:3], np.float32) * (0.9 - 0.4 * edge[..., None]))
     im = Image.fromarray(np.dstack([np.clip(rgb, 0, 255), a * 255]).astype(np.uint8), 'RGBA')
     sc = min(max_w / im.width, max_h / im.height)
     nw, nh = int(im.width * sc), int(im.height * sc)
@@ -266,7 +301,7 @@ def compose_preview(background, car, view, title, pill, prompt):
         _put(lay, t, (pw - t.width) // 2, (ph - t.height) // 2)
         _put(img, lay, px, py)
     if prompt:
-        t1 = text_image(prompt[0], 46, '#ffffff', italic=0.2, glow=hexc(ACC, 200))
+        t1 = text_image(prompt[0], 46, '#ffffff' if DARK else TEXT, italic=0.2, glow=hexc(ACC, 200))
         t2 = text_image(prompt[1], 15, MUTED, style='Segoe', italic=0)
         cy = int(H * 0.62)
         _put(img, t1, (W - t1.width) // 2, cy - t1.height // 2)
@@ -338,7 +373,7 @@ def apply_style(root):
         imgs[key] = ImageTk.PhotoImage(im, master=root)
         return imgs[key]
     s.configure('.', background=PANEL, foreground=TEXT, fieldbackground=FIELD, bordercolor=LINE, lightcolor=PANEL,
-                darkcolor=PANEL, troughcolor=RAISED, selectbackground=ACC, selectforeground='#ffffff', insertcolor=TEXT,
+                darkcolor=PANEL, troughcolor=RAISED, selectbackground=ACC, selectforeground=ON_ACC, insertcolor=TEXT,
                 font=UI_FONT, focuscolor=ACC, arrowcolor=ACC)
     s.map('.', foreground=[('disabled', MUTED)])
     s.configure('TFrame', background=PANEL)
@@ -357,7 +392,7 @@ def apply_style(root):
     s.configure('TCombobox', foreground=TEXT, background=RAISED, arrowsize=16, padding=(6, 4))
     s.configure('TSpinbox', foreground=TEXT, background=RAISED, arrowsize=12, padding=(6, 3))
     s.map('TCombobox', fieldbackground=[('readonly', FIELD)], foreground=[('readonly', TEXT)],
-          selectbackground=[('readonly', FIELD), ('', ACC)], selectforeground=[('readonly', TEXT), ('', '#ffffff')],
+          selectbackground=[('readonly', FIELD), ('', ACC)], selectforeground=[('readonly', TEXT), ('', ON_ACC)],
           background=[('active', RAISED), ('pressed', RAISED)], arrowcolor=[('', ACC)])
     s.map('TSpinbox', background=[('active', RAISED)], arrowcolor=[('', ACC)])
     try:
@@ -370,7 +405,7 @@ def apply_style(root):
     root.option_add('*TCombobox*Listbox.background', FIELD)
     root.option_add('*TCombobox*Listbox.foreground', TEXT)
     root.option_add('*TCombobox*Listbox.selectBackground', ACC)
-    root.option_add('*TCombobox*Listbox.selectForeground', '#ffffff')
+    root.option_add('*TCombobox*Listbox.selectForeground', ON_ACC)
     root.option_add('*TCombobox*Listbox.font', UI_FONT)
     # tick boxes: dark square, orange border and tick
     s.configure('TCheckbutton', background=PANEL, foreground=TEXT, padding=(0, 2))
@@ -387,7 +422,7 @@ def apply_style(root):
     # lists
     s.configure('Treeview', background=FIELD, fieldbackground=FIELD, foreground=TEXT, bordercolor=LINE,
                 lightcolor=FIELD, darkcolor=FIELD)
-    s.map('Treeview', background=[('selected', '#3a1d08')], foreground=[('selected', ACC)])
+    s.map('Treeview', background=[('selected', SEL_BG)], foreground=[('selected', ACC if DARK else TEXT)])
     try:
         s.element_create('Dark.row', 'image', photo('row', _row_img(False)), ('selected', photo('row_s', _row_img(True))),
                          border=(4, 0, 0, 0), sticky='nswe')
@@ -653,7 +688,7 @@ def dark_title_bar(win):
         import ctypes
         win.update_idletasks()
         hwnd = ctypes.windll.user32.GetParent(win.winfo_id())
-        val = ctypes.c_int(1)
+        val = ctypes.c_int(1 if DARK else 0)
         for attr in (20, 19):
             if ctypes.windll.dwmapi.DwmSetWindowAttribute(hwnd, attr, ctypes.byref(val), ctypes.sizeof(val)) == 0:
                 return True

@@ -22,7 +22,12 @@ Tabs on the left, preview on the right. **Look (v1.8.0):** dark carbon and orang
 buttons, the car's name and skin in the strip on top, dark pop-ups and a dark title bar (`theme.py` holds the
 whole look; the layout and every setting are as before).
 - **Car** - the AC cars folder (found automatically through Steam), the car, the skin name,
-  and optionally a skin to copy the other files from.
+  and optionally a skin to copy the other files from. **App colours (v1.10.0):** 7 themes (`theme.THEMES`:
+  Carbon Orange, Ratty Purple, Ice Blue, Racing Green, Red Line, Stealth Grey, Light); the choice is saved
+  (`ui_theme`) and the app restarts with it (`theme.use()` runs before any window is made).
+  **Report this car...** saves `R4S_report_<car>_<time>.zip` on the desktop: report.txt (version, car, model,
+  what was not placed), log.txt (home folder taken out), design.json (logo file names only), catalogue.json,
+  preview.png - for the Ratty's Racing Discord.
 - **Livery** - base / accent / highlight / text colours and a pattern: sweep, twin centre stripes,
   two-tone split, triple side stripes, centre band over the top, chevron nose, hockey stick, tricolour
   diagonal bands, front-to-rear fade, chequered flag fade, geometric shards, hexagon fade, digital camo,
@@ -30,6 +35,12 @@ whole look; the layout and every setting are as before).
   from a picture**: a side view of a car (fitted to this car's profile) or a flat wrap print, simplified so
   writing and small stickers melt away, in the picture's colours or yours. Inspired by classic liveries (Martini, Gulf, Marlboro, Porsche/Ford, BMW M) and modern wraps;
   all patterns are 3D functions, so they wrap round the car without seams.
+  **v1.10.0: 32 more** (`patterns_plus.py`, layered like the hand-made Lacetti skin): Ratty swoosh, endurance
+  wedge, 90s touring arcs, retro triple bands, kinetic arrows, speed lines, shark gills, wave flow, halftone
+  burst, low-poly shatter, splinter camo, dragon scales, circuit board, topographic lines, digital glitch,
+  racing flames, brushstrokes, neon grid, carbon lower body, fade stripes, tribal blades, chequer scatter,
+  diamond mesh, diagonal split, pixel dissolve, starfield, electric arcs, barcode rear, ribbon twist, GT sash,
+  paint drips, tech honeycomb. **Gallery...** shows them all in the design's colours (click to use).
 - **Number & names** - racing number, number style (board, plain, none), where it shows
   (doors, roof), team wordmark, driver name, a font for each of the three (any font installed on the PC), and a grid to choose where each is written (front wings,
   lower doors, doors, rear quarters, bonnet, roof, boot, rear, front). Writing switches to a readable
@@ -38,7 +49,10 @@ whole look; the layout and every setting are as before).
   first start; add your own images once and give each a place: doors, bonnet, front wings, rear quarters,
   lower doors, roof, boot lid, rear panel, front bumper, windscreen banner, rear window, rear side windows.
   Optional glow tint. Several logos can share one place: they start side by side, each with its own box
-  to move on the preview.
+  to move on the preview. **Not placed (v1.10.0):** a logo / name / number with no place found on the car
+  (or that lands on no surface) is listed in a NOT PLACED bar after Preview (`info['missing']`); the user
+  picks the spot on one view and it is kept as `adjust[key]['pin'] = {view: [a, b]}` (side panels: the
+  other side mirrored).
 - **Windows** - new window stickers: a banner that follows the top edge of the windscreen and rear
   window (full width, height 8-25 cm, default 12), number and driver name on the rear window and on the
   side windows you choose (rear side windows, front door windows or both); optionally removes the
