@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: feedback
   originSessionId: 492adf9d-8819-4b64-a28b-e276d960f362
-  modified: 2026-10-19T21:52:40.527Z
+  modified: 2026-11-12T08:12:56.443Z
 ---
 
 Be concise. Don't narrate progress or explain reasoning mid-turn; at the end of a turn say in a few lines what was
@@ -16,3 +16,7 @@ detail. tell and show me what you've done when you've finished a turn".
 
 **How to apply:** minimal interim text (a few words when required); final message = what changed + picture + any
 decision he must make.
+
+Also for design choices / questions about looks: show a picture (mockup sent with SendUserFile), not just text.
+Nik 2026-11-12 on the skin generator UI: "I don't know you didn't show me a picture". He is often away from the PC
+(phone), so no browser tabs - send images.
