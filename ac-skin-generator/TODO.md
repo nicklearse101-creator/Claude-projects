@@ -28,8 +28,14 @@ Details of earlier fixes: `PLAN_next_session.md`.
   all 480 logo files prepared identically (1920 checks). Old code's window-sticker messages come in a random order
   from run to run (set order) - harmless, the compare allows it. Not done yet (bigger job): decal placement
   (`decal_hits`) and drawing the five views, the rest of a Preview's time.
-- Installer: choose the folder; option to keep logos and settings in it (`data` next to the exe).
-  Tests: `tests/test_installer.py`, `tests/test_speed.py`.
+  Second round of checks (Nik: "test again"): a second design with the other features (tinted windows, tyres,
+  picture pattern, carbon, smaller files, not 4K, hand edits / delete / Edit text on the preview, copy from a stock
+  skin; `R4S_VARIANT=2`) identical on 4 cars; peak memory lower (Ferrari 296 GT3 4K: 7.4 -> 6.7 GB). Found and
+  fixed: a reused Create repeated the picture pattern's message; the pattern picture cache could clash between cores.
+- Installer: choose the folder; option to keep logos and settings in it (`data` next to the exe); finds an old install
+  whose Installed-apps entry is missing (Nik's 11 Nov one); moving with the desktop box unticked removes the old
+  desktop shortcut. Tests: `tests/test_installer.py`, `tests/test_speed.py`, `tests/install_e2e.py` (real build
+  installed, run, updated, uninstalled in a test folder, 27 checks; never touches the real install or desktop).
 
 ## Done 12 Nov (v1.8.0)
 - Game look (Nik: "like a need for speed home screen"): carbon + orange reskin, same layout; garage preview
