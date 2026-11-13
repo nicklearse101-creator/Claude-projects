@@ -56,4 +56,4 @@ Other confirmed write-ups in this repo: `tools/ac-wiper/` (wiper report + proven
 - [Public repo claude-projects](projects/public-repo-claude-projects.md) — cleaned public mirror of Claude-; auto-updated by a Stop hook (publish_public.py --auto), never commit to it directly
 - [FreeCAD AI MCP](pc-setup/freecad-ai-mcp-setup.md) — freecad-ai add-on installed 2026-11-10; MCP `freecad` at 127.0.0.1:3000/mcp, start FreeCAD via D:\FreeCAD-addons launcher first
 - [Steward app](projects/steward-app-project.md) — AC incident-review app for Ratty's Racing; plan only (steward-app/PLAN.md), 5 open questions for Nik
-- [Skin gen reminder 12 Nov](projects/skin-gen-reminder-nov12.md) - REMIND NIK: logo list mouse wheel only full screen; Corvette side-window tint on the windscreen (not fixed yet, his choice)
+- [Skin gen reminder 12 Nov](projects/skin-gen-reminder-nov12.md) - REMIND NIK: logo list mouse wheel only full screen; Corvette side-window tint on the windscreen; 13 Nov: alignment grid on the preview; window stickers unreliable (missing / inside only) - all for later, his choice

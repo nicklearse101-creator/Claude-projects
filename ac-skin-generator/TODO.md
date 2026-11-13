@@ -42,7 +42,7 @@ Details of earlier fixes: `PLAN_next_session.md`.
 
 ## Future - Nik 13 Nov evening
 - [ ] **Centre line / alignment grid** on the preview (not too intrusive) to make placing logos by hand easier.
-- [ ] **Window stickers unreliable**: sometimes the app says they're there but they aren't (in game); sometimes they
+- [x] (v1.10.2) **Window stickers unreliable** - file names fixed, CSP form fixed, tint redone. Was:: sometimes the app says they're there but they aren't (in game); sometimes they
   show from inside the car but not from outside. (Ask Nik which cars; his Talbot 'ratty_s' skin uses CSP window
   stickers: r4s_ext_glass_center_own.dds / r4s_ext_glass_left_2_own.dds + ext_config.ini.)
 

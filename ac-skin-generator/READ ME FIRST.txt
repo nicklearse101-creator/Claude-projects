@@ -1,4 +1,4 @@
-RATTY'S4SKIN GENERATOR  v1.10.1
+RATTY'S4SKIN GENERATOR  v1.10.2
 Makes liveries (skins) for Assetto Corsa cars. No AI, no internet needed.
 
 WHAT YOU NEED

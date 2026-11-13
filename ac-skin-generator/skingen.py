@@ -12,7 +12,7 @@ Pipeline
 
 AC axes: +X = car's left, +Y = up, +Z = forward (right-handed).
 """
-import copy, glob, io, json, os, re, shutil, struct, threading
+import types, copy, glob, io, json, os, re, shutil, struct, threading
 from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont, ImageColor, ImageOps
@@ -69,6 +69,28 @@ def find_skin_file(skin_dir, texname):
     for f in os.listdir(skin_dir):
         if f.lower() == want: return os.path.join(skin_dir, f)
     return None
+
+
+def skin_file_name(car, car_dir, tex):
+    """The file name a skin must give model texture `tex`: the car's own skins' spelling when they have the file, else
+    the model's name exactly. The game finds skin textures by name, so 'glass.dds' for a model texture called
+    'glass.png' is ignored (Nik 13 Nov: the Talbot's window stickers, tint and lens colour never showed)."""
+    for s_ in car.skins:
+        f_ = find_skin_file(os.path.join(car_dir, 'skins', s_), tex)
+        if f_:
+            b_, e_ = os.path.splitext(os.path.basename(f_))
+            return b_ + '.dds' if e_.lower() == '.dds' else b_ + e_
+    b_, e_ = os.path.splitext(tex)
+    return b_ + '.dds' if e_.lower() == '.dds' else tex
+
+
+def write_texture(img, path, compress=False):
+    """The texture in the format its file name says: DDS (see write_dds), PNG, JPEG or TGA."""
+    ext = os.path.splitext(path)[1].lower()
+    if ext == '.dds': return write_dds(img, path, compress=compress)
+    if ext in ('.jpg', '.jpeg'): return img.convert('RGB').save(path, 'JPEG', quality=95)
+    if ext == '.tga': return img.convert('RGBA').save(path, 'TGA')
+    return img.convert('RGBA').save(path, 'PNG')
 
 
 def fast_dds(data):
@@ -1966,15 +1988,16 @@ def beam_config(car, lights, colour, log=print):
     return '\n'.join(lines) + '\n'
 
 
-def csp_stickers(jobs, made, layers, log=print):
+def csp_stickers(jobs, made, layers, log=print, clear=()):
     """The CSP window stickers: for each window (or half of a mesh holding both sides) a copy of its final glass
     picture with its own stickers, and the ext_config.ini text that gives it that picture.
     CSP's own left/right split (common/oldschool_lights_reflections.ini): the original mesh keeps the +X side (the
     car's left), the cut part gets -X. Two cuts give each half its own material; the stickers go on those materials
     only, so if a cut ever did not happen nothing would change on the car."""
     imgs, splits, reps = {}, [], {}
+    clear_of = {m_: c for c in clear for m_ in c['meshes']}       # parts that stay clear of the tint
     for j in jobs:
-        base = made.get(j['tex'])
+        base = clear_of[j['mesh']]['img'] if j['mesh'] in clear_of and not j['side'] else made.get(j['tex'])
         if base is None: continue
         tag = re.sub(r'[^a-z0-9]+', '_', f"{j['mesh']}_{j['side'] or 'own'}".lower()).strip('_')
         name = f'r4s_{tag}.dds'
@@ -1993,13 +2016,21 @@ def csp_stickers(jobs, made, layers, log=print):
         else:
             reps[name] = f"MESHES = {j['mesh']}"
             layers.append((tm, arr))          # a window of its own: the preview can show it
+    # clear copies (tint): one picture per texture for the parts that keep it clear and have no stickers of their own
+    stickered = {re.sub(r'^MESHES = ', '', t) for t in reps.values() if t.startswith('MESHES = ')}
+    for c in clear:
+        ms = [m_ for m_ in c['meshes'] if m_ not in stickered]
+        if not ms: continue
+        name = 'r4s_' + re.sub(r'[^a-z0-9]+', '_', os.path.splitext(c['tex'])[0].lower()).strip('_') + '_clear.dds'
+        imgs[name] = np.asarray(c['img'].convert('RGBA')); reps[name] = 'MESHES = ' + ', '.join(ms)
+    # section names: the documented '...' form (CSP numbers them itself); a comment marks them as this app's
     ini = []
     for k, (mesh, mat) in enumerate(splits):
         for sfx, axis in (('r', '1, 0, 0'), ('l', '-1, 0, 0')):
-            ini += [f'[MESH_SPLIT_R4S_{k}_{sfx.upper()}]', f'MESHES = {mesh}', 'MODE = PLANE', f'SPLIT_AXIS = {axis}',
+            ini += ['[MESH_SPLIT_...]', "; Ratty's4Skin", f'MESHES = {mesh}', 'MODE = PLANE', f'SPLIT_AXIS = {axis}',
                     'SPLIT_THRESHOLD = 0', 'MODEL_SPACE = 1', f'SPLIT_POSTFIX = __r4s_{sfx}', f'SPLIT_MATERIAL_POSTFIX = __r4s_{sfx}', '']
     for k, (name, target) in enumerate(reps.items()):
-        ini += [f'[SHADER_REPLACEMENT_R4S_{k}]', target, 'RESOURCE_0 = txDiffuse', f'RESOURCE_FILE_0 = {name}', '']
+        ini += ['[SHADER_REPLACEMENT_...]', "; Ratty's4Skin", target, 'RESOURCE_0 = txDiffuse', f'RESOURCE_FILE_0 = {name}', '']
     out = {n: Image.fromarray(a, 'RGBA') for n, a in imgs.items() if n in reps}
     if splits: log('windows: CSP stickers on a window that shares its mesh with the other side do not show on the preview - '
                    'check them in the game')
@@ -2020,7 +2051,7 @@ def merge_ini(path, text):
     for name, body in new:
         if name is None: continue
         keys = {l.split('=', 1)[0].strip().upper() for l in body if '=' in l}
-        hit = next((s for s in old if s[0] and s[0].upper() == name.upper()), None)
+        hit = None if '...' in name else next((s for s in old if s[0] and s[0].upper() == name.upper()), None)
         if hit:
             hit[1] = [l for l in hit[1] if '=' not in l or l.split('=', 1)[0].strip().upper() not in keys] + \
                      [l for l in body if '=' in l]
@@ -2563,8 +2594,9 @@ def make_window_stickers(car, design, made, copy_from=None, log=print, resolutio
                 col = arr[tm.yy, tm.xx, :3].astype(np.float32)
                 alp = None if kind == 'strip' else arr[tm.yy, tm.xx, 3].astype(np.float32)
                 use = [d for i, d in enumerate(decals) if (not inside) or i in hit]
-                col, alp, _, got = apply_decals(col, tm, use, wlog, alp=alp, inside=inside, back=back, allow_move=False,
-                                                quiet=True, no_shared=kind != 'strip')
+                # (the inside glass only shows the stickers' backs: what it can't take is not news - no message)
+                col, alp, _, got = apply_decals(col, tm, use, wlog if not inside else (lambda m_: None), alp=alp,
+                                                inside=inside, back=back, allow_move=False, quiet=True, no_shared=kind != 'strip')
                 if not inside: hit |= {decals.index(use[i]) for i in got}
                 if inside and not got:                   # nothing lands on this inside glass: leave it as it was
                     arr[:] = keep
@@ -2618,46 +2650,85 @@ def make_window_stickers(car, design, made, copy_from=None, log=print, resolutio
     return out, [l for l in layers if any(l[1] is arrs[t] for t in changed)]
 
 
+def windscreen_part(car, m):
+    """The windscreen triangles of a glass mesh (facing forwards, not sideways or up, in the front half of the car)
+    as a mesh of their own; None if it has none."""
+    T = m.pos[m.idx]
+    n = np.cross(T[:, 1] - T[:, 0], T[:, 2] - T[:, 0])
+    n = n / np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-12)
+    mid = (car.hi[2] + car.lo[2]) / 2
+    ws = (np.abs(n[:, 0]) < 0.5) & (np.abs(n[:, 1]) < 0.9) & (T.mean(1)[:, 2] > mid)
+    if not ws.any(): return None
+    part = types.SimpleNamespace(name=m.name, pos=m.pos, nrm=m.nrm, uv=m.uv, idx=m.idx[ws], mat=m.mat)
+    part.whole = bool(ws.mean() > 0.95)
+    return part
+
+
 def tint_windows(car, design, made, copy_from=None, log=print):
-    """Tinted glass: a film of the tint colour behind what is on the glass (stickers stay as they are).
-    Darkness 0..0.9 = how much of the light the film stops. The windscreen is left clear unless asked.
-    Returns {texture: image} and preview layers [(texel map, rgba array)]."""
+    """Tinted glass the way Content Manager's paint shop does it: the WHOLE glass texture gets the film (a colour
+    and how dark), so it reaches every edge; stickers on the glass stay as they are. The windscreen keeps its area
+    clear (with a margin, so no tint creeps onto it) unless asked. Parts that share the glass texture but must stay
+    clear (lamps, a windscreen that is a part of its own) get a clear copy through CSP.
+    Returns {texture: image}, preview layers [(texel map, rgba array)] and the clear copies
+    [{tex, meshes, img}]."""
     tint = rgb(design['win_tint'])
     dark = float(np.clip(design.get('win_tint_dark') or 0.5, 0.05, 0.9))
     ext, inner = window_meshes(car, log=None)
     if not ext:
-        log('windows: no glass found on this car - tint skipped'); return {}, []
-    groups = {}
-    for m in ext + inner: groups.setdefault(m.mat.samplers.get('txDiffuse'), []).append(m)
-    mid = (car.hi[2] + car.lo[2]) / 2
-    out, layers = {}, []
-    for tex, ms in groups.items():
+        log('windows: no glass found on this car - tint skipped'); return {}, [], []
+    glass = {id(m) for m in ext + inner}
+    users, order = {}, []
+    for m in car.kn5.meshes:
+        if m.mat is None or not len(m.idx): continue
+        t = m.mat.samplers.get('txDiffuse')
+        if t: users.setdefault(t, []).append(m)
+    for m in ext + inner:
+        t = m.mat.samplers.get('txDiffuse')
+        if t not in order: order.append(t)
+    keep_ws = not design.get('win_tint_windscreen')
+    nop = lambda *a: None
+    out, layers, clear = {}, [], []
+    for tex in order:
         img = current_texture(car, tex, made, copy_from) if tex else None
         if img is None: continue
-        arr = np.asarray(img.convert('RGBA')).copy()
+        base = img.convert('RGBA')
+        arr = np.asarray(base).copy()
         H, W = arr.shape[:2]
-        tm = TexelMap(ms, W, H, log=lambda s_: None)
-        sel = np.ones(len(tm.yy), bool)
-        if not design.get('win_tint_windscreen'):
-            # the windscreen: glass facing forwards (not sideways) in the front half of the car
-            sel &= ~((np.abs(tm.N[:, 0]) < 0.5) & (tm.P[:, 2] > mid))
-        if not sel.any(): continue
-        yy, xx = tm.yy[sel], tm.xx[sel]
-        px = arr[yy, xx].astype(np.float32)
-        a = px[:, 3] / 255
-        if np.median(a) < 0.9:
+        gl = [m for m in users.get(tex, []) if id(m) in glass]
+        others = [m for m in users.get(tex, []) if id(m) not in glass]
+        parts = [windscreen_part(car, m) for m in gl] if keep_ws else [None] * len(gl)
+        ws_whole = [m for m, p in zip(gl, parts) if p is not None and p.whole]
+        rest = [m for m in gl if m not in ws_whole]
+        if not rest: continue                                   # only the (clear) windscreen uses this texture
+        mask = np.ones((H, W), bool)
+        ws = [p for p in parts if p is not None]
+        if ws:                                                  # the windscreen's own area stays clear, with a margin
+            tmw = TexelMap(ws, W, H, log=nop)
+            cov = np.zeros((H, W), np.uint8); cov[tmw.yy, tmw.xx] = 255
+            cov = np.asarray(Image.fromarray(cov).filter(ImageFilter.MaxFilter(13))) > 0
+            mask &= ~cov
+        tmr = TexelMap(rest, W, H, log=nop)
+        a_glass = arr[tmr.yy, tmr.xx, 3] / 255 if len(tmr.yy) else arr[..., 3].ravel() / 255
+        px = arr[mask].astype(np.float32)
+        if np.median(a_glass) < 0.9:
             # see-through by its texture alpha: lay the film behind (the "over" rule) - opaque stickers keep their look
+            a = px[:, 3] / 255
             a2 = a + (1 - a) * dark
             px[:, :3] = (px[:, :3] * a[:, None] + tint * (a2 - a)[:, None]) / np.maximum(a2, 1e-6)[:, None]
             px[:, 3] = a2 * 255
         else:
             # the material makes it see-through, not the texture: colour the glass itself
             px[:, :3] = px[:, :3] * (1 - dark) + tint * dark
-        arr[yy, xx] = np.clip(px, 0, 255).astype(np.uint8)
+        arr[mask] = np.clip(px, 0, 255).astype(np.uint8)
         out[tex] = Image.fromarray(arr, 'RGBA')
-        layers.append((tm, arr))
-        log(f'windows: tinted {tex} ({int(dark * 100)} % dark{", windscreen too" if design.get("win_tint_windscreen") else ", windscreen left clear"})')
-    return out, layers
+        layers.append((tmr, arr))
+        keep = ws_whole + others
+        if keep:
+            clear.append(dict(tex=tex, meshes=[m.name for m in keep], img=base))
+            if ws_whole: layers.append((TexelMap(ws_whole, W, H, log=nop), np.asarray(base)))
+        log(f'windows: tinted {tex} ({int(dark * 100)} % dark, the whole glass{", windscreen too" if not keep_ws else ", windscreen left clear"})'
+            + (f'; clear copy through CSP for {", ".join(m.name for m in keep)[:80]}' if keep else ''))
+    return out, layers, clear
 
 
 # ------------------------------------------------------------------ DDS writer
@@ -3136,22 +3207,24 @@ def generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pri
         made.update(win)
         for t in win:
             if t in tex_out: tex_out[t] = win[t]
+    clear = []
     if design.get('win_tint'):
-        tinted, tint_layers = tint_windows(car, design, made, copy_other_from, log)
+        tinted, tint_layers, clear = tint_windows(car, design, made, copy_other_from, log)
         made.update(tinted)
         for t in tinted:
             if t in tex_out: tex_out[t] = tinted[t]
         # the tinted textures already carry the stickers: they replace the sticker layers of the same meshes
         names = {nm for tm_, _ in tint_layers for nm in tm_.mesh_of_tri.tolist()}
         glass_layers = [l for l in glass_layers if not set(l[0].mesh_of_tri.tolist()) & names] + tint_layers
-    csp_tex, csp_ini = csp_stickers(csp_jobs, made, glass_layers, log)
+    csp_tex, csp_ini = csp_stickers(csp_jobs, made, glass_layers, log, clear=clear)
     lights = find_headlights(car) if (design.get('lens_colour') or design.get('beam_colour')) else []
     if design.get('lens_colour'):
         painted = {t_: m_['stock'][2] for t_, m_ in _MEMO.get('tex', {}).items() if 'stock' in m_}
         made.update(tint_lenses(car, lights, design['lens_colour'], made, copy_other_from, log, painted))
     if write:
         os.makedirs(out, exist_ok=True)
-        mine = {t.lower() for t in made} | {os.path.splitext(t)[0].lower() + '.dds' for t in made}
+        mine = ({t.lower() for t in made} | {os.path.splitext(t)[0].lower() + '.dds' for t in made} |
+                {skin_file_name(car, car_dir, t).lower() for t in made})
         if copy_other_from:   # copy first, so files made here replace the copies
             src = os.path.join(car_dir, 'skins', copy_other_from)
             for f in os.listdir(src):
@@ -3166,11 +3239,8 @@ def generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pri
             log(f'wrote ext_config.ini (CSP window stickers: {", ".join(csp_tex)})')
         step(0.8, 'Writing the textures')
         for tex, img in made.items():
-            name = os.path.splitext(tex)[0] + '.dds'
-            for s_ in car.skins:     # use the file-name spelling the car's own skins use
-                f_ = find_skin_file(os.path.join(car_dir, 'skins', s_), tex)
-                if f_: name = os.path.splitext(os.path.basename(f_))[0] + '.dds'; break
-            write_dds(img, os.path.join(out, name), compress=design.get('compress', True))
+            name = skin_file_name(car, car_dir, tex)     # exactly the name the model asks for (or its skins use)
+            write_texture(img, os.path.join(out, name), compress=design.get('compress', True))
             log(f'wrote {name}')
         # Kunos-style paint: the colour lives in the body material's detail texture (e.g. metal_detail.dds),
         # multiplied over the diffuse. Give the new skin a plain white one so the livery shows its own colours.

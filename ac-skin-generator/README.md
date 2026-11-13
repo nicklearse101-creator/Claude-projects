@@ -174,6 +174,13 @@ pick the skin and click "Update preview".
 - Wheels and headlight lenses only change where the car has a texture for them that nothing else uses.
 - Cars whose paint colour comes only from material settings may tint the result.
 - Messy or overlapping UV layouts give less paintable area (the log says how much).
+- **Windows (v1.10.2, Nik 13 Nov "the window stickers don't work"):** skin textures now carry exactly the file name the
+  model asks for (`skin_file_name`: 'glass.png' stayed 'glass.dds' before and the game ignored it - stickers, tint and
+  lens colour never showed on such cars), written in that format (`write_texture`). Tint = the whole glass texture
+  (Content Manager paint-shop 'tintedWindow' style), windscreen area kept clear with a margin unless asked, parts that
+  share the glass texture and must stay clear (lamps, a windscreen of its own) get a clear copy through CSP. CSP
+  sections use the documented `[SHADER_REPLACEMENT_...]` form (Nik's in-game test: MESHES + RESOURCE_FILE works on a
+  mesh whose material other windows share; `SHARED_MATERIALS = FORCE` applies to ALL meshes of that material - never use).
 - **Protected models (v1.10.1):** cars encrypted by their maker with CSP kn5 encryption show every other tool a
   scrambled texture mapping (`scrambled_uv` > 0.5: small triangles whose corners land far apart in the texture). The
   app names them, gives a plain colour only (whole car when the main paint texture is protected) and never tries to

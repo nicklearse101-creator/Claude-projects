@@ -5,13 +5,19 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 3ff76d07-0207-43b0-a903-b8e467f5b675
-  modified: 2026-11-12T18:59:31.002Z
+  modified: 2026-11-13T20:19:59.738Z
 ---
 
 Nik, 12 Nov 2026 evening, while using v1.9.0: "No need to fix these just yet, remind me later."
 
 1. The logo list can't be scrolled with the mouse wheel unless the app is full screen.
 2. Window tint doesn't always reach the window edges: on `corvette_z06_gt3r` (his skin `test_overwrite`) some of the side-window tint came out on the windscreen.
+
+Added 13 Nov evening (Nik, "things to be added in future"):
+3. A centre line / alignment grid on the preview (not too intrusive) to position logos by hand more easily.
+4. Window stickers unreliable: sometimes the app says they're there but they aren't (in game); sometimes visible from inside the car but not from outside. Ask which cars (his Talbot `ratty_s` skin uses CSP window stickers).
+
+Also 13 Nov: his Talbot `ratty_s` skin was 218 MB because "Smaller files" was unticked (4K + uncompressed); ticking it worked.
 
 He also chose to leave the other 1.8.0 small points for now. Small point 8 (picking another car clears the old preview) was done the same evening, in the source only (no installer yet).
 
