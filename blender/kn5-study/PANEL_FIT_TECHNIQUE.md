@@ -232,3 +232,17 @@ not a station polyline; give the neighbour face the sweep's flat band as tangent
 - Mesh a grid face from its own (u, v) (structured, srf.normal): srf.parameter() per mesh point took minutes.
 - Cut polygons along a built edge: Douglas-Peucker to the chord sag (0.02 mm); a 1 mm polyline made Mefisto mesh 30x finer.
 
+- A sharp corner in a panel's OUTLINE (the hatch's lower-corner tab: the side edge drops ~11 mm straight down, then a
+  77 deg corner into the bottom edge) cannot come from rows that END on the outline: the grid's edge is a smooth curve
+  through row ends 15 mm apart and cuts the corner (Kunos vertices 6-10 mm off). Do it the CAD way (13 Nov): carry the
+  rows on past the outline (15 mm along each row's end tangent, `extend_grid`), BEFORE the corner vertex refinement so
+  the tab's Kunos vertices steer it, then TRIM on the fair outline: display mesh = u lines (refined where the trim bends,
+  chord sag 0.05 mm) each spread from v0 to the trim's v(u); B-rep face = surface + the trim as a (u, v) POLYLINE
+  (Douglas-Peucker 0.005 mm). A 2D B-spline through the trim overshot where it drops steeply in (u, v) (u back-steps =
+  "self-intersecting wire"). Cut the trim exactly on the panel's end planes, each plane on its own half only.
+- Fair outline curves: corners by single-vertex turn miss KNEES (16 + 28 deg on two vertices 6 mm apart): find them by
+  the turn summed in a +-8 mm window (local maxima, symmetric in the run's direction), add knots at +-2/4/7 mm round each,
+  and fit with the Kunos VERTICES weighted (x10) over the resampled chord points (knee 0.5 -> 0.04 mm).
+- Rows whose 'near' part runs to their end piled the far columns into 1.5 mm (degenerate parametrization: a straight
+  trim line in (u, v) dipped 1.5 mm in 3D): split near / far in proportion on short rows.
+- Distances to a 1 mm-sampled polyline: measure to its SEGMENTS (spine_s), nearest-sample distance adds up to 0.5 mm.

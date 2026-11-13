@@ -70,10 +70,68 @@ for p in res:
             Lv_ = max(float(np.linalg.norm(np.diff(G_[i], axis=0), axis=1).sum()) for i in range(0, len(G_), max(1, len(G_) // 20)))
             nu_ = max(2, int(np.ceil(Lu_ / ml_)) + 1); nv_ = max(2, int(np.ceil(Lv_ / (ml_ * 0.5))) + 1)   # finer across (tight knee)
             us_, vs_ = np.linspace(u0_, u1_, nu_), np.linspace(v0_, v1_, nv_)
+            vt_ = None
+            if p.get('trim_outer'):
+                # the grid runs past the panel's outer edge: trim it on the given outline (3D points on the surface).
+                # The outline in (u, v) is a graph v = vt(u) (one crossing per row); mesh lines at the uniform u plus
+                # extra u lines wherever the trim bends away from its chord (the sharp lower corners), each u line
+                # spread from v0 to vt(u): the display mesh ends exactly on the outline.
+                T3_ = np.array(p['trim_outer'])
+                uvT = np.array([srf.parameter(App.Vector(*q)) for q in T3_])
+                offT = np.array([(srf.value(*uv) - App.Vector(*q)).Length for uv, q in zip(uvT, T3_)])
+                if uvT[-1, 0] < uvT[0, 0]: uvT, T3_, offT = uvT[::-1], T3_[::-1], offT[::-1]
+                kp_ = [0]
+                for i_ in range(1, len(uvT)):
+                    if uvT[i_, 0] > uvT[kp_[-1], 0] + 1e-9: kp_.append(i_)
+                nback_ = len(uvT) - len(kp_); uvT, T3_ = uvT[kp_], T3_[kp_]
+                uvT = np.r_[[[u0_, uvT[0, 1]]], uvT, [[u1_, uvT[-1, 1]]]]
+                vt_ = lambda u: np.interp(u, uvT[:, 0], uvT[:, 1])
+                mmv_ = Lv_ / (v1_ - v0_)                                   # mm per unit v (rough, for the sag test)
+                for _it in range(12):                                     # refine the u lines until the chords sag < 0.05 mm
+                    add_ = []
+                    for a_, b_ in zip(us_[:-1], us_[1:]):
+                        m_ = (uvT[:, 0] > a_) & (uvT[:, 0] < b_)
+                        if not m_.any(): continue
+                        lin_ = vt_(a_) + (uvT[m_, 0] - a_) / (b_ - a_) * (vt_(b_) - vt_(a_))
+                        dv_ = np.abs(uvT[m_, 1] - lin_) * mmv_
+                        if dv_.max() > 0.05: add_.append(uvT[m_, 0][np.argmax(dv_)])
+                    if not add_: break
+                    us_ = np.unique(np.r_[us_, add_])
+                    if p.get('sym_u'): us_ = np.unique(np.r_[us_, u0_ + u1_ - us_])      # mirror-symmetric grid: same u lines both halves
+                print(f"{p['name']:24s} trim: {len(T3_)} outline points ({nback_} back-steps dropped), off the surface max {offT.max():.3f} mm, "
+                      f"v {uvT[:, 1].min():.4f}..{uvT[:, 1].max():.4f} of {v0_:.4f}..{v1_:.4f}, {len(us_)} u lines", flush=True)
             pts_, nn = [], []
             for u_ in us_:
-                for v_ in vs_:
+                for v_ in (vs_ if vt_ is None else v0_ + (vs_ - v0_) * (float(vt_(u_)) - v0_) / (v1_ - v0_)):
                     q = srf.value(u_, v_); n_ = srf.normal(u_, v_); pts_.append([q.x, q.y, q.z]); nn.append([n_.x, n_.y, n_.z])
+            nu_ = len(us_)
+            if vt_ is not None:
+                # B-rep face for the STEP / neighbours: the surface trimmed by the outline in its (u, v) space (one 2D
+                # B-spline per run between the outline's corners) + the three untouched sides
+                try:
+                    V2 = App.Base.Vector2d
+                    uvc = uvT[1:-1]; cn_ = [int(np.argmin(np.linalg.norm(T3_ - np.array(c), axis=1))) for c in p.get('trim_corners') or []]
+                    cut_ = sorted(set([0] + [c for c in cn_ if 0 < c < len(uvc) - 1] + [len(uvc) - 1]))
+                    ed_ = []
+                    pre_ = Part.Geom2d.Line2dSegment(V2(u0_, uvc[0, 1]), V2(*uvc[0])) if uvc[0, 0] > u0_ + 1e-9 else None
+                    if pre_: ed_.append(pre_.toShape(srf))
+                    # the trim as a polyline in (u, v) (thinned where it is straight in 3D: 0.005 mm): a 2D B-spline
+                    # through it overshot where the trim drops steeply at the tab (u back-steps -> 'self-intersecting wire')
+                    kq_ = dp_keep(T3_, float(os.environ.get('PF_TRIM_SAG', 0.005)))
+                    kq_ = np.unique(np.r_[kq_, [c for c in cut_]])
+                    for a_, b_ in zip(kq_[:-1], kq_[1:]):
+                        ed_.append(Part.Geom2d.Line2dSegment(V2(*uvc[a_]), V2(*uvc[b_])).toShape(srf))
+                    post_ = Part.Geom2d.Line2dSegment(V2(*uvc[-1]), V2(u1_, uvc[-1, 1])) if uvc[-1, 0] < u1_ - 1e-9 else None
+                    if post_: ed_.append(post_.toShape(srf))
+                    for A_, B_ in (((u1_, uvc[-1, 1]), (u1_, v0_)), ((u1_, v0_), (u0_, v0_)), ((u0_, v0_), (u0_, uvc[0, 1]))):
+                        ed_.append(Part.Geom2d.Line2dSegment(V2(*A_), V2(*B_)).toShape(srf))
+                    ft_ = Part.Face(srf, Part.Wire(Part.__sortEdges__(ed_)))
+                    fx_ = ft_.copy(); fx_.fix(1e-3, 1e-4, 1e-2)
+                    if fx_.isValid(): ft_ = fx_
+                    if ft_.isValid() and 0.5 * face.Area < ft_.Area < face.Area:
+                        face = ft_; shapes[-1] = face; built[p['name']] = face
+                    else: print(p['name'], f'trimmed B-rep face invalid (valid {ft_.isValid()}, area {ft_.Area / 1e6:.4f} of {face.Area / 1e6:.4f} m2) -> STEP keeps the untrimmed grid face', flush=True)
+                except Exception as ex: print(p['name'], 'trimmed B-rep face failed:', ex, '-> STEP keeps the untrimmed grid face', flush=True)
             idx_ = np.arange(nu_ * nv_).reshape(nu_, nv_)
             a_, b_, c_, d_ = idx_[:-1, :-1].ravel(), idx_[1:, :-1].ravel(), idx_[1:, 1:].ravel(), idx_[:-1, 1:].ravel()
             fc = np.r_[np.c_[a_, b_, c_], np.c_[a_, c_, d_]]

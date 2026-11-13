@@ -55,12 +55,13 @@ def hatch_owned(car):
     return np.vstack(list(pieces(car)[3].values()))
 
 
-def outer_edge(car, step=0.005, corner_deg=35.0, tol=3e-4):
+def outer_edge(car, step=0.005, corner_deg=35.0, tol=None):
     """the hatch skin's OUTER boundary (Kunos), as a fair dense 3D polyline (1 mm): the boundary loop resampled every
     5 mm, split at its corners (turn > corner_deg), each run one smoothing cubic (fewest controls within tol, at most
     one per 20 mm). The U's rows end ON it, so the U's free edge (skirt bottom, side faces) is fair: rows ending where
     their own sections stopped left a scalloped bottom edge."""
     import strip_build as SB
+    tol = float(os.environ.get('HT_EDGE_TOL', 0.3)) * 1e-3 if tol is None else tol
     V, F, N, pcs = pieces(car)
     skin = pcs['skin']; _, wid = PF.components(V, skin)
     loops = PF.boundary_loops(skin, wid)
@@ -76,13 +77,56 @@ def outer_edge(car, step=0.005, corner_deg=35.0, tol=3e-4):
         run = np.array([L[i % len(L)] for i in range(a, b + 1)])
         d = np.r_[0, np.cumsum(np.linalg.norm(np.diff(run, axis=0), axis=1))]
         if d[-1] < 0.01: out.append(run); continue
-        s = np.linspace(0, d[-1], max(3, int(np.ceil(d[-1] / step)) + 1))
+        s = np.unique(np.r_[np.linspace(0, d[-1], max(3, int(np.ceil(d[-1] / step)) + 1)), d])   # + Kunos's own vertices
         R = np.c_[[np.interp(s, d, run[:, i]) for i in range(3)]].T
-        f = SB.fit_graph(s, R, [0, d[-1]], tol=tol, nmax=int(np.clip(d[-1] / 0.02, 4, 80)), mu=1e-6)
+        kn = knees(run, d) if os.environ.get('HT_KNEES', '1') == '1' else []
+        wv = np.where(np.isin(s, d), float(os.environ.get('HT_EDGE_WV', 10)), 1.0)   # Kunos vertices count more than chord points
+        f = fit_run(s, R, d[-1], tol, kn, nmax=int(np.clip(d[-1] / 0.02, 4, 80)), w=wv)
         sd = np.linspace(0, d[-1], max(3, int(np.ceil(d[-1] / 0.001)) + 1))
         Rf = SB.eval_graph(f, sd); Rf[0], Rf[-1] = run[0], run[-1]
         out.append(Rf)
     return np.vstack(out), L[cs]
+
+
+def knees(run, d, win=0.016, turn=30.0):
+    """soft corners of an outline run: places where it turns more than `turn` degrees within `win` of arc although no
+    single vertex passes the corner threshold (the lower-corner tab: 16 + 28 deg on two vertices 6 mm apart). Returns
+    their arc positions (turn-weighted centres). One smoothing cubic with a control every 20 mm rounded that knee over
+    ~25 mm (0.7 mm off Kunos's knee vertices)."""
+    tg = np.diff(run, axis=0); tg /= np.linalg.norm(tg, axis=1)[:, None]
+    a = np.r_[0, np.degrees(np.arccos(np.clip((tg[:-1] * tg[1:]).sum(1), -1, 1))), 0]       # turn at each vertex
+    # symmetric in the run's direction (the right half's runs go the other way): turn summed within +-win/2 of each
+    # vertex, knees at the local maxima above `turn`, centred on the turn-weighted mean of that window
+    S = np.array([a[np.abs(d - d[i]) <= win / 2].sum() for i in range(len(run))])
+    out = []
+    for i in range(1, len(run) - 1):
+        m = np.abs(d - d[i]) <= win / 2
+        if S[i] >= turn and S[i] >= S[m].max() - 1e-9:
+            j = np.nonzero(m)[0]; c = float((d[j] * a[j]).sum() / a[j].sum())
+            if not out or c - out[-1] > win / 2: out.append(c)
+    return out
+
+
+def fit_run(s, R, L, tol, kn, nmax, h=(0.002, 0.004, 0.007), mu=1e-6, w=None):
+    """one smoothing cubic for an outline run: the fewest uniform knots whose worst residual on the Kunos VERTICES
+    (weight w; the points between them are chords) is within tol, plus extra knots round each knee (+-2, 4, 7 mm)"""
+    w = np.ones(len(s)) if w is None else w; vt = w > 1
+    extra = np.array([k + sg * x for k in kn for x in h for sg in (-1, 1)] + list(kn)) if kn else np.zeros(0)
+    extra = extra[(extra > 0.001) & (extra < L - 0.001)]
+    best = None
+    for n in range(4, nmax + 1):
+        inner = np.unique(np.r_[np.linspace(0, L, n - 2), extra])
+        inner = inner[np.r_[True, np.diff(inner) > 1e-4]]
+        kv = np.r_[[0.0] * 3, inner, [L] * 3]; nn = len(kv) - 4
+        B = PF.basis(s, kv, nn)
+        D = np.zeros((nn - 2, nn))
+        for i in range(nn - 2): D[i, i:i + 3] = (1, -2, 1)
+        Bw = B * w[:, None]
+        C = np.linalg.solve(Bw.T @ B + mu * w.sum() * D.T @ D, Bw.T @ R)
+        err = np.linalg.norm(B @ C - R, axis=1)[vt if vt.any() else slice(None)]
+        best = dict(n=nn, kv=kv, g=PF.greville(kv, nn), C=C, err=float(err.max()))
+        if (err < tol).all(): break
+    return best
 
 
 def edge_point(E, o, t, near):
@@ -190,7 +234,10 @@ def steady_rows(g, verbose=True, n_top=10, n_near=12, near=0.030, n_far=10, ramp
         else: w = min(1.0, (k - npil + 1) / ramp); Lt = (1 - w) * L_pil + w * L_top
         q_top = np.linspace(a0 - Lt, a0, n_top, endpoint=False)
         top = np.array([P[0] + q * dt if q < 0 else np.array([np.interp(q, ar, P[:, i]) for i in range(3)]) for q in q_top])
-        q = np.r_[np.linspace(a0, min(a0 + near, ar[-1]), n_near, endpoint=False), np.linspace(min(a0 + near, ar[-1]), ar[-1], n_far)]
+        # near / far split: on short rows (pillar tops) a fixed 30 mm near part left the far columns piled up at the end
+        # (8 columns within 1.5 mm: a degenerate parametrization, the trim dipped 1.5 mm there) -> spread in proportion
+        am = a0 + min(near, (ar[-1] - a0) * n_near / (n_near + n_far - 1)) if os.environ.get('HT_SPREAD', '1') == '1' else min(a0 + near, ar[-1])
+        q = np.r_[np.linspace(a0, am, n_near, endpoint=False), np.linspace(am, ar[-1], n_far)]
         rest = np.c_[[np.interp(q, ar, P[:, i]) for i in range(3)]].T
         out.append(np.r_[top, rest])
     if verbose:
@@ -423,6 +470,9 @@ def u_grid(car, verbose=True):
         Xv = V[np.unique(skin)]
         for it_ in range(int(os.environ.get('HT_REF_IT', 2))):
             G = refine_to_vertices(G, Xv, ds=float(os.environ.get('HT_REF_DS', 2)), dt=float(os.environ.get('HT_REF_DT', 2)), verbose=verbose)
+    L_ext = float(os.environ.get('HT_EXT', 15)) * 1e-3
+    if L_ext > 0:           # surface past the outer edge (trimmed on it later): before the corner refine, so the tab's
+        G = extend_grid(G, L_ext)                    # Kunos vertices lie on the grid and steer the corner offset field
     if os.environ.get('HT_CORNER', '1') == '1':     # lower corners: the profiles saw facets sagging inside the wrap
         K = G[:, 10]
         zone = (np.abs(K[:, 0]) > 0.55) & (K[:, 2] < -1.82)
@@ -434,8 +484,125 @@ def u_grid(car, verbose=True):
         print(f'U grid: {npil} pillar + {len(a_f)} foot stations per side, {len(a_all)} rows x {nc}, spine {2 * Lc * 1e3:.0f} mm, '
               f'smoothing: lambda {lam:.0e}, normal rms {nrms * 1e3:.3f} max {nmax_ * 1e3:.3f} mm (shift max {Graw_err * 1e3:.2f} mm), asymmetry {asym * 1e3:.4f} mm, '
               f'last left station x {X[-1, 0] * 1e3:.1f} mm', flush=True)
-    return dict(grid=G, E0=G[:, 0], npil=npil, nrows=len(a_all), sweep=g, axis=g['axis'], centre=g['centre'], s=g['s'],
+    return dict(grid=G, n_ext=int(round(L_ext / 0.005)) if L_ext > 0 else 0, E0=G[:, 0], npil=npil, nrows=len(a_all), sweep=g, axis=g['axis'], centre=g['centre'], s=g['s'],
                 raw=R_, raw_arc=A_, arc=a_all, fit=fsm(A_))
+
+
+def extend_grid(G, L=0.015, h=0.005):
+    """the U's rows carried on past their outer end by L (G1: along each row's end tangent, from a cubic through its
+    last 4 points), so the surface is bigger than the panel and gets TRIMMED on the real outline. Rows ending on the
+    outline could never make its sharp lower corners (the 'tab': the side edge drops ~11 mm straight down before the
+    bottom edge turns in; rows 15 mm apart cut it, Kunos corner vertices 6-10 mm off)."""
+    def end_tan(R):
+        P = R[-4:]; a = np.r_[0, np.cumsum(np.linalg.norm(np.diff(P, axis=0), axis=1))]
+        c = np.linalg.lstsq(np.vander(a, 4, increasing=True), P, rcond=None)[0]
+        t = c[1] + 2 * c[2] * a[-1] + 3 * c[3] * a[-1] ** 2; return t / np.linalg.norm(t)
+    T = np.array([end_tan(r) for r in G])
+    Ge = np.concatenate([G, G[:, -1:] + (np.arange(1, int(round(L / h)) + 1) * h)[None, :, None] * T[:, None]], axis=1)
+    return (Ge + (Ge * MIR)[::-1]) / 2
+
+
+def grid_project(G, X, iters=8):
+    """closest points of X on the grid's index-space bicubic (row index s, column index t): (s, t, distance m)"""
+    from scipy.interpolate import RectBivariateSpline
+    from scipy.spatial import cKDTree
+    nr, nc, _ = G.shape
+    Sp = [RectBivariateSpline(np.arange(nr, dtype=float), np.arange(nc, dtype=float), G[:, :, k], kx=3, ky=3, s=0) for k in range(3)]
+    def ev(s, t, a=0, b=0): return np.stack([Sp[k].ev(s, t, dx=a, dy=b) for k in range(3)], -1)
+    ss, tt = np.meshgrid(np.arange(0, nr - 1 + 1e-9, 0.25), np.arange(0, nc - 1 + 1e-9, 0.25), indexing='ij')
+    _, k = cKDTree(ev(ss.ravel(), tt.ravel())).query(X); s, t = ss.ravel()[k].copy(), tt.ravel()[k].copy()
+    for _ in range(iters):
+        P = ev(s, t); Su, Sv = ev(s, t, 1, 0), ev(s, t, 0, 1); r = X - P
+        A11, A12, A22 = (Su * Su).sum(1), (Su * Sv).sum(1), (Sv * Sv).sum(1); b1, b2 = (r * Su).sum(1), (r * Sv).sum(1)
+        det = A11 * A22 - A12 ** 2 + 1e-18
+        s = np.clip(s + (A22 * b1 - A12 * b2) / det, 0, nr - 1); t = np.clip(t + (A11 * b2 - A12 * b1) / det, 0, nc - 1)
+    return s, t, np.linalg.norm(X - ev(s, t), axis=1)
+
+
+def outer_trim(car, Ge, tol=0.004, step=0.002, fine=0.025, planes=()):
+    """the stretch of the fair outer edge that trims the U (left pillar top round the tail to the right pillar top):
+    edge points lying on the extended U (within tol; the header's top edge projects onto the end rows, off the
+    surface), the longest run, ordered along the rows; thinned to `step` except within `fine` of a corner (1 mm).
+    Returns (points m, corner points m)."""
+    E, cs = outer_edge(car)
+    nr = len(Ge)
+    s, t, d = grid_project(Ge, E)
+    on = (d < tol) & (s > 0.02) & (s < nr - 1.02)
+    idx = np.nonzero(on)[0]
+    runs = np.split(idx, np.nonzero(np.diff(idx) > 1)[0] + 1)
+    # E is a closed loop: a run through the loop's start comes in two pieces
+    if len(runs) > 1 and runs[0][0] == 0 and runs[-1][-1] == len(E) - 1: runs = [np.r_[runs[-1], runs[0]]] + runs[1:-1]
+    r = max(runs, key=len)
+    if s[r[-1]] < s[r[0]]: r = r[::-1]
+    P = E[r]
+    # the U ends on the pillar-top planes (the header's cut planes): the run's ends lie on the header's top edge and
+    # project onto the end rows (a bogus first point made the first mesh row 15 mm short) -> cut exactly on the planes
+    for o, n in planes:
+        sd = (P - o) @ n
+        if sd[len(sd) // 2] < 0: sd = -sd
+        sd = np.where(np.sign(P[:, 0]) == np.sign(o[0]), sd, np.inf)          # each plane cuts its own half only
+        k = np.nonzero(sd > 0)[0]
+        if not len(k): continue
+        i0, i1 = k[0], k[-1]
+        ends = []
+        if i0 > 0: ends.append(('a', P[i0 - 1] + (P[i0] - P[i0 - 1]) * sd[i0 - 1] / (sd[i0 - 1] - sd[i0])))
+        if i1 < len(P) - 1: ends.append(('b', P[i1] + (P[i1 + 1] - P[i1]) * sd[i1] / (sd[i1] - sd[i1 + 1])))
+        P = P[i0:i1 + 1]
+        for w, q in ends: P = np.r_[[q], P] if w == 'a' else np.r_[P, [q]]
+    a = np.r_[0, np.cumsum(np.linalg.norm(np.diff(P, axis=0), axis=1))]
+    dc = np.min(np.linalg.norm(P[:, None] - cs[None], axis=2), axis=1)
+    keep, last = [0], 0.0
+    for i in range(1, len(P) - 1):
+        if a[i] - last >= (0.001 if dc[i] < fine else step) - 1e-9 or dc[i] < 1e-4: keep.append(i); last = a[i]
+    keep.append(len(P) - 1)
+    cU = cs[np.min(np.linalg.norm(cs[:, None] - P[None], axis=2), axis=1) < 1e-3]
+    s2, _, d2 = grid_project(Ge, P[keep])
+    return P[keep], cU, (s2[0], s2[-1], float(d2.max()))
+
+
+def returns(car):
+    """the hatch's returns (research step 5) as ruled strips (strip_build.py): the glass-opening ring (piece 4, ~26 mm:
+    step + flange; a closed loop, so cut at x = 0 into two halves - the half model has no triangle across it), the
+    wall at the glass's lower edge (14, ~19 mm) and the bottom return under the skirt (22, ~7 mm). A side on the skin =
+    the skin's BUILT edge (nb_name 'hatch:' = every hatch skin face, as roof_build's 'roof:'); the far sides are free
+    (glass / gap): Kunos vertices. The 2 mm corner bits at the tab (116 / 117) are corner fills (outline snapped onto
+    the built edges round them, as the bonnet's)."""
+    import strip_build as SB
+    V, F, N, pcs = pieces(car)
+    ring = pcs['ring']; cx = V[ring].mean(1)[:, 0]
+    names = ['skin', 'ringL', 'ringR', 'wall', 'bottom', 'cornerL', 'cornerR']
+    P = [pcs['skin'], ring[cx > 0], ring[cx < 0], pcs['wall'], pcs['bottom'], pcs['cornerL'], pcs['cornerR']]
+    Fs = np.vstack(P)
+    st = SB.find_strips(V, Fs, N, P, PF.components, PF.boundary_loops, amin=1e-7, corner_free_w=0.002, ruled_inside=True)
+    name = lambda nb: None if nb is None else ('hatch:' if nb == 0 else (f'hatchnb:{names[nb]}' if nb in st else None))
+    out = []
+    for ri in sorted(st):
+        s = st[ri]
+        for sd in s['sides']:
+            for r in [sd] + list(sd.get('runs', [])):
+                r['nb_name'] = name(r['nb']) if isinstance(r['nb'], (int, np.integer)) else None
+                r['nb_strip'] = r['nb'] in st
+                r['key'] = 'hatchnb:' + '|'.join(str(x) for x in r['key'])
+        out.append(dict(name=f'hatchnb:{names[ri]}', strip=s, frame=s['frame']))
+        nbs = [r['nb'] for sd in s['sides'] for r in (sd.get('runs') or [sd])]
+        print(f'hatchnb:{names[ri]}: STRIP {s["width"] * 1e3:.1f} x {s["length"] * 1e3:.0f} mm ({s["mode"]}), neighbours {nbs}', flush=True)
+    _, wid = PF.components(V, Fs); rep = {}
+    for i, w in enumerate(wid): rep.setdefault(w, i)
+    for ri in range(1, len(P)):
+        if ri in st: continue
+        Fr = P[ri]; loops = PF.boundary_loops(Fr, wid)
+        if len(loops) != 1: print(f'hatchcf:{names[ri]}: {len(loops)} outlines - skipped'); continue
+        Q = V[[rep[w] for w in loops[0]]] * 1000; Q = np.r_[Q, Q[:1]]
+        dq = np.r_[0, np.cumsum(np.linalg.norm(np.diff(Q, axis=0), axis=1))]
+        tq = np.arange(0, dq[-1], 0.5)
+        R = np.c_[[np.interp(tq, dq, Q[:, k]) for k in range(3)]].T
+        inner = V[[rep[w] for w in sorted(set(wid[Fr.ravel()]) - set(loops[0]))]] * 1000
+        T = V[Fr] * 1000; A = np.linalg.norm(np.cross(T[:, 1] - T[:, 0], T[:, 2] - T[:, 0]), axis=1).sum() / 2
+        nrm = N[Fr].mean((0, 1)); nrm /= np.linalg.norm(nrm)
+        fr = [(V[np.unique(Fr)].mean(0)).tolist()] + [list(x) for x in np.eye(3)]
+        out.append(dict(name=f'hatchcf:{names[ri]}', frame=fr, corner_fill=dict(outline=R.tolist(), inner=inner.tolist(), area=float(A), normal=nrm.tolist())))
+        print(f'hatchcf:{names[ri]}: corner fill {A:.1f} mm2', flush=True)
+    return out
 
 
 def build(car, out):
@@ -446,7 +613,17 @@ def build(car, out):
     esR, c0R = es * MIR, c0 * MIR
     res = []
     u_ = np.unique(skin); nout = N[u_].mean(0); nout /= np.linalg.norm(nout)
-    res.append(dict(name='hatch:U', maxlen=float(os.environ.get('HT_MAXLEN', 8)), structured=True, grid=(G * 1000).tolist(), frame=[c0.tolist(), es.tolist(), np.cross(nout, es).tolist(), nout.tolist()]))
+    eU = dict(name='hatch:U', maxlen=float(os.environ.get('HT_MAXLEN', 8)), structured=True,
+              frame=[c0.tolist(), es.tolist(), np.cross(nout, es).tolist(), nout.tolist()])
+    if U['n_ext']:          # the grid runs past the outline (u_grid): trimmed on it (sharp lower corners = the tab)
+        Gx = G; G = Gx[:, :Gx.shape[1] - U['n_ext']]; L_ext = U['n_ext'] * 0.005
+        T3, cU, (sa, sb, dmx) = outer_trim(car, Gx, planes=[(c0 + s0 * es, es), (c0R + s0 * esR, esR)])
+        eU.update(grid=(Gx * 1000).tolist(), trim_outer=(T3 * 1000).tolist(), trim_corners=(cU * 1000).tolist())
+        print(f'U extended {L_ext * 1e3:.0f} mm past its outer edge; trim = fair outer edge, {len(T3)} points over rows '
+              f'{sa:.2f}..{sb:.2f} of {nrow - 1}, {len(cU)} corners, max off the extended grid {dmx * 1e3:.2f} mm', flush=True)
+    else:
+        Gx = G; eU['grid'] = (G * 1000).tolist()
+    res.append(eU)
 
     # which side of the pillar planes each skin triangle lies on (left half by the left pillar's axis, right by its mirror)
     cx = V[skin].mean(1)[:, 0]
@@ -480,10 +657,12 @@ def build(car, out):
                               fallback=[dict(poly=(PF.to_plane(band, fr_)[:, :2] * 1000).tolist(), frame=e['frame'])])
     res.append(e)
     print(f'header {len(Fh)} tris; deck {len(Fo)} tris ({len(Fd)} data)', flush=True)
+    if os.environ.get('HT_RETURNS', '1') == '1':
+        res += returns(car)
 
     os.makedirs(out, exist_ok=True)
     json.dump(res, open(os.path.join(out, 'panels_fit.json'), 'w'))
-    np.savez(os.path.join(out, 'u_grid.npz'), grid=G, npil=npil, raw=U['raw'], raw_arc=U['raw_arc'], arc=U['arc'], fit=U['fit'])
+    np.savez(os.path.join(out, 'u_grid.npz'), grid=G, grid_ext=Gx, npil=npil, raw=U['raw'], raw_arc=U['raw_arc'], arc=U['arc'], fit=U['fit'])
     print('saved', os.path.join(out, 'panels_fit.json'))
 
 
