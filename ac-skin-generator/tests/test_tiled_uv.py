@@ -24,8 +24,8 @@ def test_overlap_ignores_stretched_triangles():
 def test_texel_map_ignores_stretched_triangles():
     g = grid(); g.nrm = np.tile([0, 0, 1.0], (len(g.pos), 1)); g.name = 'panel'
     t = giant(); t.nrm = np.tile([0, 0, 1.0], (3, 1)); t.name = 'giant'
-    a = skingen.TexelMap([g], 128, 128, lambda *x: None)
-    b = skingen.TexelMap([g, t], 128, 128, lambda *x: None)
+    a = skingen.TexelMap([g], 128, 128, lambda *x: None, skip_stretched=True)
+    b = skingen.TexelMap([g, t], 128, 128, lambda *x: None, skip_stretched=True)     # (body paint only)
     assert np.array_equal(a.covered, b.covered)
     assert np.allclose(a.P, b.P)                                   # every texel still belongs to the panel
 

@@ -348,7 +348,7 @@ def locate_texels(px, pos, nrm, t, xx, yy):
 class TexelMap:
     """Per-texel 3D position / normal for one body texture."""
 
-    def __init__(self, meshes, W, H, log=print, hogs_under=False):
+    def __init__(self, meshes, W, H, log=print, hogs_under=False, skip_stretched=False):
         self.W, self.H = W, H
         pos, nrm, uv, mid = [], [], [], []
         for m in meshes:
@@ -370,7 +370,8 @@ class TexelMap:
         dens = a3 / np.maximum(pa, 1e-9)                            # m² per texel
         med = np.median(dens[pa > 1]) if (pa > 1).any() else np.median(dens)
         good = (pa > 0.3) & ~((width < 1.5) & (dens > 2.5 * med))
-        good &= (uv.max(1) - uv.min(1)).max(1) <= 1.0              # stretched over whole texture widths (tiled parts)
+        if skip_stretched:                                          # body paint: stretched over whole texture widths
+            good &= (uv.max(1) - uv.min(1)).max(1) <= 1.0          # (tiled parts) can't hold the livery
         keep = np.nonzero(good)[0]
         keep = keep[np.argsort(width[keep], kind='stable')]        # thin first, solid panels drawn over them
         # tiny parts spread over a big piece of the texture (an exhaust tip over half the livery): drawn first, so
@@ -3077,7 +3078,7 @@ def generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pri
         if 'tm' not in mem or mem['tm'].W != W:
             # parts spread over the texture that made the car look 'plain colour only' go under the panels
             hogs = uv_overlap(car.meshes_for(tex), skip_hogs=False) > 3.0
-            tm = TexelMap(car.meshes_for(tex), W, H, log, hogs_under=hogs); tm.tex = tex
+            tm = TexelMap(car.meshes_for(tex), W, H, log, hogs_under=hogs, skip_stretched=True); tm.tex = tex
             occ = [m.pos[m.idx] for m in car.kn5.meshes if m.mat is not None and len(m.idx) and not see_through(m.mat)
                    and m.mat.samplers.get('txDiffuse') != tex and 'shadow' not in m.name.lower()]
             tm.occluders = np.concatenate(occ) if occ else None

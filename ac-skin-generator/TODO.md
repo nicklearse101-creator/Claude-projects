@@ -28,7 +28,9 @@ Details of earlier fixes: `PLAN_next_session.md`.
 - [x] **Colour theme choice for the app** (Nik 12 Nov night) - 7 themes - the carbon + orange look, plus others to pick from.
 
 ## Found by the 233-car check (12 Nov night) - to do
-- [ ] **43 GT3 / GT4 / touring cars only get a plain colour** (17 GT4s incl. gt4_mclaren_570s, gt4_alpine_a110,
+- [x] (v1.10.1) **43 GT3 / GT4 / touring cars only get a plain colour** -> 37 are protected by their makers
+  (CSP kn5 encryption: the app now says so, never cracks it); Alfa 156 WTCC, MP4-12C GT3, Volvo S40 BTCC fixed;
+  Giuliettas x3 + Cadillac really use a shared / atlas texture (stay plain). Was: (17 GT4s incl. gt4_mclaren_570s, gt4_alpine_a110,
   gt4_bmw_m4; 12 Supercars; fsr_* BTCC; cf_ferrari_296_gt3, mclaren_mp412c_gt3, trr_* GT3s, wtcc_alfa_romeo_156_gta).
   Their livery texture's UVs run v = -1..2 (not 0..1), so `uv_overlap` reads thousands and the app treats the
   paint as shared; several (ACC-style ports) also split paint colour (metal_detail), a baked AO map and a separate

@@ -1,4 +1,4 @@
-RATTY'S4SKIN GENERATOR  v1.10.0
+RATTY'S4SKIN GENERATOR  v1.10.1
 Makes liveries (skins) for Assetto Corsa cars. No AI, no internet needed.
 
 WHAT YOU NEED
@@ -84,7 +84,10 @@ GOOD TO KNOW
     * a few cars only allow a plain colour (their paint has no room for a design);
     * some cars have no room on the glass for window stickers;
     * wheels and headlights only change on cars that have their own texture for them;
-    * cars locked (encrypted) by their maker cannot be read at all.
+    * cars locked (encrypted) by their maker cannot be read at all;
+    * cars whose model is protected by their maker with Custom Shaders Patch (many GT4,
+      Supercars and some BTCC / GT3 mods) only take a plain colour - the app tells you
+      after Preview. It never tries to get round that protection.
   The log says so when this happens.
 - Your settings and logo library are kept in the app's folder ("data") if you ticked
   "Keep my logos and settings in that folder too" when installing, otherwise in

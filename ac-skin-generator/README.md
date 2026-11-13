@@ -174,6 +174,14 @@ pick the skin and click "Update preview".
 - Wheels and headlight lenses only change where the car has a texture for them that nothing else uses.
 - Cars whose paint colour comes only from material settings may tint the result.
 - Messy or overlapping UV layouts give less paintable area (the log says how much).
+- **Protected models (v1.10.1):** cars encrypted by their maker with CSP kn5 encryption show every other tool a
+  scrambled texture mapping (`scrambled_uv` > 0.5: small triangles whose corners land far apart in the texture). The
+  app names them, gives a plain colour only (whole car when the main paint texture is protected) and never tries to
+  undo the protection. 37 of 233 GT3 / GT4 / touring cars on Nik's PC (12 Nov).
+- **v1.10.1:** triangles stretched over more than a whole texture width (tiled underbodies, broken triangles) no
+  longer count as 'shared paint' nor take body texels; tiny parts spread over the livery (an exhaust tip) don't count
+  as sharing when they are under 5 % of the surface, and on such cars go under the panels in the texel map. Fixed
+  wtcc_alfa_romeo_156_gta, mclaren_mp412c_gt3, pm3dm_volvo_s40_btcc. uv_overlap no longer stops at 2000 triangles.
 - Cars with only plain glass textures (many Kunos cars) can only get the windscreen banner
   where they have a banner mesh.
 - The preview draws the car's real triangles with the new textures (as the game maps them), but with
