@@ -420,6 +420,19 @@ def uv_coverage(meshes, size=256):
     return np.asarray(im) > 0
 
 
+def scrambled_uv(meshes):
+    """Share of the small triangles (under 3 cm) whose corners land far apart in the texture (over a quarter of it).
+    Honestly mapped cars: about 0. Models protected by their maker (CSP kn5 encryption): 0.8-0.95 - the game decrypts
+    them, every other tool sees a scrambled mapping. The app never tries to undo that protection."""
+    T = [m.uv[m.idx] for m in meshes if len(m.idx)]
+    if not T: return 0.0
+    T = np.concatenate(T); P = np.concatenate([m.pos[m.idx] for m in meshes if len(m.idx)])
+    small = np.linalg.norm(P.max(1) - P.min(1), axis=1) < 0.03
+    if small.sum() < 50: return 0.0
+    wild = (T.max(1) - T.min(1)).max(1) > 0.25
+    return float((wild & small).sum() / small.sum())
+
+
 def uv_overlap(meshes):
     """Total texture area of all triangles / texture area actually covered (estimated on a 256 grid).
     1 = each texel used once; big numbers = every panel reuses the same texels."""
@@ -3016,7 +3029,12 @@ def generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pri
         ov = uv_overlap(car.meshes_for(tex))
         if ov > 3.0:
             # every panel reuses the same texels (a plain colour texture): no room for a livery
-            log(f'{tex}: every panel shares this texture ({ov:.0f}x over) - only a plain colour is possible on this car')
+            if scrambled_uv(car.meshes_for(tex)) > 0.5:
+                if info is not None: info['protected'] = True
+                log(f"{tex}: this car's model is protected by its maker (encrypted with Custom Shaders Patch), so the "
+                    "app can't see how the paint wraps round it - only a plain colour is possible on this car")
+            else:
+                log(f'{tex}: every panel shares this texture ({ov:.0f}x over) - only a plain colour is possible on this car')
             step(0.1, 'This car only takes a plain colour (shared paint texture)')
             if ref.size != (W, H):
                 r_, a_ = ref.convert('RGB').resize((W, H), Image.LANCZOS), ref.getchannel('A').resize((W, H), Image.LANCZOS)

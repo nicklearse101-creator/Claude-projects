@@ -199,6 +199,7 @@ class App(tk.Tk):
         self.saved = False                               # the views on screen were saved in the car
         self.views_car = None                            # the car the views on screen are of
         self.picking = None                              # the decal whose spot the next click on the preview sets
+        self._told_protected = set()                     # protected cars already explained (once each)
         self.build()
         self.refresh_cars()
         self.refresh_library()
@@ -1032,6 +1033,14 @@ class App(tk.Tk):
         self.sel = None
         self.show_missing(self.info.get('missing') or [])
         self.redraw()
+        if self.info.get('protected'):
+            msg = ("This car's model is protected by its maker (encrypted with Custom Shaders Patch), so the app "
+                   "can't see how the paint wraps round it. Only a plain colour (your base colour) is possible on this car.")
+            self.sel_label.configure(text="Protected model: only a plain colour is possible on this car.",
+                                     foreground=theme.ACC)
+            if self.views_car not in self._told_protected:
+                self._told_protected.add(self.views_car)
+                messagebox.showinfo(APP_NAME, msg)
 
     # ---- what could not be placed: picked on the car by the user
     def show_missing(self, missing):

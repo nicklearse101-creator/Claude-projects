@@ -88,3 +88,13 @@ def test_report_catalogue_fails(app, tmp_path, monkeypatch):
     z = zipfile.ZipFile(app.report_car())
     assert 'no paintable body texture' in z.read('report.txt').decode('utf8')
     assert 'catalogue.json' not in z.namelist() and 'preview.png' not in z.namelist()
+
+
+def test_protected_car_told_once(app, monkeypatch):
+    shown = []
+    monkeypatch.setattr(R.messagebox, 'showinfo', lambda t, m, **k: shown.append(m))
+    app.extra['protected'] = True
+    preview(app)
+    preview(app)
+    assert len(shown) == 1 and 'protected' in shown[0] and 'plain colour' in shown[0]
+    assert 'protected' in app.sel_label.cget('text').lower()
