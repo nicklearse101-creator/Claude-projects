@@ -40,6 +40,12 @@ Details of earlier fixes: `PLAN_next_session.md`.
 - 2 cars unreadable: gravygarage_street_e36_touring (locked by its maker), ks_ferrari_488_gt3_2020 (only a skins
   folder, no car).
 
+## Future - Nik 13 Nov evening
+- [ ] **Centre line / alignment grid** on the preview (not too intrusive) to make placing logos by hand easier.
+- [ ] **Window stickers unreliable**: sometimes the app says they're there but they aren't (in game); sometimes they
+  show from inside the car but not from outside. (Ask Nik which cars; his Talbot 'ratty_s' skin uses CSP window
+  stickers: r4s_ext_glass_center_own.dds / r4s_ext_glass_left_2_own.dds + ext_config.ini.)
+
 ## Next - Nik 12 Nov evening (REMIND NIK, "no need to fix these just yet")
 - [ ] **Logo list won't scroll with the mouse wheel** unless the app is full screen.
 - [ ] **Window tint doesn't always reach the window edges**: on the Corvette (`corvette_z06_gt3r`, his skin
