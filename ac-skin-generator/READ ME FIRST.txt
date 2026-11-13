@@ -1,4 +1,4 @@
-RATTY'S4SKIN GENERATOR  v1.10.3
+RATTY'S4SKIN GENERATOR  v1.10.4
 Makes liveries (skins) for Assetto Corsa cars. No AI, no internet needed.
 
 WHAT YOU NEED
@@ -32,6 +32,8 @@ MAKE A SKIN (2 minutes)
    and tick where each one is written on the car.
 4. LOGOS tab: about 230 logos are already in the library. "Add logos..." to add your own
    pictures (PNG with a clear background is best). Select a logo and choose its place on the car.
+   Choose more places to use the same logo on several parts (e.g. bonnet AND rear quarters);
+   "Take off" (under the "On the car" list) removes one; "Not used" removes it everywhere.
    You can put several logos on the same place: they start side by side and you move each
    one on the preview. The "On the car" list shows which logos are on and where;
    "Clear all" takes them all off (they stay in the library). Tick "Keep logos off areas

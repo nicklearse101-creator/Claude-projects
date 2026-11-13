@@ -5,16 +5,16 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 3ff76d07-0207-43b0-a903-b8e467f5b675
-  modified: 2026-11-13T21:51:15.525Z
+  modified: 2026-11-13T22:17:57.859Z
 ---
 
 Nik, 12 Nov 2026 evening, while using v1.9.0: "No need to fix these just yet, remind me later."
 
-1. The logo list can't be scrolled with the mouse wheel unless the app is full screen.
-2. ~~Window tint doesn't always reach the window edges / Corvette side-window tint on the windscreen~~ - redone in v1.10.2 (13 Nov: whole glass texture tinted, windscreen kept clear with a margin); ask Nik to check the Corvette.
+1. ~~The logo list can't be scrolled with the mouse wheel unless the app is full screen~~ - fixed v1.10.3 (13 Nov).
+2. ~~Window tint doesn't always reach the window edges / Corvette side-window tint on the windscreen~~ - redone in v1.10.2 (13 Nov: whole glass texture tinted, windscreen kept clear with a margin); Nik: "the corvette windscreen tint has been covered". ALL FOUR DONE - nothing left to remind.
 
 Added 13 Nov evening (Nik, "things to be added in future"):
-3. A centre line / alignment grid on the preview (not too intrusive) to position logos by hand more easily.
+3. ~~Centre line / alignment grid~~ - done v1.10.3 (13 Nov: 'Grid' tick box, 25 cm dashes + orange centre line).
 4. ~~Window stickers unreliable~~ - fixed in v1.10.2 (13 Nov evening: exact file names, documented CSP form); Nik CONFIRMED in game 13 Nov: "numbers and window banners work now".
 
 Also 13 Nov: his Talbot `ratty_s` skin was 218 MB because "Smaller files" was unticked (4K + uncompressed); ticking it worked.

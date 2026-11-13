@@ -45,8 +45,8 @@ APP = os.path.join(os.environ['APPDATA'], 'Rattys4SkinGenerator')
 d = dict(skingen.DEFAULT_DESIGN)
 s = json.load(open(os.path.join(APP, 'settings.json')))
 d.update({k: v for k, v in s.items() if k in d})
-d['logos'] = [dict(path=os.path.join(APP, 'logos', l['file']), place=l['place'], tint=l.get('tint'), bg=l.get('bg', 'auto'))
-              for l in json.load(open(os.path.join(APP, 'logos.json'))) if l.get('place')]
+d['logos'] = [dict(path=os.path.join(APP, 'logos', l['file']), place=p_, tint=l.get('tint'), bg=l.get('bg', 'auto'))
+              for l in json.load(open(os.path.join(APP, 'logos.json'))) for p_ in rattys4skin.places_of(l)]
 d.update(win_enable=True, wheel_colour='#d0d0d0', lens_colour='#ffd21f', beam_colour=None, number='101',
          team='RATTY RACING', name='NICKLEARSE101')
 if d.get('pattern') == 'picture' and not d.get('pattern_image'): d['pattern'] = 'sweep'

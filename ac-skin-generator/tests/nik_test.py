@@ -15,8 +15,8 @@ try:
     if s.get('use_wheels'): d['wheel_colour'] = s.get('wheel_colour')
     if s.get('use_lens'): d['lens_colour'] = s.get('lens_colour')
     lib = json.load(open(os.path.join(app, 'logos.json')))
-    d['logos'] = [dict(path=os.path.join(app, 'logos', l['file']), place=l['place'], tint=l.get('tint'), bg=l.get('bg', 'auto'))
-                  for l in lib]
+    d['logos'] = [dict(path=os.path.join(app, 'logos', l['file']), place=p_, tint=l.get('tint'), bg=l.get('bg', 'auto'))
+                  for l in lib for p_ in (l.get('places') or ([l['place']] if l.get('place') else []))]
     d['logos'].append(dict(path=os.path.join(app, 'logos', 'ratty_racing_logo.jpg'), place='front_wings', tint=False))
 except Exception as e:
     print('settings not read:', e)

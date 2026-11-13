@@ -174,6 +174,9 @@ pick the skin and click "Update preview".
 - Wheels and headlight lenses only change where the car has a texture for them that nothing else uses.
 - Cars whose paint colour comes only from material settings may tint the result.
 - Messy or overlapping UV layouts give less paintable area (the log says how much).
+- **v1.10.4:** one logo on several places: library entries hold `places` (list; `place` = the first, still written);
+  picking a place adds it, 'Take off' removes one placement, 'Not used' clears all; background / tint changes keep
+  the places (Nik 13 Nov: a second place moved the logo off the first).
 - **v1.10.3:** 'Grid' tick box above the preview: faint dashed lines every 25 cm on the car and an orange centre
   line (front / rear / top: the car's middle; sides: halfway along), one side showing only, under the boxes. The logo
   list scrolls with the mouse wheel when the page itself scrolls (a list that can still scroll takes the wheel; at its

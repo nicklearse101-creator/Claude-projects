@@ -12,7 +12,7 @@ import theme
 messagebox = theme.messagebox      # dark dialogs, same calls as tkinter.messagebox (tests replace these)
 
 APP_NAME = skingen.APP_NAME
-VERSION = '1.10.3'
+VERSION = '1.10.4'
 
 
 def find_data_dir(exe_dir, appdata):
@@ -170,6 +170,16 @@ def find_ac_cars():
     return ''
 
 
+def places_of(lg):
+    """The places a library logo is on (one logo can be on several parts of the car; old libraries had one 'place')."""
+    return list(lg.get('places') or ([lg['place']] if lg.get('place') else []))
+
+
+def set_places(lg, places):
+    lg['places'] = list(places)
+    lg['place'] = lg['places'][0] if lg['places'] else ''      # (still written: older versions read it)
+
+
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -234,7 +244,9 @@ class App(tk.Tk):
     def load_library(self):
         try: lib = json.load(open(LIBRARY, encoding='utf8'))
         except Exception: lib = []
-        return [l for l in lib if os.path.isfile(os.path.join(LOGO_DIR, l.get('file', '')))]
+        lib = [l for l in lib if os.path.isfile(os.path.join(LOGO_DIR, l.get('file', '')))]
+        for l in lib: set_places(l, places_of(l))
+        return lib
 
     def add_starter_logos(self):
         """The logos that come with the app go into the library once. Ones the user deletes stay deleted."""
@@ -414,14 +426,16 @@ class App(tk.Tk):
         self.place_var = tk.StringVar(value='Not used')
         self.place_box = ttk.Combobox(pf, textvariable=self.place_var, values=list(PLACE_NAMES.values()), state='readonly', width=20)
         self.place_box.pack(side='left'); self.place_box.bind('<<ComboboxSelected>>', self.on_place)
+        note('logos', 'Pick a place to put the logo there - pick more to use the same logo on several parts. '
+                      'Take one off in the list below; "Not used" takes it off everywhere.')
         bgf = ttk.Frame(lt); bgf.pack(fill='x', pady=2)
         ttk.Label(bgf, text='BACKGROUND', width=21, style='Field.TLabel').pack(side='left')
         self.bg_var = tk.StringVar(value='Auto')
         bgb = ttk.Combobox(bgf, textvariable=self.bg_var, values=list(BG_MODES.values()), state='readonly', width=20)
-        bgb.pack(side='left'); bgb.bind('<<ComboboxSelected>>', self.on_place)
+        bgb.pack(side='left'); bgb.bind('<<ComboboxSelected>>', lambda e: self.on_logo_props())
         note('logos', 'Auto removes a plain one-colour background and keeps pictures with busy backgrounds whole.')
         self.tint_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(pf, text='Tint glow to highlight colour', variable=self.tint_var, command=self.on_place).pack(side='left', padx=6)
+        ttk.Checkbutton(pf, text='Tint glow to highlight colour', variable=self.tint_var, command=self.on_logo_props).pack(side='left', padx=6)
         uf = ttk.LabelFrame(lt, text='ON THE CAR'); uf.pack(fill='x', pady=(6, 2))
         self.used_tree = ttk.Treeview(uf, columns=('place',), height=5, selectmode='browse', show='headings')
         self.used_tree.heading('place', text='PLACE'); self.used_tree.column('place', width=150)
@@ -430,6 +444,7 @@ class App(tk.Tk):
         self.used_tree.column('logo', width=230); self.used_tree.column('place', width=150)
         self.used_tree.pack(fill='x')
         self.used_tree.bind('<<TreeviewSelect>>', self.on_used_select)
+        theme.SlantButton(uf, 'Take off', command=self.take_off).pack(anchor='w', pady=(4, 0))
 
         # --- windows
         row('windows', '', lambda f: ttk.Checkbutton(f, text='Make new window stickers', variable=self.var('win_enable', tk.BooleanVar)))
@@ -814,7 +829,8 @@ class App(tk.Tk):
                 except Exception: self.thumbs[path] = None
             kw = {'image': self.thumbs[path]} if self.thumbs[path] else {}
             self.tree.insert('', 'end', iid=str(i), text='  ' + lg.get('name', lg['file']),
-                             values=(PLACE_NAMES.get(lg.get('place', ''), 'Not used'), BG_MODES.get(lg.get('bg', 'auto'), 'Auto'),
+                             values=(' + '.join(PLACE_NAMES.get(p_, p_) for p_ in places_of(lg)) or 'Not used',
+                                     BG_MODES.get(lg.get('bg', 'auto'), 'Auto'),
                                      'yes' if lg.get('tint') else ''), **kw)
         self.refresh_used()
 
@@ -823,23 +839,33 @@ class App(tk.Tk):
         if not hasattr(self, 'used_tree'): return
         self.used_tree.delete(*self.used_tree.get_children())
         order = list(PLACE_NAMES)
-        used = sorted((i for i, lg in enumerate(self.library) if lg.get('place')),
-                      key=lambda i: order.index(self.library[i]['place']) if self.library[i]['place'] in order else 99)
-        for i in used:
+        used = sorted(((i, p_) for i, lg in enumerate(self.library) for p_ in places_of(lg)),
+                      key=lambda t: (order.index(t[1]) if t[1] in order else 99, t[0]))
+        for i, p_ in used:
             lg = self.library[i]
-            self.used_tree.insert('', 'end', iid=str(i), values=(lg.get('name', lg['file']), PLACE_NAMES.get(lg['place'], lg['place'])))
+            self.used_tree.insert('', 'end', iid=f'{i}|{p_}', values=(lg.get('name', lg['file']), PLACE_NAMES.get(p_, p_)))
         if not used: self.used_tree.insert('', 'end', iid='none', values=('(no logos chosen yet)', ''))
 
     def on_used_select(self, e=None):
         sel = self.used_tree.selection()
-        if sel and sel[0] != 'none' and self.tree.exists(sel[0]):
-            self.tree.selection_set(sel[0]); self.tree.see(sel[0])
+        i = sel[0].split('|')[0] if sel and sel[0] != 'none' else None
+        if i is not None and self.tree.exists(i):
+            self.tree.selection_set(i); self.tree.see(i)
+
+    def take_off(self):
+        """Takes the logo off the place picked in the 'On the car' list (its other places stay)."""
+        sel = self.used_tree.selection()
+        if not sel or sel[0] == 'none': return
+        i, p_ = sel[0].split('|', 1)
+        lg = self.library[int(i)]
+        set_places(lg, [x for x in places_of(lg) if x != p_])
+        self.save_library(); self.refresh_library(); self.tree.selection_set(i); self.on_logo_select()
 
     def clear_logos(self):
-        if not any(lg.get('place') for lg in self.library): return
+        if not any(places_of(lg) for lg in self.library): return
         if not messagebox.askyesno(APP_NAME, 'Take every logo off the car (all set to "Not used")?\n'
                                              'The logos stay in the library.'): return
-        for lg in self.library: lg['place'] = ''
+        for lg in self.library: set_places(lg, [])
         self.save_library(); self.refresh_library(); self.on_logo_select()
 
     def add_logos(self):
@@ -854,7 +880,7 @@ class App(tk.Tk):
             while os.path.exists(os.path.join(LOGO_DIR, name)):
                 n += 1; name = f'{base}_{n}{ext}'
             shutil.copyfile(f, os.path.join(LOGO_DIR, name))
-            self.library.append(dict(file=name, name=base, place='', tint=False))
+            self.library.append(dict(file=name, name=base, place='', places=[], tint=False))
         self.save_library(); self.refresh_library()
 
     def selected_logo(self):
@@ -872,17 +898,28 @@ class App(tk.Tk):
     def on_logo_select(self, e=None):
         i = self.selected_logo()
         if i is None: return
-        self.place_var.set(PLACE_NAMES.get(self.library[i].get('place', ''), 'Not used'))
+        ps = places_of(self.library[i])
+        self.place_var.set(PLACE_NAMES.get(ps[-1], 'Not used') if ps else 'Not used')
         self.tint_var.set(bool(self.library[i].get('tint')))
         self.bg_var.set(BG_MODES.get(self.library[i].get('bg', 'auto'), 'Auto'))
 
     def on_place(self, e=None):
+        """A place picked: the logo goes there too (one logo can be on several parts); 'Not used' takes it off all."""
         i = self.selected_logo()
         if i is None: return
         key = next((k for k, v in PLACE_NAMES.items() if v == self.place_var.get()), '')
-        self.library[i]['place'] = key; self.library[i]['tint'] = bool(self.tint_var.get())
-        self.library[i]['bg'] = next((k for k, v in BG_MODES.items() if v == self.bg_var.get()), 'auto')
+        ps = places_of(self.library[i])
+        set_places(self.library[i], [] if not key else ps + ([key] if key not in ps else []))
+        self.on_logo_props(refresh=False)
         self.save_library(); self.refresh_library(); self.tree.selection_set(str(i))
+
+    def on_logo_props(self, refresh=True):
+        """Background / tint of the selected logo (its places stay as they are)."""
+        i = self.selected_logo()
+        if i is None: return
+        self.library[i]['tint'] = bool(self.tint_var.get())
+        self.library[i]['bg'] = next((k for k, v in BG_MODES.items() if v == self.bg_var.get()), 'auto')
+        if refresh: self.save_library(); self.refresh_library(); self.tree.selection_set(str(i))
 
     # ---------------------------------------------------------------- run
     def log(self, msg):
@@ -894,8 +931,8 @@ class App(tk.Tk):
         for k in d:
             if k in self.vars: d[k] = self.vars[k].get()
         d['logo'] = None
-        d['logos'] = [dict(path=os.path.join(LOGO_DIR, l['file']), place=l['place'], tint=l.get('tint'), bg=l.get('bg', 'auto'))
-                      for l in self.library if l.get('place')]
+        d['logos'] = [dict(path=os.path.join(LOGO_DIR, l['file']), place=p_, tint=l.get('tint'), bg=l.get('bg', 'auto'))
+                      for l in self.library for p_ in places_of(l)]
         d['number_style'] = next((k for k, v in NUMBER_STYLES.items() if v == self.vars['number_style_name'].get()), 'board')
         d['pattern'] = next((k for k, v in skingen.PATTERNS.items() if v == self.vars['pattern_name'].get()), 'sweep')
         d['pattern_mode'] = next((k for k, v in skingen.PICTURE_MODES.items() if v == self.vars['pattern_mode_name'].get()), 'side_left')
