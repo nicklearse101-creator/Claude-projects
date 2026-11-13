@@ -12,7 +12,7 @@ import theme
 messagebox = theme.messagebox      # dark dialogs, same calls as tkinter.messagebox (tests replace these)
 
 APP_NAME = skingen.APP_NAME
-VERSION = '1.10.2'
+VERSION = '1.10.3'
 
 
 def find_data_dir(exe_dir, appdata):
@@ -501,6 +501,9 @@ class App(tk.Tk):
         theme.ChipGroup(vb, (('all', 'All sides'), ('left', 'Left'), ('right', 'Right'), ('front', 'Front'),
                              ('rear', 'Rear'), ('top', 'Top')), self.view_var, command=self.on_view).pack(side='left', padx=6)
         theme.SlantButton(vb, 'Open full size', command=self.open_full, size=14).pack(side='right')
+        self.vars['show_grid'] = tk.BooleanVar(value=self.cfg.get('show_grid', True))
+        ttk.Checkbutton(vb, text='Grid', variable=self.vars['show_grid'], style='Window.TCheckbutton',
+                        command=self.redraw).pack(side='right', padx=8)
         # edit bar: move / size / turn / flip the logos, number and names on the preview
         eb = ttk.Frame(right, style='Window.TFrame'); eb.pack(fill='x', pady=(0, 2))
         ttk.Label(eb, text='EDIT ON THE PREVIEW', style='WField.TLabel').pack(side='left', padx=(0, 6))
@@ -1167,7 +1170,27 @@ class App(tk.Tk):
                                                    None if self.saved else 'PREVIEW ONLY · NOT SAVED', None)
         self.preview_img = ImageTk.PhotoImage(img)
         c.create_image(0, 0, image=self.preview_img, anchor='nw')
+        if self.geom: self.draw_grid()
         if self.geom: self.draw_boxes()
+
+    def draw_grid(self):
+        """A faint grid every 25 cm on the car and its centre line, to line logos up by hand (Nik 13 Nov) - one side
+        showing only, under the logo boxes. Front / rear / top: the line down the middle of the car; sides: halfway
+        along it."""
+        c, view = self.canvas, self.view_var.get()
+        c.delete('grid', 'grid_centre')
+        if view == 'all' or not self.vars['show_grid'].get() or not self.info.get('frames'): return
+        a0, a1, b0, b1 = self.info['frames'][view]
+        step = 0.25
+        for k in range(int(math.floor(a0 / step)), int(math.ceil(a1 / step)) + 1):
+            (x0, y0), (x1, y1) = self.to_screen(view, k * step, b0), self.to_screen(view, k * step, b1)
+            c.create_line(x0, y0, x1, y1, fill=theme.LINE, dash=(2, 6), tags='grid')
+        for k in range(int(math.floor(b0 / step)), int(math.ceil(b1 / step)) + 1):
+            (x0, y0), (x1, y1) = self.to_screen(view, a0, k * step), self.to_screen(view, a1, k * step)
+            c.create_line(x0, y0, x1, y1, fill=theme.LINE, dash=(2, 6), tags='grid')
+        mid = 0.0 if view in ('front', 'rear', 'top') else (a0 + a1) / 2
+        (x0, y0), (x1, y1) = self.to_screen(view, mid, b0), self.to_screen(view, mid, b1)
+        c.create_line(x0, y0, x1, y1, fill=theme.ACC, dash=(8, 5), tags='grid_centre')
 
     def draw_boxes(self):
         c = self.canvas

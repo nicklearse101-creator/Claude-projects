@@ -174,6 +174,10 @@ pick the skin and click "Update preview".
 - Wheels and headlight lenses only change where the car has a texture for them that nothing else uses.
 - Cars whose paint colour comes only from material settings may tint the result.
 - Messy or overlapping UV layouts give less paintable area (the log says how much).
+- **v1.10.3:** 'Grid' tick box above the preview: faint dashed lines every 25 cm on the car and an orange centre
+  line (front / rear / top: the car's middle; sides: halfway along), one side showing only, under the boxes. The logo
+  list scrolls with the mouse wheel when the page itself scrolls (a list that can still scroll takes the wheel; at its
+  end the page scrolls on).
 - **Windows (v1.10.2, Nik 13 Nov "the window stickers don't work"):** skin textures now carry exactly the file name the
   model asks for (`skin_file_name`: 'glass.png' stayed 'glass.dds' before and the game ignored it - stickers, tint and
   lens colour never showed on such cars), written in that format (`write_texture`). Tint = the whole glass texture

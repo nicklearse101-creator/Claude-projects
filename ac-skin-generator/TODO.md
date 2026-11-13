@@ -41,13 +41,13 @@ Details of earlier fixes: `PLAN_next_session.md`.
   folder, no car).
 
 ## Future - Nik 13 Nov evening
-- [ ] **Centre line / alignment grid** on the preview (not too intrusive) to make placing logos by hand easier.
+- [x] (v1.10.3) **Centre line / alignment grid** on the preview (not too intrusive) to make placing logos by hand easier.
 - [x] (v1.10.2) **Window stickers unreliable** - file names fixed, CSP form fixed, tint redone. Was:: sometimes the app says they're there but they aren't (in game); sometimes they
   show from inside the car but not from outside. (Ask Nik which cars; his Talbot 'ratty_s' skin uses CSP window
   stickers: r4s_ext_glass_center_own.dds / r4s_ext_glass_left_2_own.dds + ext_config.ini.)
 
 ## Next - Nik 12 Nov evening (REMIND NIK, "no need to fix these just yet")
-- [ ] **Logo list won't scroll with the mouse wheel** unless the app is full screen.
+- [x] (v1.10.3) **Logo list won't scroll with the mouse wheel** unless the app is full screen.
 - [ ] **Window tint doesn't always reach the window edges**: on the Corvette (`corvette_z06_gt3r`, his skin
   `test_overwrite`, 12 Nov 18:14) some of the SIDE window tint came out on the windscreen.
 - Left for now (Nik): the other 1.8.0 small points (resize redraw, several ghost drawings at once, dark "All sides"

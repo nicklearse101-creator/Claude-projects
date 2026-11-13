@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 3ff76d07-0207-43b0-a903-b8e467f5b675
-  modified: 2026-11-13T21:46:51.886Z
+  modified: 2026-11-13T21:51:15.525Z
 ---
 
 Nik, 12 Nov 2026 evening, while using v1.9.0: "No need to fix these just yet, remind me later."
@@ -15,7 +15,7 @@ Nik, 12 Nov 2026 evening, while using v1.9.0: "No need to fix these just yet, re
 
 Added 13 Nov evening (Nik, "things to be added in future"):
 3. A centre line / alignment grid on the preview (not too intrusive) to position logos by hand more easily.
-4. ~~Window stickers unreliable~~ - fixed in v1.10.2 (13 Nov evening: exact file names, documented CSP form); confirm with Nik in game after he re-makes his Talbot skin.
+4. ~~Window stickers unreliable~~ - fixed in v1.10.2 (13 Nov evening: exact file names, documented CSP form); Nik CONFIRMED in game 13 Nov: "numbers and window banners work now".
 
 Also 13 Nov: his Talbot `ratty_s` skin was 218 MB because "Smaller files" was unticked (4K + uncompressed); ticking it worked.
 

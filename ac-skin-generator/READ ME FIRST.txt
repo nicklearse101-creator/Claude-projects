@@ -1,4 +1,4 @@
-RATTY'S4SKIN GENERATOR  v1.10.2
+RATTY'S4SKIN GENERATOR  v1.10.3
 Makes liveries (skins) for Assetto Corsa cars. No AI, no internet needed.
 
 WHAT YOU NEED
@@ -60,6 +60,7 @@ MOVE THINGS ABOUT ON THE PREVIEW
    Edit text... changes the words, font and colour of that one team / driver name.
    Delete takes it off the car ("Reset all" brings everything back).
 4. Press PREVIEW again to redraw the car with your changes (much quicker the second time).
+Tick "Grid" (above the preview) for faint lines every 25 cm and an orange centre line, to line things up.
 Moves apply to both sides of the car. Changes are remembered for each car.
 
 WHEN THE APP CAN'T FIND A SPOT ("NOT PLACED")

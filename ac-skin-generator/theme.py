@@ -410,6 +410,8 @@ def apply_style(root):
     # tick boxes: dark square, orange border and tick
     s.configure('TCheckbutton', background=PANEL, foreground=TEXT, padding=(0, 2))
     s.map('TCheckbutton', background=[('active', PANEL)], foreground=[('disabled', MUTED)])
+    s.configure('Window.TCheckbutton', background=BG)                     # on the window itself (Grid, above the preview)
+    s.map('Window.TCheckbutton', background=[('active', BG)])
     try:
         s.element_create('Dark.check', 'image', photo('chk0', _check_img(False)),
                          ('disabled', 'selected', photo('chk1d', _check_img(True, True))), ('selected', photo('chk1', _check_img(True))),
@@ -576,6 +578,11 @@ class SlantTabs(ttk.Frame):
         try:
             w = str(e.widget)
             if self._sb_on and (w.startswith(str(self.body)) or w == str(self.view)):
+                # a list under the mouse that can still scroll that way takes the wheel itself (Nik 13 Nov: the logo
+                # list only scrolled in full screen - the page took the wheel); at its end the page scrolls on
+                if isinstance(e.widget, tk.Widget) and e.widget.winfo_class() in ('Treeview', 'Listbox', 'Text'):
+                    first, last = e.widget.yview()
+                    if (e.delta > 0 and first > 0) or (e.delta < 0 and last < 1): return
                 self.view.yview_scroll(-1 if e.delta > 0 else 1, 'units')
         except (tk.TclError, AttributeError):
             pass
