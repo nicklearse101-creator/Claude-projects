@@ -348,7 +348,7 @@ def locate_texels(px, pos, nrm, t, xx, yy):
 class TexelMap:
     """Per-texel 3D position / normal for one body texture."""
 
-    def __init__(self, meshes, W, H, log=print):
+    def __init__(self, meshes, W, H, log=print, hogs_under=False):
         self.W, self.H = W, H
         pos, nrm, uv, mid = [], [], [], []
         for m in meshes:
@@ -370,8 +370,14 @@ class TexelMap:
         dens = a3 / np.maximum(pa, 1e-9)                            # m² per texel
         med = np.median(dens[pa > 1]) if (pa > 1).any() else np.median(dens)
         good = (pa > 0.3) & ~((width < 1.5) & (dens > 2.5 * med))
+        good &= (uv.max(1) - uv.min(1)).max(1) <= 1.0              # stretched over whole texture widths (tiled parts)
         keep = np.nonzero(good)[0]
         keep = keep[np.argsort(width[keep], kind='stable')]        # thin first, solid panels drawn over them
+        # tiny parts spread over a big piece of the texture (an exhaust tip over half the livery): drawn first, so
+        # where they lie on a real panel's texels the panel keeps them
+        # (only on cars these parts made look 'plain colour only' - hogs_under - so cars that worked are unchanged)
+        hog = dens[keep] < np.median(dens[keep]) / 25 if (hogs_under and len(keep)) else np.zeros(len(keep), bool)
+        if hog.any(): keep = np.concatenate([keep[hog], keep[~hog]])
         ida, _, _ = raster_tris(px, keep, W, H)
         idb, _, _ = raster_tris(px, keep[::-1], W, H)
         self.covered = ida >= 0
@@ -433,18 +439,34 @@ def scrambled_uv(meshes):
     return float((wild & small).sum() / small.sum())
 
 
-def uv_overlap(meshes):
+def uv_overlap(meshes, skip_hogs=True):
     """Total texture area of all triangles / texture area actually covered (estimated on a 256 grid).
-    1 = each texel used once; big numbers = every panel reuses the same texels."""
+    1 = each texel used once; big numbers = every panel reuses the same texels. skip_hogs=False: count tiny parts
+    spread over a big piece of the texture too (as up to v1.10.0)."""
     uv = np.concatenate([m.uv[m.idx] for m in meshes if len(m.idx)])
+    P = np.concatenate([m.pos[m.idx] for m in meshes if len(m.idx)])
+    keep = (uv.max(1) - uv.min(1)).max(1) <= 1.0            # stretched over whole texture widths: can't hold a picture
+    uv, P = uv[keep], P[keep]
+    if not len(uv): return 0.0
     uv = uv - np.floor(uv.min(1, keepdims=True))
     a = 0.5 * np.abs((uv[:, 1, 0] - uv[:, 0, 0]) * (uv[:, 2, 1] - uv[:, 0, 1]) - (uv[:, 2, 0] - uv[:, 0, 0]) * (uv[:, 1, 1] - uv[:, 0, 1]))
+    # tiny parts spread over a big piece of the texture (an exhaust tip over half the livery) are not the paint
+    # being shared: leave them out of the count (only the count - the painting itself is unchanged)
+    a3 = 0.5 * np.linalg.norm(np.cross(P[:, 1] - P[:, 0], P[:, 2] - P[:, 0]), axis=1)
+    d = a / np.maximum(a3, 1e-12)
+    if skip_hogs and (a > 0).any():
+        hog = (d > 25 * np.median(d[a > 0])) & (a > 1e-7)
+        # only small odd parts: when they are a real share of the surface (an atlas) the count stays as it was
+        if hog.any() and not hog.all() and a3[hog].sum() < 0.05 * a3.sum(): uv, a = uv[~hog], a[~hog]
     c = np.clip((uv.mean(1) * 256).astype(int), 0, 255)
     cells = np.zeros((256, 256), bool); cells[c[:, 1], c[:, 0]] = True
     big = a > 1 / 256 ** 2 * 4
-    if big.any():   # large triangles cover many cells: mark their bounding boxes
+    if big.any():   # large triangles cover many cells: mark their bounding boxes (all of them, as a sum of corners)
         lo = np.clip((uv[big].min(1) * 256).astype(int), 0, 255); hi = np.clip((uv[big].max(1) * 256).astype(int), 0, 255)
-        for (x0, y0), (x1, y1) in zip(lo[:2000], hi[:2000]): cells[y0:y1 + 1, x0:x1 + 1] = True
+        diff = np.zeros((258, 258), np.int64)
+        np.add.at(diff, (lo[:, 1], lo[:, 0]), 1); np.add.at(diff, (lo[:, 1], hi[:, 0] + 1), -1)
+        np.add.at(diff, (hi[:, 1] + 1, lo[:, 0]), -1); np.add.at(diff, (hi[:, 1] + 1, hi[:, 0] + 1), 1)
+        cells |= diff.cumsum(0).cumsum(1)[:256, :256] > 0
     return float(a.sum() / max(cells.mean(), 1e-6))
 
 
@@ -3011,6 +3033,7 @@ def generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pri
     if write and os.path.exists(out) and os.listdir(out):
         raise FileExistsError(f'skin folder already exists: {out}')
     tex_out, tms, ctx = {}, {}, {}
+    main_locked = False
     key = design_key(design, resolution)
     for tex in car.body_textures:
         ref = None
@@ -3027,9 +3050,12 @@ def generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pri
             log(f'making {tex} {W}x{H} for sharper writing and logos')
         log(f'--- {tex}')
         ov = uv_overlap(car.meshes_for(tex))
-        if ov > 3.0:
-            # every panel reuses the same texels (a plain colour texture): no room for a livery
-            if scrambled_uv(car.meshes_for(tex)) > 0.5:
+        locked = scrambled_uv(car.meshes_for(tex)) > 0.5
+        if tex == car.body_textures[0]: main_locked = locked
+        elif main_locked: locked = True                 # the main paint is protected: the whole car is
+        if ov > 3.0 or locked:
+            # every panel reuses the same texels (a plain colour texture), or the model is protected: no livery
+            if locked:
                 if info is not None: info['protected'] = True
                 log(f"{tex}: this car's model is protected by its maker (encrypted with Custom Shaders Patch), so the "
                     "app can't see how the paint wraps round it - only a plain colour is possible on this car")
@@ -3049,7 +3075,9 @@ def generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pri
         step(0.1 + 0.55 * k_, f'Mapping {tex} onto the car')
         mem = _MEMO['tex'].setdefault(tex, {})
         if 'tm' not in mem or mem['tm'].W != W:
-            tm = TexelMap(car.meshes_for(tex), W, H, log); tm.tex = tex
+            # parts spread over the texture that made the car look 'plain colour only' go under the panels
+            hogs = uv_overlap(car.meshes_for(tex), skip_hogs=False) > 3.0
+            tm = TexelMap(car.meshes_for(tex), W, H, log, hogs_under=hogs); tm.tex = tex
             occ = [m.pos[m.idx] for m in car.kn5.meshes if m.mat is not None and len(m.idx) and not see_through(m.mat)
                    and m.mat.samplers.get('txDiffuse') != tex and 'shadow' not in m.name.lower()]
             tm.occluders = np.concatenate(occ) if occ else None
