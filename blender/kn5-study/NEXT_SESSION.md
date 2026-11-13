@@ -1,14 +1,15 @@
-# Next session: Blender Work / AE86 replica (handover, 2026-11-12 morning)
+# Next session: Blender Work / AE86 replica (handover, 2026-11-13 morning)
 
 **Start here.** HATCH in progress (report `blender/research/reports/Hatch surfacing.md`). The hatch is NOT a separate Kunos
 mesh: it is GEO_body crease piece 2 + returns (pieces 4, 14, 22, 116/117), and the quarter's old "C-pillar" sweep (r1p,
 r1x00, r1d0) WAS its side band. Built 12 Nov (`hatch_build.py` + `hatch_score.py`, `./regress.sh hatch` ~4 min): ONE U-shaped
 sweep (side bands + tail roll, left half marched to the centreline and mirrored, symmetric to 0.0004 mm) + header + deck.
-Skin vertices median 0.15 mm, 94 % within 1 mm; pillars 100 % within 1 mm. NEXT (in order):
-- **Lower corners** (the weak spot): Kunos wraps them in a FAN of straight vertex rows 15-20 deg apart; sections between
-  rows see only chord points (up to ~4 mm sag), so the corner creases. Build the corner stations THROUGH the Kunos rows
-  (find the rows from the bottom-edge vertices up to the knee) or a dedicated corner patch; the outline's small corner tab
-  (x +-673, z -1964, up to 12 mm miss) needs its own small patch (with the corner bits 116/117).
+Lower corners rebuilt 13 Nov (faired spine, local-frame row smoothing, corner zone smoothing + vertex offset field):
+skin vertices median 0.16 mm, 97.5 % within 1 mm (tail 96.5 %, was 90.5 %); the corner reads as one broad wrap in grey.
+NEXT (in order):
+- **Corner tab** (x +-673, z -1964, up to 10 mm miss): the outline's small tab beside the lower corner needs its own
+  small patch (with the corner bits 116/117), built on the U's bottom edge. Faint bottom-edge wave left (row ends
+  13-17 mm apart instead of 15).
 - Header / pillar-top join: plane cut + fitted header; looks clean in v3 grey, header max 1.1 mm.
 - Returns: ring (piece 4, 20 mm, closed: cut at x = 0), glass-bottom wall (14), bottom return (22) with strip_build on the
   built edges; then watertight check, clearance.
@@ -33,7 +34,7 @@ model now; later they will come from photos.
 | Rear quarter + C-pillar (17 strips) | done 11 Nov: pillar + foot = one swept surface (sweep_build.py); small join items left (Next 0) | 85.9 % / 99.3 % | 90.1 % / 98.2 % |
 | Roof (crown + rear band + 2 side bands + rear roll) + 7 neighbour strips | 11 Nov (roof_build.py): fair crown, G2 rear roll, strips on its built edges | 65.0 % / 100.0 % | 72.4 % within 0.3 mm, 97.0 % within 1 mm (median 0.13, max 1.2); strips median 0.07-0.27 mm |
 | Bonnet (skin, nose, 13 edge strips, corner rounds, underside, nozzles) | done 11 Nov | | skin 100 % within 1 mm, edges 99.2 % |
-| Hatch (U sweep + header + deck) | skin built 12 Nov (hatch_build.py); lower corners, returns, quarter switch left | | skin median 0.15 mm, 94.4 % within 1 mm (pillars 100 %, tail 90.5 %: corners) |
+| Hatch (U sweep + header + deck) | skin built 12 Nov, lower corners 13 Nov (hatch_build.py); corner tab, returns, quarter switch left | | skin median 0.16 mm, 97.5 % within 1 mm (tail 96.5 %) |
 | Bumpers, sills | not started | | |
 
 The **vertex** score is the honest one: Kunos uses 100-150 mm flat triangles that cut chords across curves, so the
@@ -345,6 +346,14 @@ skin UV, baked AO, LODs, standard dummy names, two-layer glass.
 ### 7. Afterwards
 Lamps, grille, badges; interior survey; then **from photos** (Nova first: it has solved cameras and traced windows):
 trace outlines and character lines, run the same fit/trim/cut, check by eye. Parked: steward app, Nova grading.
+
+## What happened on 13 Nov (morning)
+- Hatch lower corners: our corner sat 1-3 mm inside Kunos (sections through the fan's flat facets) and creased in grey (an
+  S-fold in the plan heading behind the wrap). Fixed by: spine faired (mu 1e-3, `HT_SPINE_*`), rows smoothed along the
+  spine in local frames (`smooth_rows_local`, `HT_LOCAL=1`), corner-zone local smoothing with pinned row ends
+  (`zone_smooth`, `HT_CS_*`), corner-zone vertex offset field (`refine_to_vertices(zone=...)`, `HT_CORNER=1`, `HT_CR_*`).
+- Dropped: PN-triangle sections / PN lift of section points (Kunos normals inconsistent), explicit fan-row walking.
+- Pictures (local): `D:/ClaudeData/tmp/hatch2/mu_corner.png` (corner close-ups), `mu_full.png`.
 
 ## What happened on 12 Nov (morning)
 - Hatch measured: part of GEO_body (piece 2, 1270 tris), exactly symmetric; the quarter's 'C-pillar' was its side band.

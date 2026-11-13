@@ -212,8 +212,23 @@ not a station polyline; give the neighbour face the sweep's flat band as tangent
 - A side curve that starts with zero curvature cannot follow a near-arc skirt (0.7 mm rms, parameters jitter = ripples):
   give it a u^2 term and keep the blend G2 to it (4th control point offset w = 2.5 c2 b^2 along the side normal).
 - March planes steered on jittery points swing: re-cut the stations square to a smooth spine fitted through the march.
-- Kunos wraps a corner in a fan of straight rows joined by flat facets: between rows a section sees chords only (up to
-  ~4 mm sag). Build corner stations through the rows, not between them (open item).
+- Kunos wraps a corner in a fan of straight rows joined by flat facets: between rows a section sees chords only (our
+  corner sat 1-3 mm INSIDE Kunos's vertices). What worked (13 Nov), in this order:
+  1. Spine for the station planes: fine knots (30 mm) but faired (mu 1e-3). A spine through jittery march points with
+     no fairing waves (~100 mm period): the planes tilt and the row ends wander 9-20 mm apart along the bottom edge
+     (wavy silhouette). Coarse knots (100 mm) are worse: the planes stop being square to the tight corner (dark bands).
+  2. Smooth the rows along the spine in each row's OWN frame (offsets from a smoothed knee line, axes turning with it).
+     Smoothing positions shrinks a tight turn (rows 15 mm apart sweep 60 deg): any useful strength moved the corner
+     rows 3-10 mm, so the whole tail stayed unsmoothed. In local frames the turn stays exact.
+  3. In the corner zone only, a heavier local-frame smoothing (row-to-row wobble of the under-determined side stations:
+     an S-fold in the plan heading = the crease seen in grey), with the row ends PINNED on the outline (fade-in over 6
+     columns; unpinned, the edge went wavy).
+  4. Then a smooth normal-offset field fitted to the Kunos VERTICES of the corner zone only, zero outside (fades over 3
+     rows). Choose its fairing by the residual on the real data, not including the zero pseudo-data (that hid it).
+  Tried and dropped: PN-triangle sections or lifting section points onto PN edge curves (Kunos vertex normals disagree
+  edge to edge: lifted points zigzag 0.4 mm and the profile fitter breaks); walking the fan rows explicitly (rows merge
+  into the knee crease, wander at the deck). Measure the crease as the plan heading of the surface normal along
+  horizontal cuts, ours vs Kunos: a non-monotone heading is a fold.
 - Mesh a grid face from its own (u, v) (structured, srf.normal): srf.parameter() per mesh point took minutes.
 - Cut polygons along a built edge: Douglas-Peucker to the chord sag (0.02 mm); a 1 mm polyline made Mefisto mesh 30x finer.
 

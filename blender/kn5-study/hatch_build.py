@@ -110,7 +110,8 @@ def recut_foot(car, g, step=0.015, tol=1e-3, Rd=0.2, verbose=True):
     X = np.array([p['X'] for _, _, p in st[npil - 1:]])
     X = X[X[:, 0] > -0.03]
     a = np.r_[0, np.cumsum(np.linalg.norm(np.diff(X, axis=0), axis=1))]
-    f = SB.fit_graph(a, X, [0, a[-1]], tol=tol, nmax=int(np.clip(a[-1] / 0.03, 4, 60)), mu=1e-5)
+    f = SB.fit_graph(a, X, [0, a[-1]], tol=float(os.environ.get('HT_SPINE_TOL', 1.0)) * 1e-3,
+                     nmax=int(np.clip(a[-1] / float(os.environ.get('HT_SPINE_KNOT', 0.03)), 4, 60)), mu=float(os.environ.get('HT_SPINE_MU', 1e-3)))
     sd = np.linspace(0, a[-1], int(a[-1] / 0.0005) + 1); Sp = SB.eval_graph(f, sd)
     ar = np.r_[0, np.cumsum(np.linalg.norm(np.diff(Sp, axis=0), axis=1))]
     new, k = [], 0
@@ -225,14 +226,16 @@ def smooth_rows(A_, R_, spacing=0.03, nrm_rms=1e-4, nrm_max=5e-4):
     return (lambda a: (PF.basis(np.asarray(a, float), kv, n) @ C).reshape(len(a), R_.shape[1], 3)), best[1], best[2], best[3]
 
 
-def refine_to_vertices(G, X, ds=3.0, dt=3.0, lam=None, dmax=0.004, t_min=1.0, verbose=True):
+def refine_to_vertices(G, X, ds=3.0, dt=3.0, lam=None, dmax=0.004, t_min=1.0, verbose=True, zone=None, pad=2, rms_tol=1.2e-4):
     """refine the U grid G (rows, cols, 3) to Kunos VERTICES X (both halves): the station profiles are fitted to
     section points, and between Kunos vertex rows those are chord points (the lower corners wrap in a fan of rows
     15-20 deg apart: facets sag up to ~4 mm inside the curve, so sections between rows saw a flattened profile and the
     grid creased). Each vertex is located on the grid's bicubic surface (row index s, column index t), its signed
     offset along the surface normal measured, and ONE smooth offset field D(s, t) (cubic B-spline, knots every ds rows
     / dt columns, second-derivative fairing) fitted to the offsets; the grid moves by D along its normals.
-    Vertices further than dmax from the grid, or next to the deck seam (t < t_min), are not data."""
+    Vertices further than dmax from the grid, or next to the deck seam (t < t_min), are not data.
+    zone (bool per grid row): only vertices on those rows are data, and every grid node more than `pad` rows outside
+    the zone is a zero-offset datum, so the field lives in the zone and fades out over the pad (corner refine)."""
     from scipy.interpolate import RectBivariateSpline
     from scipy.spatial import cKDTree
     nr, nc, _ = G.shape
@@ -252,6 +255,14 @@ def refine_to_vertices(G, X, ds=3.0, dt=3.0, lam=None, dmax=0.004, t_min=1.0, ve
         s = np.clip(s + (A22 * b1 - A12 * b2) / det, 0, nr - 1); t = np.clip(t + (A11 * b2 - A12 * b1) / det, 0, nc - 1)
     P = ev(s, t); n = nrm(s, t); d = ((X - P) * n).sum(1); tang = np.linalg.norm((X - P) - d[:, None] * n, axis=1)
     use = (np.abs(d) < dmax) & (tang < 1e-3) & (t >= t_min)
+    if zone is not None:
+        zr = np.nonzero(zone)[0]
+        use &= zone[np.clip(np.round(s).astype(int), 0, nr - 1)]
+        far = np.array([np.abs(zr - i).min() > pad for i in range(nr)])
+        fs, ft = np.meshgrid(np.nonzero(far)[0].astype(float), ti, indexing='ij')
+        s = np.r_[s[use], fs.ravel()]; t = np.r_[t[use], ft.ravel()]; d = np.r_[d[use], np.zeros(fs.size)]
+        n_data = int(use.sum()); use = np.ones(len(s), bool)
+    else: n_data = int(use.sum())
     # offset field: tensor cubic B-spline over (s, t)
     nu, nv = int(np.ceil((nr - 1) / ds)) + 3, int(np.ceil((nc - 1) / dt)) + 3
     ku, kv = PF.knots(nu, 0.0, nr - 1.0), PF.knots(nv, 0.0, nc - 1.0)
@@ -263,8 +274,8 @@ def refine_to_vertices(G, X, ds=3.0, dt=3.0, lam=None, dmax=0.004, t_min=1.0, ve
     fits = []
     for lm in ([lam] if lam is not None else 10.0 ** np.arange(-6, 1.01, 0.5)):
         c = np.linalg.solve(AtA + lm * len(A) * RtR + 1e-9 * np.eye(A.shape[1]), Atd)
-        fits.append((lm, float(np.sqrt(((A @ c - d[use]) ** 2).mean())), c))
-    ok = [f for f in fits if f[1] <= 1.2e-4]                              # the smoothest field within 0.12 mm rms
+        fits.append((lm, float(np.sqrt(((A[:n_data] @ c - d[use][:n_data]) ** 2).mean())), c))   # rms on the real data
+    ok = [f for f in fits if f[1] <= rms_tol]                             # the smoothest field within rms_tol (0.12 mm)
     lm, rr, c = max(ok, key=lambda f: f[0]) if ok else min(fits, key=lambda f: f[1])
     Bg = PF.basis(si, ku, nu); Cg = PF.basis(ti, kv, nv)
     Dg = Bg @ c.reshape(nu, nv) @ Cg.T                                   # (nr, nc) offsets at the grid nodes
@@ -272,10 +283,88 @@ def refine_to_vertices(G, X, ds=3.0, dt=3.0, lam=None, dmax=0.004, t_min=1.0, ve
     G2 = G + Dg[..., None] * Ng
     G2 = (G2 + (G2 * MIR)[::-1]) / 2                                      # keep it exactly symmetric
     if verbose:
-        print(f'refine to vertices: {use.sum()} of {len(X)} Kunos vertices; before |d| median {np.median(np.abs(d[use])) * 1e3:.3f} rms {np.sqrt((d[use] ** 2).mean()) * 1e3:.3f} '
-              f'p95 {np.percentile(np.abs(d[use]), 95) * 1e3:.3f} max {np.abs(d[use]).max() * 1e3:.2f} mm; field {nu}x{nv}, lambda {lm:.0e}, '
+        dd_ = np.abs(d[:n_data])
+        print(f'refine to vertices: {n_data} of {len(X)} Kunos vertices; before |d| median {np.median(dd_) * 1e3:.3f} rms {np.sqrt((dd_ ** 2).mean()) * 1e3:.3f} '
+              f'p95 {np.percentile(dd_, 95) * 1e3:.3f} max {dd_.max() * 1e3:.2f} mm; field {nu}x{nv}, lambda {lm:.0e}, '
               f'residual rms {rr * 1e3:.3f} mm; grid moved max {np.abs(Dg).max() * 1e3:.2f} mm', flush=True)
     return G2
+
+
+def zone_smooth(G, zone, m=4, every=3.0, lam=1.0, col=10, pin_end=6, pin_top=3):
+    """heavier smoothing ALONG the spine inside a zone of rows (the lower corners): Kunos's corner is a few big facets,
+    so the station profiles there are under-determined and swung +-4 deg from row to row (an S-fold in the plan heading
+    that read as a crease in grey). Smoothing positions would cut the tight turn (rows 15 mm apart sweep 60 deg), so
+    each row is taken into its own frame (origin = its anchor point G[i, col] on the knee, axes = spine tangent there
+    and the world up made square to it), the LOCAL profile coordinates are refitted along the zone +- m rows (cubic
+    B-spline in row index, knots every `every` rows, third-difference fairing lam), blended in over the margin rows
+    (smoothstep) and put back with the row's own frame: the turn stays, the row-to-row wobble goes."""
+    G = G.copy(); nr = len(G); zr = np.nonzero(zone)[0]
+    if not len(zr): return G
+    O = G[:, col]; t = np.gradient(O, axis=0); t /= np.linalg.norm(t, axis=1)[:, None]
+    up = np.array([0.0, 1.0, 0.0]); e1 = up - (t @ up)[:, None] * t; e1 /= np.linalg.norm(e1, axis=1)[:, None]
+    e2 = np.cross(t, e1)
+    Lc = np.stack([((G - O[:, None]) * e[:, None]).sum(2) for e in (e1, e2, t)], -1)    # (nr, nc, 3) local coords
+    # the row ends stay where they are: the last column lies ON the fair outer edge (the trim), the first on the deck
+    # seam; the smoothing fades in over pin_end / pin_top columns
+    nc = G.shape[1]; jj = np.arange(nc, dtype=float)
+    xc = np.clip(np.minimum(jj / max(pin_top, 1e-9), (nc - 1 - jj) / max(pin_end, 1e-9)), 0, 1); wc = xc * xc * (3 - 2 * xc)
+    segs = np.split(zr, np.nonzero(np.diff(zr) > 1)[0] + 1)
+    for sg in segs:
+        a, b = max(sg[0] - m, 0), min(sg[-1] + m, nr - 1); idx = np.arange(a, b + 1, dtype=float)
+        n = max(4, int(np.ceil((b - a) / every)) + 3); kv = PF.knots(n, float(a), float(b)); B = PF.basis(idx, kv, n)
+        D3 = np.zeros((n - 3, n))
+        for i in range(n - 3): D3[i, i:i + 4] = (-1, 3, -3, 1)
+        Y = Lc[a:b + 1].reshape(b - a + 1, -1)
+        Cc = np.linalg.solve(B.T @ B + lam * len(B) * D3.T @ D3, B.T @ Y); S_ = (B @ Cc).reshape(Lc[a:b + 1].shape)
+        dist = np.array([0.0 if sg[0] <= i <= sg[-1] else min(abs(i - sg[0]), abs(i - sg[-1])) for i in range(a, b + 1)])
+        x = np.clip(1 - dist / (m + 1), 0, 1); w = x * x * (3 - 2 * x)
+        W2 = w[:, None] * wc[None, :]
+        L2 = (1 - W2)[..., None] * Lc[a:b + 1] + W2[..., None] * S_
+        G[a:b + 1] = O[a:b + 1, None] + L2[..., :1] * e1[a:b + 1, None] + L2[..., 1:2] * e2[a:b + 1, None] + L2[..., 2:] * t[a:b + 1, None]
+    return (G + (G * MIR)[::-1]) / 2
+
+
+def smooth_rows_local(A_, R_, spacing=0.03, col=10, spine_lam=1e-7, nrm_rms=1e-4, nrm_p99=4e-4, lam=None):
+    """smooth_rows in each row's OWN frame. Smoothing positions along the spine cuts the tight turn at the lower corners
+    (rows 15 mm apart sweep 60 deg; any fairing strong enough to steady the tail moved the corner rows 3-10 mm), so the
+    smoothing stayed at its floor and the tail rows kept leaning +-10 mm from station to station (a wavy bottom edge,
+    uneven row ends). Here: the anchor column (the knee line) is one lightly smoothed spline O(a); each row gets a frame
+    (t = O'(a), e1 = the row's start->end chord square to t, smoothed along a; e2 = t x e1); the LOCAL coordinates are
+    smoothed with third-difference fairing (the largest lambda whose world normal residual stays within nrm_rms rms /
+    nrm_p99 at the 99th percentile) and put back in the smoothed frames. A turn of the knee line stays exact."""
+    n = max(4, int(np.ceil((A_[-1] - A_[0]) / spacing)) + 3)
+    kv = PF.knots(n, A_[0], A_[-1]); B = PF.basis(A_, kv, n)
+    D3 = np.zeros((n - 3, n))
+    for i in range(n - 3): D3[i, i:i + 4] = (-1, 3, -3, 1)
+    BtB, DtD = B.T @ B, D3.T @ D3
+    fitc = lambda Y, lm: np.linalg.solve(BtB + lm * len(B) * DtD, B.T @ Y)
+    ev = lambda C, a: PF.basis(np.asarray(a, float), kv, n) @ C
+    Co = fitc(R_[:, col], spine_lam)
+    def frames(a, Ce):
+        a = np.asarray(a, float); h = 1e-4
+        O = ev(Co, a); t = ev(Co, np.clip(a + h, A_[0], A_[-1])) - ev(Co, np.clip(a - h, A_[0], A_[-1]))
+        t /= np.linalg.norm(t, axis=1)[:, None]
+        e1 = ev(Ce, a); e1 -= (e1 * t).sum(1)[:, None] * t; e1 /= np.linalg.norm(e1, axis=1)[:, None]
+        return O, t, e1, np.cross(t, e1)
+    O0, t0, _, _ = frames(A_, np.zeros((n, 3)) + 1)
+    ch = R_[:, -1] - R_[:, 0]; ch -= (ch * t0).sum(1)[:, None] * t0; ch /= np.linalg.norm(ch, axis=1)[:, None]
+    Ce = fitc(ch, 1e-4)
+    O, t, e1, e2 = frames(A_, Ce)
+    Lc = np.stack([((R_ - O[:, None]) * e[:, None]).sum(2) for e in (e1, e2, t)], -1)
+    Y = Lc.reshape(len(R_), -1)
+    dr = np.gradient(R_, A_, axis=0); dc = np.gradient(R_, axis=1)
+    Nn = np.cross(dr, dc); Nn /= np.maximum(np.linalg.norm(Nn, axis=2), 1e-12)[..., None]
+    def world(C, a, fr):
+        O_, t_, e1_, e2_ = fr; L = ev(C, a).reshape(len(a), R_.shape[1], 3)
+        return O_[:, None] + L[..., :1] * e1_[:, None] + L[..., 1:2] * e2_[:, None] + L[..., 2:] * t_[:, None]
+    best = None
+    for lm in ([lam] if lam is not None else 10.0 ** np.arange(-8, 1, 0.5)):
+        C = fitc(Y, lm); Rf = world(C, A_, (O, t, e1, e2)); en = np.abs(((Rf - R_) * Nn).sum(2))
+        rms, p99 = float(np.sqrt((en ** 2).mean())), float(np.percentile(en, 99))
+        if best is None or (rms <= nrm_rms and p99 <= nrm_p99): best = (C, rms, float(en.max()), lm)
+        else: break
+    C = best[0]
+    return (lambda a: world(C, np.asarray(a, float), frames(a, Ce))), best[1], best[2], best[3]
 
 
 def u_grid(car, verbose=True):
@@ -313,7 +402,12 @@ def u_grid(car, verbose=True):
     A_ = np.r_[arc, (2 * Lc - arc)[::-1]]
     R_ = np.r_[raw, (raw * MIR)[::-1]]
     nr, nc, _ = raw.shape
-    fsm, nrms, nmax_, lam = smooth_rows(A_, R_, spacing=float(os.environ.get('HT_SPACING', 0.03)))
+    if os.environ.get('HT_LOCAL', '1') == '1':
+        fsm, nrms, nmax_, lam = smooth_rows_local(A_, R_, spacing=float(os.environ.get('HT_SPACING', 0.03)),
+                                                  nrm_rms=float(os.environ.get('HT_NRMS', 0.1)) * 1e-3, nrm_p99=float(os.environ.get('HT_NP99', 0.4)) * 1e-3,
+                                                  lam=float(os.environ['HT_LLAM']) if os.environ.get('HT_LLAM') else None)
+    else:
+        fsm, nrms, nmax_, lam = smooth_rows(A_, R_, spacing=float(os.environ.get('HT_SPACING', 0.03)))
     # evaluate: pillar stations where they were; the foot evenly from the pillar's end to the centre (and mirrored)
     a_p = arc[:npil]
     nf = max(2, int(np.ceil((Lc - a_p[-1]) / STEP_F)))
@@ -329,6 +423,13 @@ def u_grid(car, verbose=True):
         Xv = V[np.unique(skin)]
         for it_ in range(int(os.environ.get('HT_REF_IT', 2))):
             G = refine_to_vertices(G, Xv, ds=float(os.environ.get('HT_REF_DS', 2)), dt=float(os.environ.get('HT_REF_DT', 2)), verbose=verbose)
+    if os.environ.get('HT_CORNER', '1') == '1':     # lower corners: the profiles saw facets sagging inside the wrap
+        K = G[:, 10]
+        zone = (np.abs(K[:, 0]) > 0.55) & (K[:, 2] < -1.82)
+        if float(os.environ.get('HT_CS_LAM', 0.01)) > 0:
+            G = zone_smooth(G, zone, m=int(os.environ.get('HT_CS_M', 4)), every=float(os.environ.get('HT_CS_EVERY', 3)), lam=float(os.environ.get('HT_CS_LAM', 0.01)), pin_end=float(os.environ.get('HT_CS_PIN', 6)))
+        G = refine_to_vertices(G, V[np.unique(skin)], ds=float(os.environ.get('HT_CR_DS', 2)), dt=float(os.environ.get('HT_CR_DT', 3)),
+                               dmax=0.005, zone=zone, pad=int(os.environ.get('HT_CR_PAD', 3)), rms_tol=float(os.environ.get('HT_CR_TOL', 0.25)) * 1e-3, verbose=verbose)
     if verbose:
         print(f'U grid: {npil} pillar + {len(a_f)} foot stations per side, {len(a_all)} rows x {nc}, spine {2 * Lc * 1e3:.0f} mm, '
               f'smoothing: lambda {lam:.0e}, normal rms {nrms * 1e3:.3f} max {nmax_ * 1e3:.3f} mm (shift max {Graw_err * 1e3:.2f} mm), asymmetry {asym * 1e3:.4f} mm, '
