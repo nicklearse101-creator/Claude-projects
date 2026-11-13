@@ -569,27 +569,39 @@ def returns(car):
     the built edges round them, as the bonnet's)."""
     import strip_build as SB
     V, F, N, pcs = pieces(car)
-    ring = pcs['ring']; cx = V[ring].mean(1)[:, 0]
-    names = ['skin', 'ringL', 'ringR', 'wall', 'bottom', 'cornerL', 'cornerR']
-    P = [pcs['skin'], ring[cx > 0], ring[cx < 0], pcs['wall'], pcs['bottom'], pcs['cornerL'], pcs['cornerR']]
+    # left halves built, right halves = their mirror images (FreeCAD 'mirror_of'); the right halves stay in the region
+    # list so the x = 0 cut vertices are shared (labelled as end caps, not as free sides)
+    names, P = ['skin'], [pcs['skin']]
+    for k in ('ring', 'wall', 'bottom'):
+        Fk = pcs[k]; cx = V[Fk].mean(1)[:, 0]
+        names += [k + 'L', k + 'R']; P += [Fk[cx > 0], Fk[cx < 0]]
+    names += ['cornerL', 'cornerR']; P += [pcs['cornerL'], pcs['cornerR']]
     Fs = np.vstack(P)
     st = SB.find_strips(V, Fs, N, P, PF.components, PF.boundary_loops, amin=1e-7, corner_free_w=0.002, ruled_inside=True)
     name = lambda nb: None if nb is None else ('hatch:' if nb == 0 else (f'hatchnb:{names[nb]}' if nb in st else None))
     out = []
     for ri in sorted(st):
+        if not names[ri].endswith('L'): continue
         s = st[ri]
-        for sd in s['sides']:
-            for r in [sd] + list(sd.get('runs', [])):
-                r['nb_name'] = name(r['nb']) if isinstance(r['nb'], (int, np.integer)) else None
-                r['nb_strip'] = r['nb'] in st
-                r['key'] = 'hatchnb:' + '|'.join(str(x) for x in r['key'])
-        out.append(dict(name=f'hatchnb:{names[ri]}', strip=s, frame=s['frame']))
+        subs = s.get('subs') or [s]                 # a flange with a fold row (the ring: step + flange) = two strips
+        for sub in subs:
+            for sd in sub['sides']:
+                for r in [sd] + list(sd.get('runs', [])):
+                    if isinstance(r['key'], str): continue          # shared side dict already named
+                    r['nb_name'] = name(r['nb']) if isinstance(r['nb'], (int, np.integer)) else None
+                    r['nb_strip'] = r['nb'] in st
+                    r['key'] = 'hatchnb:' + '|'.join(str(x) for x in r['key'])
+        for k, sub in enumerate(subs):
+            nm = f'hatchnb:{names[ri]}' + (f'f{k}' if len(subs) > 1 else '')
+            out.append(dict(name=nm, strip=sub, frame=sub['frame']))
+            out.append(dict(name=f'hatchnb:{names[ri][:-1]}R' + (f'f{k}' if len(subs) > 1 else ''), mirror_of=nm))
         nbs = [r['nb'] for sd in s['sides'] for r in (sd.get('runs') or [sd])]
-        print(f'hatchnb:{names[ri]}: STRIP {s["width"] * 1e3:.1f} x {s["length"] * 1e3:.0f} mm ({s["mode"]}), neighbours {nbs}', flush=True)
+        print(f'hatchnb:{names[ri]}: STRIP {s["width"] * 1e3:.1f} x {s["length"] * 1e3:.0f} mm ({s["mode"]}), neighbours {nbs}'
+              + (f', fold row: {len(subs)} strips {" + ".join(f"{x["width"] * 1e3:.1f}" for x in subs)} mm' if len(subs) > 1 else ''), flush=True)
     _, wid = PF.components(V, Fs); rep = {}
     for i, w in enumerate(wid): rep.setdefault(w, i)
     for ri in range(1, len(P)):
-        if ri in st: continue
+        if ri in st or not names[ri].endswith('L'): continue
         Fr = P[ri]; loops = PF.boundary_loops(Fr, wid)
         if len(loops) != 1: print(f'hatchcf:{names[ri]}: {len(loops)} outlines - skipped'); continue
         Q = V[[rep[w] for w in loops[0]]] * 1000; Q = np.r_[Q, Q[:1]]
@@ -601,6 +613,7 @@ def returns(car):
         nrm = N[Fr].mean((0, 1)); nrm /= np.linalg.norm(nrm)
         fr = [(V[np.unique(Fr)].mean(0)).tolist()] + [list(x) for x in np.eye(3)]
         out.append(dict(name=f'hatchcf:{names[ri]}', frame=fr, corner_fill=dict(outline=R.tolist(), inner=inner.tolist(), area=float(A), normal=nrm.tolist())))
+        out.append(dict(name=f'hatchcf:{names[ri][:-1]}R', mirror_of=f'hatchcf:{names[ri]}'))
         print(f'hatchcf:{names[ri]}: corner fill {A:.1f} mm2', flush=True)
     return out
 
@@ -647,6 +660,8 @@ def build(car, out):
     comps = [Fp for Fp in PF.components(V, F_out)[0] if len(Fp) >= 4]
     Fo = max(comps, key=len)
     vs_ = set(np.unique(Fo).tolist()); Fd = np.array([t for t in F_dat if t[0] in vs_], int).reshape(-1, 3)
+    # (tried 13 Nov: the U's band along every touched row, weighted x3 - the deck then missed its own vertices by up
+    # to 1.4 mm and still stood off the U beside the glass corners: the U's top band there is ~0.5 mm off Kunos's deck)
     e = PF.fit_panel('hatch:deck', V, Fo, N, extra=(E0r[:, None] + np.array([0, 0.008, 0.016, 0.024])[None, :, None] * Dr[:, None]).reshape(-1, 3), data_F=Fd)
     fr_ = [np.array(x) for x in e['frame']]
     row = np.r_[[E0r[0] - 0.03 * (E0r[1] - E0r[0]) / np.linalg.norm(E0r[1] - E0r[0])], E0r,

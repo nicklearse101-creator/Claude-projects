@@ -20,6 +20,7 @@
 # Hatch first build (U sweep + header + deck, 12 Nov; hatch_score = Kunos skin VERTICES): median 0.150, p95 1.07, within 0.3 / 1 mm 69.9 / 94.4 % (lower corners open).
 # Hatch lower corners (faired spine, local-frame row smoothing, corner zone smoothing + vertex offset, 13 Nov): median 0.159, p95 0.77, within 0.3 / 1 mm 71.9 / 97.5 %.
 # Hatch corner tab (U extended past the outline + trimmed on the knee-aware fair outline, 13 Nov midday): median 0.154, p95 0.64, max 1.14, within 0.3 / 1 mm 73.6 / 99.4 % (tail 100 %).
+# Hatch returns (ring + wall fold flanges, bottom return, tab corner fills; left halves mirrored; 13 Nov pm): skin 75.7 / 99.7 %; ring 89.9 / 100, wall 91.3 / 100, bottom 90.3 / 96.8, corners 100 / 100 %. Others unchanged.
 set -e
 cd "$(dirname "$0")"
 C=D:/SteamLibrary/steamapps/common/assettocorsa/content/cars/ks_toyota_ae86
@@ -56,7 +57,7 @@ if [ "$what" = hatch ] || [ "$what" = all ]; then
   python hatch_build.py $C $R/hatch > $R/hatch.log 2>&1
   PF_IN="$(cygpath -w $R/hatch)" ./fcrun.sh panel_fit_freecad.py >> $R/hatch.log 2>&1
   python pack_build.py $R/hatch $R/hatch/build.npz >> $R/hatch.log
-  echo "hatch: $(python hatch_score.py $C $R/hatch/build.npz | head -1)"
+  HT_RETURNS=1 python hatch_score.py $C $R/hatch/build.npz | grep -E "^skin|^ring|^wall|^bottom|^corner" | sed 's/^/hatch: /'
   unset PF_MASTER
 fi
 if [ "$what" = quarter ] || [ "$what" = all ]; then

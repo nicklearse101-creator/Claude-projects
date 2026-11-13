@@ -246,3 +246,12 @@ not a station polyline; give the neighbour face the sweep's flat band as tangent
 - Rows whose 'near' part runs to their end piled the far columns into 1.5 mm (degenerate parametrization: a straight
   trim line in (u, v) dipped 1.5 mm in 3D): split near / far in proportion on short rows.
 - Distances to a 1 mm-sampled polyline: measure to its SEGMENTS (spine_s), nearest-sample distance adds up to 0.5 mm.
+- Returns of a symmetric panel (13 Nov, hatch): build the LEFT halves only and MIRROR them (FreeCAD `mirror_of`): the
+  full-width strips built from symmetric data still came out up to 2.6 mm apart at their two ends (end choices follow
+  the outline's direction). A closed ring is cut at x = 0 (the half model has no triangle across it); keep the right
+  halves in the region list so the cut vertices are shared (end caps), not a free side.
+- Fold flanges (step + flange, two ruled strips sharing the fold curve) must run the fold curve to the strip's END
+  CAPS: the fold's end vertex lies ON the outline, so a fold fitted to the inside vertices only stopped 75 mm short
+  where Kunos's facets are long. Per end: the outline corner vertex (label None) ahead of the last inside vertex with
+  the smallest sideways offset from the row's end direction, under 0.6 x the narrower sub-strip; test the fold on the
+  inside vertices FIRST (an end vertex sits on a side's corner hook: distance 0 breaks the spread test).

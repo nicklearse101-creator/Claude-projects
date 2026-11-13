@@ -167,8 +167,28 @@ def find_strips(V, F, Nv, pcs, components, boundary_loops, wmax=WMAX, ratio=RATI
             """two ruled strips side A -> fold row -> side B, sharing the fold curve (fitted to the inside vertices)"""
             Xi = V[[rep[w] for w in inside]]
             Aq = resample(np.array(sides[0]['pts']), 0.002); Bq = resample(np.array(sides[1]['pts']), 0.002)
+            add = []
+            if os.environ.get('SB_FOLD_ENDS', '1') == '1' and len(Xi) >= 3:
+                # the fold row's END vertices lie on the outline (an end cap: the hatch ring cut at x = 0, the ring /
+                # wall corners), so the fold curve stopped at the last INSIDE vertex - 75 mm short where Kunos's facets
+                # are long. Per end of the fold row: the outline CORNER vertex (label None) ahead of its last inside
+                # vertex with the smallest sideways offset from the row's end direction, if under 0.6 x the narrower
+                # sub-strip (hatch ring: 1.2 mm at the x = 0 cut, 3.6 mm at the glass corner where the row turns;
+                # the side corners sit >= 5 mm off). Each side run is extended by one corner vertex, so an end cap's
+                # fold vertex can lie ON a side's polyline: distances to the sides cannot find it.
+                cand = np.array([V[rep[L[i]]] for i in range(m) if lab[i] is None]).reshape(-1, 3)
+                w_min = min(np.median(spine_s(Aq, Xi)[1]), np.median(spine_s(Bq, Xi)[1]))
+                Xs = Xi[np.argsort(spine_s(Aq, Xi)[0])]
+                for E2 in (Xs[:2], Xs[::-1][:2]):
+                    if not len(cand): break
+                    dv = E2[0] - E2[1]; dv /= np.linalg.norm(dv)
+                    v = cand - E2[0]; al = v @ dv; dd = np.linalg.norm(v, axis=1); pp = np.linalg.norm(v - al[:, None] * dv, axis=1)
+                    ok = (al > 0.3 * dd) & (dd < 0.2) & (pp < 0.6 * w_min)
+                    if ok.any(): add.append(cand[ok][np.argmin(pp[ok])])
             sa, da = spine_s(Aq, Xi); _, db = spine_s(Bq, Xi)
             if len(Xi) < 3 or np.std(da) > 0.0015 or np.ptp(sa) < 0.7 * Ln: return None   # not one fold row
+            if add:                                  # after the test: an end vertex lies on side A's corner hook (da 0)
+                Xi = np.r_[Xi, np.array(add)]; sa = spine_s(Aq, Xi)[0]
             Xi = Xi[np.argsort(sa)]
             fold = dict(key=['fold', str(ri)], nb=None, pts=resample(Xi).tolist())
             wa, wb = float(np.median(da)), float(np.median(db))

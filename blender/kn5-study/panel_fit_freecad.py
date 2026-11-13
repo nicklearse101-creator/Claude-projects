@@ -49,7 +49,7 @@ for _fs in [x for x in os.environ.get('PF_FOREIGN', '').split(';') if x]:
     print('foreign faces', _tag, len(json.load(open(os.path.join(_dir, 'faces.json')))), flush=True)
 for p in res:
     if ONLY and not any(k in p['name'] for k in ONLY.split(',')): continue
-    if p.get('strip') or p.get('corner_fill'): continue   # thin strips / corner fills: after every wide face (below)
+    if p.get('strip') or p.get('corner_fill') or p.get('mirror_of'): continue   # thin strips / corner fills: after every wide face (below)
     if p.get('grid'):                     # station-profile surface (blend_build.pillar_grid): through the grid points
         tf = time.time(); G_ = np.array(p['grid'])
         srf = Part.BSplineSurface()
@@ -100,6 +100,15 @@ for p in res:
                     if p.get('sym_u'): us_ = np.unique(np.r_[us_, u0_ + u1_ - us_])      # mirror-symmetric grid: same u lines both halves
                 print(f"{p['name']:24s} trim: {len(T3_)} outline points ({nback_} back-steps dropped), off the surface max {offT.max():.3f} mm, "
                       f"v {uvT[:, 1].min():.4f}..{uvT[:, 1].max():.4f} of {v0_:.4f}..{v1_:.4f}, {len(us_)} u lines", flush=True)
+            # mesh lines along u also where the deck-side edge (v0) turns tightly: chords between 8 mm lines sagged
+            # 0.4-0.7 mm off the deck's exact cut there (a crack in the watertight check at the hatch's glass corners)
+            for _it in range(10):
+                add_ = []
+                for a_, b_ in zip(us_[:-1], us_[1:]):
+                    m_ = 0.5 * (a_ + b_); A_, B_, M_ = srf.value(a_, v0_), srf.value(b_, v0_), srf.value(m_, v0_)
+                    if ((A_ + B_) * 0.5 - M_).Length > float(os.environ.get('PF_GRID_SAG', 0.05)): add_.append(m_)
+                if not add_: break
+                us_ = np.unique(np.r_[us_, add_])
             pts_, nn = [], []
             for u_ in us_:
                 for v_ in (vs_ if vt_ is None else v0_ + (vs_ - v0_) * (float(vt_(u_)) - v0_) / (v1_ - v0_)):
@@ -743,6 +752,18 @@ if RET > 0 and not ONLY:
             nn *= np.sign(((pm - ctr) * nn).sum(1).mean() or 1.0)       # facing out of the panel, into the gap
             normals[rn] = nn
             print(f'{rn:40s} length {e.Length:6.0f} mm  area {rs.Area / 1e6:.4f} m2', flush=True)
+# mirrored faces (symmetric panels: the right half's returns = the left half's, mirrored x -> -x; built the same way
+# from mirrored data, the two halves still came out up to 2.6 mm apart at the strip ends: the end choices depend on
+# the outline's direction): shape, mesh and normals of 'mirror_of' mirrored in the plane x = 0
+for p in res:
+    src = p.get('mirror_of')
+    if not src or src not in built or (ONLY and not any(k in p['name'] for k in ONLY.split(','))): continue
+    sh_ = built[src].mirror(App.Vector(0, 0, 0), App.Vector(1, 0, 0))
+    built[p['name']] = sh_; shapes.append(sh_)
+    if src + '_P' in mesh:
+        mesh[p['name'] + '_P'] = mesh[src + '_P'] * np.array([-1.0, 1.0, 1.0]); mesh[p['name'] + '_F'] = mesh[src + '_F'][:, [0, 2, 1]].copy()
+        if src in normals: normals[p['name']] = normals[src] * np.array([-1.0, 1.0, 1.0])
+    print(f"{p['name']:24s} MIRROR of {src}", flush=True)
 # triangle winding to agree with the exact (outward) normals: a ruled strip or a reversed face meshes inward, and
 # renderers shade a back-facing triangle with its normal flipped (the lamp-top wall came out dark)
 for n_, nn_ in normals.items():

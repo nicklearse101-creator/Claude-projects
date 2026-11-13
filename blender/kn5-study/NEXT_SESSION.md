@@ -1,21 +1,32 @@
-# Next session: Blender Work / AE86 replica (handover, 2026-11-13 morning)
+# Next session: Blender Work / AE86 replica (handover, 2026-11-13 midday)
 
 **Start here.** HATCH in progress (report `blender/research/reports/Hatch surfacing.md`). The hatch is NOT a separate Kunos
 mesh: it is GEO_body crease piece 2 + returns (pieces 4, 14, 22, 116/117), and the quarter's old "C-pillar" sweep (r1p,
 r1x00, r1d0) WAS its side band. Built 12 Nov (`hatch_build.py` + `hatch_score.py`, `./regress.sh hatch` ~4 min): ONE U-shaped
 sweep (side bands + tail roll, left half marched to the centreline and mirrored, symmetric to 0.0004 mm) + header + deck.
-Lower corners rebuilt 13 Nov (faired spine, local-frame row smoothing, corner zone smoothing + vertex offset field):
-skin vertices median 0.16 mm, 97.5 % within 1 mm (tail 96.5 %, was 90.5 %); the corner reads as one broad wrap in grey.
+Lower corners rebuilt 13 Nov morning (faired spine, local-frame row smoothing, corner zone smoothing + vertex offset).
+**Corner tab DONE 13 Nov midday** (commit 437585a): the U grid runs 15 mm past the outline (`extend_grid`, before the
+corner refine) and is TRIMMED on the fair outline (`outer_trim`, FreeCAD `trim_outer`: structured mesh spread to v(u),
+B-rep trimmed by a (u, v) polyline); the fair outline finds knees (`knees`, `fit_run`). Skin vertices median 0.154 mm,
+**99.4 % within 1 mm** (tail 100 %), max 1.14 mm (header). Pictures `D:/ClaudeData/tmp/hatch3/corner6.png` (both tabs +
+whole hatch vs Kunos), `mid_cmp.png` (Kunos / before / now). Left: a faint bend high on the side edge (was bigger).
+**Returns DONE 13 Nov early afternoon** (`returns()` in hatch_build.py): glass-opening ring (piece 4, cut at x = 0) and
+glass-bottom wall (14) as fold flanges (step + flange = two ruled strips sharing the fold curve), bottom return (22) as
+one strip, the 2 mm tab corner bits (116 / 117) as corner fills; each side on the skin = the skin's BUILT edge
+(nb_name 'hatch:'). Left halves built, right halves MIRRORED in the FreeCAD stage (`mirror_of`): symmetric exactly.
+Kunos vertices within 1 mm: ring 100 %, wall 100 %, bottom 96.8 % (2 vertices 1.2 mm at the tab), corner bits 100 %.
+Watertight (`mesh_holes.py ... 0.3 --fill`): 12 pin-holes <= 10 mm at strip ends / corners fan-filled; open = the real
+edges (glass side of ring and wall, bottom return's lip, pillar sides to the gutter, header top to the roof strip).
 NEXT (in order):
-- **Corner tab** (x +-673, z -1964, up to 10 mm miss): the outline's small tab beside the lower corner needs its own
-  small patch (with the corner bits 116/117), built on the U's bottom edge. Faint bottom-edge wave left (row ends
-  13-17 mm apart instead of 15).
-- Header / pillar-top join: plane cut + fitted header; looks clean in v3 grey, header max 1.1 mm.
-- Returns: ring (piece 4, 20 mm, closed: cut at x = 0), glass-bottom wall (14), bottom return (22) with strip_build on the
-  built edges; then watertight check, clearance.
+- **Deck / U step** beside the lower glass corners: 0.4-0.7 mm over ~100 mm each side (old: also in the 13 Nov morning
+  build). The U's top band there is ~0.5 mm off Kunos's deck; weighting the U band as deck data did not fix it (deck
+  then 1.4 mm off its own vertices). Close it at the sewing / assembly step, or rebuild that end of the U's top band.
+- Header / pillar-top join: plane cut + fitted header; looks clean in grey, header max 1.1 mm; header mirror 0.19 mm
+  (fit_panel is not symmetric: fit the left half and mirror, as the returns).
 - Quarter: rebuild with `PF_NOHATCH=1` (spec without `pillar1`, `rall!0`), its drip rail's hatch-side rail from the
   hatch's faces (`PF_FOREIGN`); regress order roof -> hatch -> quarter (regress.sh already builds the hatch before the
-  quarter, but the quarter step does NOT use PF_NOHATCH yet: both builds still make the left side band).
+  quarter, but the quarter step does NOT use PF_NOHATCH yet: both builds still make the left side band and the quarter
+  still makes the left ring flange r6).
 1. Read this page (where we are, how to run, what's next).
 2. `PANEL_FIT_TECHNIQUE.md`: the method that works, with every lesson we paid for (bottom of the file).
 3. `ACHIEVEMENTS_REPORT.md`: the story so far (section 7 = the 10 Nov work on the door, wing and rear quarter).

@@ -331,7 +331,7 @@ def master_snap(loops3, step=0.002, tol=0.0025):
     return out, np.array(moved).reshape(-1, 3)
 
 
-def fit_panel(name, V, F, Nv, verbose=True, fr=None, outline_only=False, extra=None, data_F=None):
+def fit_panel(name, V, F, Nv, verbose=True, fr=None, outline_only=False, extra=None, data_F=None, extra_rep=1):
     """one trimmed surface for a piece; fr = a given frame (default: the piece's own best-fit plane);
     outline_only = just the frame and outline wires (for a band patch that brings its own surface);
     data_F = the triangles whose vertices are the fit data (default F; the outline always comes from F)"""
@@ -339,7 +339,7 @@ def fit_panel(name, V, F, Nv, verbose=True, fr=None, outline_only=False, extra=N
     if fr is None: fr = frame_of(P, Nv[np.unique(Fd)])
     S = to_plane(P, fr)                      # vertices only
     if extra is not None and len(extra):     # extra data (metres): e.g. a neighbouring surface's end rows to join
-        S = np.r_[S, to_plane(np.asarray(extra), fr)]
+        S = np.r_[S, np.repeat(to_plane(np.asarray(extra), fr), int(extra_rep), axis=0)]   # extra_rep: its weight
     # a MASTER build already made the neighbour (PF_MASTER = its packed npz, e.g. the roof): where this piece's
     # outline runs along the master's boundary, the outline IS that boundary (exact edge points) and those points
     # are fit data too, so the face passes through the master's edge and is trimmed on it - one edge, no gap
