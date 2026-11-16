@@ -6,7 +6,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageChops
 HERE = os.path.dirname(os.path.abspath(__file__))        # the car renders (render_cars.py) and the poster
 APP = os.path.dirname(HERE)
 FONTS = os.path.join(APP, 'fonts')
-W, H = 1080, 1350
+W = 1080
 PURPLE, ORANGE, WHITE = (155, 61, 255), (255, 106, 0), (245, 245, 250)
 random.seed(4)
 
@@ -97,6 +97,46 @@ def speed_lines(img, box, n=38):
     img.alpha_composite(lay.filter(ImageFilter.GaussianBlur(1.2)))
 
 
+# Nik's own in-game shots of skins made with the app (marketing/shots): file -> the car's centre in the picture
+SHOTS = os.path.join(HERE, 'shots')
+HERO = ('nik_15.webp', 811, 585)
+THUMBS = [('nik_16.webp', 975, 655), ('nik_17.webp', 1015, 645), ('nik_18.webp', 980, 610), ('nik_19.webp', 995, 665)]
+
+
+def crop_aspect(im, aspect, cx, cy):
+    w, h = im.size
+    cw = min(w, h * aspect); ch = cw / aspect
+    x0 = min(max(cx - cw / 2, 0), w - cw); y0 = min(max(cy - ch / 2, 0), h - ch)
+    return im.crop((int(x0), int(y0), int(x0 + cw), int(y0 + ch)))
+
+
+def card(img, name, cx, cy, box, border, radius=18, width=4):
+    """A photo in a rounded frame with a drop shadow."""
+    x, y, w, h = box
+    ph = crop_aspect(Image.open(os.path.join(SHOTS, name)).convert('RGB'), w / h, cx, cy).resize((w, h), Image.LANCZOS)
+    ph = ph.convert('RGBA')
+    shade = np.linspace(0, 1, h) ** 3 * 70                       # a little darker at the bottom: depth
+    a = np.asarray(ph).astype(np.float32); a[..., :3] -= shade[:, None, None]
+    ph = Image.fromarray(np.clip(a, 0, 255).astype(np.uint8))
+    m = Image.new('L', (w, h), 0); ImageDraw.Draw(m).rounded_rectangle([0, 0, w - 1, h - 1], radius, fill=255)
+    ph.putalpha(m)
+    sh = Image.new('RGBA', img.size, (0, 0, 0, 0))
+    ImageDraw.Draw(sh).rounded_rectangle([x + 8, y + 12, x + w + 8, y + h + 12], radius, fill=(0, 0, 0, 190))
+    img.alpha_composite(sh.filter(ImageFilter.GaussianBlur(12)))
+    img.alpha_composite(ph, (x, y))
+    ImageDraw.Draw(img).rounded_rectangle([x - 2, y - 2, x + w + 1, y + h + 1], radius + 2, outline=border + (255,), width=width)
+
+
+# --- layout first (the poster is as tall as it needs to be)
+HERO_BOX = (40, 282, 1000, 500)
+TW, TH, GAP = 235, 152, 20
+THUMB_Y = HERO_BOX[1] + HERO_BOX[3] + 34
+FEATS_Y = THUMB_Y + TH + 66
+ROW = 48
+FEATS_N = 6
+PUNCH_Y = FEATS_Y + FEATS_N * ROW + 44
+H = PUNCH_Y + 104 + 44 + 64
+
 poster = carbon(W, H)
 stripes(poster)
 
@@ -107,17 +147,22 @@ glow_text(poster, (W / 2, 196), 'GENERATOR', font('Orbitron[wght].ttf', 58, 'Bla
 ImageDraw.Draw(poster).text((W / 2, 248), 'YOUR OWN ASSETTO CORSA LIVERY IN MINUTES, NOT HOURS.',
                             font=font('TitilliumWeb-BoldItalic.ttf', 31), fill=(225, 225, 235), anchor='ms')
 
-# --- hero car + three more
-speed_lines(poster, (0, 300, W, 560))
-hero = car(os.path.join(HERE, 'ks_ferrari_488_gt3_left.png'), 1000)
-place_car(poster, hero, (W - hero.width) / 2, 286)
-row_y = 286 + hero.height + 52
-small = [car(os.path.join(HERE, f'{n}_left.png'), 330) for n in ('ks_audi_r8_lms', 'ks_porsche_911_gt3_r_2016', 'wtcc_chevrolet_lacetti')]
-for i, c in enumerate(small):
-    place_car(poster, c, 22 + i * 352, row_y + (12 if i == 1 else 0))
+# --- the photos: one big, four small
+speed_lines(poster, (0, HERO_BOX[1] + 30, W, HERO_BOX[1] + HERO_BOX[3] - 30), n=46)
+card(poster, *HERO, HERO_BOX, PURPLE, radius=22, width=5)
+# a slanted "made in the app" flash on the big photo
+flash = Image.new('RGBA', poster.size, (0, 0, 0, 0)); fd = ImageDraw.Draw(flash)
+fx, fy_ = HERO_BOX[0] + 24, HERO_BOX[1] + HERO_BOX[3] - 70
+ft = font('RussoOne-Regular.ttf', 26)
+tw = ft.getlength('MADE IN THE APP  ·  IN THE GAME')
+fd.polygon([(fx, fy_), (fx + tw + 46, fy_), (fx + tw + 30, fy_ + 44), (fx - 16, fy_ + 44)], fill=ORANGE + (240,))
+fd.text((fx + 14, fy_ + 23), 'MADE IN THE APP  ·  IN THE GAME', font=ft, fill=(20, 10, 0), anchor='lm')
+poster.alpha_composite(flash)
+for i, t in enumerate(THUMBS):
+    card(poster, *t, (40 + i * (TW + GAP), THUMB_Y, TW, TH), ORANGE if i % 2 == 0 else PURPLE, radius=14, width=3)
 
 # --- what it does
-fy = row_y + max(c.height for c in small) + 62
+fy = FEATS_Y
 feats = [('🎨', 'Pick a car, pick colours, pick from 50 patterns'),
          ('🔢', 'Number, team & driver name in 20 racing fonts'),
          ('🖼️', 'Drop in logos and drag them round the car live'),
@@ -125,17 +170,17 @@ feats = [('🎨', 'Pick a car, pick colours, pick from 50 patterns'),
          ('✨', 'Gloss, metallic, pearl or matte paint (CSP)'),
          ('💾', "One click and it's in the game")]
 panel = Image.new('RGBA', poster.size, (0, 0, 0, 0)); pd = ImageDraw.Draw(panel)
-pd.rounded_rectangle([60, fy - 20, W - 60, fy + len(feats) * 49 + 2], 18, fill=(10, 8, 18, 175), outline=PURPLE + (200,), width=3)
+pd.rounded_rectangle([60, fy - 20, W - 60, fy + len(feats) * ROW + 4], 18, fill=(10, 8, 18, 175), outline=PURPLE + (200,), width=3)
 poster.alpha_composite(panel)
 d = ImageDraw.Draw(poster)
 ff = font('ChakraPetch-Bold.ttf', 31)
 for i, (em, t) in enumerate(feats):
-    y = fy + i * 49
+    y = fy + i * ROW
     d.text((96, y - 4), em, font=EMOJI, embedded_color=True)
     d.text((158, y + 2), t, font=ff, fill=WHITE)
 
 # --- the punch line
-by = fy + len(feats) * 49 + 68
+by = PUNCH_Y - 20
 glow_text(poster, (W / 2, by + 44), 'NO PHOTOSHOP. NO TEMPLATES. NO AI.', font('RussoOne-Regular.ttf', 50), WHITE, PURPLE, blur=9, anchor='ms')
 glow_text(poster, (W / 2, by + 104), 'JUST PICK, PREVIEW, RACE.', font('Exo2-Italic[wght].ttf', 52, 'Black Italic'), ORANGE,
           (110, 35, 0), blur=7, anchor='ms')
