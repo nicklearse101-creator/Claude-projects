@@ -53,20 +53,8 @@ print('after Clear all:', len(left), 'logos still placed; list:', [app.used_tree
 if left: problems.append('Clear all left logos placed')
 set_place(0, 'Bonnet'); set_place(2, 'Doors (big)')
 
-# --- lens colour chart: only the bright 16; a dark saved colour is snapped to the nearest bright one
-app.vars['use_lens'].set(True); app.vars['lens_colour'].set('#000000')
-d = app.design()
-print('black lens colour becomes', d['lens_colour'])
-if d['lens_colour'] not in R.LENS_COLOURS: problems.append('lens colour not limited')
-anchor = app.btn_prev
-app.swatch_picker(anchor, app.vars['lens_colour'], R.LENS_COLOURS); app.update()
-tops = [w for w in app.winfo_children() if str(w).startswith('.!toplevel')]
-btns = [b for b in tops[-1].winfo_children()] if tops else []
-print('lens chart buttons:', len(btns))
-if len(btns) != 16: problems.append(f'lens chart has {len(btns)} colours')
-show_tab(5); shot('lens_chart')
-btns[9].invoke(); app.update()
-print('picked', app.vars['lens_colour'].get())
+# --- the lens colour option is gone (Nik, 16 Nov): the lamps keep their own colour
+if app.design()['lens_colour'] is not None: problems.append('lens colour still set')
 
 # --- windows on, the old 'Windows etc. from' value that broke every car
 app.vars['win_enable'].set(True)

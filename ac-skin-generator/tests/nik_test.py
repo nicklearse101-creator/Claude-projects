@@ -13,7 +13,7 @@ try:
     s = json.load(open(os.path.join(app, 'settings.json')))
     d.update({k: v for k, v in s.items() if k in d})
     if s.get('use_wheels'): d['wheel_colour'] = s.get('wheel_colour')
-    if s.get('use_lens'): d['lens_colour'] = s.get('lens_colour')
+    d['lens_colour'] = None             # the app no longer colours the lenses (16 Nov)
     lib = json.load(open(os.path.join(app, 'logos.json')))
     d['logos'] = [dict(path=os.path.join(app, 'logos', l['file']), place=p_, tint=l.get('tint'), bg=l.get('bg', 'auto'))
                   for l in lib for p_ in (l.get('places') or ([l['place']] if l.get('place') else []))]

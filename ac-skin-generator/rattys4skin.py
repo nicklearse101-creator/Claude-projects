@@ -12,7 +12,7 @@ import theme
 messagebox = theme.messagebox      # dark dialogs, same calls as tkinter.messagebox (tests replace these)
 
 APP_NAME = skingen.APP_NAME
-VERSION = '1.10.4'
+VERSION = '1.10.5'
 
 
 def find_data_dir(exe_dir, appdata):
@@ -29,16 +29,6 @@ SETTINGS = os.path.join(DATA_DIR, 'settings.json')
 LIBRARY = os.path.join(DATA_DIR, 'logos.json')
 PLACE_NAMES = {'': 'Not used'}; PLACE_NAMES.update(skingen.PLACES)
 BG_MODES = {'auto': 'Auto', 'remove': 'Remove background', 'keep': 'Keep whole picture'}
-LENS_COLOURS = ['#ff8080', '#ffff80', '#80ff80', '#00ff80', '#80ffff', '#0080ff', '#ff80c0', '#ff80ff',
-                '#ff0000', '#ffff00', '#80ff00', '#00ff40', '#00ffff', '#0080c0', '#8080c0', '#ff00ff']
-
-
-def nearest_lens(c):
-    """The allowed lens colour nearest to c (old settings may hold a dark one)."""
-    try: r, g, b = (int(c[i:i + 2], 16) for i in (1, 3, 5))
-    except (ValueError, TypeError): return LENS_COLOURS[1]
-    if max(r, g, b) < 128: return LENS_COLOURS[1]      # a dark one: plain pale headlight yellow
-    return min(LENS_COLOURS, key=lambda x: sum((int(x[i:i + 2], 16) - v) ** 2 for i, v in zip((1, 3, 5), (r, g, b))))
 TEXT_PLACES = ['front_wings', 'lower_doors', 'doors', 'rear_quarters', 'bonnet', 'roof', 'boot', 'rear', 'front']
 TEAM_DEFAULT = ['front_wings', 'boot', 'rear', 'front']
 NAME_DEFAULT = ['front_wings']
@@ -219,9 +209,10 @@ class App(tk.Tk):
     def load_cfg(self):
         d = dict(skingen.DEFAULT_DESIGN)
         d.update(cars_dir='', car='', skin_name='My Skin', copy_from='', use_wheels=False, wheel_colour='#7020d2', use_tyres=False, tyre_colour='#ff8000',
-                 use_lens=False, lens_colour='#ffd21f', use_tint=False, win_tint_colour='#14181c', win_tint_pct='50', compress=True, avoid_mirror=False)
+                 use_tint=False, win_tint_colour='#14181c', win_tint_pct='50', compress=True, avoid_mirror=False)
         try: d.update(json.load(open(SETTINGS, encoding='utf8')))
         except Exception: pass
+        for k in ('use_lens', 'lens_colour'): d.pop(k, None)    # lens colour option removed (Nik, 16 Nov)
         if not d.get('cars_dir') or not os.path.isdir(d['cars_dir']): d['cars_dir'] = find_ac_cars()
         return d
 
@@ -293,7 +284,7 @@ class App(tk.Tk):
         ind = tkfont.Font(root=self, family=theme.HEAD, size=10).measure('0') * 21 + 2   # field label width: previews line up
         tabs = {}
         for key, title in (('car', 'Car'), ('livery', 'Livery'), ('number', 'Number & names'),
-                           ('logos', 'Logos'), ('windows', 'Windows'), ('lights', 'Lights & wheels')):
+                           ('logos', 'Logos'), ('windows', 'Windows'), ('lights', 'Wheels')):
             tabs[key] = self.tabbar.add(title)
 
         def row(tab, label, widget_fn):
@@ -473,11 +464,6 @@ class App(tk.Tk):
                         'Stickers sit on top of the tint and keep their colours.')
 
         # --- lights & wheels
-        row('lights', '', lambda f: ttk.Checkbutton(f, text='Colour the headlight lenses', variable=self.var('use_lens', tk.BooleanVar)))
-        row('lights', 'Lens colour', lambda f: self.colour_button(f, 'lens_colour', LENS_COLOURS))
-        note('lights', 'Lens colours are the bright ones only - darker colours would look like a dead lamp.')
-        note('lights', 'Tints the front lamp textures, so the lens and its glow take this colour.')
-        ttk.Separator(tabs['lights']).pack(fill='x', pady=6)
         row('lights', '', lambda f: ttk.Checkbutton(f, text='Recolour the wheel rims', variable=self.var('use_wheels', tk.BooleanVar)))
         row('lights', 'Rim colour', lambda f: self.colour_button(f, 'wheel_colour'))
         row('lights', '', lambda f: ttk.Checkbutton(f, text='Recolour the tyres', variable=self.var('use_tyres', tk.BooleanVar)))
@@ -703,9 +689,8 @@ class App(tk.Tk):
             ttk.Checkbutton(fr, text=label, variable=self.var(key, tk.BooleanVar)).pack(side='left', padx=(0, 10))
         return fr
 
-    def colour_button(self, parent, key, choices=None):
+    def colour_button(self, parent, key):
         v = self.var(key)
-        if choices and v.get().lower() not in choices: v.set(nearest_lens(v.get()))
         b = tk.Button(parent, width=12, relief='flat', bd=0, highlightthickness=1, highlightbackground=theme.LINE, cursor='hand2')
         def paint(*_):
             c = v.get() or '#000000'
@@ -714,21 +699,10 @@ class App(tk.Tk):
                 b.configure(bg=c, activebackground=c, text=c, fg='black' if lum > 0.5 else 'white')
             except tk.TclError: pass
         def pick():
-            if choices: return self.swatch_picker(b, v, choices)
             c = colorchooser.askcolor(v.get(), parent=self)[1]
             if c: v.set(c)
         b.configure(command=pick); v.trace_add('write', paint); paint()
         return b
-
-    def swatch_picker(self, anchor, var, choices, cols=8):
-        """A small chart of the allowed colours under the button; a click picks one."""
-        top = tk.Toplevel(self); top.title('Lens colour'); top.transient(self); top.resizable(False, False)
-        theme.style_toplevel(top)
-        top.geometry(f'+{anchor.winfo_rootx()}+{anchor.winfo_rooty() + anchor.winfo_height()}')
-        for k, c in enumerate(choices):
-            tk.Button(top, bg=c, activebackground=c, width=4, height=1, relief='sunken' if c == var.get().lower() else 'raised',
-                      command=lambda c=c: (var.set(c), top.destroy())).grid(row=k // cols, column=k % cols, padx=2, pady=2)
-        top.grab_set(); top.focus_set()
 
     # ---------------------------------------------------------------- car pickers
     def pick_cars_dir(self):
@@ -945,11 +919,11 @@ class App(tk.Tk):
         d['name_places'] = [p for p, v in self.np_vars.items() if v.get()] or ['none']
         d['wheel_colour'] = self.vars['wheel_colour'].get() if self.vars['use_wheels'].get() else None
         d['tyre_colour'] = self.vars['tyre_colour'].get() if self.vars['use_tyres'].get() else None
-        d['lens_colour'] = nearest_lens(self.vars['lens_colour'].get()) if self.vars['use_lens'].get() else None
+        d['lens_colour'] = None              # lens colour option removed (Nik, 16 Nov): the lamp's cast light took it
         d['win_tint'] = self.vars['win_tint_colour'].get() if self.vars['use_tint'].get() else None
         try: d['win_tint_dark'] = min(90.0, max(5.0, float(self.vars['win_tint_pct'].get()))) / 100
         except ValueError: d['win_tint_dark'] = 0.5
-        d['beam_colour'] = None              # cast-light colour option removed (Nik, 11 Nov): lens colour only
+        d['beam_colour'] = None              # cast-light colour option removed (Nik, 11 Nov)
         for key in ('font_team', 'font_name', 'font_number'):
             d[key] = list_fonts().get(self.vars[key + '_name'].get())          # None = the default font
         d['adjust'] = copy.deepcopy(self.adjust_by_car.get(self.vars['car'].get(), {}))
@@ -1388,7 +1362,7 @@ def selftest(car_dir):
     tmp = tempfile.mkdtemp(prefix='selftest_', dir=work_dir(car_dir))
     lines = []
     try:
-        d = dict(skingen.DEFAULT_DESIGN); d.update(win_enable=True, lens_colour='#ffd21f')
+        d = dict(skingen.DEFAULT_DESIGN); d.update(win_enable=True)
         skingen.generate(car_dir, d, 'selftest', out_root=tmp, log=lines.append)
         lines.append('SELFTEST OK: ' + ', '.join(os.listdir(os.path.join(tmp, 'selftest'))))
     except Exception:

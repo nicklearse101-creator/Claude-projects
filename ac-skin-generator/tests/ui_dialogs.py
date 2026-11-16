@@ -53,12 +53,5 @@ if not tops: problems.append('Edit text did not open')
 else:
     grab(tops[-1], 'dlg_edit_text'); tops[-1].destroy()
 
-# lens colour chart
-app.swatch_picker(app.btn_prev, app.vars['lens_colour'], R.LENS_COLOURS)
-tops = [w for w in app.winfo_children() if str(w).startswith('.!toplevel')]
-if not tops: problems.append('lens chart did not open')
-else:
-    grab(tops[-1], 'dlg_lens_chart'); tops[-1].destroy()
-
 print('PROBLEMS:', problems or 'none')
 app.destroy()

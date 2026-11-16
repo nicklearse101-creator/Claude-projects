@@ -8,7 +8,7 @@ metadata:
   modified: 2026-10-05T12:03:37.747Z
 ---
 
-**CURRENT 2026-11-16: v3.1.0 installed** (repo main 7ab457a, tag v3.1.0; snapshot in Claude-/setup-coach). v3.0.0 (calculated baseline, balance advice-only) wrote only camber/pressures -> rolled back to 2.6.2 code + relaxed levers (freeze after 3, 10% drop, no put-backs, no-gain -> next pass, 4 passes), balance target Normal/Oversteer/Understeer (settings.balanceMode, BALANCE_MODES), slow dampers from a dt-weighted velocity histogram at the car knee (old 0.54 m/s events were kerb speeds + counted bump/rebound differently). Untested in game. Build fn upvalues 67 (2.6.2 ran at 68) - add inputs as engine methods. Release zip/Downloads step skipped (C: rule). Research: D:/Claude/research_notes/AC springs and dampers setup/.
+**CURRENT 2026-11-16: v3.1.0 installed** (repo main 7ab457a, tag v3.1.0; snapshot in Claude-/setup-coach). v3.0.0 (calculated baseline, balance advice-only) wrote only camber/pressures -> rolled back to 2.6.2 code + relaxed levers (freeze after 3, 10% drop, no put-backs, no-gain -> next pass, 4 passes), balance target Normal/Oversteer/Understeer (settings.balanceMode, BALANCE_MODES), slow dampers from a dt-weighted velocity histogram at the car knee (old 0.54 m/s events were kerb speeds + counted bump/rebound differently). Untested in game. Build fn upvalues 67 (2.6.2 ran at 68) - add inputs as engine methods. Releases now go to D:\Claude\SetupCoach_Releases (make_release.ps1 changed; numbered copy SetupCoach_NN_vX.Y.Z.lua there; v3.1.0 = 50). Research: D:/Claude/research_notes/AC springs and dampers setup/.
 
 **STALE as of 2026-09-23**: this memory's "current version" claims below
 top out at v1.9.8, but `C:\Users\nickl\Downloads\` now has version files

@@ -10,6 +10,8 @@ Nik's list, in order. Tick items off here when they are done and checked on his 
 4. [x] Smaller skin files (compressed DDS) – 4K skins are about 90 MB each.
 5. [x] **Preinstalled logos** – the logo library comes with a starter set of logos already in it after install.
 6. [x] **Headlights: lens colour only** – remove the cast-light (CSP beam colour) option; keep only the lens colour change.
+6b. [x] **Lens colour taken off** (Nik, 16 Nov) – in game the lamp's cast light took the lens colour; option removed
+   in 1.10.5. Old settings with it ticked no longer colour the lamps.
 7. [x] **Name dictionary from Nik's car library** (after 1-6): scan every car's kn5 (mesh, material and texture
    names) and collect all the different names modders use for the same part (glass, body/paint, wings, doors,
    bonnet, boot, banner, lights, rims, interior...). Make the app recognise them, so logos and window stickers work

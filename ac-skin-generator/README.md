@@ -58,8 +58,8 @@ whole look; the layout and every setting are as before).
   side windows you choose (rear side windows, front door windows or both); optionally removes the
   stickers already there. Inside the car the stickers show their dark back. **Tinted windows**: a colour
   and how dark (5-90 %), the windscreen only when ticked; stickers stay on top of the tint.
-- **Lights & wheels** - headlight lens colour (tints the lamp textures, so the lens and its
-  glow change), rim colour and tyre colour (separate).
+- **Wheels** - rim colour and tyre colour (separate). (The headlight lens colour was taken out in 1.10.5: in
+  game the lamp's cast light took the lens colour too.)
 - **Smaller files** (Car tab, on by default) - compressed textures (DXT1, or DXT5 where there is
   transparency), about a quarter of the size: a 4K skin texture is about 22 MB instead of 90 MB.
 
@@ -123,8 +123,8 @@ pick the skin and click "Update preview".
    `reports/CSP window stickers on shared glass.md`.
    Tint: the glass texels get a film colour behind what is already on the glass (see-through textures)
    or are blended towards it (opaque ones); window stickers are drawn over the tint.
-7. Headlights: front light meshes found by name and position; lens tint on their texels. Pop-up
-   covers and other painted parts on the body texture are never tinted.
+7. Headlights: front light meshes found by name and position (kept in skingen.py, `tint_lenses`, but the app no
+   longer offers a lens colour since 1.10.5: the lamp's cast light in game took the lens colour).
 7b. **Name dictionary.** Modders name the same part in many ways and languages. Collected from all 868 cars
    in Nik's library (`tests/catalogue_all_cars.py`, `tests/places_all_cars.py` compare before / after):
    - glass: window, windscreen / windscr, windshield, glass / glas, win_, parabrezza, vetro, lunotto, scheibe,
@@ -171,7 +171,7 @@ pick the skin and click "Update preview".
 - Body parts that sit on a texture shared with other things (a kit atlas, plain colour swatches) keep
   their own colour: only the car's livery texture can be painted.
 - A part with no room of its own in the texture (all its UVs on one spot) takes one flat colour.
-- Wheels and headlight lenses only change where the car has a texture for them that nothing else uses.
+- Wheels only change where the car has a texture for them that nothing else uses.
 - Cars whose paint colour comes only from material settings may tint the result.
 - Messy or overlapping UV layouts give less paintable area (the log says how much).
 - **v1.10.4:** one logo on several places: library entries hold `places` (list; `place` = the first, still written);
