@@ -1,0 +1,2817 @@
+Setup Coach - changelog
+=======================
+
+Newest first. Moved out of SetupCoach.lua in v2.6.2 so the code carries no
+version history; every change from here on is written here.
+
+Setup Coach  3.1.0
+
+3.1.0: LEVERS BACK, LESS STRICT; BALANCE TARGET; DAMPERS FROM A REAL
+HISTOGRAM. Nik: "Nothing except camber and tyre pressures get written via
+the optimal setup button. It should go back to the way it was before, but
+with less strict levers. It would also be good to have an option to choose
+between a normal, oversteer and understeer setup. Damper and suspension
+settings need revisiting... research, investigate, fix it."
+
+Why 3.0.0 wrote so little: balance (ARB, toe, wings, diff, rake) became
+advice only, and the damping-ratio bands (bump 0.30-1.20, rebound
+0.50-1.50) were wide enough that no damper ever sat outside them. The
+27 v3.0.0 Builds wrote springs, pressures, camber and the odd packer.
+
+1. Back to the 2.6.2 code: lever chains, bottoming chains, floor
+   clearance, collider floor, branch passes.
+2. Less strict levers. A lever gets three tries before it freezes (was
+   two); a 10% drop counts as helped (was 15%); moves that showed no
+   effect are KEPT, not put back (a one-click effect is usually inside the
+   lap-to-lap noise, so "no effect" mostly meant "not measurable yet"); a
+   pass with no measurable gain starts the next pass instead of stopping
+   the branch; 4 passes (was 3). Lever history from the strict rules is
+   cleared once on load. The put-back machinery stays in the code, off.
+3. Balance target - Normal / Oversteer / Understeer buttons above BUILD
+   and in Settings (settings.balanceMode):
+     Normal      tight if push > 1.15x snap (was 1.25), loose if snap >
+                 1.15x push and > 25 snaps per 100 corners; bias +1%
+     Oversteer   tight if push > 0.85x snap, loose only if snap > 1.6x push
+                 and > 40 per 100; bias +0%
+     Understeer  tight only if push > 1.6x snap, loose if snap > 0.85x push
+                 and > 8 per 100; bias +2% (more forward = more stable)
+   Brake bias still writes once per car; re-arm it in Settings after
+   changing the target if you want the new margin.
+4. DAMPERS - what was wrong. The slow-damper decision came from "events":
+   frames where wheel velocity passed 0.54 m/s. (a) 0.54 m/s is ten times
+   the car's slow/fast knee (DAMP_FAST_*THRESHOLD, 0.03-0.14 m/s on Kunos
+   cars; race-engineering low-speed band 25-75 mm/s), so the SLOW settings
+   were tuned from kerb-strike speeds the FAST settings control. (b) The
+   two sides were counted differently: bump at most once per 0.8 s and not
+   during kerb cooldowns, rebound every frame (front only while steering
+   past 12 deg). So the counts leaned to rebound and depended on frame
+   rate - the "structural bias" that got the rear histogram retired in
+   1.9.8 was this, not the car.
+   Now: every frame, each wheel's velocity adds dt seconds to a bin - bump
+   or rebound, slow or fast at the car's own knee (0.02-0.15 m/s, else
+   0.05), ignoring under 5 mm/s and glitches over 3 m/s. Banked per lap.
+   Verdict per end: bump share of the moving time. Over a lap the wheel
+   goes up as far as it comes down, so the side with less of the time is
+   moving faster - the under-damped side (the damper-histogram rule:
+   bump and rebound halves should be about symmetric). Under 44% -> bump
+   soft for its rebound; over 56% -> rebound soft; needs 20 s and the same
+   lap-consistency rule as every verdict. One click a Build on the slow
+   setting: stiffen the soft side unless it is at its limit or its damping
+   ratio is at the ceiling (bump 1.25, rebound 1.80), else soften the other
+   side (the 0.30 / 0.50 floors still apply). Both ends now - the rear too
+   when the balance chain has no rear verdict. An end running out of
+   travel still belongs to its bottoming chain. Panel lines say the same.
+   Log: "damper histogram F: bump x% / rebound y% of the moving time ..."
+   in the Front/Rear dampers lines.
+
+Sources (D:/Claude/research_notes/AC springs and dampers setup/): Kaz
+Technologies damper guide, OptimumG Springs & Dampers tech tips, HP
+Academy histogram lesson, Kunos suspensions.ini comments, CSP Lua SDK.
+
+Tests: test_v310_relaxed_levers.lua (19), test_v310_damper_histogram.lua
+(19); test_branch_passes still drives the strict machinery with its flags
+on. Suite 27 files, 1292 checks green. Untested in-game - first look: the
+damper histogram lines (sane shares, 20 s+ per window) and that ARB/toe/
+damper levers write again.
+
+Known: the inline comments are the 2.6.2 ones and still carry version
+notes; that clean-up is still to do.
+
+Setup Coach  3.0.0
+
+3.0.0: THE CALCULATED BASELINE. Nik: "Make a plan and then get started.
+i like your ideas and that sounds like a logical way of doing it. Clean
+up the .lua so it isnt full of notes from previous versions and fixes."
+Plan: docs/plans/2026-10-20-calculated-baseline.md.
+
+1) WHY. A Build that searches for the optimum by moving one lever,
+   judging it next window and branching needs far more clean laps than a
+   driver gives between presses, and lap-to-lap noise is bigger than a
+   one-click effect - so the chains' HELPED / NO EFFECT verdicts were not
+   reliable, and balance is the driver's call anyway. Much of a setup
+   does have a physics answer from the car's own files, checked by the
+   telemetry. That part is now calculated; the rest is coached.
+2) BUILD = ORDERED CALCULATORS, each with its own log line:
+   - SPRINGS: sprung natural frequency sqrt(k/m)/2pi kept inside a band
+     for the car's MEASURED downforce class (wheel loads on straights,
+     load = W + k v^2, ratio at 200 km/h: low < 15 % -> 1.5-2.5 Hz,
+     medium < 70 % -> 2.0-3.5 Hz, high -> 3.0-5.0 Hz, 1.5-3.5 Hz until
+     measured). Stiffer when the median lap uses over 95 % of the travel
+     (never past the band top for travel alone), softer only above the
+     band with travel to spare (< 80 % used). Max 10 % a Build.
+   - SLOW DAMPERS: damping ratio c / 2 sqrt(k m) with the new springs.
+     Bump 0.30-1.20, rebound 0.50-1.50; a setting outside its band moves
+     just inside it in one move, inside it is left alone. Vanilla DAMP_*
+     only.
+   - RIDE HEIGHT TO THE FLOOR: as 2.6.0/2.6.2 (10 mm off the collider
+     floor, never into the aero stall).
+   - BOTTOMING: an end running out of travel on most clean laps gets one
+     fix a Build after the springs: packers > fast bump > ride height +1.
+     The slow-bump and springs links of the old chain are gone (springs
+     have their own calculator; slow bump has its ratio band).
+   - BRAKE BIAS: the one-time calculated write, unchanged.
+   - PRESSURES and CAMBER: unchanged.
+3) BALANCE IS ADVICE ONLY. Anti-roll bars, toe, wings, diff and rake are
+   never written. The panel lines give the options ("... - Build leaves
+   balance to you"); the ARB / toe / diff / aero module toggles are gone.
+4) REMOVED: lever chains, branch passes and put-backs, the per-car lever
+   ledger and pending-move judging (settings leverLedger, leverPending,
+   branchState - old values are simply ignored), the effect lines, the
+   front-damper histogram writer, the rear rebound experiment, the
+   "Reset lever history" button, NUDGE_FRACTION and the ABS writer stub.
+5) PANEL: SPRINGS shows the frequency band and downforce class; slow
+   dampers show the damping-ratio bands; FLOOR line as 2.6.2.
+6) LOG: new lines "springs:", "dampers (damping ratio):", "floor:",
+   "bottoming:". Version tags dropped from log labels ("collider floor:",
+   "calculated targets:", "held slides:", "evidence units:", "track
+   contacts (logged only):").
+7) CODE HYGIENE. Every version note, bug story and "used to / until now"
+   narrative is out of SetupCoach.lua (the file is about 800 lines
+   shorter); comments say what the code does and why.
+   History lives here only. CLAUDE.md rewritten for v3 (the old one is
+   docs/archive/CLAUDE-v2.6.2.md).
+8) TESTS. Lever-chain and branch-pass tests removed;
+   test_v300_calculators.lua added (springs band / travel, damper ratio
+   bands, no balance writes); floor tests renamed
+   test_floor_clearance.lua. About 900 checks, all passing.
+
+Setup Coach  2.6.2
+
+2.6.2: THE COLLIDER IS THE BOTTOM OF THE CAR. Nik: "add something that
+tells if the car is hitting the floor. it should look at the collider
+and treat that as the bottom of the car."
+
+1) WHY. The floor was car.rideHeight - two pickup points (car.ini
+   [RIDE], from the CG) - and those are not where the body touches the
+   track. From the extracted cars: the Abarth's collider floor is 20 mm
+   BELOW its pickups (scrapes while ride height reads 20 mm), the
+   Sunbeam's 40 mm above them, the Huracan's level with them.
+2) HOW. The ground colliders (colliders.ini CENTRE / SIZE from the CG,
+   GROUND_ENABLE, the [HEADER] COLLIDERS count; CSP's
+   ac.getCarColliders when the file has none). Every frame on track the
+   four bottom corners and the bottom centre of each ground box go into
+   the world with car.transform and a ray is cast straight down
+   (physics.raycastTrack). The lowest point per end - front ahead of
+   the CG - feeds the floor histograms (so the Build's floor step) and
+   the floor-hit counts. A pitch of 1 deg nose down brings the
+   Huracan's front corner 40 mm closer than the pickups say.
+3) CHECKED LIVE, NOT ASSUMED. The same rays are cast from the two
+   pickups (axle lines from suspensions.ini) and compared with the
+   car's own ride height: within 25 mm over 300 frames per end the
+   collider is used ("verified"); outside it, or if the transform's
+   axes don't match car.look/up, the pickups stay in use and the log
+   says why with both numbers. A car without pickups or reporting no
+   ride height is used "unverified".
+4) WHERE YOU SEE IT. A FLOOR line in the panel (hits per end this
+   window, the closest the floor came, what measured it), and a
+   "collider floor (v2.6.2)" line in every Build log.
+
+2.6.1: NO KERB SOFTENING, AND REBOUND FOLLOWS THE SPRINGS. Nik: the
+kerb softening block "it's useless. abolish it." / "at some point, maybe
+the 3rd or 4th press of the build button, the car becomes really
+bouncy. the next build doesn't rectify this".
+
+1) THE FAST-DAMPER KERB SOFTENER IS GONE. It softened fast bump and
+   fast rebound whenever fast events crossed threshold (kerbs, not a
+   verdict on the dampers), floored at the factory default since
+   v1.9.4. Fast dampers now move only through the bottoming chain's
+   fastBump lever. The panel no longer advises softening them either.
+2) WHY IT GOT BOUNCY. A damper's ratio is c / 2 sqrt(k m). The v2.6.0
+   bottoming chain stiffens springs (+10% a Build) and bump but never
+   rebound, so each spring move left the same rebound damping that
+   corner less: in the truck log at Hockenheim (Builds #151-#153) the
+   rear springs went 200 -> 250 and the front 200 -> 225, and front
+   rebound fell 0.44 -> 0.41 with the front spring move alone (0.44 /
+   sqrt(1.125) = 0.415) - just over the old 0.40 floor, so nothing put
+   it back. And the floor pre-pass runs BEFORE the chains, so it
+   checked the ratio against the springs the Build was about to change.
+3) REBOUND FOLLOWS THE SPRINGS. Each corner's slow rebound (value and
+   ratio) is snapshotted before the chains run; after them, a corner
+   whose ratio fell while its rebound was left alone has its rebound
+   raised in the same Build, back to where it was and never under the
+   floor. Logged as "rebound follows the springs".
+4) REBOUND FLOOR 0.40 -> 0.50. Overshoot after a bump is
+   exp(-pi z / sqrt(1 - z^2)): about 25% at 0.40, 16% at 0.50. The floor
+   pre-pass lifts any corner under it on the next Build - that is what
+   makes the Build after a bouncy one put it right - and the same floor
+   stops any lever softening rebound below it.
+
+2.6.0: BOTTOMING ONE FIX AT A TIME, RIDE HEIGHT TO THE FLOOR. Nik:
+"Bottoming - one at a time. Ride height least important. Stiffening
+springs too much loses grip so be cautious." / "App shouldn't just lower
+a car to aero peak - it should lower until the car is at minimum
+available without the body of the car striking the floor."
+
+1) BOTTOMING, ONE FIX AT A TIME. Until now every Build that saw
+   bottoming changed springs, slow AND fast dampers (bump and rebound),
+   packers and ride height together - on the Sunbeam the dampers climbed
+   2 clicks a Build and no window could say which change did anything.
+   Now each end that runs out of travel on most clean laps has its own
+   chain, worked like the balance chains: ONE move per end per Build,
+   judged by the next window, frozen after two moves that did nothing,
+   put back at the end of a pass that made no difference. The order:
+     packers      more travel before the packers
+     slow bump    stiffer, more support through the stroke
+     fast bump    stiffer, the hit that reaches the end of the travel
+     springs      the calculated rate, at most +10% a Build (was 30%),
+                  aiming at 95% travel use on the median lap (was 92%)
+     ride height  up one click - last, it costs grip and aero
+   A car without an item skips it and says why (the Sunbeam v6 has no
+   adjustable packers or dampers: springs, then ride height). The chains
+   run before the balance chains - the platform first.
+2) BUMP, NEVER REBOUND. Bottoming used to stiffen rebound too, on the
+   idea that too-soft rebound lets a car creep down onto its stops. It
+   is the other way round: too MUCH rebound packs a car down over a run
+   of bumps - the wheel isn't back before the next one compresses it
+   again. Rebound is no longer touched for bottoming, slow or fast.
+3) RIDE HEIGHT TO THE FLOOR, NOT TO THE AERO PEAK. The front used to be
+   moved toward the height where its downforce peaks however far that
+   was from the floor (the Huracan GT3 Evo2: "lower to 22 mm" on a car
+   running 62). Now the app measures how close the floor gets to the
+   track on every clean lap (at the car's own ride-height points,
+   ignoring the lowest 0.5% of the lap - a kerb strike) and brings the
+   lowest end to 10 mm off it: raised at once when it is closer,
+   lowered when there's room - never into the aero stall (the splitter
+   and diffuser kept above the height where their downforce falls
+   away), never while an end runs out of travel or uses 90% of it, and
+   only with a reliable pit calibration at both ends. Both ends move by
+   the same millimetres, so the rake the balance levers chose is kept;
+   3 clicks a Build at most. A Build that moves ride height here holds
+   rake and the bottoming ride raise; a raise holds the bottoming chains
+   too (one change at a time).
+4) NEW IN THE LOG: "floor (v2.6.0)" (clearance per end, floor contacts
+   per lap, stall room, calibration, what it did) and "track contacts
+   (v2.6.0, logged only)" - body contacts with the track and where on
+   the car, collected to check before anything uses them. Bottoming
+   moves read "Bottoming front/rear: lever ... moved"; their branches
+   and ledger are in the branches / levers lines like the balance ones.
+   The panel says the same: SUSPENSION names the chain, SPRINGS says
+   springs come 4th, and dampers on an end that runs out of travel are
+   "left to the bottoming chain".
+
+Verified in test_v260_bottoming_floor.lua and test_branch_passes.lua
+(the chain runner driven Build by Build). Not tested in game yet.
+
+
+2.5.2: FIVE BUGS FROM THE FIRST WEEK ON v2.5.1. 57 Builds, 29 Sep - 4
+Oct: the Sunbeam (live, the v6 backup and the +10% copy) at the
+Nurburgring GP, Bathurst, Brands Hatch, Knockhill, Blackwood and a
+gravel stage; the Huracan GT3 Evo2 and the Audi R8 LMS Evo II at Imola.
+The physics fingerprint caught both Sunbeam physics changes and reset
+what it had learned; held slides, range limits and summaries worked.
+These didn't:
+
+1) RESET TELEMETRY LOST THE CAR'S TRAVEL RANGE. reset() put the travel
+   limit back to the made-up 0.12 m ("not read yet") and refreshTargets
+   never re-read it for the same car - only a pit stop did. 16 Builds
+   judged bottoming and sized springs against 120 mm (Sunbeam front 140,
+   Huracan Evo2 64, Audi 75). The gear-ratio reads were lost the same
+   way. Now a reset marks the car data stale and the next frame re-reads.
+2) DAMPERS STIFFENED "FOR BOTTOMING" ON INCONSISTENT HITS. The slow-
+   damper bottoming move read the raw max-travel count (3 hits in the
+   window), not the lap-consistency test the spring writer uses - one
+   Build said "max-travel hits seen in only 3 of 7 laps - left alone"
+   and stiffened all four rear damper settings for the same hits. Most
+   of the Sunbeam's +2-clicks-a-Build damper climb. Now through
+   travelHitsConsistent, like every other writer (v2.0.0 rule).
+3) BRAKE BIAS. A wheel in the air under braking (gravel crests) had no
+   grip-model force, so those samples counted for the load split but not
+   the grip sums; on 4 Oct the grip count fell under 30, the target fell
+   back to load alone, and the Sunbeam v6's one-time write went out on
+   it (5 zones, lap gate overridden). Now: such samples aren't braking-
+   balance samples; a car whose tyres have a grip model never falls back
+   to load; and the one-time decision waits for a Build that passed the
+   lap gate (30 Sep it was HELD on 11 corners).
+4) RIDE-HEIGHT DIRECTION FROM NOISE. "Direction measured in the pits"
+   was the sign of one pair at >= 0.05 mm/click, across spring changes
+   that move static height by themselves: the Sunbeam's front went +0.60
+   -> -0.09 -> +0.46 mm/click in ten minutes and "raise" went 27->29->
+   27->29 while it was bottoming. Now pairs need the same spring setting,
+   and a direction needs 2+ pairs agreeing on the sign with a median of
+   0.3 mm/click or more; the aero ride-height target needs the same (the
+   Evo2 was lowered toward its peak on 1.00 mm/click from 1 pair).
+5) PRESSURE IGNORED THE LIVE SETUP WITHOUT A TEMPLATE. The base was
+   "template only" (older than the live sync): Evo2, no setup file, live
+   18 psi, hot 23.5 vs 26 -> wrote 28.5 cold; next window 33-37 hot.
+   Now the value on the car, template or live: 20.5.
+
+Also: "first time this car is seen" holds until a Build reports it and
+isn't repeated after; the diff says "to back up the preload increase"
+only when the preload went up.
+
+Verified in test_v252_log_review_fixes.lua - each fix reverted on its own
+turns its checks red.
+
+
+2.5.1: BUILD WAS PUTTING THE GEARS IN THE WRONG SLOTS. Reported on the
+Huracan GT3 at Silverstone: "build button messed up the gears. it's not
+even supposed to touch them." No writer touched them - v2.1.1's CARRY
+did. It copies every unmanaged live value into the output so loading the
+file leaves the driver's choices alone, and it matched them by name.
+
+CONFIRMED FROM THE FILES. CSP's ac.getSetupSpinners() names the gear
+spinners INTERNAL_GEAR_1..6 (forward gear n, the car's setup.ini
+[GEAR_n]); AC's own saved setups name the same items INTERNAL_GEAR_2..7
+(AC's gear index: 0 reverse, 1 neutral). None of the 1500+ saved setups
+on this PC has an INTERNAL_GEAR_1 - v1.8.0's "invented" one was CSP's
+1st gear. So each gear's value went into the gear below it. The
+18:35:15 Build wrote 5th = 0.8857, the same ratio as 6th, where the
+car's physics had 5th at 1.0312; 1st (2.1579), 3rd (1.5217) and 4th
+(1.3076) were shifted too, and 1st's own value was dropped. Put back one
+slot up, the live values are the car's stock 2nd-6th with the driver's
+4.1666 final drive - one consistent car - and the log's own counts only
+add up that way (10 carried, 2 left out: INTERNAL_GEAR_1 had no section,
+INTERNAL_GEAR_7 had no spinner). It never showed before because this was
+the first Build since v2.1.1 on a car whose gears are adjustable one by
+one - the others carry only the final drive, TC or brake power.
+
+FIX: alignLiveGearNames renames the gear spinners before the live sync.
+The offset is read from the two name sets, never assumed - the template
+is AC's own file: live + 1 == template -> renamed; equal -> CSP already
+matches (a future fix), left as is; anything else -> gears are not
+carried, the template's stand, and the log says so. Build still never
+WRITES gearing; it now carries it into the right slots.
+
+Log: the liveSetup line gains "gears renamed: CSP INTERNAL_GEAR_1..6 =
+the file INTERNAL_GEAR_2..7, values ..." (1st..6th as carried, to check
+against the car's ratio lists). Verified in test_v251_gear_names.lua on
+the real file that Build wrote: with the fix disabled it reproduces the
+exact gearbox that file got.
+
+
+2.5.0: WHAT THE v2.4.0 LOGS AND THE SUNBEAM PROJECT SHOWED. 21 Builds on
+four cars (Escort Mk2, Dacia, Camotos R6, and Nik's own Talbot Sunbeam
+Lotus mod - a live rear axle, no bars, no adjustable dampers, physics
+changing under one car id). The driver: "build all"; the Sunbeam is a
+work in progress and may gain dampers etc. later, so nothing below is
+specific to it - it all follows what a car HAS, and notices when that
+changes.
+
+1) TRAVEL RANGE = THE CAR'S OWN PACKER_RANGE. readTravel read a TRAVEL
+   key no car has (ten checked) and measured every car against a made-up
+   0.12 m: GT cars (Huracan packers 55 mm) could never register
+   bottoming, long-travel cars (the Sunbeam, 140 mm) registered it early
+   and got ride height raised and springs stiffened every Build. Now
+   suspensions.ini PACKER_RANGE per axle, the live setup's adjustable
+   packers per corner (mm on every car checked), every corner against
+   its own range; static travel captured at rest in the pits (the
+   Sunbeam sits at 45%). The panel and the log show share of the car's
+   range.
+2) LONG TRACKS COUNT IN SECTIONS. The lap gate was overridden on 18 of 21
+   Builds; the Nordschleife never banked a lap, so noise, measured
+   jumps, group verdicts and the spring target never ran there. A lap
+   over 7.5 km is split by spline position into ~5 km sections (Nord: 4)
+   and each is a unit of evidence, exactly like a lap. Ordinary tracks
+   are unchanged. The unit in progress when a Build consumes the window
+   is partial (it started before the Build, on the old setup).
+3) BRAKE BIAS FROM GRIP, NOT LOAD. The target used the front's share of
+   the LOAD (Sunbeam: 76%, target 77%) - but AC tyres grip less per kilo
+   as load rises, and at 69% the fronts already locked first. The tyre's
+   own model (DX_REF / FZ0 / LS_EXPX, or DX0/DX1) now gives the front's
+   share of the GRIP (69.0% -> target 70.0%). Handbrake use is kept out
+   of the braking samples and the rear-lockup count; the BRAKE line says
+   when the lockups disagree with the calculation (they outrank it).
+4) CARS WITHOUT BARS OR DAMPERS GET REAL LEVERS. On the Sunbeam only
+   front toe was left in the chain. SPRINGS (the roll-stiffness split -
+   rear softer / front stiffer for oversteer, the reverse for push) and
+   DIFF COAST (lift-off/entry only; the diff writer never touches coast)
+   join the low-speed chains after the ARB and dampers. The rear-damper
+   lever says "no adjustable rear dampers on this car" instead of
+   "already at their softest"; the ~20 SKIPPED lines a Build printed for
+   parts the car doesn't have are one summary line.
+5) PER CAR + TRACK RECORDS. The last-Build record and the pending lever
+   moves held one car: a Camotos Build wiped the Sunbeam's, and a
+   Sunbeam Build at Adelaide was checked against its Nordschleife setup
+   (NO -> moves never judged). Both are kept per car + track now; the
+   old single records are still read.
+6) HELD SLIDES. Every car logged 50-140 "snaps" per 100 corners. A slide
+   started with the handbrake, or held on the throttle for over a
+   second, is deliberate: its counts move to heldSlides (logged, never a
+   verdict). Real snaps count exactly as before, so the 25-per-100
+   calibration stands.
+7) PHYSICS FINGERPRINT. The Sunbeam went v1 -> v3 in a day under one id
+   and the app kept what it had learned. Every physics file is hashed
+   (parsed content, via ac.INIConfig sections) plus the final-drive
+   list; on a change, the brake-bias one-time write is re-armed and the
+   ride-height calibration, camber gain, lever history, branch passes,
+   pending moves and last-Build record for that car start again. The
+   next Build and the panel say so.
+8) RANGE LIMITS NAMED. When the car's setup range - not the calculation -
+   stops a target (the Sunbeam wanted -5.3 deg camber against a -2.5
+   limit), the change line and one summary line say so: the fix is to
+   widen the car's range. Ride height follows the direction the pit
+   calibration measured (no "verify direction" once measured).
+
+Log: "held slides (v2.5.0)", "evidence units (v2.5.0) ... physics
+fingerprint", travel as share of the car's range, the physics-change
+and summary lines. Verified in test_v250_evidence_and_physics.lua.
+
+
+2.4.0: BRANCH PASSES - THE CHAIN CYCLES BACK AND IS JUDGED AS A GROUP.
+The driver: once a branch (ARB -> dampers -> toe ...) has been worked
+through, go back to its start and monitor the group as a whole - and
+put moves that did nothing back to their starting value. Until now a
+lever frozen after two no-effect moves stayed frozen for good, each move
+was judged only against the window just before it, and nothing knew
+where the problem stood when the branch started.
+
+1) A BRANCH = one signal (e.g. low-speed oversteer) on one car at one
+   track. When it first acts, the problem rate, its lap-to-lap noise and
+   the Build are recorded as the pass BASELINE; every lever move records
+   the sections it changed (before -> after).
+2) A PASS ENDS when the problem is gone, or when no lever in the branch
+   can move (all frozen / at limits). The whole group is then judged:
+   baseline -> now, against the same noise test as the per-click values.
+3) PUT-BACK: every section a no-effect move changed goes back to the
+   value it had before - the value after the last move that HELPED, or
+   the pass's starting value. Moves that were never judged are kept.
+   Skipped (and logged) if the section has changed since (driver or
+   another module), its module is now off, or a guard refuses (damping
+   floor, LUT curve, calculated target). Put-backs are a change like any
+   other: the branch holds for that Build and the next window checks
+   them - if the problem got worse beyond the noise (or came back), the
+   put-back sections are RESTORED.
+4) THEN: problem gone -> branch DONE (watching; if it returns, a new pass
+   starts from the top). Improved beyond the noise -> next pass from the
+   top, every frozen lever gets one more try (frozen now means "for this
+   pass"), measured per-click values kept. No gain over a whole pass, or
+   3 passes -> STOPPED, advice only; Settings resets it.
+5) Also fixed: the ledger held ONE car - a Build on a second car wiped
+   the first car's history. Now per car (last 30 kept; old records
+   migrate). Pending moves now carry the track: a window on another
+   track no longer judges them.
+
+Log: "branches:" line (state, pass, baseline -> now, every move with its
+result and sections). Verified in test_branch_passes.lua.
+
+
+2.3.0: CALCULATED TARGETS INSTEAD OF CLICK-STEPPING, WHERE ONE EXISTS.
+The driver asked whether Build calculates an optimum or steps 1-2 clicks
+by trial and error, and to jump straight to a calculated value wherever
+one genuinely exists - advice staying as it was. Researched module by
+module against the Huracan's own files and the logs, then built:
+
+1) BRAKE BIAS - one calculated write per car, then ADVICE ONLY. Target =
+   the split where both axles reach the limit together: the front's
+   measured share of tyre load under hard straight-line braking (new
+   accumulator, 4+ zones), corrected for tyre radii, +1% stability
+   margin. The driver's condition: bias moves entry balance (forward =
+   steadier, more push; rearward = more rotation, looser), so the write
+   is capped at 3% and HELD if it would feed an entry problem the car
+   already shows consistently. After it (written, already there, or
+   held) Build never touches bias on that car; the BRAKE advice line
+   carries the target, the lockup trims and the entry trade-off. The
+   v1.x lockup +-1 writer is retired. Settings can re-arm it per car.
+
+2) FINAL DRIVE - advice names the exact option: the ratio that puts rpm
+   at the session's top speed at 97.5% of the limiter, matched to this
+   car's final.rto (read in-game), with the fitted ratio from physics.
+   On the limiter at Vmax it names the next longer option. Build still
+   never changes gearing.
+
+3) SPRINGS FOR BOTTOMING - calculated: travel scales with 1/k, so the
+   rate that brings the MEDIAN lap's peak travel use to 92% is
+   k x use / 0.92 (per-lap peak use is new in the lap bins; one kerb
+   can't size a spring). Capped +30% per Build, rounded up on the grid.
+
+4) FRONT RIDE HEIGHT TO THE AERO PEAK - the car's own ground-effect
+   curve (Huracan front: 50 mm) vs the front's measured ride height in
+   fast corners, moved in one go using a mm-per-click calibration the
+   app learns from pit stops on different settings (fuel-matched pairs,
+   median slope). Targets 2 mm above the peak (the stall side is below);
+   capped at 3 clicks; the rake lever stands aside that window.
+
+5) DAMPING-RATIO FLOOR - zeta = c / 2 sqrt(k m) from wheel rates and
+   sprung corner mass. Physics gives a window, not a point, so this only
+   lifts badly under-damped vanilla dampers (bump < 0.30, rebound < 0.40)
+   to just above the floor in one move, and no lever may soften below
+   it (the Huracan's setup allows rear rebound down to 0.18).
+
+6) CAMBER - the "overshoots ~1.4x" item didn't survive the logs (gain
+   0.48 / 0.78 / 1.6 across three Corvette Builds = scatter). Now: a
+   noise dead-band of twice the loaded average's standard error, and a
+   per-car measured gain once 3+ Builds span 0.3 deg. The "camber write:
+   SKIPPED - sit in the pits" status line, wrong since v1.5.0, fixed.
+
+7) BALANCE LEVERS - no first-principles optimum (the Huracan's roll-
+   stiffness split says "understeer"; every log says loose), so they're
+   solved from measurement: when the next window shows a lever's effect
+   clearly above the lap-to-lap noise (2x the combined standard error of
+   the per-lap rates), its per-click effect is stored and the chain then
+   jumps it the clicks needed to reach the verdict boundary (cap 4; LUT
+   bars 2; toe and rake always step). An effect inside the noise clears
+   the estimate - no jump is ever sized from noise.
+
+Log: "calculated targets (v2.3.0): bias ... · travel use ... · front
+ride ... · damping ratio ... · camber gain ... · final drive ...", and
+every jump names its calculation. Verified in test_calculated_targets.lua.
+
+
+2.2.0: THREE FIXES FROM THE CSP EXTENDED-SUSPENSION RESEARCH. Another
+session (the Escort Mk2 physics rework) added a research section to
+CLAUDE.md on CSP's LUT dampers and LUT anti-roll bars. Checked from this
+side against the driver's own 649 cars' saved setups before building;
+the driver asked for all three fixes.
+
+1) DAMPER EVENT THRESHOLDS FIXED AT 0.54 / 1.20 m/s FOR EVERY CAR. They
+   are compared against wheel-travel velocity and sit 5-50x above every
+   crossover ever read, so scaling them by the crossover (v1.9.6's 18x /
+   40x anchor) had no physical basis - and it never ran before v1.9.6,
+   so the calibration every car was validated on is the fixed pair. The
+   one week it did run was a same-car A/B: the Dacia logged front
+   rebound events 12/12/8/3/16 per session at 0.54/1.20 and 0/0 at the
+   scaled 0.90/2.00 the same evening; the Huracan, pinned at 1.00/2.20 by
+   its 0.060 crossover, logged 0-1 across 1,100+ corners. The research
+   note blamed LUT axles; the real cause was any crossover >= 0.056. The
+   crossover is still read and logged, and moves nothing.
+
+2) CSP LUT ANTI-ROLL BARS (ARB_F / ARB_R) - 19 of the driver's cars,
+   incl. the whole BTCC grid, the 2024 TCRs, Ferrari 296/488 GT3, Lexus
+   RC F GT3. The ARB lever - first in both low-speed chains - reported
+   "no ARB section" on all of them. Now resolved per end (gt4_audi_r8
+   mixes a LUT front with a vanilla rear). VALUE is a 0-based ROW of the
+   bar's LUT - proven by fr_bmw_btcc, whose keys are text ("1.25in 90°")
+   and whose row 0 is "detached|0" (the research note's "range = the
+   LUT's first and last index" was wrong for that car). Rules: one row
+   per Build (a row is a 15-70% stiffness change); limits are "at the
+   limit", not 1.5 steps short (a 3-row bar was otherwise frozen); never
+   soften onto a 0-stiffness row; a LUT whose stiffness doesn't rise
+   with the row is not written. Range from the live spinner, else the
+   LUT's own row count. Also fixed in passing: a push verdict on a car
+   with only a rear bar said "no ARB section" instead of stiffening it,
+   and a soften refused at write time now falls through to the other end.
+
+3) CSP LUT DAMPERS (DAMPER_BUMP/REBOUND_*) - 11 cars. Resolved per
+   corner (gt4_bmw_m4: vanilla strut front, LUT rear). Every write is
+   checked against the car's own curves first (dampers.ini, read in-game
+   with ac.DataLUT11): force at 0.025 and 0.10 m/s must move the way the
+   writer intends, interpolating between defined clicks as CSP does
+   (click = setup MIN + stored value). sv8_camaro_v2's rear-rebound
+   curve at click 18 is broken - force values in the speed column, ~0 N
+   at real shaft speeds - so "stiffer" from 12 upward REMOVES damping;
+   that move is refused with the forces in the log. Curves that can't be
+   read are NOT written blind. The check sits in writeTuned, so no write
+   path can skip it; a refusal is "handled, not changed", which lets a
+   lever chain move on to its next lever.
+
+Log: "suspension model: dampers F vanilla N·s/m · R CSP LUT clicks (5
+bump / 5 rebound curves read - every write curve-checked) · ARB F ARB_F
+CSP LUT (13 rows 0->8423, row 1 first attached) · R ...", and
+DAMPER_REBOUND_LR / ARB_F added to the liveSetup sample, which will show
+whether the spinner's range for a numeric-key LUT bar starts at 0 or 1.
+
+Verified in test_lut_suspension.lua (70) on real decrypted files for
+sv8_camaro_v2, gt4_bmw_m4, gt4_alpine_a110 and fr_bmw_btcc.
+
+
+2.1.1: THE BUILD WAS RESETTING TYRE COMPOUND AND GEARING. Reported:
+"before driving, i set my tyre compound and gear ratio. When i press
+'build optimal setup' and load, it reverts back to default."
+
+CONFIRMED FROM THE FILES, not inferred. The 18:20:56 Build wrote
+FINAL_RATIO=6 and TYRES=1; the driver's own last.ini, written when that
+session ended, has FINAL_RATIO=3 and TYRES=0. Index 6 in this car's
+final.rto is 3.9166 - the ratio drivetrain.ini names as the car's
+DEFAULT final drive. Index 3 is 4.5000, the shorter one the driver had
+chosen. "Reverts to default" is literally what happened. The same log
+had already read the compound correctly elsewhere
+(tyreDataSrc=tyres.ini [FRONT "Slick Soft"] = index 0), so the app knew
+the right answer and wrote the wrong one.
+
+CAUSE - a half-right fix from v1.8.1. The output is a full copy of the
+template with the managed values patched, so EVERY section it contains
+is applied on load, managed or not. v1.8.1 correctly stopped the live
+sync from touching unmanaged sections after v1.8.0 rewrote gear ratios
+- but "not synced" left them at the template's values, and the template
+is last.ini, which AC only writes when a session ENDS. Anything set in
+the setup screen before driving is absent from it. So the Build carried
+a stale compound and a stale final drive into the output and loading it
+applied them. The log even said so every time - "13 unmanaged/left
+alone incl. gearing" - but "left alone" described the WRITER, while the
+FILE was quietly stating old values.
+
+FIX - the distinction that was missing: WRITING a section (a writer
+choosing a new value) versus CARRYING it (the file stating what is
+already on the car). Unmanaged sections are now CARRIED from the live
+spinners, with v1.8.1's other finding kept as a hard rule: never ADD a
+section the template doesn't already have (v1.8.0 invented an
+INTERNAL_GEAR_1 that never existed). Writers are still gated by
+MANAGED_SECTIONS - gearing still has no writer, it just survives a
+Build now instead of being reset. The compound is additionally
+cross-checked against car.compoundIndex and corrected if they disagree.
+
+FUEL is the one exception (CARRY_EXCLUDE): every other unmanaged
+spinner describes the car, fuel describes the stint, and it isn't yet
+established whether this API reports the setup's starting fuel or the
+tank right now. Carrying a part-empty tank into a setup file would be
+worse than the bug being fixed, so it keeps the template value and the
+log prints both numbers to settle it next session.
+
+Debug: the liveSetup line now reports "N managed synced, M unmanaged
+CARRIED from live ... ; template was stale on FINAL_RATIO 6->3, TYRES
+1->0", plus the compound cross-check and the fuel comparison. TYRES and
+FINAL_RATIO added to the sampled sections.
+
+Verified in test_carry_unmanaged.lua against the two real files.
+
+
+2.1.0: LEVER CHAINS - ONE LEVER, MEASURED, THEN THE NEXT. From the
+driver, after the Huracan night where every lever walked toward its
+limit and the car never changed: "There should be something to
+determine whether one module over another needs adjusting to gain the
+desired effect. For example if adjusting arb doesn't stop the problem
+in a few clicks, prioritise the next module that would have an effect
+and measure how one affects the other." Plus four specific asks.
+
+1) LEVER CHAINS. Every balance-driven writer (ARB, rear dampers, front
+   toe, rear toe, rake, wings) is now a lever function, and a chain
+   runner moves ONE lever per regime per Build, in physics priority
+   order (LEVER_CHAINS): low-speed loose = ARB > rear dampers > rear
+   toe-in > less front toe-out > less rake; low-speed tight = ARB >
+   front toe-out > rear rebound > less rear toe-in > more rake; high-
+   speed = wings > rake > toe. A lever that can't act (module off,
+   section missing, at its limit, trigger signal absent) says why and
+   the chain moves on. Before this, a loose car got ARB AND rear
+   dampers AND toe AND rake in one Build - nothing attributable.
+
+2) THE EFFECTIVENESS LEDGER. When a lever moves, the signal's rate
+   (oversteer or push per 100 corners) is banked with the Build. The
+   next Build - a fresh window, on the setup that Build wrote, and only
+   if lastBuildLoaded isn't NO - compares. Helped = the verdict is gone
+   or the rate fell 15%+. Two consecutive moves without effect FREEZE
+   that lever for that signal on that car; a move that helped clears
+   the count. Persisted per car in ac.storage (survives the driver's
+   restart-after-load routine). Log: `effect:` (what the last Build's
+   lever did), `levers:` (the chain with every lever's tries / no-effect
+   count / frozen flag), and each Build names the lever it moved and
+   the rate it banked.
+
+3) CROSS-REGIME CONFLICT. "Stiffening rear ARB while increasing rear
+   wing will cancel each other out." When low-speed and high-speed
+   verdicts are opposite, mechanical levers bleed into high speed and
+   would fight the wing, while the wing does nothing at low speed - so
+   the aero lever goes first and the low-speed chain is HELD for that
+   Build, then both are measured. Same-direction verdicts (loose at
+   both) still get one lever each.
+
+4) RAKE FLOOR. "Front shouldn't be higher than the rear." The rear
+   static ride height is now captured alongside the front
+   (car.rideHeight[1]), the log prints the car's real rake, and the
+   rake lever refuses "less rake" once rake is at or below +3 mm. On
+   the Huracan night four "less rake" Builds took it negative.
+
+5) ARB/AERO SPLIT 160 -> 180 km/h, at the driver's direction. Corners
+   between 160 and 180 are mechanical now; wings answer only above 180.
+
+6) OVERRIDE LAP GATE (test) - a button next to Build. One-shot: the next
+   Build skips the clean-laps/corners gate (consumption, lap
+   consistency and the chain all run normally), the log says GATE
+   OVERRIDDEN, and the button disarms itself.
+
+Verified in test_lever_chain.lua (59): the Huracan's four wing moves
+replayed through the ledger freeze wings after two no-effect windows
+and rake takes over; a helping lever clears its count; a signal that
+disappears counts as helped; the conflict rule; the rake floor; the
+storage round-trip.
+
+
+2.0.1: FIRST NIGHT ON v2.0.0 - Huracan GT3 at Silverstone, 4 Builds and
+5 declines. The gate, bins, consistency and consumption all behaved and
+all logged. One real bug in the lap detection, one cosmetic, one
+persistence gap:
+
+1) LAP COUNTER GOING BACKWARDS. The driver's routine is: Build, load the
+   setup, RESTART the session. A restart resets car.lapCount to 0, but
+   the app's lastLapCount stayed at 3, so `lapCount > lastLapCount` was
+   false for three real laps and the first boundary that fired banked
+   them all as one bin - L4 with 205 corners, L5 with 242. The gate
+   then saw "0 clean laps" across three genuine laps and declined
+   Builds it should have allowed (22:32, 22:39, 22:44). Now a drop in
+   lapCount is treated as a new session: counter re-synced, the current
+   lap's bin starts from there and is flagged pit (a restarted session
+   starts from the pit box - it's an out-lap). Header counts restarts.
+
+2) BUILD NUMBERING / lastBuildLoaded LOST ON RELOAD. CSP reloads the app
+   on a session restart, so every entry said "Build #1 this session"
+   and "lastBuildLoaded: n/a" - the one line meant to prove the setup
+   was loaded never got to run. The last Build's written values and a
+   running serial now persist in ac.storage (settings.lastBuildRecord /
+   buildSerial) and are restored for the same car after a reload.
+
+3) PRESSURE CLAMP SAID NOTHING. Rears ran 29.7 / 29.9 hot against a 26
+   target with cold already at the 15 psi minimum; three Builds wrote
+   "-> cold 15.0" as if that were the answer. The note now says
+   CLAMPED, what it wanted, and that this much heat is a sliding rear,
+   not a pressure problem.
+
+Seen and NOT changed (the driver's call): the car read 'loose' in all
+three regimes, 2/2 and 3/3 laps agreeing, in every window - 50-70
+low-speed and ~30 high-speed snap events per 100 corners - and stayed
+there after four rounds of changes (rear ARB to its minimum, front ARB
+8->14 of 15, rear rebound 10->4, rear wing 5->11, front wing 1->0, rake
+-4 clicks). Either the levers don't move this signal or this driver
+drives with more rotation than the 25-per-100 bar allows for. The
+levers have no "did the last change help" feedback yet; the window
+rates are now in the log to build one from.
+
+
+2.0.0: THE LAP AS A WHOLE. Agreed with the driver in plain terms: the
+app's job is an optimal setup for the whole lap from full-lap telemetry,
+not a reaction to a couple of corners. The machinery only half did that
+- every counter accumulated for the session (good), but Build acted on
+three events, never consumed what it had acted on, and had no idea what
+a lap was. Real Corvette GT3 log: four Builds inside two Nordschleife
+laps, corner samples 80 / 88 / 202 / 97, each re-applying two clicks to
+the same evidence. Four pieces, all logged:
+
+1) LAP BINS. At every lap boundary the counters since the previous
+   boundary are banked as one bin, flagged pit-lane / partial (the lap
+   the app loaded into) / invalid (car.isLastLapValid). The session
+   totals still accumulate exactly as before for every consumer; the
+   bins are the per-lap view of the same numbers. Log: `laps:`.
+
+2) THE EVIDENCE GATE. Build writes nothing until the window holds
+   settings.buildMinLaps (default 2, Settings slider 1..5) CLEAN complete
+   laps and BUILD_MIN_CORNERS (20) corner samples. A declined Build says
+   exactly what it has and what it needs, on screen and in its own log
+   entry (`result: DECLINED`), and consumes nothing. New first line of
+   the advice panel: BUILD EVIDENCE.
+
+3) CONSUMPTION. A successful Build zeroes everything it decided from -
+   counters, corner samples, camber and grip sums, pressure peaks - and
+   fences off the bins banked before it. The next Build sees only laps
+   driven after it, on the setup it wrote. Kept: static camber and ride
+   height captures, cold-pressure capture, tyre reference, schema,
+   fuel, bin history. Log: `evidence consumed:`; the Build message says
+   how many laps the next one needs. `lastBuildLoaded:` on the next
+   entry compares the live spinners with what the previous Build wrote,
+   so a window driven on some other setup is called out before its
+   numbers are read as a response.
+
+4) LAP CONSISTENCY. regimeVerdict wraps balanceVerdict: the verdict from
+   the window totals only acts if at least half the window's clean laps,
+   judged individually, agree ('inconsistent 1/4' otherwise - left
+   alone, reason logged). Every push-vs-snap consumer (ARB, rake, wings,
+   rear dampers, toe, the panel) goes through it. Scalar signals get
+   the same test via lapSupport - present (>= 2 events) in at least
+   half the laps: lockups (brake bias), bottoming (ride raise, springs,
+   fast-damper direction), turn-in push and rear instability (toe), the
+   two diff signals. Log: `consistency:`.
+
+Fewer than 2 clean laps in the window -> the consistency tests pass
+through (nothing to compare), and the gate is what stops a 1-lap Build
+unless the driver has set the slider to 1.
+
+Verified in test_evidence_window.lua with simulated bins: the Corvette
+four-Build sequence now declines three of them; a one-lap oversteer
+spike is 'inconsistent 1/4'; consumption fences the window.
+
+
+1.9.9: FIRST CORVETTE Z06 GT3 LOGS (four Builds in 17 minutes at the
+Nordschleife) plus a 1934 Frazer Nash. The driver asked what "no DY0
+reference" meant on the MECHANICAL GRIP line, and to check the debug.
+The car's data was decrypted to answer both properly.
+
+1) "no DY0 reference": DY0 is the peak lateral friction coefficient of
+   AC's OLD linear load model (D = DY0 + DY1 x load). This car's
+   Michelin S8M has DY0=0, DY1=0 - it uses the load-sensitivity model
+   (DY_REF=1.81 at FZ0=3000 N, exponent LS_EXPY=0.72) like most modern
+   mods. So the app had nothing to divide the measured dy by and showed
+   it raw: F 1.41 / R 1.34 are the realised friction coefficients at
+   peak corner load - about 78% / 74% of DY_REF. Now falls back to
+   DY_REF when DY0 is 0, and says so ("vs DY_REF at reference load" - a
+   loaded tyre has a little less than that available, so the % reads
+   slightly low on an aero car).
+
+2) REAR WING NEVER WRITTEN on this car: "SKIPPED (WING_2 not in your
+   setup file)" four times, on a GT3 with a rear wing spinner in front of
+   the driver. Its aero.ini is BODY / SPLITTER R / SPLITTER L / REAR
+   WING / DIFFUSER R / DIFFUSER L and setup.ini exposes [WING_3] "Rear
+   wing". The fixed WING_1/WING_2 guess is now only the fallback; the
+   aero.ini NAME -> index map (readable since v1.9.6) picks the real
+   section when the live setup has it, and syncs its live value first.
+   wingRoleFromName also checks 'diffuser' before 'rear' now, so a
+   "REAR DIFFUSER" can't be taken for the rear wing.
+
+3) TOE WAS A ONE-WAY RATCHET - the fourth found. Any turn-in push added
+   front toe-out, any rear slip asymmetry added rear toe-in, 2 clicks
+   each, every Build, nothing ever took either back, and both signals
+   fire in every session. Four Builds walked front toe 11 -> 19 of 20
+   (zero is 10: +0.1 to +0.9 deg toe-out) and rear 14 -> 6 (+0.4 deg
+   toe-OUT to -0.4 deg toe-IN). Now verdict-gated (front: tight + turn-
+   in push in >15% of corners; rear: rear signal loose), ONE click per
+   Build, and reversible toward zero (loose -> less front toe-out; tight
+   -> less rear toe-in), never past zero. Zero comes from the live
+   setup.ini (readSetupItem's new `zero`). Panel lines match.
+
+4) RAKE: one click per end per Build, always. v1.9.7's click sizing
+   made it 2 per end = 4 clicks of rake per Build; four Builds moved
+   front 20 -> 28 and rear 20 -> 12. Rake's own nudge fraction had been
+   made deliberately small for exactly this ("peaky, narrow window").
+
+5) NOISE FLOOR for count-ratio rules. Front damper histogram stiffened
+   front bump twice on 3 bump / 0 rebound events (ratio 4.0). The diff
+   flipped "less lock" (3 vs 2) then "more lock" (4 vs 3) five minutes
+   apart: power 20 -> 10 -> 30. Both now need HISTOGRAM_MIN_EVENTS (6)
+   and the diff needs the same 25% dominance as every balance rule.
+
+6) DAMPER CROSSOVER TYPO: this car's file says FRONT 0.50, REAR 0.050.
+   Tenfold within one car is a slipped decimal; the app took the front
+   and pinned the event thresholds at their ceiling (1.00 / 2.20 m/s -
+   hence 1 front damper event in 97 corners). When front and rear are
+   >3x apart the smaller wins. Ferrari 0.030/0.010 is exactly 3x and
+   keeps its front value, the calibration anchor.
+
+7) DCAMBER_LUT: this tyre defines its camber-grip curve as cmbr.lut
+   (DCAMBER_LUT_SMOOTH=1) - that LUT is what the physics uses, not the
+   parabola. Sampled with ac.DataLUT11 for the real peak; on this car it
+   agrees with the coefficients (-4.0 deg, 1.040) - not guaranteed on
+   the next mod. peakCamberSrc=live-lut when used.
+
+Also seen, no change: camber converging -40 -> -37.6 -> -38 (the known
+loaded-vs-static overshoot, damping out); brake bias 61 -> 57 over four
+Builds on front lockups (has a counter-signal, moving 1 click, fine).
+
+Verified in test_v199_corvette.lua against the decrypted Corvette data.
+
+
+1.9.8: SLIGHT OVERSTEER IS NOT A FAULT. The driver's rule, after the
+drift-car discussion: "slight oversteer in a normal race car isn't a bad
+thing, that should be noted". Noted, and built in: a car that rotates a
+little is faster and nicer to drive than one that pushes, and the app
+must not tune that out.
+
+What was wrong. Every push-vs-snap decision judged the two signals
+INDEPENDENTLY, or by "larger raw count wins":
+  - ARB softened the front for any push count over threshold, AND the
+    rear for any snap count - in the same Build - unless both aimed at
+    the same bar. Both bars down = balance unchanged, more roll.
+  - Rake did the same per end: a real Dacia log has "LF 5->4 (more rake
+    for push)" and "LR 5->4 (less rake for oversteer)" in one Build.
+    Both ends down, rake unchanged, the car just sits 1 click lower.
+  - The advice panel's ARB line said "soften front" whenever push > th,
+    even with more oversteer events sitting right next to it.
+  - A slightly loose car was "corrected" toward push by all of them.
+
+What's new. ONE verdict function, balanceVerdict, used by ARB, rake
+(both regimes), wings, the rear damper signal, and every advice line
+that promises what Build will do:
+    tight  push > th and push > 1.25 x snap
+    loose  snap > th and snap > 1.25 x push AND, at low speed, more
+           than SLIGHT_OVERSTEER_PER_100 (25) snap events per 100
+           corners - below that rate it's the rotation a race car
+           should have, whatever the ratio says
+    nil    left alone, with the reason logged: 'slight' (oversteer
+           present, under the bar) or 'mixed' (both, neither dominant)
+Understeer gets no rate floor on purpose - it's slow at any rate, and
+the driver's point was about oversteer. High speed gets no rate floor
+either: high-speed corners are a fraction of all corners, and a loose
+car at speed is a real problem sooner.
+
+Consequence for the rear dampers: a nil verdict now means LEFT ALONE.
+The histogram fallback is gone from the rear - it is structurally
+biased there (rebound events out-number bump in every real session), so
+it resolved to "stiffen rear rebound" on exactly the slightly-loose cars
+this version is meant to protect. The front keeps its histogram.
+
+Real sessions under the new rule: the Dacia (push 76 / snap 65, 62
+corners) is 'mixed' - ARB and rake are left alone instead of being
+pulled toward push and then back; kinkl's Ferrari (rear signal 373 snap
+/ 235 push, 81 per 100 corners) is still 'loose' - v1.9.3's fix stands.
+New debug line "balance verdicts: low=... high=... rear=..." with the
+snap rate, so the 25-per-100 bar can be tuned from real logs.
+
+Verified in test_balance_verdict.lua; test_rear_rebound_direction.lua
+updated for the rear's left-alone behaviour.
+
+
+1.9.7: THREE THINGS FOUND WHILE LOOKING FOR A DRIFT-CAR LOG THAT WASN'T
+THERE. The driver drove the BMW E30 drift car online for a few hours on
+2026-09-18 and asked for the debug to be checked. There was no Build
+entry from that day: the car's SetupCoach_Optimized.ini carried an
+18th-of-September timestamp but was byte-identical to the 16th's Build
+(Content Manager re-saves the selected setup on launch), CSP's own log
+showed the app loaded clean, and the debug log's write path fails
+silently. Conclusion: Build wasn't pressed. Along the way:
+
+1) NUDGE SIZE IGNORED THE STEP. writeTuned sized every nudge as a
+   PERCENTAGE OF THE CURRENT VALUE (frac x clicks x |cur|) - the only
+   option back when no car had a readable schema - and used the schema
+   only to clamp. On a control stored as a small click index that
+   floors to 1 click and looks fine. On one stored as a big number it
+   is absurd: the Ferrari's fast rebound is 175..190, and 8% of 185 is
+   15 clicks - the entire range in one press. That is the actual
+   mechanism behind v1.9.4's "185 -> 175 in ONE Build"; the direction
+   ratchet chose the way, this chose the distance. A Dacia ARB sits at
+   21079 on a 1000 N/m grid for the same reason. Now: when the step is
+   known (spinner or setup.ini - since v1.9.6 that is every car), a
+   nudge is `clicks` steps of that control, snapped to its grid; the
+   percentage path survives only for a section with no step. Log lines
+   say ", 2 clicks of 1000" so the size is visible.
+
+2) TYRES.INI READ THE WRONG COMPOUND. readTyreReference always read
+   [FRONT]/[REAR] - compound 0. AC keeps one section pair per compound
+   and the numbers differ: the E30 drift car's own file says "Street
+   90s"/"Street" PRESSURE_IDEAL=38, DCAMBER_0=1.1, but "Semislick"
+   PRESSURE_IDEAL=31, DCAMBER_0=1.2, DY0=1.29 vs 1.21. A driver on
+   semislicks got a hot target 7 psi too high. The section is now picked
+   by ac.StateCar.compoundIndex, cross-checked against the fitted set's
+   SHORT_NAME, falling back to [FRONT]. tyreDataSrc in the log names
+   the section and compound actually used.
+
+3) writeDebugLog FAILED SILENTLY. A missing Documents folder or a locked
+   file just returned. Now the failure is appended to the Build message
+   on screen and recorded at the top of the next successful entry.
+
+Also from the E30's real setup.ini, decrypted for this: WING_1 is
+SHOW_CLICKS=1 with MIN=1 MAX=3 STEP=1, and the live-synced value was 3.
+Under click-index that range would be 0..2 and 3 impossible; under
+v1.9.6's steps-from-zero rule it is 1..3. Third independent
+confirmation of the SHOW_CLICKS=1 rule, on a wing this time.
+
+Verified in test_step_nudge_and_compound.lua against the real
+Ferrari/Dacia/Lotus numbers and the E30's real tyres.ini.
+
+
+1.9.6: LIVE ALWAYS WINS. v1.9.5 fixed the nil-default read for tyres.ini
+and held the other three sites back as separate decisions. The driver's
+answer: "live should always win, that's the whole point of the app".
+So all three are on, each with its own regression risk dealt with
+where it lives rather than by leaving the read broken.
+
+1) setup.ini MIN/MAX/STEP (readSetupItem). Had never returned an item on
+   any car - schemaLimited=true in every log ever written, and
+   BAKED_SETUP_SCHEMA (v1.6.0) exists to work around this one function.
+   The risk was that the live reader out-ranks the baked table per
+   section and lacked the baked table's per-car unit corrections (x10
+   camber, step-multiple dampers). Instead of guessing per car, the
+   conversion to STORED units is now checked against the live spinners
+   on four cars' real setup.ini and is a rule, not an override:
+     SHOW_CLICKS=2 -> 0..(MAX-MIN)/STEP      (Lotus, Ferrari, Dacia)
+     SHOW_CLICKS=1 -> floor(MIN/STEP)..floor(MAX/STEP)   (Ferrari
+                      slow AND fast dampers, 10..32 and 175..190)
+     CAMBER_*     -> MIN/MAX x10, STEP as-is  (4 cars; Kunos' own
+                      abarth500 file says "step is in degrees / 10")
+   The spinner still overlays all of it at Build (schemaWithLive) - and
+   pressure, the one writer that didn't get that overlay, now does.
+   Priority everywhere: spinner > setup.ini > baked > generic.
+   schemaSource labels renamed: 'setup.ini' / 'baked' / 'setup.ini+baked'.
+
+2) aero.ini (checkAeroLutRisk). The nil-default NAME read returned a
+   list, which is truthy and ~= '', so wingRoleFromName called
+   string.lower() on a table and threw - inside the pcall, so the whole
+   check silently returned nothing. THAT is what aeroLutChecked=false in
+   every log was. Not "CSP can't read aero.ini on encrypted cars"; a
+   crash on the first line of the loop. iniStr for NAME/LUT/INPUT,
+   iniNum for WING. Everything downstream is advice-only and
+   pcall-guarded; the worst case is what happened before.
+
+3) suspensions.ini DAMP_FAST_BUMPTHRESHOLD (readDamperCrossover). The
+   damper event thresholds are scaled off this - 9x and 20x, chosen so
+   "a typical 0.06" reproduced the on-track-validated 0.54 / 1.20.
+   Real files: Ferrari 458 GT2 0.030 (front) / 0.010 (rear), Lotus 0.050,
+   Dacia 0.050, Abarth 0.100. The validated car is the Ferrari, at 0.030
+   - so the moment the read worked, 9x/20x would have halved that car's
+   thresholds and re-tuned the most-tested car disguised as a bug fix.
+   Multipliers re-anchored to the real number: 18x / 40x. Ferrari stays
+   byte-identical at 0.54 / 1.20; Lotus and Dacia move to 0.90 / 2.00;
+   Abarth hits the clamps. Unreadable file -> 0.030 -> the old values.
+   Debug line names the source and the anchor.
+
+Debug additions: TOE_OUT_LF in the liveSetup sample (SHOW_CLICKS=1 on
+the Ferrari, -100..70 step 10 - the rule predicts a stored range of
+-10..7, no log has shown it yet; the spinner settles it).
+
+Verified in test_ini_default_type.lua, extended to 4 cars' real
+decrypted setup.ini vs. the spinner ranges those cars reported in real
+logs, the aero crash, and the crossover arithmetic.
+
+
+1.9.5: THE LIVE DCAMBER READ NEVER WORKED - ON ANY CAR. The driver asked
+why the Dacia Sandero Cup's camber was being judged by tread-temperature
+spread instead of the tyre's own peak-grip angle. The Dacia has a
+plain-text data/tyres.ini on disk with DCAMBER_0=1.3 / DCAMBER_1=-15
+(peak -2.48 deg), it isn't in DCAMBER_LOOKUP, and the log said
+peakCamberF=n/a. So the "CSP whitelists tyres.ini fields on encrypted
+cars" explanation, held since 4.6.0, could not be right: nothing about
+that car is encrypted.
+
+The real cause is one argument. ac.INIConfig:get(section, key, default)
+uses the DEFAULT'S TYPE as its return type - the SDK says so: "defines
+type of value to return ... If not set, list of strings is returned."
+Every read that passed nil (DCAMBER_0/1, DY0, PRESSURE_STATIC) got a
+string list back even when the key was present, and tonumber(list) is
+nil. PRESSURE_IDEAL was read with a numeric default, so it worked -
+which is exactly the "pressure reads fine, DCAMBER doesn't" evidence
+the whitelist theory was built on. The log confirms it: every peak
+angle ever recorded (2.42, 3.09, 3.38) is a DCAMBER_LOOKUP value; the
+two cars not in the table (Dacia, F2004) show n/a; no live read ever
+succeeded.
+
+Consequences fixed with the read: (1) the DCAMBER camber route - the
+one that computes a real target from this tyre's own coefficients and
+goes to it in one press - now runs on every car whose tyres.ini carries
+the coefficients, not just the 102 hard-coded ones. On the Dacia session
+that prompted this: loaded front ran -1.45 deg against a -2.48 deg peak;
+the thermal proxy's 0-12 degC dead zone called that "in the window",
+the DCAMBER route will call it a degree short. (2) DY0 now reads, so
+MECHANICAL GRIP can show "% of this tyre's peak" instead of raw dy.
+(3) PRESSURE_STATIC reads (stored, unused since the delta method).
+The lookup table stays as fallback and the live value takes priority.
+New debug fields: peakCamberSrc=live|lookup|live+lookup|none, dy0=F/R.
+
+Same bug, deliberately NOT switched on yet (each is its own decision):
+setup.ini MIN/MAX/STEP in readSetupItem - going live would out-rank the
+baked schema and re-introduce the v1.7.1 camber-units bug, and v1.8.0's
+live spinners already give real ranges with the game's own multiplier;
+aero.ini wing/LUT names - would start exercising ac.DataLUT11 in app
+context, unproven; suspensions.ini DAMP_FAST_BUMPTHRESHOLD - would
+re-scale damper event thresholds per car. See iniNum's comment.
+
+Verified in test_ini_default_type.lua against the Dacia's real
+tyres.ini, with a stub that models the SDK's return-type rule.
+
+Same lesson as v1.7.7's ui.checkbox: read the SDK signature before
+explaining a symptom. Two theories (whitelist, encryption) were written
+into the code as fact for six versions on the strength of one
+coincidence.
+
+
+1.9.4: PRE-RELEASE PHYSICS AUDIT. The driver asked, before a new test
+build, for every module to be checked against what the car is actually
+doing on track - the lesson from rear rebound generalised. The signals
+themselves came through clean: push/snap is textbook slip-angle
+differential, lockups/wheelspin/diff signals all come from slip ratios
+that genuinely measure the phenomenon. What did NOT come through clean
+were three more LEVERS THAT COULD ONLY TURN ONE WAY - the exact defect
+behind rear rebound - plus a mislabel and a misnomer. All fixed.
+
+1) WINGS were a one-way ratchet. Direction hard-coded +1 for both;
+   front rose on every high-speed push, rear on every high-speed snap,
+   BOTH fired in the same Build when both crossed threshold, and nothing
+   could ever bring either down. A mixed car at high speed walked both
+   wings to maximum and paid in drag on every straight with no signal
+   that would push back. Real log: front splitter pinned at max, rear
+   wing 5->6->7. Aero balance is a RATIO, like ARB: high-speed push is
+   cured by more front OR less rear, and less rear costs less drag. Now
+   mirrors the ARB writer exactly - prefer adding to the axle that wants
+   more, but if that wing is near its maximum reduce the OTHER one; when
+   both signals fire, act only on the larger and name the other; near-
+   max snapshotted once before either writes (the v1.4.1 self-
+   cancellation lesson).
+
+2) FAST DAMPERS were a one-way ratchet on any bumpy track. Without
+   bottoming the direction was always softer - but fast events measure
+   "this track has kerbs", not "these dampers are too stiff", so they
+   walked to the schema minimum Build after Build. Real logs: fast
+   rebound 185->175 (the Ferrari's floor, ONE press), 21->18->17->16 over
+   three Builds on the Lotus, fast bump 81->68->66. AC's own tooltip:
+   too-low fast rebound "can provoke a bouncing of the tyres ... making
+   the front end lose grip on bumps and kerbs". The soften direction is
+   now floored at the control's FACTORY DEFAULT (defaultValue from the
+   live spinner API) - a reasonable first move stays reasonable, but the
+   app no longer pushes past the manufacturer's own setting with no
+   evidence it's helping. Stiffening (bottoming) is untouched. The
+   driver noted fast rebound rarely fires - correct (6 writes vs 70 for
+   fast bump in one log) - but when it does, the Ferrari case shows it
+   going straight to the floor in a single press.
+
+3) LABEL: low-speed oversteer lowers the REAR (correct - less rake
+   counters oversteer) but the log line said "more rake". Copy-paste of
+   the front/push branch. Action was always right; the description lied.
+
+4) RENAME: `coastPush` -> `liftOffSnap`. It's counted inside the SNAP
+   branch, gated on gas < 0.15 - lift-off oversteer, nothing to do with
+   push. Diagnostic only, no writer reads it, but it sat in the
+   experiment line under a name that pointed the wrong way.
+
+Modules confirmed physically sound and left alone: ARB (the model the
+wing fix copies), rake, toe, brake bias, differential, springs,
+pressures, camber (oscillation still a known item), rear dampers
+(v1.9.3), bottoming, gearing (advice-only). Front slow dampers stay on
+the histogram: unlike the rear, front bump/rebound counts are near-
+balanced in every real log (34/38, 106/113, 22/21), so it isn't
+structurally biased, and AC's front-rebound tooltip describes a per-car
+trade with no blanket rule.
+
+Verified in test_wing_and_fast_damper.lua (28 checks) against the real
+tester session and the real Ferrari/Lotus fast-damper sequences.
+
+
+1.9.3: REAR DAMPER DIRECTION - the one this project got wrong the
+longest, fixed on the driver's go-ahead after holding for more logs.
+
+WHAT WAS WRONG. The slow-damper writer used a pure event-histogram: the
+side with more velocity-threshold crossings is "comparatively soft", so
+stiffen it. That's a damper-symmetry heuristic with no knowledge of what
+the car is doing. And on the rear axle it was structurally biased -
+rebound events out-number bump events in EVERY real session logged (216
+vs 46, 110 vs 25, 45 vs 20), so the rear branch almost always resolved to
+"stiffen rear rebound". A real tester's session (461 corners, 265
+oversteer events) got rear rebound stiffened 24->28. Assetto Corsa's own
+setup tooltip for that exact control says higher rear rebound makes the
+car "less stable under braking and initial turn in". The app was making
+a loose car looser, by design, on every Build.
+
+THE FIX. On the rear axle the HANDLING signal now decides the direction;
+the histogram is only the fallback when neither oversteer nor understeer
+clearly dominates:
+  LOOSE (snap > push by 25%+)  -> SOFTEN rear rebound AND rear bump
+      AC: lower rear rebound = "more stable at initial turn in";
+          lower rear bump = "more traction and more stability the
+          moment you release the brakes"
+  TIGHT (push > snap by 25%+)  -> STIFFEN rear rebound, within 30% of
+                                  its limit
+      AC: higher = "much more agile on slow turns that need the whole
+          car to rotate" - but also less stable under braking, hence
+          the headroom. Bump left alone: its tooltip effect for a
+          pushing car is a trade with no clear win.
+  NEITHER                       -> histogram, exactly as before
+The front axle is deliberately untouched: AC's front-rebound tooltip
+describes a trade (stable on fast direction change vs less understeer on
+throttle but sluggish) that genuinely varies by car, and the histogram
+is the honest fallback there. The bottoming override (stiffen both,
+physical travel) still takes precedence over everything.
+
+The signal is one shared function, rearHandlingSignal, used by BOTH the
+REAR DAMPERS advice item and the writer, so the panel can never promise
+one direction while Build does another (the exact mismatch behind the
+v1.4-era "only pressure and camber got written" reports). Verified in
+test_rear_rebound_direction.lua against both real tester sessions - both
+flip from stiffen to soften - and against a pushing car, a mixed car
+(unchanged from old behaviour) and the 25% dominance margin.
+
+Credit where due: the driver held this position from the first session,
+against the histogram logic, and was right. It took AC's own tooltip to
+end the argument, and it should have been read first.
+
+
+1.9.2: three fixes from a real tester's log (kinkl, ferrari_458_gt2)
+plus a direct request, all landed together.
+
+1) REAR REBOUND EXPERIMENT was logging the WRITTEN value as "as driven".
+   The line existed specifically to record the rebound setting the car
+   ACTUALLY RAN, independent of what Build was about to do to it - but it
+   read `parsed` from inside logLines, built at the very end of
+   buildOptimalSetup, by which point every writer had already run. A real
+   session proved it: Build wrote rear rebound 24->28, and the experiment
+   line reported 28 as driven. Every prior session's row in this
+   experiment was contaminated the same way whenever rear rebound
+   actually got written - which, given v1.6.0/v1.9.1's history, was
+   probably common. Fixed by snapshotting DAMP_REBOUND_LR/RR and
+   DAMP_BUMP_LR right after the live-setup sync settles `parsed` to what
+   was actually run, before any writer below can touch it.
+
+2) DAMP_REBOUND_LR/RR's baked MIN was still one off. v1.9.1 used
+   ceil(MIN/STEP) = ceil(3780/360) = 11, but the same tester's liveSetup:
+   log line reported the real minimum as 10 directly from
+   ac.getSetupSpinners() - ground truth, not inference. Switched to
+   floor(MIN/STEP) for both bounds; now matches the live spinner exactly.
+   Pinned in test_damper_ranges.lua as an exact-match check, not just
+   "inside range", since this is the one field with a live-verified
+   precise bound.
+
+3) OPEN NOTES FOLDER button, by direct request - "some testers are having
+   trouble finding the folder SetupCoach_Notes where the debug and
+   pitnotes.txt get written". The path was already resolved correctly
+   (findDocsRoot uses CSP's own ac.FolderID.ACDocuments, which follows a
+   moved or OneDrive-redirected Documents folder the same way the game
+   itself does) - the problem was pure discoverability, not detection, so
+   the fix removes the need to navigate there by hand at all: one button,
+   next to RESET TELEMETRY / SAVE PIT NOTES, that creates the folder if
+   it doesn't exist yet and opens it in Explorer (os.openInExplorer).
+   Falls back to showing the exact resolved path as text if the open call
+   ever fails, so a tester can still find it manually either way.
+
+Item 4 (acting on the in-game damper direction evidence from v1.9.1) is
+deliberately NOT done yet - holding for more tester logs first, by
+request.
+
+
+1.9.1: the baked DAMPER ranges were wrong, and v1.6.0's headline finding
+with them. Corrected, and the mistake is now caught by a test.
+
+The driver shared Assetto Corsa's own in-game damper tooltips, which quote
+this car's factory defaults outright: rear rebound 26, front rebound 29,
+front bump 39, rear bump 24, front fast rebound 185, front fast bump 81.
+Every one sits OUTSIDE the range v1.6.0 baked (22, 22, 20, 20, 15, 22). A
+car's own default cannot be out of its own range, so the baked ranges were
+wrong - and so was the conclusion built on them. v1.6.0 reported that this
+driver had been "pegged at maximum rear rebound for months" and that
+observed values of 24-35 were all silently clamped. They weren't: 26 is
+simply the default, and 24-32 are ordinary settings.
+
+Worse, the wrong ranges did real damage rather than merely failing to
+help. With fast bump baked at 0..22 against a true range of 66..88, a
+Build clamped the driver's front fast bump from 88 down to 22 and the rear
+from 64 to 20 - far below the legal minimum, in the name of protecting
+them from values that were never out of range.
+
+CAUSE: readSetupItem maps every SHOW_CLICKS field to a click index
+0..numSteps (physical = MIN + index*STEP). These dampers instead store a
+COUNT OF STEPS FROM ZERO (physical = value*STEP), so the legal stored
+range is ceil(MIN/STEP)..floor(MAX/STEP) - e.g. rear rebound 11..32, which
+contains the 26 default. Verified against two independent sources: all six
+tooltip defaults AND every damper value observed in the driver's real
+setup files (185, 101, 88, 64, 43, 34, 32 - all inside the new ranges, all
+"out of range" under the old ones).
+
+This convention is NOT universal and is deliberately NOT inferred:
+lotus_exos_125_s1's dampers are click-index (proven by the live spinner API
+returning [0..24] for an ini of MIN=7000 MAX=19000 STEP=500), and the
+Ferrari's own TOE fields are click-index too despite sharing SHOW_CLICKS=1
+with its dampers. So the rule is recorded per car, from that car's own
+numbers, in gen_baked_schema.py's CONFIRMED_DAMPER_UNITS - the same
+evidence-first pattern already used for camber units after over-
+generalising those once.
+
+GUARD: test_damper_ranges.lua asserts the car's own defaults and its real
+observed values all fall inside the baked ranges, reading them out of this
+file so it tests what ships. One invariant - a default cannot be out of
+range - is enough to catch a wrong unit conversion without knowing which
+conversion is right. Verified to fail against v1.6.0's numbers.
+
+In practice this mattered less than it looks: v1.8.0 already prefers the
+live spinner's own min/max over anything baked, so only sessions where
+that read is unavailable ever reached these numbers.
+
+
+1.9.0  -  ALPHA BUILD COMPLETE
+
+1.9.0: differential, aero and brake bias split into three independent
+toggles, by request - "these 3 modules should have separate tickboxes. if
+we can fix that, i think we can call this our Alpha Build complete".
+
+They had shared one combined switch (writeDiffAeroBrake) since v1.4.0,
+which pulled them out of Build's default write scope, and v1.5.0, which put
+them back on by default. Three levers on three unrelated subsystems had no
+reason to share a switch once every other module had its own: freezing a
+dialled-in brake bias also froze the wings. Now 14 independent module
+toggles, all defaulting on, all in the "Which modules does Build write?"
+list in the main panel and in Settings.
+
+The old combined key is kept for exactly one purpose - a migration that
+runs at most once and carries a deliberate "I turned that off" across to
+all three, then consumes itself. Same principle as backing out v1.7.8's
+forced all-on reset: a driver's explicit choice is never quietly reverted.
+
+---------------------------------------------------------------------------
+ALPHA SCOPE, as it stands:
+
+  - Live telemetry analysis across 19 advice modules, with per-sector
+    attribution where the track exposes sectors.
+  - Build writes 14 independently toggleable modules, each clamped to the
+    car's REAL limits, starting from the car's ACTUAL current setup
+    (v1.8.0) so repeated Builds accumulate instead of repeating.
+  - Gearing, fuel, compound, TC, engine limiter and brake power are read
+    and advised on but NEVER written (v1.8.1).
+  - Car data read live where CSP allows, with offline-decrypted fallbacks
+    (DCAMBER_LOOKUP, AERO_LOOKUP, BAKED_SETUP_SCHEMA) for what it doesn't.
+  - Self-explaining debug log: every counter, gate, data source and
+    fallback that fed a Build is recorded at the moment Build was pressed.
+
+Known open items, deliberately not closed for alpha:
+  - Rear rebound direction is still an open question - the REAR REBOUND
+    EXPERIMENT log line (v1.6.0) is gathering the data to settle it rather
+    than flipping the logic on secondary sources.
+  - Rake's real-world effect remains weaker than expected (v1.6.0 checked
+    and ruled out clamping as the cause).
+  - ac.getCarPhysics().gearRatios read has been seen returning nothing on
+    at least one car; gearPhysDiag (v1.7.3) exists to explain it.
+---------------------------------------------------------------------------
+
+
+1.8.1: v1.8.0's live-setup sync was too broad and silently rewrote GEARING.
+Reported immediately and correctly: "gearing shouldnt be getting changed by
+the app - only recommend shortening or lengthening final gear".
+
+v1.8.0 synced ALL 62 sections the game reported straight into the output
+file. Only about half of those are things this app reasons about; the rest
+- gear ratios, fuel, tyre compound, traction control, engine limiter, brake
+power - it has no business writing. On a real session that changed four
+INTERNAL_GEAR_n values and ADDED an INTERNAL_GEAR_1 section the driver's
+own setup never contained. GEARING has never had a writer by design, and
+v1.8.0 effectively gave it one by the side door.
+
+FIX: MANAGED_SECTIONS, derived at load time from SETUP_PROBE so it can't
+drift from what the writers actually handle. The live sync now touches only
+those; everything else is read, reasoned about, advised on, and left
+exactly as the base file had it. The debug log's liveSetup line now reports
+the unmanaged count too, so "left alone incl. gearing" is visible per Build
+rather than assumed.
+
+Also, by request, GEARING's two actionable lines now name the FINAL DRIVE
+as the lever ("hitting limiter -> LENGTHEN the final drive", "well under
+the limiter -> SHORTEN the final drive") and state outright that Build
+never writes gearing, so the advice can't be mistaken for something the app
+is about to do for you.
+
+Guarded by setupcoach-tools/acd/test_managed_sections.lua, which reads
+MANAGED_SECTIONS out of the real source rather than restating it (a
+hand-copied list would drift and only ever prove itself right), asserts
+every gear/fuel/compound/TC section is excluded, asserts the tuned sections
+ARE included so the check can't pass vacuously, and asserts every
+actionable GEARING line carries the advice-only wording. Verified to fail
+when a gear section is deliberately let into SETUP_PROBE.
+
+Worth recording: v1.8.0's core idea was right and is confirmed working in a
+real session (liveSetup read 62 sections, all self-consistent, and reported
+CAMBER_LF range -60..10 with displayMultiplier 0.1 - i.e. -6.0 to +1.0
+degrees, exactly matching that car's decrypted setup.ini, and a live
+PRESSURE_LF of 16 with a real 8..20 range on a car that had NO readable
+schema before). The mistake was one of scope, not of approach.
+
+
+1.8.0: Build now starts from the car's ACTUAL CURRENT SETUP instead of a
+file. This is the root cause behind most of what went wrong this week.
+
+THE PROBLEM, spotted by the driver: "any last.ini are saved on session
+exit, so they dont write until i leave. To have the optimal setups
+accumulate then data needs to be from what's currently set to the car."
+Exactly right. Every Build nudged from findTemplateSetup's last.ini, which
+AC only writes when a session ENDS - so during a session the base never
+moved. Eight consecutive Builds in one real session produced byte-
+identical output: ARB 30->34, ride height 24->23, toe 12->13, pressure
+"base 20" every single time. Builds weren't accumulating at all; each was
+the same first step re-taken. It also made unticking a module write that
+stale file's value rather than what the car was running - which is how
+unticking pressures produced 20psi, that car's literal MAXIMUM, on a car
+the driver had been running at ~16.
+
+THE FIX: ac.getSetupSpinners(), straight from CSP's shipped SDK, returns
+every setup item as {name, label, min, max, step, value,
+displayMultiplier, readOnly, units, showClicksMode} - where `name` matches
+setup INI section names and `value` is what's on the car RIGHT NOW. The
+live values are synced into the parsed base document in ONE place, so
+every writer picks them up through the getCurVal() it already calls; no
+call site changed. Five long-standing problems close together:
+
+  1) Builds accumulate, because the base is the car, not a file.
+  2) "Untick = leave it alone" is now literally true - untouched sections
+     carry the LIVE value into the output.
+  3) schemaLimited cars get real min/max/step for the first time, so the
+     unclamped percentage-nudge path (which walked one car's rear rebound
+     to 78 against a real limit of 22) is no longer reachable.
+  4) Camber units stop being guesswork: displayMultiplier is the game's
+     own raw->degrees factor. Its reciprocal is the scale this file spent
+     three versions inferring by hand - and it reproduces the driver-
+     confirmed case exactly (-3.5 deg stored as -35).
+  5) No decryption needed for any of it.
+
+ac.INIConfig.currentSetup() is deliberately NOT used: its own docs warn
+that pit changes aren't reflected unless the file was saved - the same
+staleness, one layer along.
+
+SAFETY, given this replaces the core data source and cannot be verified
+outside a running game: the read is pcall-guarded, every field type-
+checked, and the WHOLE read is rejected unless self-consistent - if any
+value sits outside its own reported min/max then those numbers aren't in
+the same unit space and clamping against them would be meaningless
+(precisely the trap setup.ini already sets, declaring camber MIN/MAX in
+degrees while VALUE is in tenths). On rejection or unavailability the old
+template path takes over unchanged. A new `liveSetup:` debug-log line
+reports what came back, so ONE session settles whether this works rather
+than another round of inference. Logic verified in
+setupcoach-tools/acd/test_live_setup.lua (15 checks, including the guard
+rejecting mixed unit spaces) - which tests the logic against an assumed
+API shape and says so plainly, because a stub that encodes an assumption
+is what let the v1.7.6 checkbox bug through twice.
+
+Revert point if it goes wrong: SetupCoach_1.8.0_backup_preinstall.lua
+holds v1.7.8.
+
+
+1.7.8: "All on" button for the module toggles, and a correction to the
+assumption behind an earlier draft of it.
+
+The request was simply "maybe it would be better if the initial setting
+was all modules on, so they could be unchecked as the setup progresses".
+The first attempt at this was a one-time forced reset on upgrade, on the
+theory that v1.7.4-v1.7.6's ui.checkbox bug had scrambled everyone's
+toggles behind their back. The driver then corrected that outright: "i
+ticked the boxes myself and left some unticked, that's not an error".
+So the premise was wrong, and the behaviour it justified - silently
+overwriting deliberate choices on upgrade - would have been exactly the
+wrong thing to ship. Backed out entirely.
+
+What actually fits the need: fresh installs ALREADY begin all-on (every
+default is true), so nothing was broken for a new user. What's missing is
+a way to get back to all-on when STARTING a new car or track, before
+progressively freezing modules again as each gets dialled in - a
+recurring need a one-time migration would have served exactly once. So:
+a plain "All on" button under the checkbox list. Nothing automatic, and
+an un-tick is never overridden without being asked for.
+
+Also fixed a false positive in v1.7.7's own new test guard, found the
+first time it ran against real code: the clicked-pass check asserted
+that EVERY boolean in a settings table must flip, which is wrong -
+settings legitimately hold booleans that aren't checkboxes (it tripped
+on a one-time migration marker). It now counts how many checkboxes were
+actually drawn and asserts that exactly that many settings changed,
+comparing like with like. Both guards re-verified to still fail on
+deliberately broken copies afterwards.
+
+
+1.7.7: THE ACTUAL CAUSE of the flashing checkbox, found by reading CSP's
+own SDK definition instead of guessing a third time.
+
+  ---@return boolean @Returns `true` if checkbox was clicked.
+  function ui.checkbox(label, checked) end
+
+ui.checkbox returns WHETHER IT WAS CLICKED - not the new value. So the
+natural-looking `flag = ui.checkbox(label, flag)` sets the flag true on
+the frame you click it, then false on every single frame after that.
+That is precisely "tick the box, the menu flashes briefly and vanishes",
+and v1.7.6's ac.storage theory was simply wrong - moving the field to a
+plain engine field changed nothing because storage was never involved.
+(ui.slider, by contrast, DOES return the value - "@return number
+@Possibly updated slider value" - so every slider in this file was
+always fine. Only checkboxes were wrong.)
+
+ALL 17 checkbox call sites in this file had it, including FOUR that long
+predate the module toggles: Show kPa, Hide OK items, Use temp analysis,
+Sample in replay. Those were never noticed because they live in
+windowSettings, which (v1.7.5) appears never to actually render for this
+app - so their lines never ran and their stored defaults survived. The
+module toggles were simply the first checkboxes this app has ever drawn
+in a window that genuinely displays, which is why a long-standing bug
+surfaced only now. Note the latent severity: had windowSettings ever
+rendered, it would have silently forced writeDiffAeroBrake false one
+frame later, quietly disabling differential/aero/brake writing.
+
+Fixed with one local `checkbox(label, value)` helper wrapping the
+documented idiom and returning the value the flag should now have, so
+`flag = checkbox(label, flag)` reads naturally AND is correct; all 17
+sites now call it.
+
+TOOLING LESSON, the part worth keeping: v1.7.4 added a smoke-test stub
+`checkbox = function(label, cur) return cur end` - which encoded the
+WRONG assumption, so the test cheerfully validated broken code twice.
+A stub that mirrors your own belief instead of the real API is worse
+than no stub. smoke_test.lua now models CSP's real return semantics and
+adds two regression guards, both verified to actually fail on
+deliberately broken copies before being trusted: drawing the settings
+window with nothing clicked must not change any persisted boolean
+(catches this exact bug), and drawing it with everything clicked must
+flip every one (catches the opposite - a checkbox that's dead to click).
+
+
+1.7.6: v1.7.5's expand toggle itself was broken - reported immediately:
+"tried to tick the box but whatever menu is supposed to be loading
+flashes briefly and vanishes". `engine.showModuleToggles` (the checkbox
+controlling the inline module-toggle list in windowMain) had been stored
+in `settings` (an ac.storage-backed table, i.e. persisted to disk) - and
+it was a BRAND NEW key with no existing value in the already-saved
+settings file. The exact flash-then-vanish symptom (draws for a moment,
+then immediately collapses) matches a storage write not completing
+before the very next frame reads the field back - a class of bug this
+project can't fully diagnose from outside a running game, so rather
+than chase the precise ac.storage mechanism, the field was moved off
+storage entirely: it's now a plain `engine.showModuleToggles` field,
+same as `engine.setupMsg`/`engine.exportMsg` and other UI-only state
+already in this file that never needed to survive an app restart. A
+plain in-memory field can't have a storage-round-trip race at all,
+regardless of what the exact underlying mechanism was.
+
+Also worth noting for future settings additions to this app: this makes
+TWO real bugs in a row from the exact same new-checkbox change (v1.7.4's
+unreachable windowSettings, now this) - not because the checkbox logic
+itself was wrong either time, but because both bugs live in surfaces
+(CSP's settings-popup wiring, ac.storage's first-write behavior) this
+project has no way to test except by shipping and waiting for a real
+session's report. Worth being more conservative by default next time:
+prefer plain engine fields for anything that's genuinely just UI state,
+and don't assume a new persisted settings key round-trips correctly
+until it's been confirmed working in an actual session.
+
+
+1.7.5: v1.7.4's checkboxes were unreachable - fixed immediately, reported
+within the hour: "dont see any boxes to turn off the option of those
+modules". Not a code bug in the checkboxes themselves (windowSettings ran
+clean in the smoke test, and the smoke test now genuinely calls it,
+added specifically for v1.7.4) - the real problem is that script.
+windowSettings is CSP's own special popup, normally reached via a small
+gear icon on the app's title bar, and there was no way to confirm from
+here that CSP was even surfacing that icon for this app (this project's
+own manifest.ini declares only one WINDOW_ entry, "main" - windowSettings
+isn't a declared window at all, just a reserved function name CSP is
+SUPPOSED to hook up automatically). Rather than debug a game-side icon
+that can't be inspected from outside the running game, moved the same
+checkboxes to somewhere guaranteed reachable: a new, collapsed-by-default
+"Which modules does Build write?" toggle directly in windowMain, right
+above the BUILD OPTIMAL SETUP button - exactly where a driver is already
+looking at the moment they'd want to check or change one. The checkbox
+list itself is defined ONCE (drawModuleToggleCheckboxes, shared) and
+called from both windowMain and windowSettings, so there's no risk of
+the two drifting out of sync - windowSettings keeps showing them too, in
+case the gear icon does exist and someone prefers it there.
+
+
+1.7.4: per-module write toggles, by direct request - "once a module is
+satisfactory then it can be left at the desired value... a tick box for
+the modules... if unticked, that module will not be touched, remains at
+the current value". New Settings section, "Build writes these modules",
+with a checkbox per module. Unticking one makes Build skip it entirely -
+the setup value is left exactly as it already was in the setup file,
+even while the live advice panel keeps showing it as [act]. Only the
+WRITE is gated; advice text is unaffected either way, same convention
+the existing writeDiffAeroBrake toggle already used.
+
+Granularity matches the advice panel's own module names wherever the
+writer's code already treats them separately - front/rear dampers (slow
+and fast) and front/rear toe are split into 4+2 independent toggles
+because the writer already loops per-axle/per-corner for those, and it's
+a genuinely real workflow already seen in this project (rear rebound
+direction has been under active, separate debate from front). ARB
+deliberately stays ONE toggle, not front/rear - its own logic can
+redirect a push/snap signal to the OTHER bar when one is near its
+limit, so a front/rear split wouldn't correspond to anything the code
+actually decides. Packer range (bottoming's other lever, alongside ride
+height) travels with the SUSPENSION toggle since it has no separate
+advice-panel identity of its own to match. Differential/aero/brake bias
+keep their existing single combined toggle (writeDiffAeroBrake, pre-
+dating this version) rather than splitting into three - no new reason
+to change that boundary. Full list: Pressures, Camber, Suspension (ride
+height/rake, +packer range), Springs, ARB, Front/Rear dampers (slow),
+Fast front/rear dampers, Front/Rear toe, Differential/aero/brake bias.
+All default ON so upgrading never silently narrows what an existing
+setup already relied on. New `moduleGates:` debug log line records every
+toggle's state at Build time, so a SKIPPED/unchanged category is
+immediately explained as "module off" rather than needing to be
+puzzled over as a detection or write bug.
+
+CAUGHT BEFORE SHIPPING, worth recording since it's a real Lua trap: the
+front/rear gate for fast dampers and toe was first written as
+`front and settings.writeX or settings.writeY` - the classic "ternary"
+idiom, and classically wrong here because the MIDDLE value is itself a
+boolean. When front=true and writeX=false, `front and writeX` collapses
+to false, which then falls through to `or writeY` and silently returns
+writeY's value instead - exactly backwards. Caught by hand-tracing the
+four true/false combinations before shipping (see
+setupcoach-tools/acd/test_module_gates.lua), replaced with a plain
+if/else. Worth remembering generally: `cond and a or b` is unsafe in Lua
+whenever `a` can itself be false or nil.
+
+
+1.7.3: GEARING's missing "too tall" case, reported on a NEW car
+(lotus_exos_125_s1 @ spa) - "barely got into top gear, nowhere near
+limiter". Two separate gaps found:
+
+1) GEARING WAS ONE-DIRECTIONAL. Its only ever advice was "you're hitting
+   the limiter, get a taller top gear" (limiterTime > 0.6s). There was
+   NO check for the opposite, equally real problem - gearing already
+   too TALL, never getting anywhere near the limiter - so this exact
+   session would have read 'ok' regardless of how badly undergeared the
+   car was for this straight. Fixed with a mirror-image check: if the
+   highest gear actually driven this session (`maxGearSeen`, tracked
+   fresh - see #2) is the gear the car was in at its recorded top speed,
+   and that top speed's rpm sits below 88% of the car's own rev limiter,
+   GEARING now flags 'act' → "shorten top gear".
+
+2) THE PHYSICS-API GEAR-RATIO READ FAILED OUTRIGHT ON THIS CAR - the log
+   showed topGear=nil topGearRatio=n/a for the whole session, with no
+   way to tell WHY (okPhys? isAvailable false? gearRatios nil?) from the
+   log alone. Added `gearPhysDiag`, a one-line breadcrumb logging each
+   of those points separately, so the NEXT session on this car explains
+   itself instead of needing another guess. The new "too tall" check in
+   #1 deliberately does NOT depend on this read at all - it uses
+   `maxGearSeen` (the highest gear number the car was actually driven
+   in, tracked independently) specifically so it still works on cars
+   where the ratio read is broken, like this one.
+
+NOT DONE: an actual Build-time WRITE for gearing. It has never existed,
+on any car - GEARING has only ever been advice text. This car's own
+setup.ini exposes gearing as GEAR_1..GEAR_7/FINAL_GEAR_RATIO, each a
+RATIOS=X.rto reference into a named ratio SET rather than a raw
+adjustable number - picking a shorter ratio safely means knowing that
+set's real contents (which direction is shorter, what options exist),
+which isn't decrypted for this car yet. Guessing that blind is exactly
+the kind of directional mistake this project has made before (damper
+direction, wing role) and isn't worth repeating for a first pass -
+logged as a real, separate next step rather than attempted here.
+
+
+1.7.2: v1.7.1's own diagnosis was WRONG, corrected by the user directly.
+v1.7.1 treated CAMBER_LF=-24 as stale garbage because it didn't fit the
+ini's literal MIN=-5/MAX=-1.2 taken as real degrees. It wasn't garbage:
+the user had set that exact corner's camber themselves, and confirmed
+directly - setting -3.5 degrees via Content Manager's own camber slider
+produced a stored VALUE of -35, not -3.5. So -24 was always a perfectly
+legitimate -2.4 degrees; this app's OWN v1.6.0/v1.7.0 baked schema had
+the UNITS wrong, not the driver's setup file.
+
+ROOT CAUSE: CAMBER_LF/RF/LR/RR are a well-known Kunos legacy quirk -
+MIN/MAX/STEP in the ini describe the SLIDER's real-degree range (and
+are even commented ";degrees"), but VALUE itself is stored in TENTHS of
+a degree (decidegrees), a x10 mismatch the ini text never reflects.
+BAKED_SETUP_SCHEMA's camber entries were baked straight from the ini's
+literal numbers (min=-5,max=-1.2), so they described the wrong unit -
+which is exactly why v1.7.1's own sanity check (added in good faith,
+logic sound) mis-fired: -24 genuinely doesn't fit -5..-1.2 real degrees,
+it only ever failed to fit because the RANGE was wrong, not the value.
+
+FIX: BAKED_SETUP_SCHEMA's four CAMBER entries are now x10 (e.g.
+CAMBER_LF: -50..-12 instead of -5..-1.2), matching VALUE's real stored
+unit. This also means the runtime's own existing scale heuristic
+(`schemaItem.min magnitude > 15` -> tenths-of-a-degree) now correctly
+fires on its own - no separate special-casing needed at read/write time,
+just the correct baked numbers. gen_baked_schema.py is fixed the same
+way for any future re-bake (CAMBER_* sections now get x10 applied
+automatically). v1.7.1's stale-anchor sanity check is KEPT - it's a
+reasonable safety net for genuinely corrupted future data - but no
+longer misfires on legitimate values now that the range it's checking
+against is correct. Verified against the real session numbers in
+setupcoach-tools/acd/test_camber_units.lua: -24 -> -33.5 raw (-3.35°),
+-18 -> -29.4 raw (-2.94°), both sensible degree-based changes matching
+the physics delta exactly, and the user's own -35 (-3.5° they set
+themselves) is now correctly trusted rather than "corrected" away.
+
+Lesson worth keeping close: v1.7.1 shipped a real, reasoned fix for a
+real symptom, and was still wrong, because it trusted the ini's own
+MIN/MAX comment over checking what the game/CM actually store. Direct
+field evidence (the user setting a value themselves and reporting the
+exact before/after) beats a documented convention every time there's a
+conflict between them.
+
+
+1.7.1: camber's OWN version of the same class of bug v1.6.0 fixed for
+rear rebound - found by taking a driver's report seriously and checking
+real files rather than the theory. Reported as "optimised setup puts
+camber at max, basically zero camber, even though the advice panel
+states a specific optimal angle" - and the three actual setup files
+handed over as evidence proved it: the freshly-Built file had
+CAMBER_LF=-5.00 (this car's real schema minimum, confirmed straight
+from its own decrypted setup.ini: "MIN=-5 ;degrees"), while the two
+files the driver had actually raced fastest with carried CAMBER_LF=-35 -
+a number that was never valid in real degrees on any car, left over
+from before camber had a real schema at all.
+
+THE BUG: camber is the one module that computes an ABSOLUTE physics
+target (the tyre's own peak-grip angle vs what it measured on track)
+and adds that delta to `baseVal`, the value currently sitting in the
+template file. That's fine when baseVal is trustworthy - but this
+session was the FIRST time camber ever had a real schema (v1.6.0's
+bake), and last.ini's CAMBER_LF was still -24, a leftover from every
+session before that, all written under the OLD blind heuristic ("looks
+like tenths of a degree") with no real range to check against. -24
+isn't a real camber angle on this car (or any car) once you know the
+true range is -5..-1.2 - but the code trusted it anyway, added a small
+physics delta, and clamped: -24 + delta lands nowhere near the legal
+range, so the clamp just slams it onto the boundary (-5.00), reported
+as if that boundary WERE the computed answer. The advice panel's own
+number (the tyre's real peak angle) never entered into what got
+written at all.
+
+THE FIX: baseVal is now sanity-checked against the real schema range
+before being trusted as the anchor. When it's wildly outside (more than
+a full range-width past either bound - comfortably separates "stale
+garbage" from "a real value that's just near the edge"), it falls back
+to the schema's own midpoint instead - the exact same fallback this
+function already uses when there's no template value at all. From the
+real numbers in this session (deltaDeg -0.95° for CAMBER_LF, -1.14° for
+CAMBER_LR), this now writes -4.05° and -2.64° respectively - a genuine
+answer near the middle of the legal range, nudged by the real computed
+delta, instead of a boundary value with no connection to it. Only
+affects the small number of sections (currently just camber, on the one
+car with a baked schema) where the write does degrees-based ABSOLUTE
+math on top of a template value - the generic percentage-nudge writer
+used everywhere else (ARB, springs, dampers, etc.) already clamps
+correctly with no equivalent unit-and-anchor ambiguity to get wrong.
+
+
+1.7.0: "flooring" (bottoming detection) toned down, by direct request -
+reaching zero bottoming flags was forcing ride height excessively high,
+when a little kerb scrape is normal and expected.
+
+TWO SEPARATE PROBLEMS, both fixed:
+
+1) THE DETECTOR WAS TOO SENSITIVE. Bottoming fired at 92% of physical
+   suspension travel, which is routine under hard braking on a stiff
+   race setup and does not by itself mean the chassis touched down -
+   raised to 97%, genuinely close to the packers. Worse, a pure vertical-
+   G spike (>2.8, or <-0.4 the other way) counted as bottoming on its
+   own, with no travel-usage check at all - so a hard kerb strike (wheel
+   impact, chassis nowhere near the ground) or a crest/compression (body
+   unloading, suspension nowhere near full travel) were both being
+   logged as bottoming. Both G-triggers now also require travel usage
+   at or above 85% on the same tick before they count; otherwise they
+   fall through to the existing, consequence-free "kerb" bucket instead,
+   which is what they actually were. SPRINGS' own check (95% travel,
+   stiffen spring - a separate, stricter signal) was pulled out to its
+   own top-level check in the process, since it used to only work by
+   accident, riding inside bottoming's old lower gate.
+
+2) BOTTOMING HAD ABSOLUTE PRIORITY OVER EVERYTHING ELSE. Any bottoming
+   signal past the plain event threshold completely pre-empted rake
+   advice in the SUSPENSION slot, and Build would raise ride height
+   (never rake) as long as it held, with no separate, higher bar of its
+   own. Introduced `bottomTh` (double the plain threshold) and gated
+   ride-height raises, the SUSPENSION advice choice, and the fast-damper
+   stiffen/soften flip behind it specifically - a marginal bottoming
+   signal no longer locks out rake or ride-height-lowering advice for
+   the rest of the session. Packer-range widening (more travel before
+   the packers, zero ride-height/aero cost) deliberately stays at the
+   original plain threshold - it's the cheap fix with no downside, so
+   there's no reason to hold it back.
+
+Not changed: the underlying per-session counters still only reset via
+the RESET TELEMETRY button (true of every module, not particular to
+bottoming) - worth hitting that between meaningfully different test runs
+so old sessions' events don't keep influencing current advice.
+
+
+1.6.0: [!! SEE THE v1.9.1 CORRECTION ABOVE - the specific numbers and the
+"pegged at maximum" conclusion below are WRONG. The baked damper ranges
+used the wrong unit conversion; 26 is this car's DEFAULT rear rebound, not
+4 clicks past its maximum. What remains true is that the unclamped
+percentage nudge compounds and that clamping to real limits was the right
+response - only the numbers and the diagnosis were wrong. !!]
+
+a real, serious writer bug - found by taking a driver's "rear
+rebound is ever-increasing" complaint seriously and checking the real
+decrypted schema rather than debating the physics.
+
+THE BUG: on cars whose setup.ini isn't readable in-game (encrypted -
+the normal case for licensed/payware cars, schemaLimited=true in every
+debug log for the test car), the writer has no MIN/MAX to clamp
+against, so writeTuned() falls back to nudging a PERCENTAGE of whatever
+number is currently in the setup file, with NO CEILING AT ALL. That
+compounds: each press raises the value, and the next press takes its
+percentage of the already-raised value. Simulated against the real
+observed starting value, 8 presses takes rear rebound 24 -> 28 -> 32 ->
+37 -> 43 -> 50 -> 58 -> 67 -> 78. The car's REAL limit, from its own
+decrypted setup.ini, is click index 22. Every rear-rebound value seen
+in months of real logs (24, 26, 28, 30, 34, 35) was already past it -
+AC silently clamps on load, so the car had been sitting at maximum rear
+rebound the whole time while the log kept reporting "26 -> 30" as if
+those were real changes. That also explains why stiffening never
+"balanced" the bump/rebound event counts: nothing was actually moving.
+
+THE FIX: BAKED_SETUP_SCHEMA - the car's real setup.ini schema,
+extracted offline via this project's own decryptor and generated by
+gen_baked_schema.py so the values are drop-in identical to what the
+live reader would produce (SHOW_CLICKS click-index conversion and all).
+Used per-SECTION wherever the live read can't supply one, so a car with
+partial live availability still gets real limits everywhere they're
+known. No writer logic changed at all - the existing clamp in
+writeTuned simply has real numbers to work with now. Verified: the
+first press pulls the out-of-range 24 back DOWN to 22, then correctly
+stops writing entirely rather than logging phantom changes. 51 sections
+baked for ferrari_458_gt2; other cars are unaffected and behave exactly
+as before until baked in the same way.
+
+Two things this notably does NOT claim to fix:
+- "Rake isn't doing much": checked, and it's NOT this bug. ROD_LENGTH
+  really is 0-50 front / 0-60 rear on this car and the observed 17->19->
+  21 values are well inside that, so ride height was never being
+  clamped. The small steps are just what a percentage-of-current-value
+  nudge produces from a base in the teens. Genuinely separate problem,
+  not addressed here.
+- Whether stiffening rear rebound is the right call AT ALL. Real
+  motorsport sources (Full Grip Motorsport, Suspension Secrets) and
+  this project's own v1.0.1 Koni finding both say excess REAR rebound
+  stiffness makes a car loose - which argues the balance logic may be
+  pushing the wrong way on this axle specifically. Deliberately NOT
+  changed on the strength of secondary sources, given this project has
+  already had damper direction backwards twice. Instead, the debug log
+  now carries a REAR REBOUND EXPERIMENT line: the rebound setting the
+  car actually ran, next to midSnap/highSnap/spinR/coastPush and rear
+  dy, all normalised per 100 clean corners so sessions of different
+  length compare directly. A few sessions at genuinely different
+  rebound settings will settle it with data instead of argument.
+
+
+1.5.0: four changes, all by direct request after a week of real testing.
+
+1) DIFFERENTIAL/AERO/BRAKE BIAS BACK IN BUILD'S DEFAULT WRITE SCOPE.
+   v1.4.0 pulled these out by request; a week of real testing didn't
+   bear out needing the narrower default, so settings.writeDiffAeroBrake
+   now defaults back to true. The toggle itself stays for anyone who
+   wants the narrower scope again.
+
+2) CAMBER'S DCAMBER ROUTE NO LONGER NEEDS A FRESH STATIC CAPTURE.
+   Reported as "seems to say camber is fine regardless of what camber it
+   is" - correct, and worse than it first looked. The Build writer's
+   DCAMBER-route gate required BOTH a peak angle AND a static reading
+   captured THIS session, even though the route's own math never
+   actually used curStatic for anything but deriving a unit scale that
+   already had a complete fallback chain for when curStatic is nil. One
+   missed pit-stop capture silently downgraded every camber read for
+   the rest of the session to the much coarser thermal-spread proxy,
+   which uses a wide 0-12°C dead zone that reads "in the window" across
+   a real range of static camber settings. Worse: the ADVICE PANEL - the
+   part actually visible on screen - had ALWAYS used the thermal method
+   only, with no DCAMBER route at all, regardless of whether real
+   DCAMBER data existed. Both fixed: the writer's gate now only needs
+   the peak angle; the panel now computes the same DCAMBER-based verdict
+   the writer does (real target, ±0.05° dead zone) whenever available,
+   falling back to the thermal proxy only when a car's tyres.ini truly
+   has no usable coefficients at all.
+
+3) AERO PEAK HEIGHT / DYNAMIC CONTROLLER DATA NOW BAKED IN for cars this
+   project has decrypted and checked directly (AERO_LOOKUP, same idea
+   and same reason as DCAMBER_LOOKUP) - v1.2.0's live aero.ini read is
+   confirmed dead in practice on real encrypted cars (aeroLutChecked=
+   false, empty aeroPeaks/aeroDynamic in every real debug log this
+   project has seen), despite offline decryption confirming real GH_CL
+   curves and a dynamic controller genuinely exist. Used only when the
+   live read comes back with nothing. Also fixed while wiring this up:
+   the AERO advice text's peak-height note was nested inside the
+   aeroLutRisk branch, which only reflects the LIVE read specifically -
+   meaning the note could never show on exactly the cars that needed
+   the baked fallback in the first place. Now shows whenever a peak
+   height is known, from either source.
+
+4) GEARING SIMPLIFIED TO TOP GEAR ONLY, by request - "it should read
+   only top gear, as currently it records all gears which makes no
+   sense really", and that's correct: GEARING's only actual advice is
+   "you're hitting the limiter, get a taller top gear", which never
+   needed every intermediate ratio. Two things retired together: the
+   old per-frame live-measurement system (clutch-gated, 15-frame
+   stability streak) - never once produced a value in any real session
+   logged this project - and the full-array physGearRatios capture from
+   v1.2.0. Replaced with reading just the top gear and the one below it
+   from ac.getCarPhysics().gearRatios (needed together to predict the
+   final upshift). Index alignment with car.gear, an open question since
+   v1.2.0, is now trusted rather than logged as unconfirmed: real
+   sessions on the same car gave a consistent, physically sane,
+   monotonically-decreasing shape (2:2.846 3:2.000 4:1.611 5:1.320
+   6:1.160 7:1.000) - real evidence, and the system it replaces had
+   nothing to show for comparison in any of those same sessions.
+
+
+1.4.1: a real self-cancelling bug found directly from v1.4.0's new raw
+counters, on a real tester's session (ferrari_458_gt2, Interlagos,
+midPush=69 and midSnap=94 both active in the same Build press):
+
+  ARB rear (stiffer - front bar already near minimum...): 5 -> 6
+  ARB rear (softer, less low-speed oversteer): 6 -> 5
+
+Both fired in the SAME Build press and netted to zero, while the
+changelog listed two real changes. Cause: the push and snap ARB writers
+each called nearMin() live against the setup file being built, so
+whichever one ran SECOND could see the FIRST one's just-applied write
+and reverse it - front was near minimum, so push redirected to
+stiffening rear; then snap checked rear's near-minimum status, saw the
+value push had JUST written, correctly judged it not-near-minimum
+anymore, and softened it straight back down.
+
+Fixed by snapshotting both bars' near-minimum status ONCE, before either
+signal writes anything, so the second signal's decision is never made
+against the first signal's own output. When both signals genuinely want
+the SAME bar moved in OPPOSITE directions (a real mixed-balance car -
+understeer at some corners, oversteer at others, confirmed happening
+here) only the larger signal by raw event count is applied, with an
+explicit note about the smaller one being left for the next Build
+rather than silently cancelled.
+
+
+1.4.0: two changes prompted by a tester report (only pressure/camber got
+written despite the panel showing several other [act] items) and the
+investigation that followed it.
+
+Investigation first, since the report deserved more than a guess: a
+genuine historical version of this exact bug WAS found and confirmed,
+in this project's OWN local debug_log.txt from 2026-09-08 21:27:13 -
+26 skip lines, all with old pre-auto-template-detection messages ("no
+base setup file found... Set one in Settings", "no schema range for X -
+car data likely encrypted"). That bug was already fixed hours later the
+same night (visible in the very next entries of the same log) by the
+template auto-detection feature from this project's own earlier history
+- well before this session, and well before the tester's build. The
+tester's actual log didn't carry that signature at all (template found,
+zero skip lines for the other categories), which points at "those
+counters genuinely hadn't crossed threshold yet at that specific Build
+press" rather than a live regression - but that conclusion was never
+fully provable from the log as it existed, which is what change (2)
+below fixes.
+
+1) BUILD'S DEFAULT WRITE SCOPE NOW STOPS AT TOE, by request. Pressures,
+   suspension/rake, springs, both damper types, ARB, camber, and toe
+   still write automatically; differential, wing (aero), and brake bias
+   drop to advice-only by default - the advice panel still shows and
+   explains all three, Build just won't apply them unless
+   settings.writeDiffAeroBrake is turned on (Settings screen, off by
+   default). This is the same "mechanical platform + alignment" vs
+   "drivetrain/aero/brake balance" boundary buildAdvice's own header
+   comment has described since 3.0.0 - now enforced as a write boundary
+   too, not just an ordering one.
+
+2) RAW EVENT COUNTERS ADDED TO THE DEBUG LOG, logged at the moment
+   Build is actually pressed - bottoming, spring/damper/ARB/toe/lockup
+   counts, all of it. The advice panel is live and can show a higher
+   count than whatever Build actually saw, if more driving happened
+   between looking at the panel and pressing the button - previously
+   there was no way to tell "counter was genuinely low at Build time"
+   apart from "counter was high and something silently ate it" after
+   the fact. Now there is: read the counters line next to the results,
+   no more inferring it from a screenshot's timestamp.
+
+Also fixed while here: the Settings screen's base-setup-file text still
+said "leave blank to only auto-write pressure + camber" - true before
+the auto-template-detection feature, actively wrong and confusing now
+that the app already finds last.ini automatically regardless. Corrected.
+
+
+1.3.1: a real, quantified gap found by scanning every real saved setup
+file already on this machine (1561 files under Documents/Assetto Corsa/
+setups, spanning 400+ cars across GT3/GT4/LMP/BTCC/DTM/WRC rally/drift/
+karts/classics) and tallying which section names actually get used, as a
+cross-check on SETUP_PROBE's claim to cover "the large majority of Kunos
+and community car mods". Mostly good news - the existing dual-naming
+defenses are pointed the right way (FRONT_BIAS beats BRAKE_BIAS 1464-to-0
+in this sample, ROD_LENGTH beats RIDE_HEIGHT 5611-to-0) - but one real
+miss: DIFF_RAMP_POWER/DIFF_RAMP_COAST, an alternate differential naming
+convention used by 92 real setup files (~6% of the sample), wasn't
+probed at all. Worse than just missing from SETUP_PROBE: the
+differential WRITER hardcodes the literal string 'DIFF_POWER' directly
+at each call site rather than iterating SETUP_PROBE.diffPower like the
+ride-height writer does, so adding the name to the probe list alone
+would not have fixed it - the writer itself needed the same "try each
+known name, report skip only if all miss" treatment ride height and
+brake bias already have. Both fixed together here.
+
+Also found, NOT fixed this version (smaller footprint, more invasive -
+touches two separate writer blocks instead of one): DAMPER_BUMP/
+DAMPER_REBOUND/DAMPER_FAST_BUMP/DAMPER_FAST_REBOUND, an alternate slow/
+fast damper naming convention, appearing in roughly 10 real setup files
+worth of sections in the same scan. Left as a known, documented gap
+rather than rushed.
+
+
+1.3.0: DCAMBER_LOOKUP audited against REAL data for the first time, made
+possible by a working offline data.acd decoder built this session (not
+shipped in this file - a standalone dev tool, since the in-game app
+still only ever gets whatever CSP's own whitelist exposes; nothing about
+how the app reads car data changed here). Every one of the table's 102
+entries was checked by decrypting the actual car (where installed) and
+comparing its real tyres.ini DCAMBER_0/1 against what was stored:
+
+- 88 already matched exactly.
+- 7 were genuinely wrong values, now corrected: ferrari_458 (was
+  1.1, real 1.2), ferrari_458_s3 (was 1.2, real 2.0 - the largest
+  correction), ks_alfa_giulia_qv, ks_audi_a1s1, ks_porsche_718_boxster_s,
+  ks_porsche_718_boxster_s_pdk, mclaren_mp412c (all four the same
+  1.1->1.2 correction).
+- 4 had correct VALUES under wrong KEYS (the "guessed slugs" flagged
+  since 4.6.0) - real folder names confirmed by decryption, values kept
+  since they already matched exactly: 'escort_mk2_rally' ->
+  ford_escort_mk2_rally_spec (+ 3 real variants, all identical data,
+  all added); 'mclaren_f1_gtr' -> ks_mclaren_f1_gtr; 'formula_hybrid_2024'
+  -> rss_formula_hybrid_2024; 'formula_rss_4' -> rss_formula_rss_4.
+- 3 remain genuinely unresolved and inert (ford_focus_st20,
+  hyundai_elantra_n_tcr, mitsubishi_evo6) - no installed car folder
+  matches even loosely; the only candidates found were clearly
+  third-party mods (btcc_ford_focus, fw_elantra_tcr_2024,
+  streetcarpack_mitsubishi_lancer_evo_gsr, etc.), and guessing one of
+  those is correct would be repeating the exact mistake this pass fixed,
+  not resolving it. Harmless either way - falls through to the thermal
+  method, same as always.
+
+Also fixed in the decoder itself along the way (not in this file, but
+worth recording): the keystream resets per file rather than running
+continuously across the archive, an 8-byte header some newer-packed cars
+carry (confirmed on several Porsche-pack cars) was crashing the reader
+entirely, and the "strip zero bytes from each 4-byte field" byte
+extraction was wrong (should always take byte 0). See CLAUDE.md's
+"data.acd decryption" section for the full account, including the dead
+end that preceded the actual fix.
+
+
+1.2.1: a real bug found by directly answering "will v1.2.0 work on every
+car class, not just GT3?" instead of just asserting yes. Checking a real
+kart (gokart100) alongside the GT3 cars turned up a genuine mislabel:
+v1.2.0's live peak-corner CL capture assumed WING_1=front/WING_2=rear
+(the same fixed convention SETUP_PROBE.wingFront/wingRear already used,
+which is why this wasn't caught when that convention was first adopted),
+but this kart's WING_1/WING_2 are actually NAMEd MID_L/MID_R - side wings
+modelling driver body-lean drag - while its real FRONT-named wing sits at
+WING_3. Trusting position there would have banked the wrong wings' CL
+under the "F"/"R" labels - not dangerous (never fed the writer) but
+genuinely misleading text on any car whose wing ordering doesn't match
+the GT3 convention.
+
+Fixed by resolving each WING_i's role from its NAME field first (front/
+splitter -> front, rear -> rear, diffuser -> diffuser), falling back to
+the positional guess ONLY when NAME is blank - never when NAME says
+something else. Re-traced against gokart100 directly: now correctly
+resolves 'front' to WING_3, and reports no 'rear' at all (this kart
+doesn't name one), rather than confidently mislabeling MID_L/MID_R.
+Residual honest gap: a car with WING_1/2 in an unusual role AND a blank
+NAME would still fall through to the positional guess - narrower than
+before, not eliminated, since there's no way to identify a wing's role
+with no name and no LUT-shape signal to go on.
+
+1.2.0: four additions from a physics research pass - two using real GT3
+cars' own unencrypted aero data (this project's test car, like most of
+the payware GT field, is encrypted, so ks_lamborghini_huracan_gt3,
+trr_mclaren_720_gt3 and fsr_audi_lms_evo_ii_gt3 stood in, same technique
+already used for the DCAMBER lookup table), two using
+ac.getCarPhysics(), a struct not touched anywhere in this project before.
+Every one of these is additive: the app degrades to exactly today's
+behaviour when the underlying data isn't there.
+
+1) AERO PEAK HEIGHT is now a real number, not just a risk flag. Real
+   front-splitter GH_CL curves from two independent GT3 cars both peak
+   right around 0.045-0.050m (1.02-1.07x multiplier) and, importantly,
+   collapse to near-zero BELOW ~0.038m - a hard near-ground stall, not a
+   gentle taper - falling to ~20% of peak by 0.155m on the high side.
+   checkAeroLutRisk already walked this exact curve to detect
+   non-monotonic shapes; it now also returns where the peak actually is.
+   The REAR wing had no GH_CL curve at all on either car checked -
+   rake's aero benefit runs through the front splitter and diffuser
+   only, confirming the mechanical/CoG reasoning the RAKE writer already
+   used. Peak height is surfaced in the AERO caveat text directly
+   ("front peaks near 47mm").
+
+2) RIDE-HEIGHT-VS-PEAK CAVEAT for the RAKE writer specifically. Real-
+   world sourcing says "more rake reduces understeer" (the nine sources
+   behind v1.0.0's RAKE feature), which is true on the HIGH side of the
+   peak in (1) but not the low side - a car already riding at or below
+   its own aero peak height would be pushed toward that near-ground
+   collapse by more rake, not away from it, losing front downforce
+   instead of gaining it. car.rideHeight (confirmed on ac.StateCar,
+   metres, same units as the GH_CL curve's x-axis) is now captured the
+   same way static camber already is - stationary in the pits - and
+   compared directly against the peak height from (1). Deliberately a
+   CAVEAT ONLY: it never reverses or skips the rake write. The
+   mechanical/CoG rake benefit is real regardless of where the aero
+   curve peaks, so silently second-guessing the direction risked being
+   confidently wrong in a new way - the same reasoning that kept front-
+   rebound softening unautomated back in v1.0.0 pending better evidence,
+   applied here to a case this project can actually check.
+
+3) DYNAMIC AERO CONTROLLERS, a mechanism this app had zero visibility
+   into before. All three real GT3 cars checked define a
+   DYNAMIC_CONTROLLER_N section that adds extra angle to the diffuser
+   based on live telemetry, not just the static AOA/GH curve - all three
+   independently keyed on INPUT=SPEED_KMH. Confirmed concretely on the
+   Huracan: +12deg of extra angle below ~70 km/h, smoothly (FILTER=0.80)
+   ramping to +0deg by 120 km/h. Full INPUT vocabulary these sections
+   can use, per CSP modding references (not all observed directly on
+   the three cars checked): SPEED_KMH, BRAKE, GAS, STEER, LATG, LONG,
+   RPMS, GEAR, SUS_TRAVEL_LR/RR, AVG_TRAVEL_REAR, LOAD_SPREAD_LF/RF,
+   SLIPANGLE_*/SLIPRATIO_*, OVERSTEER_FACTOR, REAR_SPEED_RATIO,
+   WHEEL_STEER_DEG, CONST - meaning some cars could have wing angle
+   reacting to cornering g or even oversteer directly. Detected and
+   surfaced as an AERO caveat (which wing, which input); the live added
+   angle itself isn't read, that would need the controller's own LUT
+   sampled against current telemetry, a bigger lift than this claims to
+   do. Incidentally corroborates ARB_AERO_SPLIT_KMH=160 rather than
+   contradicting it - real aero behaviour on these cars stops changing
+   with speed by ~110-120 km/h, in the same zone the existing threshold
+   already assumes.
+
+4) LIVE PEAK-CORNER CL and PHYSICS GEAR RATIOS, both from
+   ac.getCarPhysics(carIndex) - confirmed on ac.StateCarPhysics in CSP's
+   shipped type definitions, documented "not available in replays or
+   for remote cars," with its own .isAvailable field suggesting it can
+   be false even when the struct itself isn't nil (same shape of caveat
+   as the DCAMBER whitelist). Two different features from the same
+   source, treated very differently on purpose:
+     - Live front/rear .cl (lift coefficient) is banked at the same
+       peak-lateral-G corner instant already used for camber and .dy,
+       averaged across the session, and shown as pure informational
+       text on the AERO line ("live cl F 1.72 R 0.94"). Safe to surface
+       immediately - it never changes what the app decides or writes.
+     - .gearRatios (every gear's real ratio, direct from the car) is
+       logged RAW alongside the existing live-measured gearRatios for
+       direct comparison, but NOT used for the GEARING panel's
+       predicted-rpm text this version - .gearRatios' own indexing
+       relative to car.gear (-1 reverse, 0 neutral, 1.. forward) isn't
+       documented anywhere, and getting that wrong would mean a
+       confidently wrong predicted-rpm number, not just a missing one.
+       If the logged raw values line up 1:1 with the live-measured ones
+       on a real session, that settles it for next version - same
+       discipline already applied to angularSpeed's unit.
+
+
+1.1.1: dev tooling set up this pass (Lua 5.4 + lua-language-server,
+pointed at CSP's own shipped type definitions as a library) caught one
+real gap on its first real run, by adding type annotations to the
+functions that take `car`/`sim` and letting the checker verify every
+field access against the actual ac.StateCar/ac.StateWheel/ac.StateSim
+shapes instead of trusting them by eye.
+
+ac.getCar(index) is documented nilable (`ac.StateCar?`) - windowMain
+calls engine:gripCompareText(car, sim) unconditionally every UI frame,
+and engine:saveGripBaseline(car, sim) on the button press, both without
+checking car first (unlike drawHeader right next to them, which already
+does). Both then dereference car directly (getBestLap(car), car.fuel).
+Same bug CLASS this project already burned itself on once - the .abs
+field crash: an uncaught error here wouldn't crash the app, but would
+silently abort the rest of that frame's UI draw, the same way the .abs
+bug silently stopped self.lastAdvice from refreshing while on track.
+Low probability in practice (index 0 is normally live whenever the app
+is rendering at all) but cheap to close, so both now guard with
+`if not car then return end`, matching the pattern already used
+everywhere else uncertain data is handled in this file.
+
+The rest of the check came back clean - no field-name or API-shape
+mismatches anywhere else in the file against CSP's real definitions,
+which is a real, automated corroboration of this project's own
+"verified against three copies of the SDK" claims rather than another
+by-eye read. Two other findings from the same run were confirmed as
+non-issues, not fixed: math.atan2 doesn't exist in stock Lua 5.4 (it's
+a 5.1/5.2/LuaJIT function) but the only call site was already
+pcall-wrapped before this pass; and script.onSimUpdate is intentionally
+defined twice (the second wraps the first to set a _simBound flag),
+which is a deliberate monkey-patch, not a mistake.
+
+1.1.0: three changes, all made possible by getting hold of CSP's own
+shipped Lua type definitions (extension/internal/lua-sdk) directly -
+checked across three separate copies, all agreeing, which is about as
+settled as this gets without it running live in the game.
+
+1) AERO's runtime curve-shape check (ac.DataLUT11.carData) is no longer
+   framed as an unverified bonus - its existence in APP context, not
+   just physics scripts, is now confirmed directly from the shipped
+   definitions rather than inferred from forum posts and changelogs.
+   The exact signature ac.DataLUT11.carData(carIndex, fileName) matches
+   what this app already calls. What's still a genuine assumption is
+   the sampling approach itself (whether :get() behaves predictably
+   when asked for a point near the edge of a LUT's defined range), so
+   the defensive fallback to the class-based caveat stays - just no
+   longer hedged as "might not even exist here".
+
+2) isOnTrack() upgraded to use surfaceValidTrack, a direct per-wheel
+   boolean confirmed to exist for exactly this purpose, instead of the
+   surfaceGrip<0.55 proxy this app had been using since before that
+   field's existence was confirmed. Falls back to the old proxy only if
+   surfaceValidTrack itself comes back nil, so this can't regress to no
+   filtering at all on some unexpected build.
+
+3) GEARING now measures each gear's actual ratio live from telemetry -
+   engine rpm against driven-wheel angularSpeed (confirmed to exist on
+   ac.StateWheel) - rather than needing any ratio file, which CSP gives
+   no confirmed way to read from app context anyway. Once both the
+   current and next gear have a trustworthy measurement, the panel shows
+   the predicted rpm after an upshift right now. Two real, named
+   uncertainties kept deliberately visible rather than smoothed over:
+   angularSpeed's exact unit isn't documented, so rad/s is assumed and
+   converted to an equivalent wheel rpm - sanity-bounded to reject
+   obviously-wrong results, and reported raw in the debug log so a real
+   session can confirm or correct the assumption by eye. And car.clutch
+   is deliberately NOT trusted on its own: CSP's own definition describes
+   it as "1 for pedal fully depressed", meaning DISENGAGED at 1 - the
+   opposite of what a same-named field implied in an earlier reference
+   source used in this project - so low clutch is used as the gate, but
+   a required 15-consecutive-frame stability streak before a gear's
+   ratio is ever trusted means a wrong polarity assumption would mostly
+   just prevent a measurement from committing, not produce a silently
+   wrong one. RWD and FWD only, matching the differential module's
+   existing AWD exclusion - the same architecture difference applies
+   here for the same reason.
+
+A real bug caught before shipping, not after: the gearing rpm prediction
+was first written referencing a bare `rpm` variable that only exists in
+the separate per-frame update function, not in buildAdvice where this
+code actually lives - checked function scope directly rather than
+assuming, same discipline that caught the "used before defined" mistake
+in 4.8.1 and again in 1.0.0.
+
+
+1.0.1: a real-world check on the front-rebound decision from 1.0.0 led
+to a genuine improvement on the REAR side, not a reversal.
+
+Confirmed from direct driving experience: excess rear rebound stiffness
+reliably makes a car loose/slidey - and this lines up exactly with what
+Koni's own tuning guide states plainly ("adding rebound damping to the
+rear... loosens the car up"), which was never part of the contested
+territory in the 1.0.0 research. Only front rebound's role was genuinely
+disputed between sources; rear rebound's risk was always solid.
+
+That raised a real question worth checking rather than assuming: does
+the slow-damper writer (4.6.0) actually guard against pushing rear
+rebound too far? Checked directly - the existing safeguard only backed
+off toward softening bump instead within the last 1.5 STEPS of the
+car's own schema maximum, a very late, permissive margin that would let
+rear rebound climb most of the way up its full range before ever
+considering the alternative.
+
+Rear rebound specifically now backs off at 30% of its full range from
+the maximum, not just the last couple of steps - it prefers softening
+bump well before reaching genuinely excessive rear rebound stiffness,
+rather than only right at the schema's outer wall. Front rebound and
+every other damper keep the original, tighter margin unchanged, since
+nothing came up to justify being more cautious there specifically - the
+"debatable, car-dependent" nature of front rebound is exactly why 1.0.0
+built no blanket rule for it at all, and that reasoning still holds.
+
+
+Deliberately relabelled DOWN from 4.9.1, not a rollback or an error - by
+request, this point in time marks the real v1: the app has now had a
+genuine physics audit across every module (dampers, differential,
+camber, tyres, aero, suspension), several real on-track test cycles with
+debug-log evidence rather than guesswork, and a crash found and fixed
+from an actual session. The old 4.x numbering was inherited arbitrarily
+from an early prototype iteration and no longer meant much. Starting the
+real version history here.
+
+1.0.0: the two techniques from this project's own Python prototype,
+properly researched before building either - which is exactly why one
+got built and the other didn't.
+
+RAKE, built. Checked against nine independent sources (Rennlist,
+SPRINGRATES, iRacing, rwmgaming, Las Motorsport, Popometer, simrace.app,
+Nerdgasm, F1Race) before writing a line of code, and every one of them
+agreed on the direction: more rake (front lower relative to rear)
+reduces understeer; less rake increases it - through both an aero
+mechanism (steeper diffuser/floor) and a plain mechanical one (raising
+one end shifts weight and CG toward the other). That's about as close to
+unanimous as real-world racing advice gets. Implemented as a genuine
+coordinated adjustment - front and rear move in complementary directions
+in the SAME pass, not the old version's single-end nudge dressed up as
+rake. Tied to the HIGH-speed push/snap signal specifically, since every
+source that explained why singled out cornering speed and load as what
+makes rake's effect meaningful, prioritised above the old low-speed-only
+branch (kept, smaller effect, direction now confirmed rather than
+guessed - the "verify direction" caveat on it was never about this
+concept, it's about the same per-car setup-value sign convention that
+bottoming's ride-height write already carries, and carries here too).
+Moves in smaller steps than an ordinary ride-height raise, since several
+sources specifically warned rake's effect can be "peaky" and works
+within a narrow window.
+
+FRONT REBOUND SOFTENING FOR TURN-IN UNDERSTEER, investigated and NOT
+built. This is the outcome the research process exists to produce
+sometimes. Two authoritative damper-manufacturer sources gave genuinely
+different answers depending on which phase of the corner they were
+addressing: Koni frames added front rebound as "tightening" the car
+(more understeer), while Penske frames it as helping turn-in by holding
+weight on the front through the apex rather than letting it unload too
+early. These aren't talking about the same symptom, and reconciling them
+confidently enough to automate a real setup change felt like exactly the
+kind of guess this project has already been burned by more than once.
+Rake had unanimous support from nine sources; this had real, unresolved
+disagreement from two of the most credible ones available. Left as a
+known idea for later, not implemented on the strength of one prototype's
+say-so.
+
+A found-and-fixed bug along the way: the rake advice text originally
+called a helper function (carLikelyHasRealAero) defined later in the
+same block - the same "used before defined" mistake already caught once
+in the 4.8.1 review, caught again here before it shipped by checking
+definition order directly rather than assuming the copy-paste was safe.
+Moved the helper earlier so both SUSPENSION and AERO can reach it.
+
+
+4.9.1: a full review pass of every uploaded file not yet examined during
+this project, prompted by a request to check anything unread and do
+research relevant to the project. One concrete fix, several ideas banked
+for later, one promising path found for the still-unbuilt GEARING module.
+
+FIX: pit notes were being overwritten on every save, not appended. Found
+by comparing against this project's own Python prototype (setup_coach.py
+/ setup_coach_app.py), which appended every save with a timestamped
+header, building a real history across a session. Our Lua version used
+io.open(filepath, 'w') - confirmed by reading the code directly, not
+assumed - silently destroying the previous save every time. Now appends
+with a timestamped '======' separator between entries, matching the
+prototype's pattern, wrapped in the same pcall-protected os.date call
+already used elsewhere in this file rather than calling it unprotected.
+
+IDEAS BANKED, not yet built (found in the Python prototype, worth real
+consideration before adding): tying HIGH-speed understeer to rake
+(asymmetric front/rear ride height, not just a uniform raise) as an
+aero-platform lever distinct from ARB; and softening front rebound
+specifically for chronic low-speed understeer, on the reasoning that
+faster front rebound speeds up weight transfer to the front on turn-in.
+Both are real, named techniques in the prototype, not verified against
+independent sources yet - flagged as worth researching properly before
+writing them into the app, not adopted on the strength of one prototype
+alone.
+
+GEARING PATH FOUND: a real third-party app (Sidekick.py) measures each
+gear's effective ratio directly from live telemetry - driveshaft speed
+divided by RPM while the clutch is engaged - rather than reading any
+ratio file. Its driveshaft-speed field (acsys.CS.DriveTrainSpeed) is
+classic-API-only, but this project's own code already reads car.rpm
+successfully, and the standard AC physics struct (confirmed via the
+bundled sim_info.py reference) includes wheel angular speed as a core
+field, following the exact w[i].fieldName pattern already confirmed
+working for slip ratio, load, and suspension travel elsewhere in this
+app. That means gear-ratio detection may be buildable from fields we
+already know work, without depending on the still-unconfirmed
+ac.DataLUT11 or any file read at all - a meaningfully lower-risk path
+than what was previously planned for this module. Not implemented this
+version - flagged as the leading approach for whenever GEARING is next
+on the list.
+
+Also checked and found nothing new: proTyres.py (a manually-calibrated
+pressure offset memory, not an automated calculation - different
+approach, not directly transferable); the remaining data.acd upload
+(confirmed an exact duplicate of the already-processed BMW Z4 GT3); and
+_spa__.tc (confirmed as AC's own binary lap-trace format via its
+driver/track/car header - not pursued further since it doesn't feed live
+telemetry analysis, which is what this app actually does).
+
+
+4.9.0: one real bug (camber under-adjusting) and one clarity problem
+(damper/suspension advice reading as self-contradictory), found from a
+real session's debug log and screenshot.
+
+1) CAMBER WAS STILL BEING CAPPED SMALL - the exact thing already flagged
+   as wanting fixed. Traced to a shared clamp(deltaDeg, -0.8, 0.8) that
+   was written for the THERMAL fallback route (where the target is a
+   proxy, not a precise number, so a conservative per-press cap makes
+   sense) but was also silently applying to the DCAMBER route, which
+   computes a real, specific physics target and should go straight to it
+   in one press. Confirmed exactly from a real session: -3.38 degree
+   target against a -2.43 degree measured loaded reading needs a -0.95
+   degree change, but the shared cap silently reduced it to -0.80 -
+   matching the session's actual logged output to the hundredth of a
+   degree. The DCAMBER route is now sanity-bounded at +/-4 degrees
+   instead (every real car studied in this project peaks well inside
+   that range, 2.6 to 6.1 degrees across eight of them), comfortably
+   covering the true optimum in one Build press from any realistic
+   starting point. The thermal route keeps its tighter +/-0.8 degree
+   cap, since it never had a bug - only the DCAMBER route did.
+
+2) DAMPER AND SUSPENSION ADVICE TEXT REWORDED, not re-logic'd. Reported
+   as "conflicting" - the panel said "stiffen rebound OR soften bump,
+   whichever you have more margin on" while the Optimal Setup output
+   stiffened rebound. Re-derived the underlying physics twice,
+   independently, before touching anything: a side crossing its
+   velocity threshold MORE often is the SOFTER side (less resistance,
+   reaches that speed more easily), so stiffening the high-count side is
+   the textbook fix - confirmed correct both times, and confirmed the
+   advice text and the writer were already using identical logic and
+   identical numbers. The actual problem was the vague "OR X, whichever"
+   phrasing never telling the driver which one Build would pick, so a
+   concrete, correct choice read like a contradiction of an unresolved
+   hedge. Reworded to state the real, predictable behaviour: "Build will
+   stiffen bump (or soften rebound instead if bump is already near its
+   stiffest)". Applying the same fix uncovered a second instance in
+   SUSPENSION's bottoming message, which is worse than just vague - it
+   implies Build might stiffen springs as an alternative to raising ride
+   height, but the bottoming writer path never touches springs at all;
+   that is an entirely separate module gated on its own stricter
+   threshold. Reworded to say so plainly instead of implying a choice
+   that was never actually on the table.
+
+
+4.8.2: fixes a crash that made the whole app fail to load - a total
+script parse failure, not a runtime bug, so nothing could even reach the
+debug log; the blank UI and the Lua console's own error message were the
+only symptoms. Real-world confirmation that this needed to be shipped
+fast, not theorised about.
+
+Cause: the DCAMBER fallback lookup (4.6.0) used bare, unquoted Lua table
+keys for all 102 car IDs - fine for the other 101, but the Ferrari P4/5
+is genuinely named p4-5_2011 in Kunos' own car ID, and a hyphen is never
+valid inside a bare Lua identifier. The parser read p4 as one token, hit
+the hyphen as a minus operator, then choked trying to read 5_2011 as a
+number (digits followed by letters/underscore isn't a valid Lua numeral)
+- hence "malformed number near 5_2011". Since this sits in a table
+constructor evaluated at load time, the entire script failed to parse,
+not just this one entry - which is why the whole UI went blank rather
+than one module misbehaving.
+
+Fixed by converting every one of the 102 keys to explicit bracket-string
+syntax (['p4-5_2011']=... instead of p4-5_2011=...), not just the one
+broken entry - this is semantically identical at runtime but immune to
+any future car ID containing a hyphen, a leading digit, or anything else
+that isn't a valid bare identifier. Scanned the rest of the file for the
+same bug class (any other bare table key with a hyphen) - none found.
+
+4.8.1: review pass over 4.6.0-4.8.0, which had accumulated three
+versions of changes without a full end-to-end check. Verified clean:
+every added function is defined before first use (Lua locals aren't
+hoisted, so this genuinely matters); curSector is in scope at all 23
+recordSectorEvent call sites; all 11 sector keys read by advice text
+are actually written somewhere (no silent always-empty reads); new
+state fields are all initialised and cleared in engine:reset(); and the
+differential probe section names match the real files exactly.
+
+One real fix found: the differential writer did not pass quietSkip.
+Checking the eight unpacked cars showed partial availability is NORMAL,
+not an edge case - some expose DIFF_POWER and DIFF_COAST but no
+DIFF_PRELOAD, one exposes only DIFF_PRELOAD, and two expose no diff
+sections at all. Without quietSkip those cars would get a per-item
+"SKIPPED - not in your setup file" line for a setting the car simply
+does not have, reading like a fault rather than a normal property of
+the car. Now reports once, only when nothing at all could be written -
+matching how ride height and brake bias already handle their own
+alternate-naming cases.
+
+4.8.0: named-corner analysis - the feature agreed several versions back
+as the next thing to build once the module audit was done. Turns "Low-
+speed push (53)" into "31 at Bruxelles, 14 at La Source": every corner-
+triggered counter now records WHICH sector it fired in, not just how
+often, using ac.getTrackSectorName(splinePosition) - confirmed working
+via a real shipped app (Track Walker) that does exactly this in one line,
+rather than parsing sections.ini by hand.
+
+All 23 corner-triggered counters record sector data unconditionally
+(slow and fast dampers both directions, bottoming, springs both axles,
+both differential signals, rear toe, both brake lockup directions, both
+spin/push/snap families). The advice TEXT was updated to show it for the
+modules where a specific corner call is most actionable: ARB, AERO, TOE,
+BRAKE, DIFFERENTIAL, and SUSPENSION's bottoming message. Damper advice
+text wasn't extended to show it this round - the balance-based message
+(4.6.0) already carries plenty of detail, and every damper event is
+still being recorded per-sector underneath, so a later pass can surface
+it there too without redoing any of the data collection.
+
+Every part of this is additive and degrades to exactly today's behaviour
+when it can't work: no sector data on a track (plenty of mod tracks
+don't ship a proper sections.ini) just means the bracketed detail is
+empty and the message reads exactly as it always has. debug log now
+reports sectorsAvailable, which will confirm from a real session whether
+this fires at all - the same pattern used for the 4.7.0 aero LUT check.
+
+
+4.7.0: a full pass across the remaining modules, requested after 4.6.0's
+fixes still left dampers/differential newly right but everything else
+unexamined this round. One correction owed up front, three real changes.
+
+CORRECTION: 4.6.0's changelog claimed "no telemetry sample anywhere is
+filtered by track surface validity" - that was wrong, and came from a
+flawed search (grepping for "surface\b" doesn't match "surfaceGrip",
+since there's no word boundary between them - a bad regex, not a bad
+car). Re-checked properly this time: isOnTrack() already exists, already
+checks car.wheelsOutside and per-wheel surfaceGrip, and already gates
+every major counter - bump/rebound, push/snap, lockup/spin, differential,
+camber and mechanical-grip sampling all confirmed inside it by tracing
+the actual block structure line by line. Nothing needed fixing here;
+what needed fixing was the earlier claim.
+
+1) TYRES thermal band is now compound-aware. tyreOptimumTemperature is
+   already live, real, per-car data for the CENTER of the window - what
+   was wrong was treating every compound as having the same WIDTH around
+   that center. Real per-compound thermal curves (checked directly for
+   three GT3 compounds) show the plateau is genuinely wider on a hard
+   compound than a soft one: soft (70-85°C) and medium (80-95°C) are
+   both ~15° windows, but hard runs 80-105°C, a ~25° window. Compounds
+   with "hard" in their name now get a wider tolerance band; soft/medium
+   keep the existing (already reasonably close) defaults.
+
+2) AERO gets a real caveat instead of an unconditional "+1 click always
+   helps". Unpacking real cars directly showed splitter/diffuser aero
+   can be genuinely non-monotonic - the McLaren F1 GTR 96's front
+   splitter peaks at 3° and is essentially stalled by 8°, and two
+   different open-wheel ground-effect cars showed ride-height
+   sensitivity extreme enough that one of them flips from downforce to
+   lift past a certain height. A TCR car, a hot hatch, and a rally car
+   with no meaningful aero showed nothing like this. The reliable
+   version of this fix uses car CLASS as a conservative proxy (GT3/GTE/
+   LMP/hypercar/formula get the caveat, simpler classes don't), because
+   the more precise option - reading this exact car's own curve via
+   ac.DataLUT11.carData and locating its actual peak - depends on an API
+   confirmed to exist for PHYSICS SCRIPTS but never confirmed to work
+   from APP context despite real, repeated searching. That precise
+   version is still attempted as a bonus on top, fully pcall-wrapped: if
+   it works, the caveat gets more specific and confident; if it doesn't,
+   nothing breaks and the class-based version is what's shown. The
+   debug log now records aeroLutChecked/aeroLutRisk, which will finally
+   settle the app-context question one way or the other from a real
+   session.
+
+3) DIFFERENTIAL and SLOW DAMPERS (both from 4.6.0) re-verified against
+   this pass rather than re-litigated - confirmed still correct on
+   re-reading.
+
+SUSPENSION assessed and left alone deliberately, not overlooked: its
+"raise ride height OR stiffen springs" response to genuine bottoming is
+one-directional for a legitimate physical reason - there is no real
+"soften your way out of running out of travel" fix, unlike the old
+damper bug where stiffening was wrong roughly as often as it was right.
+The "everything says stiffen" impression from the screenshot that
+started this pass traced back overwhelmingly to the damper bug (fixed in
+4.6.0), not to Suspension or Springs being wrong.
+
+
+4.6.0: two modules that were audited and found genuinely broken/missing,
+fixed properly, plus a real expansion of the camber fallback data. This
+followed a full pass across every module against real, unpacked car data
+from eight cars spanning LMGT, GT3, AWD rally, two open-wheel ground-
+effect cars, TCR, a hot hatch, and a classic rally car with no aero at
+all - confirmed sound: pressure, ARB, packer range, fast dampers, brake
+bias, springs, toe, mechanical grip. Genuinely broken: slow dampers and
+differential, both fixed here.
+
+1) SLOW DAMPERS (bump/rebound) were still using the exact "more events
+   always means stiffen" logic that caused the original complaint - the
+   bump:rebound balance fix was researched (the same damper-histogram
+   technique behind the 4.4.0 fast-damper fix) but never actually shipped
+   before this version, having been diagnosed the same session a large
+   batch of car files arrived and got prioritised instead. Now uses the
+   real technique: a side with MORE events is comparatively SOFTER (it
+   moves more freely, crossing the velocity threshold more often), so
+   restoring balance means stiffening that side or softening the other to
+   match - margin-checked exactly like ARB's near-the-limit fallback.
+   Events WITH bottoming on that axle override balance entirely and
+   stiffen both, same as fast dampers. Worth recording: the direction was
+   initially written backwards during this rebuild (softening the
+   dominant side instead of stiffening it) and caught by re-deriving from
+   the source before it shipped.
+
+2) DIFFERENTIAL rebuilt from a single hedge into two distinct signals,
+   each with the opposite fix, plus a real writer - this module never had
+   one before. Signal A (existing): asymmetric rear slip at very low
+   lateral G, nothing about cornering load to explain it - points at too
+   LITTLE lock. Signal B (new): both rear wheels forced to near-equal
+   slip while genuinely cornering under power, rear sliding more than
+   front - a diff holding the wheels together despite the load difference
+   cornering creates, which points at too MUCH lock, regardless of
+   whether that shows up as exit push or snap oversteer (both are
+   documented outcomes of the same over-locked cause, so the advice
+   doesn't commit to just one). AWD cars are excluded outright: unpacking
+   a real AWD car's data showed no DIFFERENTIAL section at all, just a
+   controller chain reading GEAR/SPEED_RATIO/BRAKE through its own LUTs -
+   a genuinely different system this module doesn't cover, so it says so
+   rather than giving confidently wrong advice. The new writer only
+   touches DIFF_POWER and DIFF_PRELOAD; DIFF_COAST is left alone since
+   both signals are specifically about power-on behaviour.
+
+3) CAMBER fallback lookup expanded from nothing to 102 real cars' DCAMBER
+   coefficients (86 from a community reference table, plus 8 unpacked
+   directly during this project), so the precise one-shot peak-angle
+   calculation now runs on far more cars whose live tyres.ini doesn't
+   expose it (CSP only hands back a WHITELIST of fields on encrypted
+   cars). Cross-validated: a freshly-unpacked BMW Z4 GT3's coefficients
+   matched its existing reference-table entry exactly. For the Ferrari
+   458 GT2 test car specifically, this resolves to a 3.38 degree peak -
+   the same number derived by hand near the start of this project, now
+   computed automatically. Caveat worth keeping in mind: 7 of the 8
+   newly-added cars are keyed under guessed slugs, not their real
+   installed folder IDs, so those specific entries stay inert until
+   corrected to match - harmless, but not yet a guaranteed win.
+
+Known gap, not yet addressed: no telemetry sample anywhere in the app is
+currently filtered by track surface validity, so off-track excursions
+(grass, gravel, invalid cuts) can contaminate push/snap/lockup/bottoming/
+camber counters alongside genuine on-track data. Confirmed via real
+surfaces.ini files (FRICTION and IS_VALID_TRACK per surface type are
+right there to check against). Flagged for the next pass.
+
+
+4.5.0: a physics audit of every module, prompted by camber recommendations
+showing in the UI but never reaching the setup file. Four real problems.
+
+1) CAMBER NEVER GOT WRITTEN. The debug log showed staticCamberCaptured=
+   false while every other module wrote fine. Cause: camber was the ONLY
+   module that computed an ABSOLUTE target (current static + deficit), so
+   it needed a live static-camber reading from a stationary pit stop.
+   Everything else simply nudges the value already in your setup. Camber
+   now does the same - take the stored value, move it by N clicks - so it
+   writes on every run like everything else. The absolute path is still
+   used when the data for it happens to be there, purely as a bonus.
+
+2) SLOW DAMPER ADVICE WAS DRIVEN BY FAST-DAMPER DATA. AC's slow/fast
+   crossover comes from DAMP_FAST_BUMPTHRESHOLD in suspensions.ini and is
+   around 0.06 m/s on a real car. This app's damper event detection used
+   fixed thresholds of 0.55 and 1.2 m/s - both roughly ten times ABOVE
+   that crossover, so everything it called a "slow damper event" was
+   already deep in the fast-damper regime. The thresholds are now read
+   from the car and scaled as multiples of its own crossover, chosen so a
+   typical 0.06 m/s car reproduces 0.54 / 1.2 exactly (keeping the
+   calibration that has been validated on track) while a car with very
+   different damping scales with it. The real value is reported in the
+   debug log.
+
+3) BUMP STOP RATE WAS THE WRONG LEVER FOR BOTTOMING. Stiffening the bump
+   stop rate does not stop you reaching the bump stop - it just makes the
+   hit harsher once you are on it, which costs grip rather than saving
+   it. The standard answers to running out of travel are raise ride
+   height, stiffen the spring, and give the suspension more room before
+   the packers. The first two were already there; PACKER_RANGE is now
+   used for the third, and bump stop rate is left alone.
+
+4) ARB ONLY EVER SOFTENED. Balance depends on the RATIO of front to rear
+   roll stiffness, so understeer is cured either by softening the front
+   bar or stiffening the rear - the two are equivalent. Only ever
+   softening meant repeated Build presses walked the flagged bar down
+   toward its minimum with nothing balancing it. Now, if the bar to be
+   softened is already near the bottom of its range, the opposite bar is
+   stiffened instead - same balance shift, no running out of adjustment.
+
+Modules audited and confirmed correct, for the record: toe (front toe-out
+sharpens turn-in, rear toe-in adds stability, and the TOE_OUT sign
+convention is handled the right way round), brake bias (front lockups ->
+less front bias), wings (high-speed push -> front wing, high-speed snap ->
+rear wing), springs (max travel hits -> stiffer), and pressure (delta from
+the measured hot reading to the tyre's own PRESSURE_IDEAL).
+
+
+4.4.0: three fixes, all from real in-game evidence.
+
+CAMBER ADVICE WAS STUCK. The panel permanently read "looks high -> reduce
+neg camber" no matter what the tyres were doing. Cause: after checking
+the tread temperature spread, the code fell through to a bare angle test -
+"static camber more negative than -1.15 deg is too much". Every GT car
+runs -2 to -3.5 deg as standard, so that branch fired on essentially every
+lap of every race car. Deleted outright: there is no universal "correct"
+static camber to compare against, which is exactly why the thermal method
+exists. What remains is the real trackside technique - inside-vs-outside
+tread temperature of the LOADED OUTER tyre at peak corner load, target
+band inside 0-12C hotter than outside - and advice is now given in CLICKS
+(1 click = 0.1 deg, the common convention) sized from the measured spread
+using the standard pyrometer rule of thumb of roughly 10-12C per degree
+of camber, capped at 8 clicks.
+
+CAMBER WRITER NOW WORKS ON ENCRYPTED CARS. The debug log showed
+peakCamberF=n/a while tyreDataSrc=tyres.ini - i.e. the file WAS being read
+(pressure targets 26.0/27.0 are not any class-matrix value) but DCAMBER_0
+and DCAMBER_1 came back empty. CSP evidently exposes only a WHITELIST of
+tyres.ini fields on cars with encrypted data, and the Pacejka camber
+coefficients are not on it. So the writer now has two routes: the
+principled DCAMBER peak-grip calculation where those coefficients are
+available, and the thermal spread where they are not. Route two is pure
+live telemetry, so camber now gets written on every car rather than
+bailing out with "no usable DCAMBER coefficients".
+
+FAST DAMPERS WERE BACKWARDS. Previous versions always stiffened them.
+AC's own in-game description states it plainly: lower fast-bump values
+let the suspension absorb more energy over bumps and kerbs, whereas a very
+stiff setting means the damper barely moves, absorbing nothing and
+launching the car. Suspension Secrets adds the matching rebound point -
+fast rebound normally follows fast bump so the damper is extended again
+in time for the next bump, and too-stiff fast rebound causes suspension
+creep, each bump compressing further before full extension until it packs
+down onto the bump stops. Direction now depends on WHY the fast damper is
+being worked: fast events WITH bottoming -> stiffen (the travel needs
+support); fast events WITHOUT bottoming -> soften (compliance over kerbs
+and bumps, which is worth real mechanical grip). Both the advice text and
+the setup writer follow the same rule.
+
+Also: the duplicate SKIPPED spam is gone. The probe lists deliberately
+carry both naming conventions for the same physical item (ROD_LENGTH_* vs
+RIDE_HEIGHT_*, FRONT_BIAS vs BRAKE_BIAS) because cars use one or the
+other; a miss on the unused name is now silent, and a genuine miss on
+both is reported once instead of four times.
+
+
+4.3.0: two things that should have been done several versions ago, both
+pointed out correctly - the template setup file is found AUTOMATICALLY,
+and camber is now real physics instead of a heuristic.
+
+1) NO MORE "SET A BASE FILE" - the app now finds a template setup on its
+   own: last.ini in the track folder, then last.ini in generic, then its
+   own previous output, then (back-compat only) any name still set in
+   Settings. AC rewrites last.ini every session with whatever setup was
+   actually run, so in practice there is always a template available.
+
+   Why this matters more than it sounds: a template is a plain,
+   unencrypted .ini holding a real, valid, in-range value for every
+   section this car supports. Once you have that, you do NOT need the
+   car's data/setup.ini schema at all - you don't have to know an item's
+   legal MIN/MAX/STEP if you already know a real working value to nudge
+   from. That was the entire blocker on encrypted cars (the Ferrari 458
+   GT2 test car being one), where every category was reporting "no
+   schema range - car data likely encrypted" and writing nothing.
+   Encrypted cars now write a full setup like any other.
+
+2) CAMBER IS NOW COMPUTED, NOT GUESSED. AC's tyre model scales grip with
+   inclination angle as roughly
+       grip(c) = 1 + DCAMBER_0*c + DCAMBER_1*c^2      (c in radians)
+   a downward parabola, so peak grip sits at
+       c_peak = -DCAMBER_0 / (2 * DCAMBER_1)
+   Both coefficients come straight from this car's own tyres.ini - which
+   is readable EVEN ON ENCRYPTED CARS. Confirmed by the debug logs: the
+   Ferrari was returning 26.0/27.0 psi targets, which are not any of the
+   class-matrix fallback values, so that file was being read successfully
+   all along. Same relationship the "Camber Extravaganza" app uses.
+   Sanity checked on two real cars: 4.00 deg and 3.38 deg - both squarely
+   in the normal range for GT slicks.
+
+   Crucially it is NOT just "set camber to -3.4". That peak angle is what
+   the tyre wants at the moment it is WORKING - at peak corner load,
+   after body roll and camber gain have had their say. The app already
+   measures exactly that (outer wheel camber at the highest-lateral-G
+   instant of each clean corner), so:
+       deficit   = -peakAngle - measuredCamberAtPeakLoad
+       newStatic = currentStaticCamber + deficit
+   Static camber is now only the reference point to shift FROM, never
+   the thing being optimised - which is precisely what was wrong before.
+
+   Worked example on the real test car (Ferrari 458 GT2, numbers from
+   the actual debug logs): peak-grip angle 3.38 deg, loaded tyre measured
+   at -2.32 deg, so a -1.06 deg deficit; static -2.06 -> -3.12 deg,
+   written as VALUE=-30.26 using the 9.7x unit scale derived from the
+   template. Worth noting the old heuristic was saying "reduce negative
+   camber" on this exact data - the physics says the opposite.
+
+Also: unit scale for camber is derived from the template where possible
+(a -20 stored against a -2.06 deg live reading is a 9.7x scale, i.e.
+tenths of a degree), with the schema range as a second opinion and raw
+degrees as a last resort - and a sanity check that rejects any derived
+scale that isn't near 1/10/100. The debug log now reports the template
+used, the computed peak-grip angles, and per-category which route each
+value took, so "why didn't X change" stays answerable from the log alone.
+
+
+
+CRITICAL FIX - CSP's Lua Debug console caught this directly: accessing
+.abs on a wheel threw 'struct_state_wheel' has no member named 'abs' -
+that field doesn't exist on this CSP build's app-level wheel struct
+(the changelog it was confirmed against most likely described the
+physics-SCRIPT wheel struct, a different and more privileged execution
+context - a lesson in not trusting a changelog across execution
+contexts without stronger confirmation). Because this was an uncaught
+Lua error and not just a wrong value, it silently aborted the REST of
+engine:update() every single time it was hit - which meant the advice
+panel (self.lastAdvice) never refreshed while the car was actually on
+track, only while stationary. Everything computed BEFORE that point in
+the frame (which is almost everything - bottoming, ARB, camber, lockups,
+etc.) kept accumulating correctly regardless, which is why the advice
+panel still looked populated; it just wasn't live. Fixed by wrapping the
+per-wheel ABS read in pcall, same as every other uncertain field in this
+file - this one just wasn't, and should have been.
+
+PRESSURE REDESIGNED - the reference Python implementation computes a
+setup's new pressure as `base_file_value + (target - current_reading)`:
+it moves the existing, PROVEN setup value by exactly the gap between what
+it's currently producing and what's wanted, using real driving data as
+the anchor rather than any theory about cold/hot rise. That's more robust
+than this app's previous "estimate the rise, subtract it" approach, which
+depended on a fragile cold-in-the-pits capture that may never trigger in
+a normal test session (confirmed happening twice in a row via the debug
+log: coldPressCaptured=false both times) or on tyres.ini fields
+(PRESSURE_STATIC) plenty of car mods simply don't define. Delta-from-
+base-file is now the PRIMARY method whenever a base setup file is given;
+the old estimated-rise approach remains as a fallback for when no base
+file exists, clearly labelled as lower-confidence, since it's still
+useful as a rough starting point in that case. Also (separately
+researched): AC's own "predicted hot" figure in the setup screen is
+typically only ~1 psi above the cold value - the much larger rises seen
+under real hard driving (8+ psi) come from driving-induced heat, not
+passive ambient warming, which is exactly why a real measured delta beats
+a theoretical estimate here.
+
+ADVICE TEXT MADE CONCRETE - every actionable line now states a typical
+suggested increment directly (e.g. "soften front ARB (try 1 click)",
+"add front toe-out (try ~0.05-0.1°)", "try +1 click front wing"),
+matching the reference implementation's much more usable style, instead
+of naming the direction and leaving the amount to guesswork. These are
+the same ballpark numbers most real-world setup guides quote for a
+single try-it step, not a value derived from this car's exact schema -
+"Build Optimal Setup" still computes and writes an exact number when it
+has the data to do so. AERO specifically now leads with a concrete wing
+suggestion rather than only the mechanical-first reasoning, which stays
+as additional context rather than the entire message. DIFFERENTIAL now
+gives a concrete starting number too (-5% power lock, the single most
+commonly cited first experiment for power-on rotation), while still
+being honest that diff behaviour is the most drivetrain-dependent
+setting here.
+
+DEBUG LOG NOW EXPLAINS ITSELF - it previously logged raw state
+(schemaLimited=true, coldPressCaptured=false) that needed interpreting.
+It now also writes out, in plain language, exactly why each of
+pressure/camber/everything-else-that-needs-a-base-file was or wasn't
+attempted, so a look at the log should answer "why didn't X happen"
+without back-and-forth. The "likely encrypted data" message was also
+softened to name the real alternative honestly: an unreadable setup.ini
+could equally mean this car just uses different section names than the
+common ones checked for, not necessarily encryption - there's no way to
+tell which from here, and both have the same fix (use a base file).
+
+UI: the main window now shows the base setup file name and static-camber
+status directly next to the Build button, since not having one of those
+set is the single most common reason nothing writes beyond pressure -
+previously this only surfaced after the fact, in the debug log.
+
+Earlier versions (condensed):
+- 4.0.0: fixed pressure writing the hot target as the cold fill (caused
+  real overinflation); fixed a latent unit-mixing bug in the setup.ini
+  schema reader (SHOW_CLICKS=1/2 items store a click index, not the raw
+  value - confirmed against a real car's setup.ini); camber now derives
+  its exact unit conversion from a base file + live measurement instead
+  of assuming one; ARB/springs/dampers/toe/ride height/brake bias/wings/
+  bump stop rate all work off a base setup file alone now, regardless of
+  whether the car's own setup.ini could be read; added real per-wheel
+  grip telemetry (.dy) for a new MECHANICAL GRIP item and an improved
+  Grip Trend; AERO checks for a mechanical cause before suggesting wing;
+  added a debug log. (The pressure fix above was itself superseded by
+  4.1.0's more robust delta-from-base-file approach.)
+- 3.1.0: peak-corner camber sampling instead of blanket averaging; ARB/
+  aero speed split raised 110->160 km/h; ride height advice cross-
+  referenced with springs; tread mid-vs-edge cross-check; ABS/TC time
+  surfaced (per-wheel .abs added on top of this in 4.0.0, then made
+  pcall-safe in 4.1.0 after a real crash showed it doesn't exist on
+  every CSP build - see the 4.1.0 note above).
+- 3.0.2: clearer diagnosis + generic-folder fallback when the setups
+  folder doesn't exist yet (plain Lua file writes can't create folders).
+- 3.0.1: pressure/camber generic fallback for encrypted/unreadable
+  setup.ini (superseded by 4.0.0's base-file-driven approach).
+- 3.0.0: advice reordered into real setup-work sequence; fixed a camber
+  contradiction bug; added the setup.ini schema reader and the original
+  "Build Optimal Setup" button.
+
+Compatible with CSP 0.2.x. Written defensively with pcall around every field
+that varies by car/CSP build, so it keeps degrading gracefully rather than
+erroring out on older builds or odd cars.
+
+IMPORTANT / limitations on "Build Optimal Setup", still true in 4.1.0:
+- CSP's app-side Lua API does not expose the setup values the physics
+  engine is currently running, and Assetto Corsa does not let a setup
+  change take effect while the car is out on track - a new setup only
+  applies the next time you leave the pits. This button writes a FILE;
+  you load it from the in-game Setup screen like any other saved setup.
+- It never overwrites your base file - the result is saved under a new
+  name alongside it.
+- A couple of sign conventions (rear toe direction on some mods, ride-
+  height/rod-length on pushrod cars) vary between cars and can't be
+  verified without that car's specific data. The on-screen changelog
+  always shows old -> new so you can eyeball it before loading.
