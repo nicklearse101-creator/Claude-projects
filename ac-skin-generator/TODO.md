@@ -26,6 +26,20 @@ Dropped (Nik, 11 Nov): Talbot lower-door name behind the sill trim, Escort Mk2 t
 
 Details of earlier fixes: `PLAN_next_session.md`.
 
+## Next - Nik 16 Nov evening (AFTER he has tested 1.11.0 - don't start before)
+1. **Edit an existing skin**: a skin drop-down (skins made by the app AND stock skins), picking one loads an automatic
+   preview. Plan: Create writes the design into the skin (r4s_design.json) so app-made skins reopen fully editable;
+   older app skins and stock skins start from their own body texture (instead of a pattern) with logos / names on top.
+2. **Encrypted (CSP-protected) cars**: Nik paints these by hand from the body texture / CM's AO (2D layout, GIMP,
+   export .dds + .png, usually < 10 MB). Plan: a 2D "template" mode - the stock body texture is readable even when the
+   model's UVs are scrambled; paint the pattern in texture space on its panels, logos placed on the 2D layout, keep the
+   stock shading. Lighter files too. RULE: must not change anything for the cars that work now (same_output_cars.py).
+3. **Interior colours** (seats, dash, door cards, roll cage, carpet, headliner): a name dictionary of interior
+   textures / meshes from all 868 cars (as for the body), recolour keeping the texture's shading; CSP material
+   options where a texture is shared. Check CSP docs (GitHub, local extension/config).
+4. **Other sims**: the 2D template engine of item 2 is the way in (iRacing, ACC, LMU / rF2, AMS2 models are
+   encrypted; their paint templates are 2D files) - per-sim output (file names, sizes, formats, folders).
+
 ## Done 12 Nov night (v1.10.0)
 - [x] 'Pick it on the car': a logo / name / number the app can't place is reported, the user clicks the spot on the
   preview. 'Report this car' button: zip on the desktop (catalogue, log, design, preview) to post on Nik's Discord.
