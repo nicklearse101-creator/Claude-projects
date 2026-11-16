@@ -9240,6 +9240,22 @@ end
 
 -- Balance target picker: one button per BALANCE_MODES entry, the active one
 -- marked. Build and the advice lines read settings.balanceMode.
+-- Brake bias one-time write: status + re-arm, in the main window (the
+-- Settings window is not reachable for this app).
+local function drawBiasRearm()
+  local carKey = engine.carId or ''
+  if carKey == '' then return end
+  if engine:biasBaselineDone(carKey) then
+    if ui.button('Re-arm brake-bias write (this car)##biasrearm', vec2(260, 22)) then
+      settings.biasBaselineCars = tostring(settings.biasBaselineCars or ''):gsub('|' .. carKey:gsub('%p', '%%%0') .. '|', '|')
+    end
+  else
+    ui.pushFont(ui.Font.Small)
+    ui.text('Brake bias: the one-time calculated write is armed for this car')
+    ui.popFont()
+  end
+end
+
 local function drawBalanceModePicker()
   ui.text('Balance target:')
   for _, key in ipairs(BALANCE_MODE_ORDER) do
@@ -9327,6 +9343,7 @@ function script.windowMain(dt)
     ui.offsetCursorY(4)
   end
   drawBalanceModePicker()
+  drawBiasRearm()
   if ui.button('BUILD OPTIMAL SETUP', vec2(180, 28)) then
     engine:buildOptimalSetup()
   end
