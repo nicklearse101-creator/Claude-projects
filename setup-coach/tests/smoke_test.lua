@@ -45,6 +45,7 @@ ui = {
   Font = { Small = 'Small', Big = 'Big' },
 }
 vec2 = function(x, y) return { x = x, y = y } end
+rgbm = function(r, g, b, a) return { r = r, g = g, b = b, mult = a } end
 script = {}
 
 local path = arg[1]

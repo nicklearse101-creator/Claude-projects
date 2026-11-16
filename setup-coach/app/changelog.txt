@@ -4,6 +4,44 @@ Setup Coach - changelog
 Newest first. Moved out of SetupCoach.lua in v2.6.2 so the code carries no
 version history; every change from here on is written here.
 
+Setup Coach  3.1.1
+
+3.1.1: THE PANEL IS BACK, AND CLEANER. Nik on 3.1.0: "the setup options
+including new buttons worked... the setup it made so far on the lacetti
+was really really good. Negative - the telemetry and advice is no longer
+in the app... Clean and crisp and user friendly, but we still need it to
+actually show the info, or building a setup manually is impossible."
+
+Why it vanished: 3.1.0 added the new histogram slowDamperAdvice inside
+buildAdvice but left the old count-based one right below it. The old one
+won, was called with 'F' / 'R' where it expected counts, and threw
+"attempt to compare string with number" every frame - so the advice list
+never filled (the Build has its own code and was fine, which is why the
+Lacetti setups were good). Removed; test_v311_panel.lua runs the real app
+end to end (300 frames, then the window) and reproduces the 3.1.0 failure.
+
+New panel, top to bottom:
+  - Header: car, compound, lap, last / best, speed, fuel, temps.
+  - Live tyres: per corner, pressure against the hot target, inside /
+    middle / outside temps, core against the tyre's optimum - green /
+    yellow / orange.
+  - This window: clean laps and corners (and whether Build is ready);
+    low- and high-speed push / oversteer per 100 corners with the verdict
+    against your balance target; turn-in push, lockups F / R; travel used,
+    max-travel hits, damper bump / rebound split F and R.
+  - WHAT TO CHANGE: only the checks that want a change, top first, each
+    with what to do. Everything fine is one "Fine:" line, everything still
+    gathering data one "Still measuring:" line. "Show every check, with the
+    reasoning" brings back the full list.
+  - Build, pit notes and grip trend as before.
+ARB advice now says the manual move first ("soften the front ARB 1-2
+clicks") and the real order Build tries levers in. Dampers with under 20 s
+of data read "still measuring" instead of "fine".
+
+Tests: 28 files, 1307 checks green; check.ps1 clean (smoke stub gained
+rgbm). Untested in game - first look: the tyre table lines up and the
+WHAT TO CHANGE list fills after a lap.
+
 Setup Coach  3.1.0
 
 3.1.0: LEVERS BACK, LESS STRICT; BALANCE TARGET; DAMPERS FROM A REAL
@@ -73,6 +111,10 @@ Tests: test_v310_relaxed_levers.lua (19), test_v310_damper_histogram.lua
 on. Suite 27 files, 1292 checks green. Untested in-game - first look: the
 damper histogram lines (sane shares, 20 s+ per window) and that ARB/toe/
 damper levers write again.
+
+Brake-bias re-arm button moved to the main window (under the balance
+target buttons): it only ever existed in the Settings window, which never
+shows for this app.
 
 Known: the inline comments are the 2.6.2 ones and still carry version
 notes; that clean-up is still to do.

@@ -151,7 +151,7 @@ check('wings: verdict decides, old "larger wins" gone', src:find('if self%.highP
 check('rear dampers: a clear rear handling verdict leaves the rear to the balance chain', src:find("elseif axle%.e == 'R' and rearHandling then") ~= nil, true)
 check('slow dampers on both ends come from the time-weighted histogram', src:find('local hv = self:damperHistVerdict%(axle%.e%)') ~= nil, true)
 check('panel REAR DAMPERS gets the note', src:find("slowDamperAdvice%('R', bottomingR, 'Rear', rearHandling%)") ~= nil, true)
-check('panel ARB uses the verdict', src:find("Low%-speed push dominant %(%%d push / %%d oversteer%)") ~= nil, true)
+check('panel ARB uses the verdict', src:find("Low%-speed understeer %(%%d push / %%d oversteer%)") ~= nil, true)
 check('panel AERO uses the verdict', src:find("local highVerdict, _, _, highNote = regimeVerdict%(self, 'high', th%)\n  if highVerdict == 'tight' then") ~= nil, true)
 check('debug line logs all three verdicts', src:find("balance verdicts %(%%s target") ~= nil, true)
 check('the rule is stated in the code', src:find('SLIGHT OVERSTEER IN A\n%-%- RACE CAR IS NOT A FAULT') ~= nil, true)

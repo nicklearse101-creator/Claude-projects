@@ -9,7 +9,7 @@
   Version history: changelog.txt next to this file.
 ]]
 
-local VERSION = '3.1.0'
+local VERSION = '3.1.1'
 local G = 9.80665
 
 -- Speed (km/h) above which a handling balance issue is treated as
@@ -4184,65 +4184,7 @@ function engine:buildAdvice(car, sim)
     elseif hv.verdict == 'rebSoft' then
       return 'act', string.format('%s: %s → Build will stiffen slow rebound one click (or soften bump if rebound is at its limit)', axleLabel, hv.text)
     end
-    return 'ok', string.format('%s dampers: %s', axleLabel, hv.text)
-  end
-
-  -- FRONT / REAR DAMPERS (slow), rebuilt in 4.6.0. Real damper diagnosis
-  -- uses a velocity histogram - checking whether time is BALANCED across
-  -- bump and rebound, not counting raw threshold crossings. A busy circuit
-  -- naturally produces many events on both sides; that's a working damper,
-  -- not a problem. Only a genuine IMBALANCE (one side dominating) indicates
-  -- a mistuned damper, and the professional fix for that is to bring the
-  -- histogram back into symmetry - which means stiffening the dominant
-  -- (higher-count, comparatively softer) side, or softening the recessive
-  -- side to match it. Over-damping is also a real
-  -- and common mistake in its own right: it's confirmed to cost peak grip
-  -- (not just comfort) despite feeling more "planted", because a locked-
-  -- down suspension leaves the tyre working alone over every bump. The
-  -- previous version always said "stiffen" on any high count, which is
-  -- exactly the mistake this rebuild corrects.
-  --
-  -- The correlation with bottoming carries over from the fast-damper logic
-  -- (4.4.0): events WITH bottoming mean the suspension is genuinely running
-  -- out of support and stiffening is right regardless of balance. Events
-  -- WITHOUT bottoming are judged purely on bump:rebound balance.
-  -- v1.9.3: `handling` ('loose' | 'tight' | nil) is only passed for the
-  -- rear axle and mirrors the writer's rearHandling exactly - the panel
-  -- must promise what Build will actually do. See the writer's SLOW
-  -- DAMPERS block for the tooltip evidence behind each direction.
-  local function slowDamperAdvice(bumpN, rebN, bottomingOnAxle, axleLabel, handling, handlingNote, pushN, snapN)
-    if bumpN <= th and rebN <= th then
-      return 'ok', axleLabel .. ' damper control good'
-    end
-    if bottomingOnAxle then
-      -- v2.6.0: matches the writer - the axle belongs to its bottoming chain.
-      return 'act', string.format('%s damper events (%d bump / %d rebound), running out of travel on most %s → left to the bottoming chain: slow bump is its 2nd fix, rebound is never stiffened for bottoming (too much rebound packs a car down)',
-        axleLabel, bumpN, rebN, EV_UNIT.many)
-    end
-    if handling == 'loose' then
-      return 'act', string.format('%s oversteer dominant (%d bump / %d rebound events) → Build will SOFTEN rear rebound and rear bump (AC: lower rear rebound = more stable at turn-in; lower rear bump = more traction on brake release)', axleLabel, bumpN, rebN)
-    elseif handling == 'tight' then
-      return 'act', string.format('%s planted, front pushing (%d bump / %d rebound events) → Build will STIFFEN rear rebound for rotation, within 30%% of its limit (AC: higher = more agile on slow turns, but less stable under braking)', axleLabel, bumpN, rebN)
-    elseif axleLabel == 'Rear' then
-      -- v1.9.8: no verdict on the rear = left alone, and the panel says
-      -- exactly what the writer will log (same balanceLeftAloneNote).
-      local why = balanceLeftAloneNote(handlingNote, pushN or 0, snapN or 0, 'overall')
-      if why then return 'ok', string.format('Rear dampers left alone: %s (%d bump / %d rebound events)', why, bumpN, rebN) end
-      return 'ok', string.format('Rear damper busy (%d bump / %d rebound) but balance neutral - left alone', bumpN, rebN)
-    end
-    if bumpN + rebN < HISTOGRAM_MIN_EVENTS then
-      -- v1.9.9: matches the writer's evidence floor.
-      return 'ok', string.format('%s damper events (%d bump / %d rebound) - too few to judge the balance yet (needs %d)', axleLabel, bumpN, rebN, HISTOGRAM_MIN_EVENTS)
-    end
-    local ratio = (bumpN + 1) / (rebN + 1)  -- +1 avoids divide-by-zero, negligible at real counts
-    if ratio > 1.6 then
-      return 'act', string.format('%s bump events (%d) far exceed rebound (%d) - bump is comparatively soft → Build will stiffen bump (or soften rebound instead if bump is already near its stiffest)', axleLabel, bumpN, rebN)
-    elseif ratio < 0.625 then
-      return 'act', string.format('%s rebound events (%d) far exceed bump (%d) - rebound is comparatively soft → Build will stiffen rebound (or soften bump instead if rebound is already near its stiffest)', axleLabel, rebN, bumpN)
-    end
-    -- Balanced (roughly 0.625-1.6 ratio): busy but working correctly, even
-    -- if the raw counts look high on a demanding circuit.
-    return 'ok', string.format('%s damper balanced (%d bump / %d rebound) - busy but working, not a fault', axleLabel, bumpN, rebN)
+    return hv.measured and 'ok' or 'wait', string.format('%s dampers: %s', axleLabel, hv.text)
   end
 
   -- FRONT / REAR DAMPERS (slow)
@@ -4297,9 +4239,9 @@ function engine:buildAdvice(car, sim)
   -- frozen for this car - so "soften ARB" is the first candidate, not a
   -- promise. The Build log names the lever that actually moved.
   if lowVerdict == 'tight' then
-    arbItem = item('ARB', 'act', string.format('Low-speed push dominant (%d push / %d oversteer)%s → first lever in the chain: soften front ARB (Build moves ONE low-speed lever per Build, ARB > toe > rear dampers > rake, measured next window)', self.midPush, self.midSnap, sectorSuffix('midPush')))
+    arbItem = item('ARB', 'act', string.format('Low-speed understeer (%d push / %d oversteer)%s → soften the front ARB 1-2 clicks. Build tries one lever a Build in this order: ARB, front toe, springs, rear dampers, rear toe, diff, rake', self.midPush, self.midSnap, sectorSuffix('midPush')))
   elseif lowVerdict == 'loose' then
-    arbItem = item('ARB', 'act', string.format('Low-speed oversteer dominant (%d oversteer / %d push, %.0f per 100 corners)%s → first lever in the chain: soften rear ARB (Build moves ONE low-speed lever per Build, ARB > rear dampers > toe > rake, measured next window)', self.midSnap, self.midPush, lowSnapRate, sectorSuffix('midSnap')))
+    arbItem = item('ARB', 'act', string.format('Low-speed oversteer (%d oversteer / %d push, %.0f per 100 corners)%s → soften the rear ARB 1-2 clicks. Build tries one lever a Build in this order: ARB, rear dampers, springs, rear toe, front toe, diff, rake', self.midSnap, self.midPush, lowSnapRate, sectorSuffix('midSnap')))
   else
     local why = balanceLeftAloneNote(lowNote, self.midPush, self.midSnap, 'low-speed')
     arbItem = item('ARB', 'ok', why and ('ARB: ' .. why) or 'ARB balance good')
@@ -6054,6 +5996,7 @@ function engine:damperHistVerdict(e)
     out.text = string.format('damper histogram %s: %.0f s of wheel movement measured, needs %d', e, total or 0, DAMPER_HIST_MIN_S)
     return out
   end
+  out.measured = true
   local v = damperHistSide(share)
   local bins = windowBins(self)
   local agree = 0
@@ -9150,9 +9093,6 @@ local function drawHeader(car, sim)
     local road = sim and n(sim.roadTemperature, 0) or 0
     ui.text(string.format('%.0f km/h  ·  %.0f rpm  ·  fuel %.1f L  ·  road %.0f°  air %.0f°',
       n(car.speedKmh), n(car.rpm), n(car.fuel), road, air))
-    ui.text(string.format('FL: %s  ·  FR: %s  ·  RL: %s  ·  RR: %s',
-      psiStr(engine.livePressFL), psiStr(engine.livePressFR),
-      psiStr(engine.livePressRL), psiStr(engine.livePressRR)))
   else
     ui.text('Waiting for car...')
   end
@@ -9225,17 +9165,123 @@ local function drawModuleToggleCheckboxes()
   end
 end
 
+-- v3.1.1 panel: live tyres, this window's balance numbers, then only the
+-- checks that want a change (act/warn), top first. Fine and still-measuring
+-- checks collapse to one line each; "Show every check" brings the full
+-- reasoning back. Info items (evidence, tyres, fuel, lap times, weather)
+-- are shown in the summary instead of the list.
+local PANEL_COLORS = {
+  act = rgbm(1.0, 0.55, 0.2, 1), warn = rgbm(1.0, 0.85, 0.3, 1),
+  ok = rgbm(0.45, 0.85, 0.45, 1), wait = rgbm(0.6, 0.6, 0.6, 1),
+  info = {['BUILD EVIDENCE'] = true, TYRES = true, FUEL = true, PERFORMANCE = true, WEATHER = true},
+}
+
 local function drawAdviceList(compact)
+  local fine, measuring, shown = {}, {}, 0
   for i = 1, #engine.lastAdvice do
     local a = engine.lastAdvice[i]
-    if not (compact and a.status == 'ok') then
-      ui.pushFont(ui.Font.Small)
-      ui.text(a.id .. '  [' .. a.status .. ']')
-      ui.popFont()
-      ui.textWrapped(a.text)
-      ui.offsetCursorY(4)
+    if not PANEL_COLORS.info[a.id] then
+      if a.status == 'act' or a.status == 'warn' or engine.showAllChecks then
+        shown = shown + 1
+        ui.textColored(a.id, PANEL_COLORS[a.status] or PANEL_COLORS.wait)
+        ui.pushFont(ui.Font.Small)
+        ui.textWrapped(a.text)
+        ui.popFont()
+        ui.offsetCursorY(3)
+      elseif a.status == 'wait' then
+        measuring[#measuring + 1] = string.lower(a.id)
+      else
+        fine[#fine + 1] = string.lower(a.id)
+      end
     end
   end
+  if shown == 0 then
+    ui.textColored('Nothing to change right now - everything measured is inside the target.', PANEL_COLORS.ok)
+  end
+  ui.pushFont(ui.Font.Small)
+  if #fine > 0 then ui.textWrapped('Fine: ' .. table.concat(fine, ', ')) end
+  if #measuring > 0 then ui.textWrapped('Still measuring: ' .. table.concat(measuring, ', ')) end
+  ui.popFont()
+  engine.showAllChecks = checkbox('Show every check, with the reasoning', engine.showAllChecks)
+end
+
+-- Live tyre table: pressure against the hot target, inside/middle/outside
+-- and core temperature against the tyre's optimum - read straight from the
+-- car every frame.
+local function drawLiveTyres(car)
+  if not (car and car.wheels) then return end
+  local x0 = ui.getCursorX()
+  local colX = {x0, x0 + 150, x0 + 280, x0 + 410, x0 + 540}
+  local function row(label, vals, colors)
+    ui.setCursorX(colX[1])
+    ui.text(label)
+    for i = 1, 4 do
+      ui.sameLine(0, 0)
+      ui.setCursorX(colX[i + 1])
+      if colors and colors[i] then ui.textColored(vals[i], colors[i]) else ui.text(vals[i]) end
+    end
+  end
+  local press = {engine.livePressFL, engine.livePressFR, engine.livePressRL, engine.livePressRR}
+  local pv, pc, tv, cv, cc = {}, {}, {}, {}, {}
+  for i = 1, 4 do
+    local w = car.wheels[i]
+    local tgt = i <= 2 and n(engine.targetF, 0) or n(engine.targetR, 0)
+    pv[i] = (press[i] or 0) > 5 and psiStr(press[i]) or '-'
+    if (press[i] or 0) > 5 and tgt > 0 then
+      local d = math.abs(press[i] - tgt)
+      pc[i] = d <= 0.5 and PANEL_COLORS.ok or (d <= 1.2 and PANEL_COLORS.warn or PANEL_COLORS.act)
+    end
+    tv[i] = string.format('%.0f / %.0f / %.0f', n(w and w.tyreInsideTemperature), n(w and w.tyreMiddleTemperature), n(w and w.tyreOutsideTemperature))
+    local core, opt = n(w and w.tyreCoreTemperature), n(w and w.tyreOptimumTemperature)
+    cv[i] = opt > 0 and string.format('%.0f° (opt %.0f°)', core, opt) or string.format('%.0f°', core)
+    if opt > 0 then
+      local d = math.abs(core - opt)
+      cc[i] = d <= 5 and PANEL_COLORS.ok or (d <= 12 and PANEL_COLORS.warn or PANEL_COLORS.act)
+    end
+  end
+  ui.pushFont(ui.Font.Small)
+  row('', {'FL', 'FR', 'RL', 'RR'})
+  row(string.format('Pressure (hot %s / %s)', n(engine.targetF, 0) > 0 and psiStr(engine.targetF) or '-', n(engine.targetR, 0) > 0 and psiStr(engine.targetR) or '-'), pv, pc)
+  row('Temp in / mid / out', tv)
+  row('Core', cv, cc)
+  ui.popFont()
+end
+
+-- This window's numbers, the same ones Build decides from.
+local function drawWindowSummary()
+  local th = math.max(1, math.floor(n(settings.threshold, 2)))
+  local passes, clean, _, _, _, minLaps, corners = engine:buildEvidence()
+  local mode = balanceMode()
+  ui.pushFont(ui.Font.Small)
+  ui.text(string.format('%d clean %s · %d corners since %s · %s', clean, unitWord(clean), corners,
+    tostring(engine.windowLabel or 'session start'),
+    passes and 'ready to Build' or string.format('Build needs %d clean %s and %d corners', minLaps, unitWord(minLaps), BUILD_MIN_CORNERS)))
+  local per = corners > 0 and 100 / corners or 0
+  for _, r in ipairs({{'Low speed', 'low'}, {'High speed', 'high'}}) do
+    local v, push, snap, note = regimeVerdict(engine, r[2], th)
+    local word, col = 'balanced', PANEL_COLORS.ok
+    if v == 'tight' then word, col = 'UNDERSTEER', PANEL_COLORS.act
+    elseif v == 'loose' then word, col = 'OVERSTEER', PANEL_COLORS.act
+    elseif note == 'slight' then word = 'slight oversteer - inside the target'
+    elseif note then word, col = 'mixed (' .. note .. ')', PANEL_COLORS.wait end
+    if corners == 0 then word, col = 'no corners yet', PANEL_COLORS.wait end
+    ui.text(string.format('%s: push %.0f / oversteer %.0f per 100 corners ->', r[1], (push or 0) * per, (snap or 0) * per))
+    ui.sameLine(0, 6)
+    ui.textColored(word, col)
+  end
+  ui.text(string.format('Balance target: %s · turn-in push %.0f%% of corners · lockups F %d / R %d',
+    mode.label, (engine.turninPush or 0) * per, engine.lockF or 0, engine.lockR or 0))
+  local function damp(e)
+    local h = engine:damperHistVerdict(e)
+    if not h.measured then return 'measuring' end
+    local s = string.format('bump %.0f%% / reb %.0f%%', h.share * 100, (1 - h.share) * 100)
+    if h.verdict == 'bumpSoft' then return s .. ' (bump soft)' elseif h.verdict == 'rebSoft' then return s .. ' (rebound soft)' end
+    return s .. ' (even)'
+  end
+  ui.text(string.format('Travel used F %.0f%% / R %.0f%% · max-travel hits F %d / R %d · dampers F %s · R %s',
+    (engine.travelUsePeakF or 0) * 100, (engine.travelUsePeakR or 0) * 100,
+    engine.springsHitsF or 0, engine.springsHitsR or 0, damp('F'), damp('R')))
+  ui.popFont()
 end
 
 -- Balance target picker: one button per BALANCE_MODES entry, the active one
@@ -9273,15 +9319,17 @@ function script.windowMain(dt)
   local sim = ac.getSim()
 
   drawHeader(car, sim)
-  ui.offsetCursorY(8)
+  ui.offsetCursorY(4)
+  drawLiveTyres(car)
+  ui.offsetCursorY(6)
   ui.separator()
+  ui.offsetCursorY(4)
+  drawWindowSummary()
   ui.offsetCursorY(6)
-
-  ui.pushFont(ui.Font.Small)
-  ui.text('NOTE: ADJUST ONE SETUP ASPECT AT A TIME, IN ORDER OF THE LIST BELOW.')
-  ui.popFont()
-  ui.offsetCursorY(6)
-
+  ui.separator()
+  ui.offsetCursorY(4)
+  ui.text('WHAT TO CHANGE - one at a time, top of the list first')
+  ui.offsetCursorY(2)
   drawAdviceList(settings.compact)
 
   ui.offsetCursorY(10)
