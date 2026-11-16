@@ -48,7 +48,7 @@ def test_click_sets_the_spot(app, view, a, b):
     pin = app.adj()['logo:bonnet']
     assert app.picking is None and 'da' not in pin
     assert list(pin['pin']) == [view] and pin['pin'][view] == pytest.approx([a, b], abs=0.01)
-    assert 'preview' in app.sel_label.cget('text').lower()
+    assert 'redrawn' in app.sel_label.cget('text').lower() and app._auto_job is not None    # 1.11: redraws by itself
     saved = json.load(open(R.SETTINGS, encoding='utf8'))['adjust_by_car']['car_a']['logo:bonnet']
     assert saved['pin'][view] == pytest.approx([a, b], abs=0.01)
 

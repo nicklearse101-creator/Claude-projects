@@ -1,4 +1,4 @@
-RATTY'S4SKIN GENERATOR  v1.10.4
+RATTY'S4SKIN GENERATOR  v1.11.0
 Makes liveries (skins) for Assetto Corsa cars. No AI, no internet needed.
 
 WHAT YOU NEED
@@ -19,6 +19,12 @@ To update: run the new Setup - it offers the folder the app is in now. Your logo
 settings are never deleted by an update or by removing the app.
 To remove it later: Windows Settings > Apps > Installed apps > Ratty's4Skin Generator.
 
+FIRST TIME? The app shows you round when it first opens (a short tour). Rest the mouse on
+anything for a tip. "Show me round" on the Car tab starts the tour again; untick "Show help"
+there once you know your way about.
+The app starts with a blank livery every time it opens. "Start new livery" (Car tab) clears
+everything back to a plain white car at any time; your car and logo library stay.
+
 MAKE A SKIN (2 minutes)
 1. CAR tab: the Assetto Corsa cars folder is found automatically. Type part of the
    car's name and pick it. Give the skin a name.
@@ -26,10 +32,15 @@ MAKE A SKIN (2 minutes)
    Red Line, Stealth Grey, Light); the app restarts itself with the new colours.
    Tick "Sharper textures (4K)" for crisper writing (bigger files).
    "Smaller files" (on by default) makes the skin about a quarter of the size.
-2. LIVERY tab: pick the base colour, accent colours and a pattern (a small picture shows it).
+2. LIVERY tab: pick the base colour, accent colours and a pattern (a simple car under it shows the
+   pattern on its side and top). The arrow keys or mouse wheel step through the patterns.
    "Gallery..." shows every pattern (over 50) in your colours - click one to use it.
+   "Halftone dots" adds comic-style dots up the lower sides (on the plain paint).
+   "Paint finish": Gloss, Metallic, Pearlescent or Matte - shown in the game by Custom Shaders
+   Patch (others see it if they have CSP and your skin).
 3. NUMBER & NAMES tab: racing number, team name, driver name, a font for each (you see it as you pick),
-   and tick where each one is written on the car.
+   and tick where each one is written on the car. The "Racing:" fonts at the top of each list come
+   with the app; the Up / Down arrow keys step through the fonts without opening the list.
 4. LOGOS tab: about 230 logos are already in the library. "Add logos..." to add your own
    pictures (PNG with a clear background is best). Select a logo and choose its place on the car.
    Choose more places to use the same logo on several parts (e.g. bonnet AND rear quarters);
@@ -60,7 +71,8 @@ MOVE THINGS ABOUT ON THE PREVIEW
    Or use the buttons: Bigger, Smaller, Turn, Flip (mirror), Edit text..., Delete, Reset.
    Edit text... changes the words, font and colour of that one team / driver name.
    Delete takes it off the car ("Reset all" brings everything back).
-4. Press PREVIEW again to redraw the car with your changes (much quicker the second time).
+4. While you drag, the logo itself moves on the car. Let go and the car redraws itself with the
+   change after a few seconds - no need to press Preview. You can keep moving things meanwhile.
 Tick "Grid" (above the preview) for faint lines every 25 cm and an orange centre line, to line things up.
 Moves apply to both sides of the car. Changes are remembered for each car.
 
@@ -69,7 +81,7 @@ If a logo, name or number has nowhere to go on a car (for example the app can't 
 bonnet), it is not quietly left off: after Preview a "NOT PLACED" bar shows above the picture.
 1. Pick ONE side (for a bonnet logo: Top).
 2. Choose the item in the NOT PLACED list and press "Pick it on the car".
-3. Click on the car where it should go, then press PREVIEW. It goes there (both sides for
+3. Click on the car where it should go - the car redraws itself. It goes there (both sides for
    side panels) and the spot is remembered for that car. Move / size it like any other.
 
 GOOD TO KNOW

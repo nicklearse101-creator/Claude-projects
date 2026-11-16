@@ -14,7 +14,7 @@ import tour
 messagebox = theme.messagebox      # dark dialogs, same calls as tkinter.messagebox (tests replace these)
 
 APP_NAME = skingen.APP_NAME
-VERSION = '1.10.5'
+VERSION = '1.11.0'
 
 
 def find_data_dir(exe_dir, appdata):
@@ -238,7 +238,8 @@ class App(tk.Tk):
         self._told_protected = set()                     # protected cars already explained (once each)
         # moving logos live (Nik 16 Nov): the car without its decals (clean views, worked out after each preview) clears a
         # moved logo's old spot; its own picture is drawn at the new one; the car redraws itself when it is let go
-        self.clean = None
+        self.clean = {}                                  # view -> the car without decals (only the views looked at)
+        self._clean_asked = set()
         self._clean_q = queue.Queue()
         self._view_cache, self._shown_key, self._live_imgs = None, None, []
         self._auto_job, self._auto_pending, self._auto_running, self._save_pending = None, False, False, False
@@ -641,7 +642,7 @@ class App(tk.Tk):
         self.save_library(); self.refresh_library()
         self.adjust_by_car = {}
         self.views, self.info, self.adjust_gen, self.sel, self.saved, self.views_car = {}, {}, {}, None, False, None
-        self.clean, self._view_cache = None, None
+        self.clean, self._view_cache = {}, None
         self.show_missing([])
         self.redraw()
         self.save_cfg()
@@ -870,7 +871,7 @@ class App(tk.Tk):
         """Another car picked: the last car's preview (its picture and logo boxes) goes (Nik, 12 Nov)."""
         if not self.views or self.views_car == self.car_key(): return
         self.views, self.info, self.adjust_gen, self.sel, self.saved, self.views_car = {}, {}, {}, None, False, None
-        self.clean, self._view_cache = None, None
+        self.clean, self._view_cache = {}, None
         self.show_missing([])
         self.redraw()
 
@@ -1196,8 +1197,8 @@ class App(tk.Tk):
         self.adjust_gen = copy.deepcopy(self.info.get('adjust') or {})
         if not (auto and any(d['key'] == self.sel for d in self.info.get('decals', []))): self.sel = None
         self.show_missing(self.info.get('missing') or [])
-        self.clean, self._view_cache = None, None
-        self.request_clean()
+        self.clean, self._clean_asked, self._view_cache = {}, set(), None
+        self.request_clean(self.view_var.get())
         self.redraw()
         if self.info.get('protected'):
             msg = ("This car's model is protected by its maker (encrypted with Custom Shaders Patch), so the app "
@@ -1208,13 +1209,15 @@ class App(tk.Tk):
                 self._told_protected.add(self.views_car)
                 messagebox.showinfo(APP_NAME, msg)
 
-    def request_clean(self):
-        """Work out the car without its decals for the preview on screen, in the background."""
+    def request_clean(self, view):
+        """Work out the car without its decals for one side of the preview on screen, in the background (only the side
+        being looked at: a second or so, so the next preview is not held up)."""
         serial = self.info.get('serial')
-        if serial is None: return
+        if serial is None or view == 'all' or view in self.clean or view in self._clean_asked: return
+        self._clean_asked.add(view)
 
         def work():                      # no Tk here: handed back through the queue
-            try: cv = skingen.clean_views(serial)
+            try: cv = skingen.clean_views(serial, which=(view,))
             except Exception: cv = None
             self._clean_q.put((serial, cv))
         threading.Thread(target=work, daemon=True).start()
@@ -1225,7 +1228,7 @@ class App(tk.Tk):
         except queue.Empty:
             self.after(100, self._poll_clean); return
         if cv and serial == self.info.get('serial'):
-            self.clean, self._view_cache = cv, None
+            self.clean.update(cv); self._view_cache = None
             self.refresh_marks()
 
     # ---- what could not be placed: picked on the car by the user
@@ -1272,6 +1275,7 @@ class App(tk.Tk):
 
     def on_view(self):
         self.sel = None
+        self.request_clean(self.view_var.get())
         self.redraw()
 
     # ---- decals on the preview
@@ -1326,7 +1330,7 @@ class App(tk.Tk):
                 and self.moved(d)]
 
     def live_key(self, view):
-        return (self.info.get('serial'), view, self.clean is not None,
+        return (self.info.get('serial'), view, view in self.clean,
                 tuple(sorted((d['key'], d['view']) for d in self.moved_here(view))))
 
     def live_view(self, view):

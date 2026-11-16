@@ -181,6 +181,7 @@ def runs(tmp_path_factory):
                 views, info, log = {}, {}, []
                 out, *_ = skingen.generate(SMALL_CAR, design(), 'speed', out_root=str(root / 'run'), log=log.append,
                                            views=views, info=info, write=st == 'create')
+            info.pop('serial', None)                  # (1.11: which preview this was - differs every run)
             r[name] = dict(files=sums(out), views={k: v.tobytes() for k, v in views.items()}, info=info, log=log,
                            calls=dict(calls))
         return r

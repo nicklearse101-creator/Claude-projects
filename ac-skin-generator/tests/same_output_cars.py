@@ -94,7 +94,9 @@ for car in cars:
             if write: views['all'].save(os.path.join(out, 'generator_preview.png'))
             times[step] = round(time.time() - t, 1)
             for k, im in views.items(): sums[f'{step} view {k}'] = img_sum(im)
-            sums[f'{step} info'] = h(json.dumps(info, sort_keys=True, default=str).encode())
+            fair = dict(info, decals=[{k: v for k, v in x.items() if k not in ('sprite', 'flip')} for x in info.get('decals', [])])
+            fair.pop('serial', None)          # (1.11: the live preview's extras - not in older versions)
+            sums[f'{step} info'] = h(json.dumps(fair, sort_keys=True, default=str).encode())
             sums[f'{step} log'] = h(chr(10).join(map(str, lines)).encode())
             open(out_json + f'.{car}.{step}.log.txt', 'w', encoding='utf-8').write(chr(10).join(map(str, lines)))
             if write:

@@ -37,6 +37,7 @@ def test_decals_carry_their_picture(talbot_preview):
 def test_clean_views_have_no_decals(talbot_preview):
     views, info = talbot_preview
     clean = skingen.clean_views(info['serial'])
+    assert set(skingen.clean_views(info['serial'], which=('left',))) == {'left'}
     assert set(clean) >= {'left', 'right', 'front', 'rear', 'top'}
     a, b = (np.asarray(v['left'].convert('RGB')).astype(int) for v in (views, clean))
     diff = np.abs(a - b).sum(2) > 30
@@ -57,8 +58,8 @@ def live(app, monkeypatch):
                                                                      for v in ('left', 'right', 'front', 'rear', 'top')})
     app.geometry('900x700+-3000+-3000'); app.deiconify(); app.update()
     preview(app)
-    pump(app, lambda: app.clean is not None)
     app.view_var.set('left'); app.on_view(); app.update()
+    pump(app, lambda: 'left' in app.clean)
     return app
 
 

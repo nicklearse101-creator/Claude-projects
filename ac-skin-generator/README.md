@@ -18,6 +18,19 @@ or in a `data` folder next to the installed app when "Keep my logos and settings
 (v1.9.0; copied from AppData, the old copy is left). Updates, moves and the uninstaller never delete it.
 
 ## Use
+**New in 1.11.0 (16 Nov 2026, Nik's list):** a blank livery on every start + **Start new livery** (`BLANK`,
+`PREF_KEYS`; the restart for new app colours keeps the livery once, `keep_livery`); a first-start **tour** and a
+tip on every control (`tour.py`; "Show help" / "Show me round" on the Car tab); **logos move live** on the preview
+(each decal's picture in `info['decals'][i]['sprite']`, the car without decals from `skingen.clean_views()` clears
+its old spot) and the car **redraws itself** when let go (`changed()` -> `auto_preview()`); Up / Down step through
+drop-downs and the wheel over a drop-down no longer scrolls the page (`theme.step_list`, `wheel_scrolls_page`);
+**20 racing fonts** built in (`fonts/`, Google Fonts, Open Font Licence in `fonts/licences`; "file.ttf#Black" =
+a variable font at that weight); **paint finish** gloss / metallic / pearl / matte through CSP's own car-paint
+templates (`paint_finish_ini`, `[INCLUDE: common/materials_carpaint.ini]`); halftone dots on every pattern
+(`halftone_dots`); the pattern preview is a simple car (side over top, `pattern_swatch`); "Windows etc. from"
+lists only the car's own skins (`source_skins`: an app-made one carried its tint over); faster first preview
+(two-pass max / min filters `rank_filter`, views drawn on several cores, glass texel maps kept: Talbot 48 s -> 27 s).
+
 Tabs on the left, preview on the right. **Look (v1.8.0):** dark carbon and orange, slanted 'game' tabs and
 buttons, the car's name and skin in the strip on top, dark pop-ups and a dark title bar (`theme.py` holds the
 whole look; the layout and every setting are as before).

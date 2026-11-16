@@ -519,6 +519,23 @@ VIEWS = {
 }
 
 
+def rank_filter(im, size, op):
+    """PIL's MaxFilter / MinFilter(size) - the same pixels (square window, edges repeated) - done as two 1-D passes:
+    about 20x quicker for the big windows the stock-skin comparison uses (35 x 35 on a 2K texture took 13 s)."""
+    if size % 2 == 0 or im.mode != 'L':
+        return im.filter(ImageFilter.MaxFilter(size) if op == 'max' else ImageFilter.MinFilter(size))
+    a = np.asarray(im)
+    H, W = a.shape
+    r = size // 2
+    f = np.maximum if op == 'max' else np.minimum
+    p = np.pad(a, r, mode='edge')
+    t = p[:, 0:W].copy()
+    for k in range(1, size): f(t, p[:, k:k + W], out=t)
+    o = t[0:H].copy()
+    for k in range(1, size): f(o, t[k:k + H], out=o)
+    return Image.fromarray(o)
+
+
 def text_image(text, px_height, color, font_path=DEFAULT_FONT, style='Bold Condensed', track=0.04,
                stroke=0, stroke_color=(0, 0, 0)):
     path, _, weight = str(font_path).partition('#')        # "font.ttf#Black": a variable font at that weight
@@ -626,9 +643,9 @@ def _prep_logo(path, tint=None, bg='auto'):
         rgbt = np.asarray(Image.fromarray(hsv.astype(np.uint8), 'HSV').convert('RGB')).astype(np.float32)
         out = np.dstack([out[..., :3] * (1 - w[..., None]) + rgbt * w[..., None], out[..., 3]])
     # make the inside of the logo solid: only background connected to the border stays clear
-    solid = Image.fromarray(((out[..., 3] > 128) * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(5))
+    solid = rank_filter(Image.fromarray(((out[..., 3] > 128) * 255).astype(np.uint8)), 5, 'max')
     inside = enclosed(np.asarray(solid) > 0)
-    inside = np.asarray(Image.fromarray((inside * 255).astype(np.uint8)).filter(ImageFilter.MinFilter(5))
+    inside = np.asarray(rank_filter(Image.fromarray((inside * 255).astype(np.uint8)), 5, 'min')
                         .filter(ImageFilter.GaussianBlur(1.5))).astype(np.float32)
     out[..., 3] = np.maximum(out[..., 3], inside)
     img = Image.fromarray(np.clip(out, 0, 255).astype(np.uint8), 'RGBA')
@@ -769,7 +786,7 @@ def load_pattern_picture(path, mode, simplify, recolour, palette):
         bg = np.median(border, 0)
         if border.std(0).mean() < 30:                # plain background: cut the car out of it
             fg = np.sqrt(((a - bg) ** 2).sum(-1)) > 40
-            fgi = Image.fromarray((fg * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(5)).filter(ImageFilter.MinFilter(5))
+            fgi = rank_filter(rank_filter(Image.fromarray((fg * 255).astype(np.uint8)), 5, 'max'), 5, 'min')
             fg = np.asarray(fgi) > 127
             ys, xs = np.nonzero(fg)
             if len(ys):
@@ -1871,14 +1888,14 @@ def stock_analysis(car, tex, W, H, tm, log=print):
         sd = np.sqrt(np.maximum(S2 / n - mean * mean, 0)).mean(-1)
         m = Image.fromarray(((sd > 9) * 255).astype(np.uint8))
         f = max(3, int(7 * aW / 2048) | 1)
-        m = m.filter(ImageFilter.MaxFilter(f)).filter(ImageFilter.MinFilter(f)).filter(ImageFilter.MinFilter(3))
+        m = rank_filter(rank_filter(rank_filter(m, f, 'max'), f, 'min'), 3, 'min')
         paint = (np.asarray(m) > 127) & cov_a
         # fill small holes (logos / number boards common to every stock skin)
         holes = ~paint & cov_a
         hf = int(aW / 60) | 1
-        hm = Image.fromarray((holes * 255).astype(np.uint8)).filter(ImageFilter.MinFilter(hf)).filter(ImageFilter.MaxFilter(hf))
+        hm = rank_filter(rank_filter(Image.fromarray((holes * 255).astype(np.uint8)), hf, 'min'), hf, 'max')
         paint |= holes & ~(np.asarray(hm) > 127) & (mean.mean(-1) > 60)
-        li = Image.fromarray(np.clip(LMAX, 0, 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(f + 2)).filter(ImageFilter.GaussianBlur(aW / 290))
+        li = rank_filter(Image.fromarray(np.clip(LMAX, 0, 255).astype(np.uint8)), f + 2, 'max').filter(ImageFilter.GaussianBlur(aW / 290))
         lum = np.asarray(li).astype(np.float32)
         ref = np.percentile(lum[paint], 90) if paint.any() else 255
         shade_a = np.clip(lum / ref, 0.6, 1.0) ** 0.8
@@ -1914,8 +1931,8 @@ def recolour_wheels(car, tex, colour, log=print, only=None, start=None, what='wh
     W, H = imgs[0].size
     limit = None
     if only:
-        limit = np.asarray(Image.fromarray((uv_coverage(only, 1024) * 255).astype(np.uint8)).resize((W, H), Image.NEAREST)
-                           .filter(ImageFilter.MaxFilter(5))) > 0
+        limit = np.asarray(rank_filter(Image.fromarray((uv_coverage(only, 1024) * 255).astype(np.uint8)).resize((W, H), Image.NEAREST),
+                                       5, 'max')) > 0
     keep = np.asarray(start.convert('RGB').resize((W, H))).astype(np.float32) if start is not None else None
     flat = np.asarray(imgs[0].convert('RGB')).astype(np.float32)
     if flat.reshape(-1, 3).std(0).max() < 6:
@@ -1936,7 +1953,7 @@ def recolour_wheels(car, tex, colour, log=print, only=None, start=None, what='wh
     if what == 'tyres' and len(A) < 3:
         mask = np.ones_like(mask)                  # a tyre is one rubber colour: all of it, keeping its shading
     if limit is not None: mask = mask & limit
-    m = Image.fromarray((mask * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(3)).filter(ImageFilter.GaussianBlur(1))
+    m = rank_filter(Image.fromarray((mask * 255).astype(np.uint8)), 3, 'max').filter(ImageFilter.GaussianBlur(1))
     mm = np.asarray(m).astype(np.float32)[..., None] / 255
     if limit is not None: mm = mm * limit[..., None]
     lum = A.max(0).mean(-1) if len(A) >= 3 else base.mean(-1)
@@ -2013,8 +2030,8 @@ def tint_lenses(car, lights, colour, made, copy_from=None, log=print, painted=No
         img = current_texture(car, tex, made, copy_from)
         if img is None: continue
         W, H = img.size
-        tm = TexelMap(ms, W, H, log=lambda s: None)
-        mask = Image.fromarray((tm.covered * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(5))
+        tm = texel_map(ms, W, H)
+        mask = rank_filter(Image.fromarray((tm.covered * 255).astype(np.uint8)), 5, 'max')
         m = (np.asarray(mask) > 0)
         a = np.asarray(img).astype(np.float32)
         rgbv = a[..., :3]
@@ -2360,7 +2377,7 @@ def clean_glass(arr, sel):
         old = (d[:, :3].max(1) > 30) | (d[:, 3] > 30)
     # the soft edges of old stickers go too
     m2 = np.zeros(sel.shape, np.uint8); m2[sel] = old * 255
-    old = (np.asarray(Image.fromarray(m2).filter(ImageFilter.MaxFilter(7))) > 0)[sel]
+    old = (np.asarray(rank_filter(Image.fromarray(m2), 7, 'max')) > 0)[sel]
     px[old] = np.median(px[clear & ~old], axis=0) if (clear & ~old).any() else np.median(px[clear], axis=0)
     arr[sel] = px.astype(np.uint8)
     return int(old.sum())
@@ -2460,7 +2477,7 @@ def footprint(T, view, cell=0.005, erode=0.0):
     QA, QB = (A - a0) / cell, (B - b0) / cell
     for i in range(len(T)):
         d.polygon([(QA[i, 0], QB[i, 0]), (QA[i, 1], QB[i, 1]), (QA[i, 2], QB[i, 2])], fill=255, outline=255)
-    if erode > 0: im = im.filter(ImageFilter.MinFilter(2 * int(erode / cell) + 1))
+    if erode > 0: im = rank_filter(im, 2 * int(erode / cell) + 1, 'min')
     return np.asarray(im) > 0, a0, b0
 
 
@@ -2760,13 +2777,13 @@ def make_window_stickers(car, design, made, copy_from=None, log=print, resolutio
             for kind, meshes in groups[tex].items():
                 inside = kind in ('inner', 'overlay_in')
                 if inside != inside_pass or (inside and not hit): continue
-                tm = TexelMap(meshes, W, H, log=lambda s: None)
+                tm = texel_map(meshes, W, H)
                 keep = arr.copy() if inside else None
                 if kind == 'strip':
                     arr[tm.yy, tm.xx, :3] = band.astype(np.uint8); changed.add(tex)
                 elif design.get('win_clear', True):
                     if kind.startswith('overlay'):
-                        cov = Image.fromarray((tm.covered * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(3))
+                        cov = rank_filter(Image.fromarray((tm.covered * 255).astype(np.uint8)), 3, 'max')
                         arr[np.asarray(cov) > 0] = 0
                     else:
                         n_old = clean_glass(arr, tm.covered)
@@ -2810,7 +2827,7 @@ def make_window_stickers(car, design, made, copy_from=None, log=print, resolutio
                     if (cx * sg > 0.05).sum() and (cx * sg < -0.05).sum():      # both sides in one mesh: split it
                         side = 'l' if sg > 0 else 'r'
                         sub = Mesh(name=m.name, pos=m.pos, nrm=m.nrm, uv=m.uv, idx=m.idx[cx * sg > 0], mat=m.mat, parents=m.parents)
-                tm = TexelMap([sub], W, H, log=lambda s_: None)
+                tm = texel_map([sub], W, H)
                 _, hm, wm = decal_size(dc, tm.texel_m)
                 if len(decal_hits(tm, dc, hm, wm)[0]) < 20: continue
                 csp.append(dict(tex=tex, mesh=m.name, mat=m.mat.name, side=side, tm=tm, decal=dc))
@@ -2829,6 +2846,17 @@ def make_window_stickers(car, design, made, copy_from=None, log=print, resolutio
         out[tex] = Image.fromarray(arrs[tex], 'RGBA')
         log(f'windows: stickers on {tex} ({", ".join(names.get(tex, []))[:80]})')
     return out, [l for l in layers if any(l[1] is arrs[t] for t in changed)]
+
+
+def texel_map(meshes, W, H):
+    """A TexelMap of glass / wheel meshes, kept for the next run on the same car (they never change for a car; making
+    them again took 2-3 s of every redraw). _MEMO is emptied when another car is picked."""
+    key = ('tmap', W, H, tuple((m.name, len(m.idx), hash(np.asarray(m.idx).tobytes()), id(m.pos)) for m in meshes))
+    tm = _MEMO.get(key)
+    if tm is None:
+        tm = TexelMap(meshes, W, H, log=lambda s_: None)
+        if 'car' in _MEMO: _MEMO[key] = tm
+    return tm
 
 
 def windscreen_part(car, m):
@@ -2884,11 +2912,11 @@ def tint_windows(car, design, made, copy_from=None, log=print):
         mask = np.ones((H, W), bool)
         ws = [p for p in parts if p is not None]
         if ws:                                                  # the windscreen's own area stays clear, with a margin
-            tmw = TexelMap(ws, W, H, log=nop)
+            tmw = texel_map(ws, W, H)
             cov = np.zeros((H, W), np.uint8); cov[tmw.yy, tmw.xx] = 255
-            cov = np.asarray(Image.fromarray(cov).filter(ImageFilter.MaxFilter(13))) > 0
+            cov = np.asarray(rank_filter(Image.fromarray(cov), 13, 'max')) > 0
             mask &= ~cov
-        tmr = TexelMap(rest, W, H, log=nop)
+        tmr = texel_map(rest, W, H)
         a_glass = arr[tmr.yy, tmr.xx, 3] / 255 if len(tmr.yy) else arr[..., 3].ravel() / 255
         px = arr[mask].astype(np.float32)
         if np.median(a_glass) < 0.9:
@@ -2906,7 +2934,7 @@ def tint_windows(car, design, made, copy_from=None, log=print):
         keep = ws_whole + others
         if keep:
             clear.append(dict(tex=tex, meshes=[m.name for m in keep], img=base))
-            if ws_whole: layers.append((TexelMap(ws_whole, W, H, log=nop), np.asarray(base)))
+            if ws_whole: layers.append((texel_map(ws_whole, W, H), np.asarray(base)))
         log(f'windows: tinted {tex} ({int(dark * 100)} % dark, the whole glass{", windscreen too" if not keep_ws else ", windscreen left clear"})'
             + (f'; clear copy through CSP for {", ".join(m.name for m in keep)[:80]}' if keep else ''))
     return out, layers, clear
@@ -3053,12 +3081,13 @@ def _view_geometry(car, view, width, tex_id, layer_of, n_tex, vdir, fa, fb, ss, 
     # (painted panels 6 mm nearer: damage / dirt copies of the body lie exactly on them)
     order = np.argsort(T.mean(1) @ vdir + np.where(TI >= n_tex, 0.03, np.where(TI >= 0, 0.006, 0.0)))
     order = order[area2[order] > 0.02]
-    qa, qb = QA.tolist(), QB.tolist()
+    flat_xy = np.stack([QA, QB], -1).reshape(-1, 6).tolist()        # x0, y0, x1, y1, x2, y2 of every triangle
 
     def draw(which):
-        im = Image.new('I', (Wp, Hp), -1); d = ImageDraw.Draw(im)
+        im = Image.new('I', (Wp, Hp), -1)
+        fill = ImageDraw.Draw(im).draw.draw_polygon      # Pillow's own polygon fill, without ImageDraw's per-call checks
         for i in which:
-            d.polygon([(qa[i][0], qb[i][0]), (qa[i][1], qb[i][1]), (qa[i][2], qb[i][2])], fill=i)
+            fill(flat_xy[i], i, 1)
         return np.asarray(im, dtype=np.int64)
 
     def weights(tt, px, py):
@@ -3096,9 +3125,12 @@ def _view_geometry(car, view, width, tex_id, layer_of, n_tex, vdir, fa, fb, ss, 
     return Hp, Wp, ys.astype(np.int32), xs.astype(np.int32), Gt, tx, uv, TI[tt].astype(np.int16), S[tt].astype(np.float16)
 
 
-def preview_views(car, tex_imgs, tms, width=1600, layers=(), alpha=False):
-    v = {k: render_view(car, k, tex_imgs, tms, width, layers=layers, alpha=alpha) for k in ('left', 'right', 'front', 'rear')}
-    v['top'] = render_view(car, 'top', tex_imgs, tms, width, layers=layers, alpha=alpha).rotate(90, expand=True)
+def preview_views(car, tex_imgs, tms, width=1600, layers=(), alpha=False, keys=('left', 'right', 'front', 'rear', 'top')):
+    """The views, drawn at the same time on several cores (the same pictures as one after another)."""
+    keys = tuple(keys)
+    with ThreadPoolExecutor(min(len(keys), max(1, os.cpu_count() or 1))) as ex:
+        v = dict(zip(keys, ex.map(lambda k: render_view(car, k, tex_imgs, tms, width, layers=layers, alpha=alpha), keys)))
+    if 'top' in v: v['top'] = v['top'].rotate(90, expand=True)
     return v
 
 
@@ -3270,9 +3302,9 @@ LAST_PREVIEW = {}
 _SERIAL = 0
 
 
-def clean_views(serial, width=1600, alpha=True):
-    """The views of preview number `serial` (info['serial']) with the body painted in the pattern only - no logos,
-    numbers or names. None when another preview has been made since."""
+def clean_views(serial, width=1600, alpha=True, which=('left', 'right', 'front', 'rear', 'top')):
+    """The views (`which`) of preview number `serial` (info['serial']) with the body painted in the pattern only - no
+    logos, numbers or names. None when another preview has been made since."""
     with _LOCK:
         lp = LAST_PREVIEW
         if not lp or lp['serial'] != serial: return None
@@ -3285,7 +3317,7 @@ def clean_views(serial, width=1600, alpha=True):
             spot_parts(tm, out_rgb, lp['base'], lambda m_: None)
             img = Image.fromarray(np.clip(out_rgb, 0, 255).astype(np.uint8)); img.putalpha(Image.fromarray(alpha_))
             tex[t] = img
-        return preview_views(lp['car'], tex, lp['tms'], width, layers=lp['layers'], alpha=alpha)
+        return preview_views(lp['car'], tex, lp['tms'], width, layers=lp['layers'], alpha=alpha, keys=which)
 
 
 def generate(*a, **k):
