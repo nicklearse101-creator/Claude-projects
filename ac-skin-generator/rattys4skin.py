@@ -14,7 +14,7 @@ import tour
 messagebox = theme.messagebox      # dark dialogs, same calls as tkinter.messagebox (tests replace these)
 
 APP_NAME = skingen.APP_NAME
-VERSION = '1.11.0'
+VERSION = '1.11.1'
 
 
 def find_data_dir(exe_dir, appdata):
@@ -41,8 +41,9 @@ DEFAULT_FONT_NAME = 'Default (Bahnschrift condensed)'
 _FONTS = None
 
 # Every start of the app is a blank canvas (Nik 16 Nov: friends got "RATTY RACING" and Nik's name on a fresh install).
-# Kept from last time: these app settings only. The livery itself starts as BLANK (also "Start new livery").
-PREF_KEYS = ('cars_dir', 'car', 'ui_theme', 'hires', 'compress', 'show_grid', 'avoid_mirror', 'tips', 'tour_done')
+# Kept from last time: these app settings only - no car either (Nik 16 Nov). The livery starts as BLANK (also
+# "Start new livery").
+PREF_KEYS = ('cars_dir', 'ui_theme', 'hires', 'compress', 'show_grid', 'avoid_mirror', 'tips', 'tour_done')
 BLANK = dict(base='#ffffff', accent='#7020d2', accent2='#be6eff', text='#111111', pattern='none', halftone=False,
              carbon=False, number='', team='', name='', number_style='board', number_doors=True, number_roof=True,
              pattern_image='', pattern_mode='side_left', pattern_simplify='medium', pattern_recolour=False,

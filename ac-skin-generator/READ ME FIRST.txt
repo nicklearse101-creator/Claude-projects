@@ -1,121 +1,320 @@
-RATTY'S4SKIN GENERATOR  v1.11.0
-Makes liveries (skins) for Assetto Corsa cars. No AI, no internet needed.
+=====================================================================================
+  RATTY'S4SKIN GENERATOR  v1.11.1          -  the user guide
+  Custom liveries (skins) for Assetto Corsa cars. No AI, no internet, no Photoshop.
+=====================================================================================
 
-WHAT YOU NEED
-- Windows 10 or 11
-- Assetto Corsa installed (Steam). Content Manager is handy but not required.
-- Nothing else. Python is NOT needed.
+IN A HURRY? (the 60-second version)
+  1. Run Rattys4SkinGenerator_Setup.exe and click Install.
+  2. Open the app. A short tour shows you round - follow it once.
+  3. Car tab: pick your car and give the skin a name.
+  4. Livery tab: pick colours and a pattern.
+  5. Number & names tab: your number, team and name.
+  6. Press PREVIEW. Drag logos and names about on the car if you like.
+  7. Press CREATE SKIN IN CAR. In Content Manager pick the skin, click "Update preview". Race.
+  Rest the mouse on anything in the app for a tip.
 
-INSTALL
-1. Run "Rattys4SkinGenerator_Setup.exe".
-2. Windows may show "Windows protected your PC" because the app is not signed.
-   Click "More info", then "Run anyway".
-3. Choose where it goes: press "Change..." to pick a folder (for example on your D: drive).
-   The app always gets its own Rattys4SkinGenerator folder in the one you pick.
-   Tick "Keep my logos and settings in that folder too" to keep them there as well
-   (then nothing of the app is kept on C:).
-4. Click Install. No admin rights needed. You get a Desktop and Start-menu shortcut.
-To update: run the new Setup - it offers the folder the app is in now. Your logos and
-settings are never deleted by an update or by removing the app.
-To remove it later: Windows Settings > Apps > Installed apps > Ratty's4Skin Generator.
+CONTENTS
+  1. What you need
+  2. Installing, updating, removing
+  3. The app at a glance
+  4. Car tab
+  5. Livery tab
+  6. Number & names tab
+  7. Logos tab
+  8. Windows tab
+  9. Wheels tab
+ 10. Preview, and moving things on the car
+ 11. Saving the skin into the game
+ 12. Things that need Custom Shaders Patch (CSP)
+ 13. What some cars can't do
+ 14. Good to know
+ 15. Problems? (and how to report a car)
+ 16. Your files and settings
+ 17. Credits and licences
 
-FIRST TIME? The app shows you round when it first opens (a short tour). Rest the mouse on
-anything for a tip. "Show me round" on the Car tab starts the tour again; untick "Show help"
-there once you know your way about.
-The app starts with a blank livery every time it opens. "Start new livery" (Car tab) clears
-everything back to a plain white car at any time; your car and logo library stay.
 
-MAKE A SKIN (2 minutes)
-1. CAR tab: the Assetto Corsa cars folder is found automatically. Type part of the
-   car's name and pick it. Give the skin a name.
-   "App colours" changes the look of the app (Carbon Orange, Ratty Purple, Ice Blue, Racing Green,
-   Red Line, Stealth Grey, Light); the app restarts itself with the new colours.
-   Tick "Sharper textures (4K)" for crisper writing (bigger files).
-   "Smaller files" (on by default) makes the skin about a quarter of the size.
-2. LIVERY tab: pick the base colour, accent colours and a pattern (a simple car under it shows the
-   pattern on its side and top). The arrow keys or mouse wheel step through the patterns.
-   "Gallery..." shows every pattern (over 50) in your colours - click one to use it.
-   "Halftone dots" adds comic-style dots up the lower sides (on the plain paint).
-   "Paint finish": Gloss, Metallic, Pearlescent or Matte - shown in the game by Custom Shaders
-   Patch (others see it if they have CSP and your skin).
-3. NUMBER & NAMES tab: racing number, team name, driver name, a font for each (you see it as you pick),
-   and tick where each one is written on the car. The "Racing:" fonts at the top of each list come
-   with the app; the Up / Down arrow keys step through the fonts without opening the list.
-4. LOGOS tab: about 230 logos are already in the library. "Add logos..." to add your own
-   pictures (PNG with a clear background is best). Select a logo and choose its place on the car.
-   Choose more places to use the same logo on several parts (e.g. bonnet AND rear quarters);
-   "Take off" (under the "On the car" list) removes one; "Not used" removes it everywhere.
-   You can put several logos on the same place: they start side by side and you move each
-   one on the preview. The "On the car" list shows which logos are on and where;
-   "Clear all" takes them all off (they stay in the library). Tick "Keep logos off areas
-   the car mirrors" if you never want a backwards copy (some cars use one picture for both
-   halves of the bonnet / roof).
-5. WINDOWS tab (optional): tick "Make new window stickers" for a windscreen banner
-   and number / name on the windows (move, resize or delete them on the preview).
-   Tick "Tint the windows" for dark glass: pick the colour and how dark; the windscreen
-   is only tinted if you tick that too.
-   Some cars use one glass picture for several windows. There the app adds the sticker
-   through the skin's ext_config.ini (needs Custom Shaders Patch; no car files are changed,
-   so nothing changes online). Other drivers see it if they have the skin and CSP.
-6. WHEELS tab (optional): rim colour and tyre colour (rims and tyres are separate).
-7. Press PREVIEW. Wait for the bar to finish (up to about a minute the first time for a car).
-8. Happy? Press CREATE SKIN IN CAR. Straight after a preview this only takes a few seconds
-   (it uses the preview's work, as long as nothing was changed in between).
-9. In Content Manager pick the car, pick the new skin and click "Update preview".
-   (Without Content Manager: the skin is simply there in the game's car menu.)
+1. WHAT YOU NEED
+-------------------------------------------------------------------------------------
+  - Windows 10 or 11.
+  - Assetto Corsa (Steam). Content Manager is handy but not needed.
+  - Custom Shaders Patch is only needed for a few extras (section 12).
+  - Nothing else. Python is NOT needed. No internet needed.
 
-MOVE THINGS ABOUT ON THE PREVIEW
-1. After a preview, pick ONE side at the top: Left, Right, Front, Rear or Top.
-2. Every logo, number, name and window sticker has a dashed box. Click one to pick it.
-3. Drag = move.  Mouse wheel = bigger / smaller.  Shift + wheel = turn.
-   Or use the buttons: Bigger, Smaller, Turn, Flip (mirror), Edit text..., Delete, Reset.
-   Edit text... changes the words, font and colour of that one team / driver name.
-   Delete takes it off the car ("Reset all" brings everything back).
-4. While you drag, the logo itself moves on the car. Let go and the car redraws itself with the
-   change after a few seconds - no need to press Preview. You can keep moving things meanwhile.
-Tick "Grid" (above the preview) for faint lines every 25 cm and an orange centre line, to line things up.
-Moves apply to both sides of the car. Changes are remembered for each car.
 
-WHEN THE APP CAN'T FIND A SPOT ("NOT PLACED")
-If a logo, name or number has nowhere to go on a car (for example the app can't find its
-bonnet), it is not quietly left off: after Preview a "NOT PLACED" bar shows above the picture.
-1. Pick ONE side (for a bonnet logo: Top).
-2. Choose the item in the NOT PLACED list and press "Pick it on the car".
-3. Click on the car where it should go - the car redraws itself. It goes there (both sides for
-   side panels) and the spot is remembered for that car. Move / size it like any other.
+2. INSTALLING, UPDATING, REMOVING
+-------------------------------------------------------------------------------------
+  Install
+  1. Run "Rattys4SkinGenerator_Setup.exe".
+  2. Windows may say "Windows protected your PC" (the app is not signed).
+     Click "More info", then "Run anyway".
+  3. Choose where it goes: "Change..." picks a folder (for example on your D: drive).
+     The app always gets its own Rattys4SkinGenerator folder inside the one you pick.
+     Tick "Keep my logos and settings in that folder too" to keep everything there
+     (then nothing of the app lives on C:).
+  4. Click Install. No admin rights needed. You get a Desktop and a Start-menu shortcut.
 
-GOOD TO KNOW
-- Logos, numbers and names go exactly where you asked. They are never moved, shrunk or
-  left off because they overlap each other - move them on the preview if you like.
-- The box under the buttons (the log) tells you what the app did, e.g. if a logo hung
-  off its panel and was slid onto it.
-- Some cars use one picture for both halves of a panel (for example the Kadett bonnet).
-  There a logo also shows mirrored on the other half - that is how the car was made.
-  Move the logo on the preview if you don't like it.
-- Making a skin with a name you already used asks before replacing it. Skins the
-  app did not make are never overwritten.
-- Some cars cannot take everything:
-    * a few cars only allow a plain colour (their paint has no room for a design);
-    * some cars have no room on the glass for window stickers;
-    * wheels and headlights only change on cars that have their own texture for them;
-    * cars locked (encrypted) by their maker cannot be read at all;
-    * cars whose model is protected by their maker with Custom Shaders Patch (many GT4,
-      Supercars and some BTCC / GT3 mods) only take a plain colour - the app tells you
-      after Preview. It never tries to get round that protection.
-  The log says so when this happens.
-- Your settings and logo library are kept in the app's folder ("data") if you ticked
-  "Keep my logos and settings in that folder too" when installing, otherwise in
-  %APPDATA%\Rattys4SkinGenerator. Either way they survive an update and an uninstall.
+  Update: run the new Setup. It offers the folder the app is in now. Your logos and
+  settings are never deleted by an update.
 
-PROBLEMS
-- The app gets a car wrong: on the Car tab press "Report this car...". It saves a small zip
-  on your desktop (what the app found in the car, its messages, your design and the
-  preview - no game files). Post it on the Ratty's Racing Discord with a line about what
-  went wrong, so it can be fixed.
-- "Pick a car first": choose the car on the Car tab.
-- The cars folder is empty: on the Car tab press "..." and choose
-  ...\steamapps\common\assettocorsa\content\cars
-- Skin looks wrong in the game: press "Update preview" in Content Manager, or
-  restart the game.
+  Remove: Windows Settings > Apps > Installed apps > Ratty's4Skin Generator.
+  Your logos and settings are kept (see section 16) in case you come back.
 
-Made for Ratty's Racing.
+
+3. THE APP AT A GLANCE
+-------------------------------------------------------------------------------------
+  Left:   tabs - Car, Livery, Number & names, Logos, Windows, Wheels.
+          Under them: PREVIEW, CREATE SKIN IN CAR, the progress bar and a message box
+          (the "log") that says what the app did.
+  Right:  the preview - your car in a garage, with buttons above it to pick a side and
+          to edit what is on the car.
+
+  Every time the app opens it starts clean: no car picked and a blank livery (a plain
+  white car). Your logo library, your cars folder and your app settings are kept.
+
+  Help
+  - The first time the app opens, a short tour shows what each part does.
+  - Rest the mouse on any control for a tip.
+  - Car tab: "Show me round" starts the tour again. Untick "Show help" when you know your
+    way round (no more tips or tour).
+
+  Drop-down lists: click to open them, or use the Up / Down arrow keys or the mouse
+  wheel over them to step through the choices without opening them.
+
+
+4. CAR TAB
+-------------------------------------------------------------------------------------
+  Start new livery     Clears the livery back to a plain white car at any time: colours,
+                       pattern, number, names, logos on the car, window stickers, tint,
+                       wheels and hand moves. Your car and logo library stay.
+  Show help / Show me round   See section 3.
+  AC cars folder       Found by itself (through Steam). Only change it if your game is
+                       somewhere unusual: "..." and choose
+                       ...\steamapps\common\assettocorsa\content\cars
+  Car                  The car to make a skin for. Type part of its name to find it.
+  Skin name            The name of the new skin. Using a name again replaces a skin you
+                       made before with this app (it asks first). It never overwrites a
+                       skin the app did not make - a stock skin is always safe.
+  Windows etc. from    Optional. Copies the car's other files (windows, interior,
+                       number plates...) from one of the car's own skins.
+  App colours          The app's own look: Carbon Orange, Ratty Purple, Ice Blue,
+                       Racing Green, Red Line, Stealth Grey, Light. The app restarts in the
+                       new colours and keeps your livery.
+  Report this car...   See section 15.
+  Sharper textures (4K)  Crisper writing and logos; bigger files and a slower build.
+  Smaller files        Compressed textures - about a quarter of the size, look the same
+                       in the game. Leave it on.
+
+
+5. LIVERY TAB
+-------------------------------------------------------------------------------------
+  Colours
+    Base colour        The main paint.
+    Accent colour      The pattern's main colour.
+    Highlight colour   Thin stripes and edges in the pattern (and logo glows).
+    Text colour        The number and names.
+
+  Pattern
+    50 designs, from classic stripes, hockey sticks and chequered fades to swooshes,
+    speed lines, camo, flames, circuit boards and GT sashes. The little car under the
+    list shows the pattern on its side and top in your colours.
+    "Gallery..." shows every pattern at once - click one to use it.
+    Every pattern wraps round the car in 3D, so it lines up across panels and reads the
+    right way on both sides.
+
+  Pattern from a picture
+    Choose "Pattern from a picture..." in the list, then a picture:
+    - a side view of a car (front on the left or on the right) - fitted to your car, or
+    - a flat pattern / wrap print.
+    Simplify (Off / Light / Medium / Strong) melts small writing and stickers in the
+    picture away. "Use my colours instead of the picture's" repaints it in your colours.
+    Your number, names and logos go on top as usual.
+
+  Halftone dots        Comic-style dots up the lower sides of the car, big at the bottom
+                       and fading out upwards. They sit on the plain paint, not over the
+                       pattern.
+  Paint finish         Car's own / Gloss / Metallic / Pearlescent / Matte. Needs Custom
+                       Shaders Patch in the game (section 12). The app's preview can't show
+                       shine - look in the game.
+
+
+6. NUMBER & NAMES TAB
+-------------------------------------------------------------------------------------
+  Racing number        Leave it empty for no number.
+  Number style         Number board (on a white board), Plain number, or No number.
+  Show number on       Doors and / or roof.
+  Team / wordmark      Your team name (or any words).
+  Driver name          Your name.
+  Team / Driver / Number font
+                       Pick a font for each - the preview under it shows your words.
+                       The "Racing:" fonts at the top come with the app (Russo One,
+                       Orbitron, Exo 2, Bebas Neue, Titillium, Faster One and more), so
+                       everyone has them. Below them are the fonts installed on your PC.
+  Where to write them  Tick where the team name and the driver name go: front wings,
+                       lower doors, doors, rear quarters, bonnet, roof, boot, rear, front.
+                       Where both are ticked, the name goes under the team.
+
+  Writing always gets a readable colour and a thin outline, so it shows over any pattern.
+
+
+7. LOGOS TAB
+-------------------------------------------------------------------------------------
+  Your logo library. About 230 logos come with the app; add your own with
+  "Add logos..." (PNG with a see-through background works best). They stay in the
+  library for next time.
+
+  Put a logo on the car
+    1. Click the logo in the list.
+    2. Pick a place: Doors, Bonnet, Front wings, Rear quarters, Lower doors (sill), Roof,
+       Boot lid, Rear panel, Front bumper, Windscreen banner, Rear window or Rear side
+       windows.
+    3. Pick more places to use the same logo on several parts (e.g. bonnet AND rear
+       quarters).
+  "On the car" lists every logo on the car and where. "Take off" removes the one picked
+  there; choosing "Not used" takes a logo off everywhere. "Clear all" takes every logo
+  off the car (they stay in the library). "Remove" deletes a logo from the library.
+
+  Background           Auto removes a plain background round a logo and keeps busy
+                       pictures whole; or choose Remove / Keep whole picture yourself.
+  Tint glow            A soft glow round the logo in your highlight colour.
+  Keep logos off areas the car mirrors
+                       Some cars use one half of a picture for both sides of a panel, so
+                       a logo there shows backwards on the other half. Tick to avoid it.
+
+  Several logos can share one place: they start side by side and you move each one on
+  the preview.
+
+
+8. WINDOWS TAB
+-------------------------------------------------------------------------------------
+  Window stickers
+    Make new window stickers   A banner across the top of the windscreen and rear window
+                               (full width) plus your number / name on the windows.
+    Remove the stickers already on the windows   Clears the car's own stickers first.
+    Banner text / colour / height (8-25 cm) / sticker text colour.
+    Also show                  Racing number and / or driver name on the rear window and
+                               the side windows chosen in "Side stickers on" (rear side
+                               windows, front door windows or both).
+    Inside the car the stickers show their dark back, like real ones.
+
+  Tint
+    Tint the windows           Tinted glass like a window film: pick the colour and how
+                               dark (5-90 %). The windscreen stays clear unless you tick
+                               "Tint the windscreen too". Stickers sit on top of the tint.
+
+  Some cars use one glass picture for several windows. There the app adds the stickers
+  and tint through the skin's own CSP settings (section 12).
+
+
+9. WHEELS TAB
+-------------------------------------------------------------------------------------
+  Recolour the wheel rims and / or the tyres (separate colours). Only cars whose rims or
+  tyres have their own texture can change.
+
+
+10. PREVIEW, AND MOVING THINGS ON THE CAR
+-------------------------------------------------------------------------------------
+  PREVIEW shows your livery on the car from every side WITHOUT saving anything.
+  The first preview of a car takes up to about a minute (the app studies the car);
+  after that it is quick.
+
+  Above the picture
+    All sides / Left / Right / Front / Rear / Top   which view to show.
+    Grid           Faint lines every 25 cm and an orange centre line, to line things up.
+    Open full size Opens the view as a picture.
+
+  Move things on the car
+    1. Pick ONE side (Left, Right, Front, Rear or Top).
+    2. Every logo, number, name and window sticker has a dashed box. Click one to pick it.
+    3. Drag it - the logo itself moves on the car as you drag.
+       Mouse wheel = bigger / smaller.   Shift + mouse wheel = turn.
+       Or the buttons: Bigger, Smaller, Turn, Flip (mirror), Edit text... (words, font
+       and colour of that one name), Delete, Reset (that one), Reset all.
+    4. Let go and the car redraws itself after a few seconds - no need to press Preview.
+       You can keep moving things while it redraws.
+  Moves apply to both sides of the car (left and right match).
+
+  "NOT PLACED"
+    If the app can't find a spot for something on a car (for example the bonnet of an odd
+    model), it is not quietly left off - a NOT PLACED bar shows above the picture.
+    Pick one side (for a bonnet logo: Top), choose the item, press "Pick it on the car"
+    and click where it should go. The car redraws itself with it there.
+
+
+11. SAVING THE SKIN INTO THE GAME
+-------------------------------------------------------------------------------------
+  CREATE SKIN IN CAR saves the skin into the car's skins folder. Straight after a
+  preview it only takes a few seconds.
+  - Same name as a skin you made before: it asks, then replaces it (the old one is only
+    removed once the new one is built).
+  - A skin the app did not make (stock or downloaded) is NEVER overwritten - choose
+    another name.
+  Then: in Content Manager pick the car, pick your skin and click "Update preview".
+  Without Content Manager the skin is simply there in the game's car menu.
+  Online: other drivers see your skin if they have the skin folder too.
+
+
+12. THINGS THAT NEED CUSTOM SHADERS PATCH (CSP)
+-------------------------------------------------------------------------------------
+  Most of a skin works in plain Assetto Corsa. These extras need CSP (most drivers have
+  it) and work through the skin's own settings file (ext_config.ini) - no car file is
+  ever changed, so nothing changes for online checksums:
+  - Paint finish (gloss, metallic flakes, pearl, matte).
+  - Window stickers / tint on cars that use one glass picture for several windows.
+  Other drivers see these if they have CSP and your skin.
+
+
+13. WHAT SOME CARS CAN'T DO
+-------------------------------------------------------------------------------------
+  - Protected cars: some mods are protected by their makers with CSP (many GT4,
+    Supercars and some BTCC / GT3 mods). The app can't see how their paint wraps round
+    the car, so only a plain colour (your base colour) is possible. It tells you after
+    Preview, and it never tries to get round that protection.
+  - A few cars only allow a plain colour (their paint picture has no room for a design).
+  - Some cars have no room on the glass for window stickers.
+  - Wheels only change on cars that have their own wheel / tyre texture.
+  - Cars locked (encrypted) completely by their maker can't be read at all.
+  The log under the buttons says so whenever this happens.
+
+
+14. GOOD TO KNOW
+-------------------------------------------------------------------------------------
+  - Logos, numbers and names go exactly where you asked: never moved, shrunk or left off
+    because they overlap - move them on the preview if you like.
+  - The log tells you what the app did, e.g. if a logo hung off its panel and was slid
+    onto it.
+  - Some cars use one picture for both halves of a panel (for example the Kadett
+    bonnet): a logo there also shows mirrored on the other half. That is how the car was
+    made - move the logo, or tick "Keep logos off areas the car mirrors".
+  - Typical skin size with "Smaller files" on: around 10-30 MB (more with 4K).
+  - Your hand moves are kept while the app is open, until you start a new livery.
+
+
+15. PROBLEMS? (and how to report a car)
+-------------------------------------------------------------------------------------
+  - The app gets a car wrong: Car tab > "Report this car...". It saves a small zip on
+    your desktop (what the app found in the car, its messages, your design and the
+    preview - no game files). Post it on the Ratty's Racing Discord with a line about
+    what went wrong.
+  - "Pick a car first": choose the car on the Car tab.
+  - The car list is empty: Car tab > "..." and choose
+    ...\steamapps\common\assettocorsa\content\cars
+  - The skin looks wrong or old in the game: click "Update preview" in Content Manager,
+    or restart the game.
+  - Paint finish / some window stickers don't show: they need Custom Shaders Patch.
+  - Windows "protected your PC" when installing: "More info" > "Run anyway".
+
+
+16. YOUR FILES AND SETTINGS
+-------------------------------------------------------------------------------------
+  - Your logo library and settings live in the app's "data" folder (if you ticked "Keep
+    my logos and settings in that folder too" when installing), otherwise in
+    %APPDATA%\Rattys4SkinGenerator. Updates and removing the app never delete them.
+  - Skins go into ...\assettocorsa\content\cars\<car>\skins\<your skin name>.
+  - The app keeps a little scratch folder next to your cars (assettocorsa\_r4skin_work).
+
+
+17. CREDITS AND LICENCES
+-------------------------------------------------------------------------------------
+  Made for Ratty's Racing.
+  The "Racing:" fonts are free Google Fonts under the SIL Open Font Licence; their
+  licences are in the app's folder (_internal\fonts\licences).

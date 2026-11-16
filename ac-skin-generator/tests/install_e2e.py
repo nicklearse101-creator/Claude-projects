@@ -3,7 +3,7 @@ folder: AppData and LocalAppData are pointed at the test folder, the Installed-a
 (removed again), no desktop shortcut. An old install without an Installed-apps entry (like Nik's 11 Nov one) sits in
 the default place and must be moved. The real install is never touched.
 python tests/install_e2e.py WORK_DIR APPDATA_COPY        (WORK_DIR on D:)"""
-import os, shutil, subprocess, sys, time, winreg
+import json, os, shutil, subprocess, sys, time, winreg
 work = os.path.abspath(sys.argv[1]); src_data = os.path.join(os.path.abspath(sys.argv[2]), 'Rattys4SkinGenerator')
 shutil.rmtree(work, ignore_errors=True)
 os.environ['APPDATA'] = os.path.join(work, 'Roaming'); os.environ['LOCALAPPDATA'] = os.path.join(work, 'Local')
@@ -33,6 +33,14 @@ def reg_location():
     try:
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, DUMMY) as k: return winreg.QueryValueEx(k, 'InstallLocation')[0]
     except OSError: return None
+
+
+def open_with_car(data_dir):
+    """Since 1.11.1 the app opens with no car picked; open it the way a colour-theme restart does (the saved car and
+    livery kept, once), so it draws the car's ghost - the sign of which data folder it uses."""
+    f = os.path.join(data_dir, 'settings.json')
+    s_ = json.load(open(f, encoding='utf8')); s_['keep_livery'] = True
+    json.dump(s_, open(f, 'w', encoding='utf8'))
 
 
 # the user's logos and settings (a copy), the Start menu folder, and an old install in the default place
@@ -66,6 +74,7 @@ check(I.previous_install() == target, 'next update offers this folder')
 # 2. the installed app uses the data folder next to it (its AppData is empty here)
 empty = os.path.join(work, 'EmptyRoaming'); os.makedirs(empty)
 env = dict(os.environ, APPDATA=empty, TEMP=r'D:\ClaudeData\tmp', TMP=r'D:\ClaudeData\tmp')
+open_with_car(os.path.join(target, 'data'))
 p = subprocess.Popen([exe], cwd=target, env=env)
 ghosts = os.path.join(target, 'data', 'ghosts')
 for _ in range(60):
@@ -99,6 +108,7 @@ target2 = os.path.join(parent2, I.FOLDER)
 check(not os.path.exists(os.path.join(target2, 'data')), 'no data folder when not ticked')
 check(os.path.isfile(os.path.join(DESK, I.APP + '.lnk')), 'desktop shortcut made')
 shutil.rmtree(os.path.join(I.APPDATA_DIR, 'ghosts'), ignore_errors=True)
+open_with_car(I.APPDATA_DIR)
 p = subprocess.Popen([exe2], cwd=target2, env=dict(os.environ, TEMP=r'D:\ClaudeData\tmp', TMP=r'D:\ClaudeData\tmp'))
 g2 = os.path.join(I.APPDATA_DIR, 'ghosts')
 for _ in range(60):

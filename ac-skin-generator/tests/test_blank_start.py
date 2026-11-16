@@ -32,10 +32,12 @@ def test_fresh_install_is_blank(make_app):
     blank(make_app().design())
 
 
-def test_restart_is_blank_but_keeps_car_and_options(make_app, tmp_path):
+def test_restart_is_blank_but_keeps_options(make_app, tmp_path):
+    """No car picked either (Nik 16 Nov: "it was automatically set to the Talbot - it should be free of any car")."""
     a = make_app(used_before(str(tmp_path / 'cars')))
     blank(a.design())
-    assert a.vars['car'].get() == 'car_a' and a.vars['cars_dir'].get() == str(tmp_path / 'cars')
+    assert a.vars['car'].get() == '' and a.vars['cars_dir'].get() == str(tmp_path / 'cars')
+    assert not a.views and a.geom is None
     assert R.theme.THEME == 'ratty_purple' and a.vars['compress'].get() is False and a.vars['show_grid'].get() is False
     assert [l['file'] for l in a.library] == ['rat.png']                     # the library stays
     assert json.load(open(R.LIBRARY))[0]['places'] == []
@@ -57,6 +59,7 @@ def test_new_colours_restart_keeps_the_livery(make_app, tmp_path, monkeypatch):
 
 def test_start_new_livery_button(make_app, tmp_path, monkeypatch):
     a = make_app(used_before(str(tmp_path / 'cars')))
+    a.vars['car'].set('car_a')                                    # the car picked this time stays
     a.vars['team'].set('X'); a.vars['name'].set('Y'); a.vars['number'].set('7')
     a.vars['pattern_name'].set(R.skingen.PATTERNS['sweep']); a.vars['use_tint'].set(True)
     a.library[0]['places'] = ['doors']; a.adjust_by_car['car_a'] = {'k': {'da': 1}}
