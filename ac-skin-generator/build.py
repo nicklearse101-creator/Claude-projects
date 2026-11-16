@@ -25,6 +25,8 @@ def main():
     # 1. the app (with the starter logos, if make_starter_logos.py has been run)
     st = os.path.join(HERE, 'starter_logos')
     extra = ['--add-data', f'{st};starter_logos'] if os.path.isfile(os.path.join(st, 'starter.json')) else []
+    fonts = os.path.join(HERE, 'fonts')                 # the racing fonts and their licences
+    extra += ['--add-data', f'{fonts};fonts']
     pyi('--windowed', '--name', 'Rattys4SkinGenerator', '--icon', ico,
         '--add-data', f'{ico};.', '--add-data', f'{png};.', *extra,
         '--exclude-module', 'matplotlib', '--exclude-module', 'scipy', '--exclude-module', 'pandas',

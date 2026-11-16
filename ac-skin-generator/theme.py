@@ -578,14 +578,21 @@ class SlantTabs(ttk.Frame):
         try:
             w = str(e.widget)
             if self._sb_on and (w.startswith(str(self.body)) or w == str(self.view)):
+                # a drop-down under the mouse (shut or open) takes the wheel for its options: the page behind it stays
+                # still (Nik 16 Nov: the whole app moved up and down while scrolling the options)
+                if '.popdown' in w: return
+                if isinstance(e.widget, tk.Widget) and e.widget.winfo_class() in ('TCombobox', 'TSpinbox'): return
                 # a list under the mouse that can still scroll that way takes the wheel itself (Nik 13 Nov: the logo
                 # list only scrolled in full screen - the page took the wheel); at its end the page scrolls on
                 if isinstance(e.widget, tk.Widget) and e.widget.winfo_class() in ('Treeview', 'Listbox', 'Text'):
                     first, last = e.widget.yview()
                     if (e.delta > 0 and first > 0) or (e.delta < 0 and last < 1): return
-                self.view.yview_scroll(-1 if e.delta > 0 else 1, 'units')
+                self.scroll_page(e)
         except (tk.TclError, AttributeError):
             pass
+
+    def scroll_page(self, e):
+        if self._sb_on: self.view.yview_scroll(-1 if e.delta > 0 else 1, 'units')
 
     def _img(self, i, w, state):
         kind = 'tab_active' if i == self.current else 'tab'
@@ -613,6 +620,30 @@ class SlantTabs(ttk.Frame):
         if self._hover != i:
             self._hover = i
             self._draw()
+
+
+def step_list(box):
+    """Up / Down step a read-only drop-down to the option before / after without opening the list - the same as the
+    mouse wheel over it (Nik 16 Nov: arrow keys through the fonts). Clicking still opens the list."""
+    def step(d):
+        vals = list(box['values'])
+        if not vals: return 'break'
+        try: i = vals.index(box.get())
+        except ValueError: i = -1 if d > 0 else len(vals)
+        j = min(len(vals) - 1, max(0, i + d))
+        if j != i:
+            box.set(vals[j]); box.event_generate('<<ComboboxSelected>>')
+        return 'break'
+    box.bind('<Down>', lambda e: step(1))
+    box.bind('<Up>', lambda e: step(-1))
+    return box
+
+
+def wheel_scrolls_page(box, tabs):
+    """A drop-down where one wheel notch would do something big (restart the app, add a place, load another car):
+    the wheel scrolls the page instead of changing it."""
+    box.bind('<MouseWheel>', lambda e: (tabs.scroll_page(e), 'break')[1])
+    return box
 
 
 class ChipGroup(tk.Canvas):

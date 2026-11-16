@@ -12,7 +12,9 @@ metadata:
 
 Hand-made skin: `wtcc_chevrolet_lacetti/skins/ratty_racing_101`, scripts in `lacetti-ratty-skin/`.
 
-**v1.10.4 (13 Nov 2026 late) = installed on D: (backup _BACKUP_v1.10.3).** One logo on several places: library entries `places` list (+ `place` = first, for old versions); place box ADDS, 'Take off' removes one, 'Not used' clears; bg/tint via on_logo_props keep places (Nik: a 2nd place moved the logo off the 1st). Tests test_logo_places.py; 203 pass; his 247-logo library carries over unchanged.
+**v1.10.5 (16 Nov 2026) = installed on D: (backup _BACKUP_v1.10.4).** Headlight LENS COLOUR option taken off (Nik: in game the lamp's cast light took the lens colour). Tab now 'Wheels'; load_cfg drops use_lens/lens_colour (Nik's settings had it ticked), design() lens_colour=None; engine tint_lenses kept dormant. Tests test_no_lens.py; 206 pass. Full suite = tests/test_*.py minus test_gen.py/test_stock.py (scripts). e2e arg 2 = folder holding a COPY of D:/Rattys4SkinGenerator/data as 'Rattys4SkinGenerator'.
+
+**v1.10.4 (13 Nov 2026 late).** One logo on several places: library entries `places` list (+ `place` = first, for old versions); place box ADDS, 'Take off' removes one, 'Not used' clears; bg/tint via on_logo_props keep places (Nik: a 2nd place moved the logo off the 1st). Tests test_logo_places.py; 203 pass; his 247-logo library carries over unchanged.
 
 **v1.10.3 (13 Nov 2026 night) (superseded; backups _BACKUP_v1.10.2; older backups v1.9.0/1.10.0/1.10.1 still there - Nik not yet asked to delete; test skin 'r4s_csp_test' still in the Talbot skins - delete only on his yes).** 'Grid' tick box (draw_grid: 25 cm dashed lines in theme.LINE + orange centre line, single views only, under the boxes; show_grid saved); SlantTabs._wheel lets a Treeview/Listbox/Text that can still scroll take the wheel (logo list only scrolled in full screen). Tests test_wheel_grid.py; 196 pass. LESSON: never ImageGrab the app window for checks while Nik is at the PC - it captured his Discord window on top (deleted unseen-used); draw the preview off-screen instead (tests/ui_grid.py: ImageTk.getimage(app.preview_img) + canvas item coords).
 

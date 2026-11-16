@@ -137,5 +137,6 @@ def test_gallery_in_my_colours(make_app):
     a.vars['accent'].set('#00ff00')
     a.open_gallery(); pump(a, lambda: a.gallery_done)
     im = a.gallery_tiles['split']['pil']
-    px = np.asarray(im)[..., :3].reshape(-1, 3)
-    assert ((px[:, 1] > 200) & (px[:, 0] < 60)).mean() > 0.1    # the green accent is in the picture
+    a_ = np.asarray(im)
+    px = a_[..., :3][a_[..., 3] > 200]                            # the car (the picture is clear around it)
+    assert ((px[:, 1] > 180) & (px[:, 0] < 60)).mean() > 0.1    # the green accent is in the picture

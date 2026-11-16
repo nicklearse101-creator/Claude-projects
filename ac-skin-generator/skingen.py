@@ -63,6 +63,17 @@ def stock_skins(car_dir):
     return sorted([s for s in os.listdir(d) if os.path.isdir(os.path.join(d, s))]) if os.path.isdir(d) else []
 
 
+def app_made(car_dir, skin):
+    """A skin this app made (it leaves its preview picture in every skin it makes)."""
+    return os.path.isfile(os.path.join(car_dir, 'skins', skin, 'generator_preview.png'))
+
+
+def source_skins(car_dir):
+    """The car's own skins - the ones "Windows etc. from" may copy. Skins this app made are left out: copying one
+    brought its tinted glass and CSP sections along, so a tint could not be taken off (Nik 16 Nov)."""
+    return [s for s in stock_skins(car_dir) if not app_made(car_dir, s)]
+
+
 def find_skin_file(skin_dir, texname):
     want = texname.lower()
     if not os.path.isdir(skin_dir): return None
@@ -510,8 +521,9 @@ VIEWS = {
 
 def text_image(text, px_height, color, font_path=DEFAULT_FONT, style='Bold Condensed', track=0.04,
                stroke=0, stroke_color=(0, 0, 0)):
-    f = ImageFont.truetype(font_path, max(8, int(px_height)))
-    try: f.set_variation_by_name(style)
+    path, _, weight = str(font_path).partition('#')        # "font.ttf#Black": a variable font at that weight
+    f = ImageFont.truetype(path, max(8, int(px_height)))
+    try: f.set_variation_by_name(weight or style)
     except Exception: pass
     tr = track * px_height
     w = int(sum(f.getlength(ch) for ch in text) + tr * len(text) + px_height)
@@ -651,7 +663,7 @@ DEFAULT_DESIGN = dict(
     win_tint=None, win_tint_dark=0.5, win_tint_windscreen=False,
     win_enable=False, win_clear=True, win_banner='RATTY RACING', win_banner_colour='#111111', win_text_colour='#ffffff',
     win_number=True, win_name=True, win_banner_height=0.12, win_side_place='rear', debug_decals=False,
-    font_team=None, font_name=None, font_number=None, adjust=None, compress=True, avoid_mirror=False,
+    font_team=None, font_name=None, font_number=None, adjust=None, compress=True, avoid_mirror=False, paint_finish='standard',
     font=DEFAULT_FONT,
 )
 
@@ -1100,8 +1112,38 @@ def pattern_colours(design, P, N, car, sill, belt, log=print):
         col = more_patterns(pat, col, P, N, car, sill, belt, base, acc, acc2, txt)
     elif pat not in ('sweep', 'stripes', 'split', 'none'):
         col = extra_pattern(pat, col, P, N, car, sill, belt, base, acc, acc2, txt)
-
+    if design.get('halftone') and pat != 'sweep':           # (Sweep draws its own dots, above its band)
+        col = halftone_dots(col, P, N, car, sill, belt, design, base, acc, txt)
     return col
+
+
+def halftone_dots(col, P, N, car, sill, belt, design, base, acc, txt):
+    """Halftone dots up the sides: big at the bottom of the plain paint (the sills, or the top of a pattern's low band
+    such as Split), fading out upwards; only on plain base colour, so the pattern's own shapes stay clean. Accent dots,
+    or text colour ones where the accent would not show on the base. A pattern that leaves almost no plain paint gets
+    tone-on-tone dots over it instead. Where the band starts is read from the pattern on a fixed grid down the car's
+    side, so every piece of the texture gets the same answer."""
+    zz, yy = np.linspace(car.hi[2], car.lo[2], 80), np.linspace(sill, belt, 40)
+    Z, Y = np.meshgrid(zz, yy)
+    Pp = np.stack([np.full(Z.size, car.hi[0]), Y.ravel(), Z.ravel()], 1)
+    cp = pattern_colours(dict(design, halftone=False), Pp, np.tile([1.0, 0, 0], (len(Pp), 1)), car, sill, belt, lambda m: None)
+    plain_p = (np.abs(cp - base).sum(1) < 1).reshape(Y.shape)
+    low = np.flatnonzero(plain_p.mean(1) >= 0.5)
+    start = yy[low[0]] if len(low) else sill
+    span = 0.7 * (belt - sill)
+    g = 0.034
+    y, z = P[:, 1], P[:, 2]
+    d = np.hypot(z - np.round(z / g) * g, y - np.round(y / g) * g)
+    r = g * 0.48 * np.clip(1 - (y - start) / max(span, 0.05), 0, 1) * (y >= start - 0.01)
+    side = (np.abs(N[:, 0]) > 0.5) & (y > sill - 0.02) & (y < belt)
+    if plain_p.mean() < 0.1:                                 # almost no plain paint: tone-on-tone dots over the pattern
+        r = g * 0.42 * np.clip(1 - (y - sill) / max(span, 0.05), 0, 1)
+        dots = (d < r) & side
+        shade = np.where(col.mean(1, keepdims=True) > 128, col * 0.7, col * 0.6 + 255 * 0.4)
+        return np.where(dots[:, None], shade, col)
+    dot = acc if np.abs(acc - base).sum() > 90 else txt
+    dots = (d < r) & side & (np.abs(col - base).sum(1) < 1)
+    return np.where(dots[:, None], dot, col)
 
 
 class SwatchCar:
@@ -1112,28 +1154,98 @@ class SwatchCar:
               'WHEEL_LR': np.array([0.75, 0.3, -1.35]), 'WHEEL_RR': np.array([-0.75, 0.3, -1.35])}
 
 
+# a plain coupe for the pattern preview (metres: z forward, y up, x to the car's left; front at z = +2.1)
+SW_SIDE = [(2.02, 0.17), (2.13, 0.30), (2.13, 0.52), (2.04, 0.68), (1.55, 0.80), (1.00, 0.90), (0.32, 1.27),
+           (0.05, 1.31), (-0.70, 1.31), (-1.05, 1.24), (-1.62, 1.04), (-2.02, 1.00), (-2.13, 0.90), (-2.15, 0.55),
+           (-2.10, 0.30), (-2.00, 0.17)]
+SW_SIDE_GLASS = [[(0.93, 0.96), (0.35, 1.23), (0.05, 1.26), (-0.12, 1.26), (-0.12, 0.98)],
+                 [(-0.22, 0.98), (-0.22, 1.26), (-0.68, 1.26), (-1.00, 1.20), (-1.40, 1.02)]]
+SW_WHEELS = (1.35, -1.35)
+_SW_HALF = [(2.14, 0.0), (2.12, 0.45), (2.05, 0.70), (1.85, 0.80), (1.35, 0.85), (0.0, 0.86), (-1.35, 0.86),
+            (-1.85, 0.83), (-2.08, 0.72), (-2.15, 0.45), (-2.16, 0.0)]
+SW_TOP = _SW_HALF + [(z, -x) for z, x in reversed(_SW_HALF)]
+SW_TOP_GLASS = [[(1.00, 0.66), (0.32, 0.60), (0.32, -0.60), (1.00, -0.66)],
+                [(-0.70, 0.58), (-1.62, 0.66), (-1.62, -0.66), (-0.70, -0.58)]]
+
+
+def _sw_draw(size, polys, to_px, fill=255, base=None):
+    im = base if base is not None else Image.new('L', size, 0)
+    d = ImageDraw.Draw(im)
+    for poly in polys: d.polygon([to_px(a, b) for a, b in poly], fill=fill)
+    return im
+
+
 def pattern_swatch(design, width=300):
-    """A small picture of the pattern: the car's left side over its top view (front on the left)."""
+    """A small picture of the pattern on a plain car: its left side over its top view (front on the left), body in
+    the livery, dark windows, wheels, clear (transparent) around the car (Nik 16 Nov: show it on a car, not on flat
+    blocks). No logos or writing: just the pattern."""
     car = SwatchCar()
-    hs, ht = int(width * 0.3), int(width * 0.22)
-    zz = np.linspace(car.hi[2], car.lo[2], width * 2)
-    out = []
-    for h, plane in ((hs, 'side'), (ht, 'top')):
-        if plane == 'side':
-            yy = np.linspace(1.2, 0.05, h * 2)
-            Z, Y = np.meshgrid(zz, yy); X = np.full_like(Z, 0.86)
-            N = np.tile([1.0, 0, 0], (Z.size, 1))
-        else:
-            xs = np.linspace(0.8, -0.8, h * 2)
-            Z, X = np.meshgrid(zz, xs); Y = np.full_like(Z, 1.3)
-            N = np.tile([0, 1.0, 0], (Z.size, 1))
-        P = np.stack([X.ravel(), Y.ravel(), Z.ravel()], 1)
-        c = pattern_colours(dict(design, pattern_image=design.get('pattern_image')), P, N, car, 0.15, 0.8, lambda m: None)
-        im = Image.fromarray(np.clip(c, 0, 255).reshape(Z.shape + (3,)).astype(np.uint8)).resize((width, h), Image.LANCZOS)
-        out.append(im)
-    sheet = Image.new('RGB', (width, hs + ht + 4), (235, 236, 240))
-    sheet.paste(out[0], (0, 0)); sheet.paste(out[1], (0, hs + 4))
-    return sheet
+    ss = 2
+    sill, belt = 0.17, 0.95
+    z0, z1 = 2.25, -2.25
+    d = dict(design, pattern_image=design.get('pattern_image'))
+    quiet = lambda m: None
+    Wp = width * ss
+    sc = Wp / (z0 - z1)                                     # pixels per metre (both pictures the same scale)
+
+    # --- side
+    y0, y1 = 1.42, 0.0
+    Hs = int(round((y0 - y1) * sc))
+    tx = lambda z: (z0 - z) * sc
+    side_px = lambda z, y: (tx(z), (y0 - y) * sc)
+    body = _sw_draw((Wp, Hs), [SW_SIDE], side_px)
+    dr = ImageDraw.Draw(body)
+    for wz in SW_WHEELS:                                    # wheel arches cut out of the body
+        cx, cy = side_px(wz, 0.31); r = 0.37 * sc
+        dr.ellipse([cx - r, cy - r, cx + r, cy + r], fill=0)
+    glass = _sw_draw((Wp, Hs), SW_SIDE_GLASS, side_px)
+    out = np.zeros((Hs, Wp, 4), np.float32)
+    ys, xs = np.nonzero(np.asarray(body) > 127)
+    Z = z0 - (xs + 0.5) / sc; Y = y0 - (ys + 0.5) / sc
+    P = np.stack([np.full(len(Z), 0.86), Y, Z], 1)
+    c = pattern_colours(d, P, np.tile([1.0, 0, 0], (len(P), 1)), car, sill, belt, quiet)
+    shade = 0.80 + 0.26 * np.clip((Y - sill) / 0.75, 0, 1) + 0.07 * np.exp(-((Y - 0.86) / 0.035) ** 2)
+    out[ys, xs, :3] = np.clip(c * shade[:, None], 0, 255); out[ys, xs, 3] = 255
+    gy, gx = np.nonzero(np.asarray(glass) > 127)
+    gl = np.clip((y0 - (gy + 0.5) / sc - 0.95) / 0.32, 0, 1)
+    out[gy, gx, :3] = np.stack([34 + 30 * gl, 40 + 32 * gl, 50 + 36 * gl], 1); out[gy, gx, 3] = 255
+    im_s = Image.fromarray(out.astype(np.uint8), 'RGBA')
+    dw = ImageDraw.Draw(im_s)
+    for wz in SW_WHEELS:
+        cx, cy = side_px(wz, 0.31)
+        for r, col in ((0.37, (18, 18, 20, 255)), (0.30, (26, 26, 28, 255)), (0.20, (160, 163, 170, 255)),
+                       (0.17, (120, 123, 130, 255)), (0.05, (70, 72, 76, 255))):
+            dw.ellipse([cx - r * sc, cy - r * sc, cx + r * sc, cy + r * sc], fill=col)
+    for poly, col in (([(2.12, 0.62), (1.96, 0.70), (1.80, 0.72), (1.92, 0.62)], (235, 235, 220, 255)),
+                      ([(-2.13, 0.86), (-2.0, 0.92), (-2.0, 0.82), (-2.13, 0.80)], (190, 25, 25, 255))):
+        dw.polygon([side_px(a, b) for a, b in poly], fill=col)          # head and tail lamps
+    dw.line([side_px(a, b) for a, b in SW_SIDE + SW_SIDE[:1]], fill=(20, 20, 22, 160), width=ss)
+
+    # --- top (the car seen from above, its left side at the top of the picture)
+    x0, x1 = 0.98, -0.98
+    Ht = int(round((x0 - x1) * sc))
+    top_px = lambda z, x: (tx(z), (x0 - x) * sc)
+    body = _sw_draw((Wp, Ht), [SW_TOP], top_px)
+    glass = _sw_draw((Wp, Ht), SW_TOP_GLASS, top_px)
+    out = np.zeros((Ht, Wp, 4), np.float32)
+    ys, xs = np.nonzero((np.asarray(body) > 127) & (np.asarray(glass) <= 127))
+    Z = z0 - (xs + 0.5) / sc; X = x0 - (ys + 0.5) / sc
+    prof = sorted(SW_SIDE[2:13], key=lambda p_: p_[0])
+    Y = np.interp(Z, [p_[0] for p_ in prof], [p_[1] for p_ in prof])
+    P = np.stack([X, Y, Z], 1)
+    c = pattern_colours(d, P, np.tile([0, 1.0, 0], (len(P), 1)), car, sill, belt, quiet)
+    shade = 1.04 - 0.24 * (np.abs(X) / 0.86) ** 2
+    out[ys, xs, :3] = np.clip(c * shade[:, None], 0, 255); out[ys, xs, 3] = 255
+    gy, gx = np.nonzero(np.asarray(glass) > 127)
+    out[gy, gx, :3] = (44, 51, 63); out[gy, gx, 3] = 255
+    im_t = Image.fromarray(out.astype(np.uint8), 'RGBA')
+    ImageDraw.Draw(im_t).line([top_px(a, b) for a, b in SW_TOP + SW_TOP[:1]], fill=(20, 20, 22, 160), width=ss)
+
+    gap = 6 * ss
+    sheet = Image.new('RGBA', (Wp, Hs + gap + Ht), (0, 0, 0, 0))
+    sheet.paste(im_s, (0, 0)); sheet.paste(im_t, (0, Hs + gap))
+    small = sheet.convert('RGBa').resize((width, sheet.height // ss), Image.LANCZOS).convert('RGBA')
+    return small
 
 
 def render_design(car, tm, paint, design, log=print, info=None, ctx=None, mem=None):
@@ -1177,9 +1289,11 @@ def render_design(car, tm, paint, design, log=print, info=None, ctx=None, mem=No
         have = {(d_['key'], d_['view']) for d_ in info.setdefault('decals', [])}
         for dc in decals:
             if (dc.key, dc.view) not in have:
+                sprite = dc.img.convert('RGBA'); sprite.thumbnail((512, 512))     # drawn live while it is moved
                 info['decals'].append(dict(key=dc.key, label=dc.label, view=dc.view, a=float(dc.a), b=float(dc.b), h=float(dc.height),
                                            w=float(dc.width or dc.height * dc.img.width / dc.img.height), rot=float(dc.rot),
-                                           slid=[float(v) for v in getattr(dc, 'slid', (0.0, 0.0))]))
+                                           slid=[float(v) for v in getattr(dc, 'slid', (0.0, 0.0))],
+                                           flip=bool(getattr(dc, 'flip', False)), sprite=sprite))
     return np.clip(col, 0, 255), forced
 
 
@@ -2061,6 +2175,73 @@ def merge_ini(path, text):
         for name, body in old:
             if name is not None: f.write(f'[{name}]\n')
             for l in body: f.write(l + '\n')
+
+
+# ------------------------------------------------------------------ paint finish (Custom Shaders Patch)
+FINISHES = {'standard': "Car's own", 'gloss': 'Gloss', 'metallic': 'Metallic', 'pearl': 'Pearlescent', 'matte': 'Matte'}
+# CSP's own car-paint templates (extension/config/cars/common/materials_carpaint.ini), as 1,250 skins on Nik's PC use them
+FINISH_TEMPLATES = {'gloss': ('Material_CarPaint_Solid', ['FresnelMax = 0.7']),
+                    'metallic': ('Material_CarPaint_Metallic', ['UseNewFlakes = 1', 'FlakesMask = 0']),
+                    'pearl': ('Material_CarPaint_Pearl', ['UseNewFlakes = 1', 'FlakesMask = 0', 'PearlescentFlakes = 1']),
+                    'matte': ('Material_CarPaint_Matte', [])}
+# paint on an old plain shader (no maps / detail texture): its own material values (Kunos gloss paint / matte plastic)
+PLAIN_GLOSS = [('ksSpecular', 0.6), ('ksSpecularEXP', 80), ('sunSpecular', 10), ('sunSpecularEXP', 1500),
+               ('fresnelC', 0.06), ('fresnelEXP', 3.5), ('fresnelMaxLevel', 0.6)]
+PLAIN_MATTE = [('ksSpecular', 0.1), ('ksSpecularEXP', 10), ('sunSpecular', 0), ('fresnelC', 0.02), ('fresnelMaxLevel', 0.08)]
+
+
+def csp_paint_names(car_dir):
+    """The paint materials CSP's own config for this car names (CarPaintMaterial), if it has one."""
+    car_dir = os.path.normpath(car_dir)
+    ac = os.path.dirname(os.path.dirname(os.path.dirname(car_dir)))
+    for p in (os.path.join(ac, 'extension', 'config', 'cars', 'loaded', os.path.basename(car_dir) + '.ini'),
+              os.path.join(car_dir, 'extension', 'ext_config.ini')):
+        try: txt = open(p, encoding='utf8', errors='ignore').read()
+        except OSError: continue
+        m = re.search(r'^\s*CarPaintMaterial\s*=\s*([^\n;]+)', txt, re.M | re.I)
+        if m: return [x.strip() for x in m.group(1).split(',') if x.strip()]
+    return []
+
+
+def paint_materials(car):
+    """The car's paint materials: the ones CSP's config for the car names, else the materials on the livery texture
+    that shine like paint (isAdditive 2 or fresnelMaxLevel 0.3+; plastic parts on the same texture are left out)."""
+    have = {}
+    for m in car.kn5.meshes:
+        if m.mat is not None and len(m.idx): have.setdefault(m.mat.name, m.mat)
+    csp = [n for n in csp_paint_names(car.dir) if n in have]
+    if csp: return csp
+    body = {t.lower() for t in car.body_textures}
+    not_paint = re.compile(r'carbon|plast|chrome|rubber|trim|grill|black|matt?e(?![a-z])|glass|tyre|tire', re.I)
+    return [n for n, mt in have.items() if (mt.samplers.get('txDiffuse') or '').lower() in body and not not_paint.search(n)
+            and (mt.props.get('isAdditive', 0) == 2 or mt.props.get('fresnelMaxLevel', 0) >= 0.3)]
+
+
+def paint_finish_ini(car, finish, log=print):
+    """ext_config.ini text giving the paint the finish asked for (gloss, metallic, pearl, matte) - shown in game with
+    Custom Shaders Patch; no car file changes. '' for the car's own finish."""
+    if not finish or finish == 'standard' or finish not in FINISH_TEMPLATES: return ''
+    mats = paint_materials(car)
+    if not mats:
+        log('paint finish: no paint material found in this car - its own finish stays'); return ''
+    shader = {m.mat.name: m.mat.shader for m in car.kn5.meshes if m.mat is not None}
+    multi = [n for n in mats if (shader.get(n) or '').startswith('ksPerPixelMultiMap')]
+    plain = [n for n in mats if n not in multi]
+    out = []
+    if multi:
+        names = ', '.join(multi)
+        tpl, extra = FINISH_TEMPLATES[finish]
+        out += ['[INCLUDE: common/materials_carpaint.ini]', "; Ratty's4Skin paint finish (Custom Shaders Patch)",
+                f'CarPaintMaterial = {names}', 'CarPaintVersionAware = 4', '',
+                f'[{tpl}]', f'Materials = {names}'] + extra + ['']
+    if plain:
+        if finish in ('metallic', 'pearl'):
+            log(f'paint finish: {", ".join(plain)} use an old plain shader - gloss there, not {FINISHES[finish].lower()}')
+        vals = PLAIN_MATTE if finish == 'matte' else PLAIN_GLOSS
+        out += ['[SHADER_REPLACEMENT_...]', "; Ratty's4Skin paint finish", f'MATERIALS = {", ".join(plain)}'] + \
+               [f'PROP_{i} = {k}, {v}' for i, (k, v) in enumerate(vals)] + ['']
+    log(f'paint finish: {FINISHES[finish]} on {", ".join(mats)} (in game with Custom Shaders Patch)')
+    return '\n'.join(out) + '\n'
 
 
 # ------------------------------------------------------------------ window stickers
@@ -3061,6 +3242,15 @@ def _paint_texture(car, tm, mem, base, paint, shade, design, said, info, ctx, lo
         paint = paint.copy(); paint[tm.yy[extra], tm.xx[extra]] = True
         names = sorted(set(tm.mesh_of_tri[np.unique(tm.tri[extra])]))
         log(f'decals also cover {extra.sum()} texels outside the paint area ({", ".join(names)[:90]})')
+    out_rgb = _paint_canvas(tm, cols, base, paint, shade)
+    filled = spot_parts(tm, out_rgb, rgb(design['base']), log)
+    rgb_img = Image.fromarray(np.clip(out_rgb, 0, 255).astype(np.uint8))
+    return rgb_img, filled
+
+
+def _paint_canvas(tm, cols, base, paint, shade):
+    """The texel colours laid on the stock texture inside the paint area (shaded like the stock skins, the edge
+    softened by one texel)."""
     canvas = base.copy()
     sel = paint[tm.yy, tm.xx]
     yy, xx = tm.yy[sel], tm.xx[sel]
@@ -3071,19 +3261,50 @@ def _paint_texture(car, tm, mem, base, paint, shade, design, said, info, ctx, lo
     painted = np.clip(canvas, 0, 255)
     out_rgb = base * (1 - mm) + painted * mm
     out_rgb[paint] = painted[paint]
-    filled = spot_parts(tm, out_rgb, rgb(design['base']), log)
-    rgb_img = Image.fromarray(np.clip(out_rgb, 0, 255).astype(np.uint8))
-    return rgb_img, filled
+    return out_rgb
 
 
-def generate(car_dir, design, skin_name, out_root=None, resolution=None, log=print, preview_path=None,
-             copy_other_from=None, progress=None, views=None, info=None, write=True):
+# the last preview, for clean_views: the car without its decals (the app clears a moved logo's old spot with it)
+_LOCK = threading.RLock()
+LAST_PREVIEW = {}
+_SERIAL = 0
+
+
+def clean_views(serial, width=1600, alpha=True):
+    """The views of preview number `serial` (info['serial']) with the body painted in the pattern only - no logos,
+    numbers or names. None when another preview has been made since."""
+    with _LOCK:
+        lp = LAST_PREVIEW
+        if not lp or lp['serial'] != serial: return None
+        tex = dict(lp['tex'])
+        for t, tm in lp['tms'].items():
+            mem = _MEMO.get('tex', {}).get(t)
+            if not mem or 'pattern' not in mem or mem.get('tm') is not tm: continue
+            base, alpha_, paint, shade = mem['stock']
+            out_rgb = _paint_canvas(tm, np.clip(mem['pattern'], 0, 255), base, paint, shade)
+            spot_parts(tm, out_rgb, lp['base'], lambda m_: None)
+            img = Image.fromarray(np.clip(out_rgb, 0, 255).astype(np.uint8)); img.putalpha(Image.fromarray(alpha_))
+            tex[t] = img
+        return preview_views(lp['car'], tex, lp['tms'], width, layers=lp['layers'], alpha=alpha)
+
+
+def generate(*a, **k):
+    with _LOCK:                       # one at a time (the app's live preview reads the last one: clean_views)
+        return _generate(*a, **k)
+
+
+def _generate(car_dir, design, skin_name, out_root=None, resolution=None, log=print, preview_path=None,
+              copy_other_from=None, progress=None, views=None, info=None, write=True):
     """write=False: a preview only - everything is worked out and drawn, but no file is written anywhere.
     info (a dict), when given, is filled with where every decal went and each view's frame, so the
     app can let the user move them on the preview."""
     step = progress or (lambda f, t: None)
     if copy_other_from and not os.path.isdir(os.path.join(car_dir, 'skins', copy_other_from)):
         log(f'"{copy_other_from}" is not a skin of this car - nothing copied from it')
+        copy_other_from = None
+    if copy_other_from and app_made(car_dir, copy_other_from):
+        log(f'"{copy_other_from}" was made by this app - nothing copied from it (its windows would bring the old '
+            f'tint and stickers along); the car\'s own files are used')
         copy_other_from = None
     step(0.02, 'Reading the car model')
     kn5_ = find_main_kn5(car_dir)
@@ -3251,6 +3472,8 @@ def generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pri
                     write_dds(Image.new('RGBA', (64, 64), (255, 255, 255, 255)), os.path.join(out, os.path.splitext(det)[0] + '.dds'))
                     made[det] = None
                     log(f'wrote a plain white {det} (this car takes its paint colour from it)')
+        fin = paint_finish_ini(car, design.get('paint_finish'), log)
+        if fin: merge_ini(os.path.join(out, 'ext_config.ini'), fin)
         if design.get('beam_colour'):
             txt = beam_config(car, lights, design['beam_colour'], log)
             if txt: merge_ini(os.path.join(out, 'ext_config.ini'), txt); log('wrote ext_config.ini (beam colour, needs CSP)')
@@ -3264,9 +3487,14 @@ def generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pri
         d.pieslice([2, 2, 61, 61], 200, 340, fill=tuple(int(v) for v in rgb(design['accent'])) + (255,))
         lv.save(os.path.join(out, 'livery.png'))
     step(0.9, 'Drawing the preview')
-    global LAST_LAYERS
+    global LAST_LAYERS, LAST_PREVIEW, _SERIAL
     LAST_LAYERS = glass_layers                      # for tests that draw their own views
-    if views is not None: views.update(preview_views(car, tex_out, tms, layers=glass_layers, alpha=True))
+    if views is not None:
+        views.update(preview_views(car, tex_out, tms, layers=glass_layers, alpha=True))
+        _SERIAL += 1
+        LAST_PREVIEW = dict(serial=_SERIAL, car=car, tex=dict(tex_out), tms=dict(tms), layers=glass_layers,
+                            base=rgb(design['base']))
+        if info is not None: info['serial'] = _SERIAL
     sheet = preview_sheet(car, tex_out, tms, layers=glass_layers) if (views is None or preview_path) else None
     if info is not None: info['frames'] = {v: view_frame(car, v) for v in ('left', 'right', 'front', 'rear', 'top')}
     step(1.0, 'Done')
