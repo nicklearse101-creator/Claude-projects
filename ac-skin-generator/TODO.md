@@ -30,7 +30,7 @@ Details of earlier fixes: `PLAN_next_session.md`.
 1. [x] (1.12.0, 17 Nov) **Edit an existing skin**: a skin drop-down (skins made by the app AND stock skins), picking one loads an automatic
    preview. Plan: Create writes the design into the skin (r4s_design.json) so app-made skins reopen fully editable;
    older app skins and stock skins start from their own body texture (instead of a pattern) with logos / names on top.
-2. **Encrypted (CSP-protected) cars**: Nik paints these by hand from the body texture / CM's AO (2D layout, GIMP,
+2. [x] (1.13.0, 17 Nov) **Encrypted (CSP-protected) cars**: Nik paints these by hand from the body texture / CM's AO (2D layout, GIMP,
    export .dds + .png, usually < 10 MB). Plan: a 2D "template" mode - the stock body texture is readable even when the
    model's UVs are scrambled; paint the pattern in texture space on its panels, logos placed on the 2D layout, keep the
    stock shading. Lighter files too. RULE: must not change anything for the cars that work now (same_output_cars.py).

@@ -212,6 +212,8 @@ TIPS = {
     'Start new livery': 'Clears the livery back to a plain white car: colours, pattern, number, names, logos on the car, '
                         'windows and wheels. Your car and your logo library stay.',
     'Show me round': 'Starts the guided tour of the app again.',
+    'Front of the car': 'Protected cars (2D mode): which way the front of the car points on the sheet\'s roof / bonnet '
+                        'panel - the logos there are turned to match.',
     'AC cars folder': "Where your Assetto Corsa cars are. Found by itself - change it only if your game is somewhere else.",
     'Car (type to search)': 'The car to make a skin for. Type part of its name to find it.',
     'Start from': 'Change a skin already on the car: one made with this app comes back as you made it; any other skin '

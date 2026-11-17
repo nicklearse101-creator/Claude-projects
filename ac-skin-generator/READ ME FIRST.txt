@@ -1,5 +1,5 @@
 =====================================================================================
-  RATTY'S4SKIN GENERATOR  v1.12.0          -  the user guide
+  RATTY'S4SKIN GENERATOR  v1.13.0          -  the user guide
   Custom liveries (skins) for Assetto Corsa cars. No AI, no internet, no Photoshop.
 =====================================================================================
 
@@ -276,8 +276,18 @@ CONTENTS
 -------------------------------------------------------------------------------------
   - Protected cars: some mods are protected by their makers with CSP (many GT4,
     Supercars and some BTCC / GT3 mods). The app can't see how their paint wraps round
-    the car, so only a plain colour (your base colour) is possible. It tells you after
-    Preview, and it never tries to get round that protection.
+    the car, so it paints the car's flat paint sheet instead (2D MODE), the way you would
+    in GIMP: it starts from the maker's template skin (or the car's lightest skin), keeps
+    its shading and its carbon parts, and puts your colours and pattern on it.
+      * The preview shows the sheet, not the car - check the result in the game.
+      * Drag the number, names and logos on the sheet; the copy on the other side of the
+        car follows (and reads the right way there).
+      * "Front of the car" (above the sheet): which way the car's front points on the roof /
+        bonnet panel, so logos there face the right way.
+      * Camo-style patterns look best; striped ones may run different ways on different
+        panels. Wheels, window stickers and tint stay as the car has them.
+    If a protected car has no skin to paint over, only a plain colour is possible. The app
+    never tries to get round the protection.
   - A few cars only allow a plain colour (their paint picture has no room for a design).
   - Some cars have no room on the glass for window stickers.
   - Wheels only change on cars that have their own wheel / tyre texture.

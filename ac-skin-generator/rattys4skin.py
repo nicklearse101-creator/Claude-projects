@@ -8,13 +8,14 @@ from tkinter import ttk, filedialog, colorchooser
 from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps, ImageTk
 
 import skingen
+import template2d
 import theme
 import tour
 
 messagebox = theme.messagebox      # dark dialogs, same calls as tkinter.messagebox (tests replace these)
 
 APP_NAME = skingen.APP_NAME
-VERSION = '1.12.0'
+VERSION = '1.13.0'
 
 
 def find_data_dir(exe_dir, appdata):
@@ -626,6 +627,13 @@ class App(tk.Tk):
         self.miss_box.pack(side='left')
         theme.SlantButton(self.miss_bar, 'Pick it on the car', command=self.start_pick, size=14).pack(side='left', padx=6)
         self.missing = []
+        # 2D mode: which way the front of the car points on the sheet's roof / bonnet panel (for logos there)
+        self.front_bar = ttk.Frame(right, style='Window.TFrame')
+        ttk.Label(self.front_bar, text='FRONT OF THE CAR', style='WField.TLabel', foreground=theme.ACC).pack(side='left', padx=(0, 6))
+        self.front_var = tk.StringVar(value='0')
+        theme.ChipGroup(self.front_bar, (('0', '▲ Up'), ('270', '▶ Right'), ('180', '▼ Down'), ('90', '◀ Left')),
+                        self.front_var, command=self.on_front).pack(side='left')
+        ttk.Label(self.front_bar, text='  (turns the logos on the roof / bonnet)', style='Hint.TLabel').pack(side='left')
         self.canvas = tk.Canvas(right, background=theme.BG, highlightthickness=0)
         self.canvas.pack(fill='both', expand=True)
         self.canvas.bind('<Configure>', lambda e: self.after_idle(self.redraw))
@@ -1191,10 +1199,20 @@ class App(tk.Tk):
                                               log=self.log, copy_other_from=opts['copy_from'],
                                               progress=self.set_progress, views=views, info=info, write=save)
             info['adjust'] = design.get('adjust') or {}
-            views['all'] = self.compose(views)
-            views['all_rgba'] = self.compose(views, rgba=True)
-            if save:
-                views['all'].save(os.path.join(out, 'generator_preview.png'))
+            if info.get('mode') == '2d':                 # a protected car: its paint sheet, not the car
+                sh, cl = info.pop('sheet'), info.pop('sheet_clean')
+                f = min(1.0, 2048 / max(sh.size))
+                size = (int(sh.width * f), int(sh.height * f))
+                views['sheet'] = sh.resize(size, Image.LANCZOS) if f < 1 else sh
+                views['sheet_clean'] = cl.resize(size, Image.LANCZOS) if f < 1 else cl
+                if save:
+                    views['sheet'].convert('RGB').resize((1024, int(1024 * size[1] / size[0])), Image.LANCZOS).save(
+                        os.path.join(out, 'generator_preview.png'))
+            else:
+                views['all'] = self.compose(views)
+                views['all_rgba'] = self.compose(views, rgba=True)
+                if save:
+                    views['all'].save(os.path.join(out, 'generator_preview.png'))
             if replace:
                 shutil.rmtree(replace)
                 shutil.move(out, replace)
@@ -1289,7 +1307,21 @@ class App(tk.Tk):
         self.clean, self._clean_asked, self._view_cache = {}, set(), None
         self.request_clean(self.view_var.get())
         self.redraw()
-        if self.info.get('protected'):
+        if self.is2d():
+            self.front_var.set(str(int((self.adj().get('2d:front') or {}).get('rot', 0))))
+            self.front_bar.pack(fill='x', pady=(0, 4), before=self.canvas)
+        else:
+            self.front_bar.pack_forget()
+        if self.is2d():
+            msg = ("This car's model is protected by its maker (encrypted with Custom Shaders Patch), so the app can't "
+                   "show it in 3D. It paints the car's flat paint sheet instead (2D mode), like painting a template by "
+                   "hand: you see the sheet, not the car.\n\nDrag the number, names and logos on the sheet - the copy "
+                   "on the other side of the car follows. Use 'Front of the car' for logos on the roof or bonnet. "
+                   "Check the result in the game.")
+            if self.views_car not in self._told_protected:
+                self._told_protected.add(self.views_car)
+                messagebox.showinfo(APP_NAME, msg)
+        elif self.info.get('protected'):
             msg = ("This car's model is protected by its maker (encrypted with Custom Shaders Patch), so the app "
                    "can't see how the paint wraps round it. Only a plain colour (your base colour) is possible on this car.")
             self.sel_label.configure(text="Protected model: only a plain colour is possible on this car.",
@@ -1520,6 +1552,8 @@ class App(tk.Tk):
         if self._bg_cache is None or self._bg_cache[0] != key:
             self._bg_cache = (key, theme.preview_background(W, H, self.ghost))
         bg = self._bg_cache[1]
+        if self.is2d():
+            return self.redraw_2d(W, H)
         view = self.view_var.get()
         im = (self.views.get('all_rgba') if view == 'all' else self.views.get(view)) if self.views else None
         if im is None:
@@ -1560,6 +1594,7 @@ class App(tk.Tk):
         c.create_line(x0, y0, x1, y1, fill=theme.ACC, dash=(8, 5), tags='grid_centre')
 
     def draw_boxes(self):
+        if self.is2d(): return self.draw_boxes_2d()
         c = self.canvas
         c.delete('box')
         self.draw_live()
@@ -1588,6 +1623,7 @@ class App(tk.Tk):
         self.sel_label.configure(text=text, foreground=theme.ACC if changed else theme.MUTED)
 
     def on_press(self, e):
+        if self.is2d(): return self.press_2d(e)
         if self.picking and self.geom and self.view_var.get() != 'all':
             self.set_pick(e.x, e.y); return
         best = None
@@ -1609,6 +1645,7 @@ class App(tk.Tk):
             self.changed()
 
     def on_drag(self, e):
+        if self.is2d(): return self.drag_2d(e)
         v = self.view_var.get()
         d = next((d for d in self.view_decals() if d['key'] == self.sel), None)
         if d is None: return                            # (also while the car is being redrawn)
@@ -1634,6 +1671,7 @@ class App(tk.Tk):
         if what == 'reset_all':
             self.adjust_by_car.pop(self.vars['car'].get(), None)
             self.refresh_marks(); self.save_cfg(); self.changed(); return
+        if self.is2d(): return self.edit_2d(what, amount)
         d = next((d for d in self.view_decals() if d['key'] == self.sel), None)
         if d is None:
             self.sel_label.configure(text='Click a logo, number or name on the preview first (one side showing).', foreground=theme.ACC)
@@ -1659,6 +1697,157 @@ class App(tk.Tk):
         self.refresh_marks()
         self.save_cfg()
         self.changed()
+
+    # ---- 2D mode (protected cars, Nik 17 Nov): the paint sheet instead of the car
+    def is2d(self):
+        return self.info.get('mode') == '2d' and bool(self.views) and self.views.get('sheet') is not None
+
+    def boxes2d(self):
+        """The number, names and logos on the sheet as they are now (moves since the last redraw included), each with
+        where its copy on the mirror panel is (texture pixels)."""
+        out = []
+        for d in self.info.get('decals2d', []):
+            ad, g = self.adj().get(d['key'], {}), self.adjust_gen.get(d['key'], {})
+            if ad.get('deleted'): continue
+            k = ad.get('scale', 1) / g.get('scale', 1)
+            u, v = ad.get('u', d['u']), ad.get('v', d['v'])
+            rot = (d['rot'] + ad.get('rot', 0) - g.get('rot', 0)) % 360
+            tw = template2d.mirror_pos(self.info.get('islands2d'), self.info.get('pairs2d'), d['island'], u, v)
+            out.append(dict(d, u=u, v=v, w=d['w'] * k, h=d['h'] * k, rot=rot, twin=(tw[1], tw[2]) if tw else None))
+        return out
+
+    def quad2d(self, u, v, w, h, rot):
+        ox, oy, k = self.geom2d
+        c, s_ = math.cos(math.radians(rot)), math.sin(math.radians(rot))
+        # PIL turns pictures anticlockwise on screen (y down): x' = x cos + y sin, y' = -x sin + y cos
+        return [(ox + (u + x * c + y * s_) * k, oy + (v - x * s_ + y * c) * k)
+                for x, y in ((-w / 2, -h / 2), (w / 2, -h / 2), (w / 2, h / 2), (-w / 2, h / 2))]
+
+    def live_sheet(self):
+        """The sheet with the old spots of decals moved since the redraw cleared (the sheet without decals there)."""
+        sh, cl = self.views['sheet'], self.views.get('sheet_clean')
+        moved = [d for d in self.info.get('decals2d', []) if self.adj().get(d['key'], {}) != self.adjust_gen.get(d['key'], {})]
+        if not moved or cl is None: return sh
+        key = (id(sh), tuple(sorted(d['key'] for d in moved)))
+        if self._view_cache and self._view_cache[0] == key: return self._view_cache[1]
+        f = sh.width / self.info['size'][0]
+        mask = Image.new('L', sh.size, 0); dr = ImageDraw.Draw(mask)
+        for d in moved:
+            boxes = [(d['u'], d['v'], d['w'], d['h'], d['rot'])] + ([tuple(d['twin'])] if d.get('twin') else [])
+            for (u, v, w, h, rot) in boxes:
+                c, s_ = math.cos(math.radians(rot)), math.sin(math.radians(rot))
+                pts = [((u + x * c + y * s_) * f, (v - x * s_ + y * c) * f)
+                       for x, y in ((-w * .55, -h * .55), (w * .55, -h * .55), (w * .55, h * .55), (-w * .55, h * .55))]
+                dr.polygon(pts, fill=255)
+        out = sh.copy(); out.paste(cl, (0, 0), mask)
+        self._view_cache = (key, out)
+        return out
+
+    def redraw_2d(self, W, H):
+        c = self.canvas
+        Wt, Ht = self.info['size']
+        k = min((W - 30) / Wt, (H - 60) / Ht)
+        dw, dh = int(Wt * k), int(Ht * k)
+        ox, oy = (W - dw) // 2, 44
+        self.geom, self.geom2d = None, (ox, oy, k)
+        sheet = self.live_sheet()
+        self._shown2d = self.moved2d()
+        bgimg = Image.new('RGB', (W, H), theme.hexc(theme.BG)[:3])
+        bgimg.paste(sheet.convert('RGB').resize((dw, dh), Image.LANCZOS), (ox, oy))
+        self.preview_img = ImageTk.PhotoImage(bgimg)
+        c.create_image(0, 0, image=self.preview_img, anchor='nw')
+        self._title_img = ImageTk.PhotoImage(theme.text_image('PAINT SHEET  ·  2D MODE (PROTECTED CAR)', 15, theme.ACC, italic=0.1))
+        c.create_image(16, 10, image=self._title_img, anchor='nw')
+        self.draw_boxes_2d()
+
+    def draw_boxes_2d(self):
+        c = self.canvas
+        c.delete('box', 'live'); self._live_imgs = []
+        if not getattr(self, 'geom2d', None): return
+        ox, oy, k = self.geom2d
+        for b in self.boxes2d():
+            on = self.sel == b['key']
+            moved = self.adj().get(b['key'], {}) != self.adjust_gen.get(b['key'], {})
+            places = [(b['u'], b['v'], b['rot'])] + ([(b['twin'][0], b['twin'][1], (b['rot'] + 180) % 360)] if b['twin'] else [])
+            for n, (u, v, rot) in enumerate(places):
+                if moved and b.get('sprite') is not None:          # its own picture, live
+                    sp = b['sprite'].resize((max(2, int(b['w'] * k)), max(2, int(b['h'] * k))), Image.LANCZOS)
+                    if rot: sp = sp.rotate(rot, expand=True, resample=Image.BICUBIC)
+                    ph = ImageTk.PhotoImage(sp); self._live_imgs.append(ph)
+                    c.create_image(ox + u * k, oy + v * k, image=ph, tags='live')
+                pts = [x for p_ in self.quad2d(u, v, b['w'], b['h'], rot) for x in p_]
+                c.create_polygon(*pts, outline=theme.ACC, fill='', width=3 if (on and n == 0) else 1,
+                                 dash=() if (on and n == 0) else (4, 3), tags='box')
+        lab = next((b['label'] for b in self.boxes2d() if b['key'] == self.sel), None)
+        changed = self.adj() != self.adjust_gen
+        text = ((f'{lab.capitalize()}: drag = move (its copy on the other side follows), wheel = size, Shift+wheel = turn.'
+                 if lab else 'Click a box to pick it. Drag = move, wheel = size, Shift+wheel = turn.')
+                + ('  The sheet redraws itself when you let go.' if changed else ''))
+        self.sel_label.configure(text=text, foreground=theme.ACC if changed else theme.MUTED)
+
+    def hit2d(self, x, y):
+        """(key, on the copy?) of the smallest box under the point."""
+        ox, oy, k = self.geom2d
+        best = None
+        for b in self.boxes2d():
+            places = [(b['u'], b['v'], b['rot'], False)] + ([(b['twin'][0], b['twin'][1], b['rot'] + 180, True)] if b['twin'] else [])
+            for u, v, rot, tw in places:
+                c, s_ = math.cos(math.radians(rot)), math.sin(math.radians(rot))
+                dx, dy = (x - ox) / k - u, (y - oy) / k - v
+                lx, ly = dx * c - dy * s_, dx * s_ + dy * c           # back into the box's own axes
+                if abs(lx) <= b['w'] / 2 + 6 / k and abs(ly) <= b['h'] / 2 + 6 / k:
+                    size = b['w'] * b['h']
+                    if best is None or size < best[0]: best = (size, b['key'], tw, b['island'])
+        return best
+
+    def press_2d(self, e):
+        hit = self.hit2d(e.x, e.y) if getattr(self, 'geom2d', None) else None
+        self.sel = hit[1] if hit else None
+        self._drag2d = hit
+        self.drag = (e.x, e.y)
+        self._dragged = False
+        self.draw_boxes_2d()
+
+    def drag_2d(self, e):
+        hit = getattr(self, '_drag2d', None)
+        if not hit or not getattr(self, 'geom2d', None): return
+        k = self.geom2d[2]
+        du, dv = (e.x - self.drag[0]) / k, (e.y - self.drag[1]) / k
+        self.drag = (e.x, e.y)
+        if hit[2]:                                   # the copy dragged: the original moves the mirrored way
+            pr = (self.info.get('pairs2d') or {}).get(hit[3]) or (self.info.get('pairs2d') or {}).get(str(hit[3]))
+            if pr and pr[1] == 'v': dv = -dv
+            elif pr: du = -du
+        d = next(d for d in self.info.get('decals2d', []) if d['key'] == hit[1])
+        ad = self.adj(hit[1])
+        ad['u'] = ad.get('u', d['u']) + du
+        ad['v'] = ad.get('v', d['v']) + dv
+        self._dragged = True
+        if self.moved2d() != getattr(self, '_shown2d', None): self.redraw()     # another old spot to clear
+        else: self.draw_boxes_2d()
+
+    def moved2d(self):
+        return tuple(sorted(d['key'] for d in self.info.get('decals2d', [])
+                            if self.adj().get(d['key'], {}) != self.adjust_gen.get(d['key'], {})))
+
+    def edit_2d(self, what, amount=None):
+        if not self.sel or not any(d['key'] == self.sel for d in self.info.get('decals2d', [])):
+            self.sel_label.configure(text='Click the number, a name or a logo on the sheet first.', foreground=theme.ACC)
+            return
+        ad = self.adj(self.sel)
+        if what == 'scale': ad['scale'] = min(5.0, max(0.2, ad.get('scale', 1) * amount))
+        elif what == 'rot': ad['rot'] = (ad.get('rot', 0) + amount) % 360
+        elif what == 'delete': ad['deleted'] = True; self.sel = None
+        elif what == 'reset': self.adj().pop(self.sel, None)
+        else:
+            self.sel_label.configure(text='Flip is not needed on the sheet: the copy on the other side reads the right way.',
+                                     foreground=theme.ACC)
+            return
+        self.redraw(); self.save_cfg(); self.changed()
+
+    def on_front(self):
+        self.adj('2d:front')['rot'] = int(self.front_var.get())
+        self.save_cfg(); self.changed(10)
 
     def on_theme(self):
         """Another colour theme: saved, and the app starts again with it (the design and logos are kept)."""

@@ -18,6 +18,17 @@ or in a `data` folder next to the installed app when "Keep my logos and settings
 (v1.9.0; copied from AppData, the old copy is left). Updates, moves and the uninstaller never delete it.
 
 ## Use
+**New in 1.13.0 (17 Nov 2026):** **2D mode** for CSP-protected cars (`template2d.py`; research in
+`research/Encrypted cars 2D livery painting.md`; phase-0 hand skin `research/proto_2d_f296.py` checked in game by Nik).
+Only where `generate` finds the main paint texture protected (`scrambled_uv` > 0.5) and `design['mode_2d']` (default
+on): `find_source` picks the maker's template skin (else the lightest skin), `Sheet` works out the shading
+(lum / p95), the paint mask (alpha 0 = carbon kept), islands (run-based union-find) and mirrored pairs (flip IoU > 0.8);
+the pattern is drawn in texture space, number / team / name default to the biggest top-bottom mirrored pair (fitted to
+the panel width), logos to the biggest single panel turned by `adjust['2d:front']`; a decal on a paired panel is copied
+to its mirror panel turned 180 degrees. No 3D views: the app shows the sheet (`redraw_2d`, live dragging, the copy
+follows, dragging the copy moves the original mirrored). The template's working files are not copied
+(`SKIP_COPY_RE`), an LED panel's `ROLE_n_TEXT` shows the number. Other cars: unchanged (`same_output_cars.py`).
+
 **New in 1.12.0 (17 Nov 2026):** **Start from** (Car tab) - edit a skin already on the car, previewed by itself.
 Every skin the app makes keeps its design (`r4s_design.json`: livery as saved, logos by library file name, hand
 moves, `base_skin`), so an app-made skin comes back fully editable (`load_skin`). Any other skin becomes the starting

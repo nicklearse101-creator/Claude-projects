@@ -680,7 +680,7 @@ DEFAULT_DESIGN = dict(
     win_tint=None, win_tint_dark=0.5, win_tint_windscreen=False,
     win_enable=False, win_clear=True, win_banner='RATTY RACING', win_banner_colour='#111111', win_text_colour='#ffffff',
     win_number=True, win_name=True, win_banner_height=0.12, win_side_place='rear', debug_decals=False,
-    font_team=None, font_name=None, font_number=None, adjust=None, compress=True, avoid_mirror=False, paint_finish='standard', base_skin=None,
+    font_team=None, font_name=None, font_number=None, adjust=None, compress=True, avoid_mirror=False, paint_finish='standard', base_skin=None, mode_2d=True,
     font=DEFAULT_FONT,
 )
 
@@ -719,6 +719,7 @@ PATTERNS.update({
     'picture': 'Pattern from a picture…',
 })
 import patterns_plus                             # the v1.10 patterns (Nik 12 Nov: "we need a lot more")
+import template2d                                # 1.13: protected cars painted on their flat paint sheet
 _pic = PATTERNS.pop('picture')
 PATTERNS.update(patterns_plus.NAMES)
 PATTERNS['picture'] = _pic
@@ -3275,6 +3276,21 @@ def skin_base(car, tex, skin, W, H):
     return a
 
 
+def paint_2d(car, tex, design, log):
+    """A protected car's paint sheet painted directly (template2d): (image, info) or None if it has no usable sheet."""
+    fnt = design.get('font') or DEFAULT_FONT
+    fonts = dict(number=design.get('font_number') or fnt, team=design.get('font_team') or fnt,
+                 name=design.get('font_name') or fnt)
+    try:
+        return template2d.paint(car, tex, design, log, pattern_colours, SwatchCar(), text_image,
+                                lambda p: prep_logo(p, bg=next((l.get('bg', 'auto') for l in design.get('logos') or []
+                                                                 if l.get('path') == p), 'auto')),
+                                rgb, fonts)
+    except Exception as e:
+        log(f'2D mode could not paint this car ({e}) - plain colour instead')
+        return None
+
+
 def _paint_texture(car, tm, mem, base, paint, shade, design, said, info, ctx, log):
     """One body texture painted with the design (before the write-out): the picture and the texels spot_parts filled.
     Every message is also put in `said` (to be said again when a Create reuses this), except the pattern's own: a Create
@@ -3388,6 +3404,7 @@ def _generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pr
         raise FileExistsError(f'skin folder already exists: {out}')
     tex_out, tms, ctx = {}, {}, {}
     main_locked = False
+    two_d = None                                     # the 2D mode's result (protected cars with a paint sheet)
     key = design_key(design, resolution)
     for tex in car.body_textures:
         ref = None
@@ -3407,6 +3424,15 @@ def _generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pr
         locked = scrambled_uv(car.meshes_for(tex)) > 0.5
         if tex == car.body_textures[0]: main_locked = locked
         elif main_locked: locked = True                 # the main paint is protected: the whole car is
+        if locked and design.get('mode_2d', True) and tex == car.body_textures[0]:
+            r2 = paint_2d(car, tex, design, log)
+            if r2 is not None:                          # its paint sheet painted directly (no 3D needed)
+                tex_out[tex], two_d = r2
+                if info is not None: info.update(two_d); info['protected'] = True
+                step(0.6, 'Painted the paint sheet (2D mode)')
+                continue
+        if locked and two_d is not None:
+            continue                                    # its other textures come with the source skin's files
         if ov > 3.0 or locked:
             # every panel reuses the same texels (a plain colour texture), or the model is protected: no livery
             if locked:
@@ -3471,6 +3497,13 @@ def _generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pr
                 log(f'{lab} ({", ".join(vs)}): did not land on the car - pick it on the car (button under the preview)')
             info['decals'] = [d_ for d_ in info.get('decals', []) if (d_['key'], d_['view']) in landed]
     step(0.68, 'Wheels, windows and lights')
+    if two_d is not None:
+        off = [n for k, n in (('wheel_colour', 'rims'), ('tyre_colour', 'tyres'), ('win_enable', 'window stickers'),
+                              ('win_tint', 'window tint')) if design.get(k)]
+        if off: log(f'2D mode: {", ".join(off)} need the car\'s 3D mapping - left as the car has them')
+        design = dict(design, wheel_colour=None, tyre_colour=None, win_enable=False, win_tint=None, lens_colour=None,
+                      beam_colour=None)
+        if not copy_other_from: copy_other_from = two_d['source_skin']
     wheel_out = {}
     if design.get('wheel_colour'):
         for tex in car.wheel_textures:
@@ -3512,8 +3545,16 @@ def _generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pr
             for f in os.listdir(src):
                 if f.lower() in mine or f.lower() in ('preview.jpg', 'ui_skin.json', 'livery.png', 'generator_preview.png'):
                     continue
+                if two_d is not None and (template2d.SKIP_COPY_RE.search(f) or
+                                          os.path.splitext(f)[0].lower() == os.path.splitext(car.body_textures[0])[0].lower()):
+                    continue                            # a template's working files (PSD, wireframe ...) and the old sheet
                 if os.path.isfile(os.path.join(src, f)):
                     shutil.copyfile(os.path.join(src, f), os.path.join(out, f))
+        if two_d is not None and os.path.isfile(os.path.join(out, 'ext_config.ini')):
+            pth = os.path.join(out, 'ext_config.ini')      # an LED number panel shows the new number
+            txt_ = open(pth, encoding='utf8', errors='ignore').read()
+            new_ = template2d.ini_number(txt_, design.get('number'))
+            if new_ != txt_: open(pth, 'w', encoding='utf8').write(new_)
         for name_, img_ in csp_tex.items():
             write_dds(img_, os.path.join(out, name_), compress=design.get('compress', True))
         if csp_ini:
@@ -3550,13 +3591,16 @@ def _generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pr
     step(0.9, 'Drawing the preview')
     global LAST_LAYERS, LAST_PREVIEW, _SERIAL
     LAST_LAYERS = glass_layers                      # for tests that draw their own views
-    if views is not None:
+    if views is not None and two_d is None:
         views.update(preview_views(car, tex_out, tms, layers=glass_layers, alpha=True))
         _SERIAL += 1
         LAST_PREVIEW = dict(serial=_SERIAL, car=car, tex=dict(tex_out), tms=dict(tms), layers=glass_layers,
                             base=rgb(design['base']))
         if info is not None: info['serial'] = _SERIAL
-    sheet = preview_sheet(car, tex_out, tms, layers=glass_layers) if (views is None or preview_path) else None
+    if two_d is not None:                           # no 3D picture of a protected car: its paint sheet instead
+        sheet = two_d['sheet'].convert('RGB').resize((1024, 1024), Image.LANCZOS) if (views is None or preview_path) else None
+    else:
+        sheet = preview_sheet(car, tex_out, tms, layers=glass_layers) if (views is None or preview_path) else None
     if info is not None: info['frames'] = {v: view_frame(car, v) for v in ('left', 'right', 'front', 'rear', 'top')}
     step(1.0, 'Done')
     if preview_path: sheet.save(preview_path)
