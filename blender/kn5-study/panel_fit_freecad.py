@@ -525,12 +525,12 @@ for p in strips:
 # neighbours, G0), points further off stay Kunos (free edges); the patch = MakeFilling through that closed polygon
 # (makeFilledFace, G0); the Kunos inside vertices are only checked. Too small for tangency to matter (research step 12).
 CF_SNAP = float(os.environ.get('PF_CF_SNAP', 1.5))
-def coons_face(X, n=14, cs=None):
+def coons_face(X, n=14, cs=None, dense=False):
     """bilinear Coons patch on a closed polyline X (mm): sides = the runs between its 4 sharpest turns (3 turns: the
     longest side split at its middle). G0 along every side by construction; B-spline through the 14 x 14 grid.
     (makeFilledFace on the same outlines ballooned 10-14 mm off the Kunos patches.)"""
     m = len(X); k = max(2, m // 16)
-    if cs is not None: return _coons(X, sorted(cs), n), 4
+    if cs is not None: return _coons(X, sorted(cs), n, dense), 4
     a = X[(np.arange(m) - k) % m] - X; b = X[(np.arange(m) + k) % m] - X
     turn = 180 - np.degrees(np.arccos(np.clip((a * b).sum(1) / np.maximum(np.linalg.norm(a, axis=1) * np.linalg.norm(b, axis=1), 1e-12), -1, 1)))
     cs = []
@@ -543,7 +543,7 @@ def coons_face(X, n=14, cs=None):
         cs = sorted(cs[:3]); segs = [(cs[i], cs[(i + 1) % 3]) for i in range(3)]
         ln = [((b_ - a_) % m) for a_, b_ in segs]; j = int(np.argmax(ln)); a_, b_ = segs[j]
         cs = sorted(cs + [int((a_ + ln[j] // 2) % m)])
-    return _coons(X, sorted(cs), n), len(cs)
+    return _coons(X, sorted(cs), n, dense), len(cs)
 def round_corner(X, cs, fA, fB, n=12, m=9):
     """G1 round between two strip ends (the bonnet's vertical wall corners): sides cs[0]->cs[1] (on fA) and
     cs[2]->cs[3] reversed (on fB) are the two walls' end edges; section i = cubic Hermite from A[i] to B[i], leaving
@@ -581,12 +581,19 @@ def round_corner(X, cs, fA, fB, n=12, m=9):
     return srf.toShape(), float(np.mean(ths))
 
 
-def _coons(X, cs, n):
+def _coons(X, cs, n, dense=False):
     m = len(X)
     def side(i0, i1, cnt):
         idx = [(i0 + t) % m for t in range(((i1 - i0) % m) + 1)]; Q = X[idx]
         d = np.r_[0, np.cumsum(np.linalg.norm(np.diff(Q, axis=0), axis=1))]; t = np.linspace(0, d[-1], cnt)
         return np.c_[[np.interp(t, d, Q[:, c]) for c in range(3)]].T
+    # dense=True (long slivers: the bumper's groove ends): samples about 1 mm apart along the longest side (14 over a
+    # 71 mm sliver = 5 mm: the patch strayed 1.3 mm off its own snapped outline). Not for every fill: a 60 x 60 patch
+    # on a twisted outline hung the mesher (rear bumper r58, 17 Nov)
+    if not dense: return _coons_grid(X, cs, n, side)
+    sl = [np.linalg.norm(np.diff(side(cs[k], cs[(k + 1) % 4], 200), axis=0), axis=1).sum() for k in range(4)]
+    return _coons_grid(X, cs, int(np.clip(int(max(sl)) + 1, n, 60)), side)
+def _coons_grid(X, cs, n, side):
     S0 = side(cs[0], cs[1], n); S1 = side(cs[1], cs[2], n); S2 = side(cs[2], cs[3], n)[::-1]; S3 = side(cs[3], cs[0], n)[::-1]
     u = np.linspace(0, 1, n)
     G = np.zeros((n, n, 3))
@@ -652,7 +659,7 @@ for p in cfs:
             if (cs_[1] - cs_[0]) % m_ == len(rA[1]) - 1 and cs_[2] in rB[1]:          # both runs in index order
                 face, th_ = round_corner(X_, cs_, own[rA[0]], own[rB[0]])
                 if face is not None: ncorner = f'G1 round ({th_:.0f} deg)'
-        if face is None: face, ncorner = coons_face(X_, cs=cs_)
+        if face is None: face, ncorner = coons_face(X_, cs=cs_, dense=bool(cf.get('dense')))
         pts_ = [App.Vector(*q) for q in X_]
         if cf.get('inner'): print('   ', p['name'], f"{len(cf['inner'])} Kunos inside vertices off the patch:",
                                   ' '.join(f'{face.distToShape(Part.Vertex(App.Vector(*q)))[0]:.2f}' for q in cf['inner']), flush=True)
@@ -666,8 +673,15 @@ for p in cfs:
     if not fc:
         print(p['name'], 'corner fill mesh failed', flush=True); continue
     sf = face.Surface; nn = []
+    U0_, U1_, V0_, V1_ = sf.bounds()
     for q in pts:
-        u_, v_ = sf.parameter(q); n_ = sf.normal(u_, v_); nn.append([n_.x, n_.y, n_.z])
+        u_, v_ = sf.parameter(q)
+        try: n_ = sf.normal(u_, v_)
+        except Exception:                 # a collapsed side (a patch tapering to a point: the groove ends): no normal
+            u_ = u_ + 1e-3 * (U1_ - U0_) * (1 if u_ < (U0_ + U1_) / 2 else -1)   # there; step just inside
+            v_ = v_ + 1e-3 * (V1_ - V0_) * (1 if v_ < (V0_ + V1_) / 2 else -1)
+            n_ = sf.normal(u_, v_)
+        nn.append([n_.x, n_.y, n_.z])
     nn = np.array(nn); nn *= np.sign((nn @ np.array(cf['normal'])).mean() or 1.0)
     mesh[p['name'] + '_P'] = np.array([[q.x, q.y, q.z] for q in pts]) / 1000.0; mesh[p['name'] + '_F'] = np.array(fc, int)
     normals[p['name']] = nn

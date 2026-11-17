@@ -240,18 +240,30 @@ def others(V, F, N, pcs, bands, pre, amin=2e-5):
     return out
 
 
-def corner_fill(V, F, N, Fr, name):
-    """a small piece as a corner fill (as bonnet_build): its one outline every 1 mm + inner vertices, in mm"""
+def corner_fill(V, F, N, Fr, name, clip=None):
+    """a small piece as a corner fill (as bonnet_build): its one outline every 1 mm + inner vertices, in mm.
+    clip = (point, normal) in metres: the outline is clipped to the side (X - point) . normal <= 0 (a groove end past
+    the sweep's last station: its clipped edge lies on that plane = on the sweep's end row)"""
     _, wid = PF.components(V, F); rep = {}
     for i, w in enumerate(wid): rep.setdefault(w, i)
     loops = PF.boundary_loops(Fr, wid)
     if len(loops) != 1 and len(Fr) == 1: loops = [list(wid[Fr[0]])]   # a lone triangle: its own three corners
     if len(loops) != 1: return None
-    Q = V[[rep[w] for w in loops[0]]] * 1000; Q = np.r_[Q, Q[:1]]
+    Q = V[[rep[w] for w in loops[0]]] * 1000
+    if clip is not None:                                   # Sutherland-Hodgman on one plane
+        c0, cn = np.asarray(clip[0]) * 1000, np.asarray(clip[1]); h = (Q - c0) @ cn; Qc = []
+        for i in range(len(Q)):
+            a_, b_, ha, hb = Q[i], Q[(i + 1) % len(Q)], h[i], h[(i + 1) % len(Q)]
+            if ha <= 0: Qc.append(a_)
+            if (ha <= 0) != (hb <= 0): Qc.append(a_ + (b_ - a_) * ha / (ha - hb))
+        Q = np.array(Qc)
+        if len(Q) < 3: return None
+    Q = np.r_[Q, Q[:1]]
     dq = np.r_[0, np.cumsum(np.linalg.norm(np.diff(Q, axis=0), axis=1))]
     t = np.arange(0, dq[-1], 1.0)
     R = np.c_[[np.interp(t, dq, Q[:, k]) for k in range(3)]].T
     inner = V[[rep[w] for w in sorted(set(wid[Fr.ravel()]) - set(loops[0]))]] * 1000 if len(Fr) > 1 else np.zeros((0, 3))
+    if clip is not None and len(inner): inner = inner[(inner - np.asarray(clip[0]) * 1000) @ np.asarray(clip[1]) <= 0]
     T = V[Fr] * 1000; A = np.linalg.norm(np.cross(T[:, 1] - T[:, 0], T[:, 2] - T[:, 0]), axis=1).sum() / 2
     if A < 0.5 or len(R) < 3: return None                  # degenerate slivers (0 mm2 facets)
     nrm = N[Fr].mean((0, 1)); nrm /= np.linalg.norm(nrm)
@@ -314,6 +326,15 @@ def build(car, out, which='rear'):
         Fe = Fp[(cv.min(1) < -1e-4) & (V[Fp][:, :, 0].mean(1) > 0)]        # any corner past the plane, left half
         if len(Fe) < 2: print(f'r{b}: no end region', flush=True); continue
         comps = PF.components(V, Fe)[0]; Fe = max(comps, key=len)
+        if len(Fe) <= 3:
+            # a few triangles (the groove's ends, 3 each, tapering to a point): a corner fill on the outline clipped at
+            # the plane, snapped onto the end faces and the sweep's end row (a fitted face of its own sat 1.2-1.4 mm
+            # off its neighbours: the slit at the groove end); the right one = its mirror (snapping there found no mirrored faces yet)
+            cf = corner_fill(V, F, N, Fe, f'{sp["name"]}cf:r{b}eL', clip=(m_, n_))
+            if cf: cf['corner_fill']['dense'] = True        # a long sliver: dense Coons sides
+            if cf:
+                res.append(cf); res.append(dict(name=f'{sp["name"]}cf:r{b}eR', mirror_of=cf['name']))   # mirrors are made last (after the end faces' mirrors)
+            print(f'r{b}: end = corner fills over {len(Fe)} triangles', flush=True); continue
         X = np.vstack([G[-3:, c0_[k]:c0_[k] + ncol[k]].reshape(-1, 3) for k in ks])
         try:
             e = PF.fit_panel(f'{sp["name"]}:r{b}eL', V, Fe, N, extra=X, extra_rep=3)
