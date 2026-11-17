@@ -187,6 +187,27 @@ def others(V, F, N, pcs, bands, pre, amin=2e-5):
     import strip_build as SB
     out = []
     st = SB.find_strips(V, F, N, pcs, PF.components, PF.boundary_loops, amin=amin)
+    # crease pieces of 1-3 triangles (the small folds at the arch ends are fans of facets, each its own crease piece):
+    # too small for a fitted face (no outline wire). Touching ones (a shared edge) that face the same way are one
+    # group -> one corner fill, its outline snapped onto the built edges in the FreeCAD stage
+    _, wid = PF.components(V, F)
+    tiny = [ri for ri, Fr in enumerate(pcs) if len(Fr) <= 3 and ri not in set(bands) and ri not in st]
+    nr_ = {ri: (lambda n: n / np.linalg.norm(n))(N[pcs[ri]].mean((0, 1))) for ri in tiny}
+    vs_ = {ri: set(wid[pcs[ri].ravel()]) for ri in tiny}
+    par = {ri: ri for ri in tiny}
+    def root(a):
+        while par[a] != a: a = par[a]
+        return a
+    for i, a in enumerate(tiny):
+        for b in tiny[i + 1:]:
+            if len(vs_[a] & vs_[b]) >= 2 and nr_[a] @ nr_[b] > 0.3: par[root(b)] = root(a)
+    groups = {}
+    for ri in tiny: groups.setdefault(root(ri), []).append(ri)
+    for g in groups.values():
+        cf = corner_fill(V, F, N, np.concatenate([pcs[r] for r in g]), f'{pre}cf:r{g[0]}')
+        if cf: out.append(cf)
+        else: print(f'{pre}cf:r{g[0]} ({len(g)} pieces): no single outline - skipped', flush=True)
+    tiny = set(tiny)
     for ri, Fr in enumerate(pcs):
         if ri in set(bands): continue
         T_ = V[Fr]; A_ = np.linalg.norm(np.cross(T_[:, 1] - T_[:, 0], T_[:, 2] - T_[:, 0]), axis=1).sum() / 2
@@ -203,15 +224,39 @@ def others(V, F, N, pcs, bands, pre, amin=2e-5):
             for k, sub in enumerate(subs):
                 out.append(dict(name=f'{pre}:r{ri}' + (f'f{k}' if len(subs) > 1 else ''), strip=sub, frame=sub['frame']))
             continue
+        if ri in tiny: continue              # grouped below
         parts = PF.wrap_split(V, Fr, N)
         for wi, Fw in enumerate(parts):
             if len(parts) > 1 and len(Fw) < 4: continue
+            nm = f'{pre}:r{ri}' + (f'w{wi}' if len(parts) > 1 else '')
             try:
-                out.append(PF.fit_panel(f'{pre}:r{ri}' + (f'w{wi}' if len(parts) > 1 else ''), V, Fw, N, verbose=False))
+                out.append(PF.fit_panel(nm, V, Fw, N, verbose=False))
             except Exception as ex:
-                print(f'{pre}:r{ri}w{wi} failed: {ex}', flush=True)
-    print(f'other pieces: {sum(1 for o in out if o.get("strip"))} strips, {sum(1 for o in out if not o.get("strip"))} faces', flush=True)
+                cf = corner_fill(V, F, N, Fw, f'{pre}cf:r{ri}' + (f'w{wi}' if len(parts) > 1 else ''))
+                if cf: out.append(cf)
+                print(f'{nm} fit failed ({ex}): ' + ('corner fill' if cf else 'skipped'), flush=True)
+    print(f'other pieces: {sum(1 for o in out if o.get("strip"))} strips, {sum(1 for o in out if o.get("corner_fill"))} corner fills, '
+          f'{sum(1 for o in out if not o.get("strip") and not o.get("corner_fill"))} faces', flush=True)
     return out
+
+
+def corner_fill(V, F, N, Fr, name):
+    """a small piece as a corner fill (as bonnet_build): its one outline every 1 mm + inner vertices, in mm"""
+    _, wid = PF.components(V, F); rep = {}
+    for i, w in enumerate(wid): rep.setdefault(w, i)
+    loops = PF.boundary_loops(Fr, wid)
+    if len(loops) != 1 and len(Fr) == 1: loops = [list(wid[Fr[0]])]   # a lone triangle: its own three corners
+    if len(loops) != 1: return None
+    Q = V[[rep[w] for w in loops[0]]] * 1000; Q = np.r_[Q, Q[:1]]
+    dq = np.r_[0, np.cumsum(np.linalg.norm(np.diff(Q, axis=0), axis=1))]
+    t = np.arange(0, dq[-1], 1.0)
+    R = np.c_[[np.interp(t, dq, Q[:, k]) for k in range(3)]].T
+    inner = V[[rep[w] for w in sorted(set(wid[Fr.ravel()]) - set(loops[0]))]] * 1000 if len(Fr) > 1 else np.zeros((0, 3))
+    T = V[Fr] * 1000; A = np.linalg.norm(np.cross(T[:, 1] - T[:, 0], T[:, 2] - T[:, 0]), axis=1).sum() / 2
+    if A < 0.5 or len(R) < 3: return None                  # degenerate slivers (0 mm2 facets)
+    nrm = N[Fr].mean((0, 1)); nrm /= np.linalg.norm(nrm)
+    return dict(name=name, frame=[[0, 0, 0], [1, 0, 0], [0, 1, 0], nrm.tolist()],
+                corner_fill=dict(outline=R.tolist(), inner=inner.tolist(), area=float(A), normal=nrm.tolist()))
 
 
 def build(car, out, which='rear'):
