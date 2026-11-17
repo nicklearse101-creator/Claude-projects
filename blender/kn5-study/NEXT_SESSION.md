@@ -28,7 +28,24 @@ NEXT (in order):
   (chain run -> foreign prefix `hatch/`, 185 of 215 edge points within 0.1 mm) and the bottom face r9 (outline points
   Kunos shares with the hatch snapped onto the hatch build, `PF_HATCH_BUILD`; its outline now within 1.1 mm of Kunos's).
   Remaining 2-5 mm next to the hatch = real shut-line gaps (Kunos has the same).
-- Bumpers, then sills (not started). Watertight / sewing across builds at assembly.
+- **REAR BUMPER first build 17 Nov** (`bumper_build.py`, `bumper_score.py`, `./regress.sh rearbumper`): its own Kunos
+  mesh (GEO_rearbumper), exactly symmetric. One profile swept along a U plan line: 7 BANDS (crease pieces in profile
+  order r1 top, r12 edge roll, r0 upper face, r21 + r20 groove, r0 lower face, r3 lower slope) from vertical station
+  planes square to a spine (plan line of the r1/r12 edge), each section split into runs per piece, resampled evenly
+  between its crease points, all rows smoothed together in local frames (hatch `smooth_rows_local`), split back into one
+  structured grid face per band ('rbump:r<piece>b<k>'). Sweep stops at the last full station; END faces per piece past
+  that station's plane = fit_panel with the sweep's last rows as data, cut on the plane, mirrored ('rbump:r<p>eL/eR').
+  Every other piece (inner lip, arch returns, mud flaps, recess) via `others()` = the 'rall' path (strips on the built
+  edges by name prefix, fitted faces). Kunos vertices: bands 98.9 % within 1 mm (max 1.6), whole mesh 96.3 %.
+  Generic baseline (w0 + rall) was 45.5 / 66.9 % area within 1 / 3 mm. Tried and dropped: band ends trimmed on the arch
+  outline after a straight extension (outline 3 mm off the flaring face, trims invalid); partial stations towards the
+  arch (rows kink and fold; `BB_TAIL`, off).
+  Left: a thin slit where the groove ends (end faces r21/r20 vs r0's slot), a shading step at the sweep / end-face join,
+  ~30 tiny pieces fail in fit_panel ('list index out of range', no outline wire), inner lip r5/r17 interrupted at
+  x 0.34-0.55 (strip, check), mirror check max 20 mm (one-sided failed bits). Pictures `D:/ClaudeData/tmp/bumper/rb5.png`.
+- NEXT: rear bumper touch-ups above, then the FRONT bumper (GEO_frontbumper_SUB2 + SUB0/SUB1: grille slots and
+  indicator recesses interrupt the profile - sweep the bands round them, cut the openings), then sills. Watertight /
+  sewing across builds at assembly.
 1. Read this page (where we are, how to run, what's next).
 2. `PANEL_FIT_TECHNIQUE.md`: the method that works, with every lesson we paid for (bottom of the file).
 3. `ACHIEVEMENTS_REPORT.md`: the story so far (section 7 = the 10 Nov work on the door, wing and rear quarter).

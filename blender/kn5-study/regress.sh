@@ -18,6 +18,7 @@
 # Bonnet edges (13 strips + 12 corner fills, 11 Nov evening): skin 75.7 / 100.0 %; edges r1-r13 median 0.06, 99.2 % within 1 mm. Others unchanged.
 # C-pillar-top corners, one owner per surface (PF_NOROOF), roof as master (PF_MASTER), roof built first (11 Nov 13:00): door 88.5 / 99.7, wing 70.5 / 96.1, roof 72.4 / 97.0, quarter 85.6 / 99.3.
 # Hatch first build (U sweep + header + deck, 12 Nov; hatch_score = Kunos skin VERTICES): median 0.150, p95 1.07, within 0.3 / 1 mm 69.9 / 94.4 % (lower corners open).
+# Rear bumper first build (bumper_build.py, 17 Nov; Kunos VERTICES): bands 81.6 / 98.9 %, whole mesh 75.4 / 96.3 % within 0.3 / 1 mm.
 # Quarter without the hatch (PF_NOHATCH, 17 Nov; scores its OWN area now, the hatch side band left it): 83.6 / 99.5; no faces on the hatch any more (13075 -> 2 overlap tris).
 # Hatch lower corners (faired spine, local-frame row smoothing, corner zone smoothing + vertex offset, 13 Nov): median 0.159, p95 0.77, within 0.3 / 1 mm 71.9 / 97.5 %.
 # Hatch corner tab (U extended past the outline + trimmed on the knee-aware fair outline, 13 Nov midday): median 0.154, p95 0.64, max 1.14, within 0.3 / 1 mm 73.6 / 99.4 % (tail 100 %).
@@ -87,5 +88,14 @@ if [ "$what" = bonnet ] || [ "$what" = all ]; then
   python mesh_holes.py $R/bonnet/build.npz 0.3 --fill $R/bonnet/build_filled.npz > $R/bonnet/holes.log 2>&1
   python underside_build.py $C $R/bonnet/build_filled.npz $R/bonnet/build_full.npz > $R/bonnet/underside.log 2>&1
   echo "bonnet holes: $(grep -c 'holefill:' $R/bonnet/holes.log) filled; $(grep -E '^underside|^nozzles' $R/bonnet/underside.log | tr '
+' ' ')"
+fi
+if [ "$what" = rearbumper ] || [ "$what" = all ]; then
+  # rear bumper (its own Kunos mesh): main profile swept as 7 bands along the plan line, end faces at the arches cut on
+  # the last station plane, every other piece as strips / faces on the built edges (bumper_build.py)
+  unset PF_CLIP PF_NOROOF PF_MASTER PF_NOHATCH PF_HATCH_BUILD
+  python bumper_build.py $C $R/rearbumper rear > $R/rearbumper.log 2>&1
+  PF_SAVE_FACES=0 PF_IN="$(cygpath -w $R/rearbumper)" ./fcrun.sh panel_fit_freecad.py >> $R/rearbumper.log 2>&1 && python pack_build.py $R/rearbumper $R/rearbumper/build.npz >> $R/rearbumper.log
+  echo "rear bumper: $(python bumper_score.py $C $R/rearbumper/build.npz rear | grep -E '^bands|^whole' | tr '
 ' ' ')"
 fi
