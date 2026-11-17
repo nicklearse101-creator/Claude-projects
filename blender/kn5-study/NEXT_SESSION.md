@@ -472,3 +472,10 @@ Full detail is in git history and `ACHIEVEMENTS_REPORT.md` section 7.
 - **Blender work:** load the blender-* skills and use the blender-mcp tools (standing approval).
 - **Research first:** run the deep-research skill on how a new kind of problem is properly solved before tackling it
   (the wing's arch research is in `blender/research/reports/`).
+
+### Rear bumper touch-ups (17 Nov evening)
+- Tiny crease pieces (1-3 tris, 88 of them at the arch-end folds) grouped by shared edge + facing -> 22 corner fills. Whole mesh 96.3 -> 97.6 % within 1 mm.
+- Inner lip: strip_build chain strips on a U took the far corner as an end ("farthest apart") -> r17 ended mid-corner, r5 cut the corner at 2x area. Now the second end = halfway round the outline when the sides come out unequal (strips > 0.5 m only; no other panel's strips change). r5 median 3 -> 0.03 mm. Whole 97.9 %.
+- Groove ends r20/r21: corner fills clipped on the last-station plane, right = mirror, dense Coons sides (`dense`). Meets the end face exactly; groove bottom between the two fills still 0.35-0.7 mm.
+- Picture: images/rear_bumper_v2_grey.png. Close-up at the arch end shows REAL slits left: between the arch-edge return strips and the end face r0eL (white wedges, row 3 of the picture), plus a dark seam line along the lip. NEXT: those arch-end slits (ourholes.py-style check: our open edges where Kunos is closed, D:/ClaudeData/tmp/bumper/ourholes.py), then front bumper, then sills.
+- Long runs: always `timeout` + a Monitor watchdog (a FreeCAD run hung 15 min on a MEFISTO mesher failure unnoticed).
