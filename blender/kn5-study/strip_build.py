@@ -207,6 +207,16 @@ def find_strips(V, F, Nv, pcs, components, boundary_loops, wmax=WMAX, ratio=RATI
             Q = V[[rep[w] for w in L]]
             i1 = np.linalg.norm(Q - Q.mean(0), axis=1).argmax(); i2 = np.linalg.norm(Q - Q[i1], axis=1).argmax()
             if i1 == i2: return None
+            # a U-shaped strip (the rear bumper's inner lip step, round the bumper's plan corners): the far corner of the
+            # U lies farther from one end than the other end does, so 'farthest apart' put an end mid-corner and the
+            # two sides came out very unequal. Then: the other end = the outline point farthest from i1 within 5 % of
+            # the outline length of the halfway point round the loop (17 Nov)
+            dl = np.linalg.norm(np.diff(np.r_[Q, Q[:1]], axis=0), axis=1); cl = np.r_[0, np.cumsum(dl)]; per = cl[-1]
+            ga = (cl[i2] - cl[i1]) % per
+            if Ln > 0.5 and min(ga, per - ga) < 0.42 * per and os.environ.get("SB_UEND", "1") == "1":
+                g = (cl[:-1] - cl[i1]) % per
+                win = np.where(np.abs(g - per / 2) < 0.05 * per)[0]
+                if len(win): i2 = int(win[np.linalg.norm(Q[win] - Q[i1], axis=1).argmax()])
             a_, b_ = sorted((i1, i2))
             chains = [list(range(a_, b_ + 1)), list(range(b_, m)) + list(range(0, a_ + 1))]
             out_ = []
