@@ -255,3 +255,8 @@ not a station polyline; give the neighbour face the sweep's flat band as tangent
   where Kunos's facets are long. Per end: the outline corner vertex (label None) ahead of the last inside vertex with
   the smallest sideways offset from the row's end direction, under 0.6 x the narrower sub-strip; test the fold on the
   inside vertices FIRST (an end vertex sits on a side's corner hook: distance 0 breaks the spread test).
+- Handing a surface to another build (quarter -> hatch, 17 Nov): leave its Kunos triangles out (crease pieces renumber:
+  re-list them), then make every REAL join take the other build's edge - find the joins as Kunos pieces sharing
+  vertices with the owned triangles, not by distance (a 1.5 mm shut-line gap is a gap, not a join: snap only outline
+  points that lie on the other owner's triangles). Check with a cross-build overlap count (faces lying on the other
+  build) and the gaps on the shared sides.

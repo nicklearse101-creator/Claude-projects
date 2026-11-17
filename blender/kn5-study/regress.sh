@@ -18,6 +18,7 @@
 # Bonnet edges (13 strips + 12 corner fills, 11 Nov evening): skin 75.7 / 100.0 %; edges r1-r13 median 0.06, 99.2 % within 1 mm. Others unchanged.
 # C-pillar-top corners, one owner per surface (PF_NOROOF), roof as master (PF_MASTER), roof built first (11 Nov 13:00): door 88.5 / 99.7, wing 70.5 / 96.1, roof 72.4 / 97.0, quarter 85.6 / 99.3.
 # Hatch first build (U sweep + header + deck, 12 Nov; hatch_score = Kunos skin VERTICES): median 0.150, p95 1.07, within 0.3 / 1 mm 69.9 / 94.4 % (lower corners open).
+# Quarter without the hatch (PF_NOHATCH, 17 Nov; scores its OWN area now, the hatch side band left it): 83.6 / 99.5; no faces on the hatch any more (13075 -> 2 overlap tris).
 # Hatch lower corners (faired spine, local-frame row smoothing, corner zone smoothing + vertex offset, 13 Nov): median 0.159, p95 0.77, within 0.3 / 1 mm 71.9 / 97.5 %.
 # Hatch corner tab (U extended past the outline + trimmed on the knee-aware fair outline, 13 Nov midday): median 0.154, p95 0.64, max 1.14, within 0.3 / 1 mm 73.6 / 99.4 % (tail 100 %).
 # Hatch returns (ring + wall fold flanges, bottom return, tab corner fills; left halves mirrored; 13 Nov pm): skin 75.7 / 99.7 %; ring 89.9 / 100, wall 91.3 / 100, bottom 90.3 / 96.8, corners 100 / 100 %. Others unchanged.
@@ -64,15 +65,21 @@ if [ "$what" = quarter ] || [ "$what" = all ]; then
   export PF_CLIP=0.45,1,0,1.3,-2.2,-0.5          # y up to the roof: the roof triangles are left out by PF_NOROOF
   export PF_NOROOF=1                                 # the roof build owns the roof + its strips (one owner per surface)
   [ -f $R/roof/build.npz ] && export PF_MASTER=$R/roof/build.npz   # faces along the roof are trimmed on its edges
-  python panel_fit.py $C $R/quarter GEO_body:w0 GEO_body:pillar1 'GEO_body:rall!0,1' > $R/quarter.log 2>&1
-  PF_IN="$(cygpath -w $R/quarter)" ./fcrun.sh panel_fit_freecad.py >> $R/quarter.log 2>&1
+  # the hatch build owns the hatch skin + returns (its side band = the old 'C-pillar' r1 here, the ring flange = old r6):
+  # PF_NOHATCH leaves those triangles out; quarter faces next to the hatch take its real edges: wide faces snap the
+  # outline points Kunos shares with the hatch onto the hatch build (PF_HATCH_BUILD), strips take the hatch's faces
+  # as the neighbour of their free sides (PF_FOREIGN loads them in the FreeCAD stage)
+  export PF_NOHATCH=1
+  FH=""; [ -f $R/hatch/build.npz ] && export PF_HATCH_BUILD=$R/hatch/build.npz && FH="hatch=$(cygpath -w $R/hatch/faces)"
+  python panel_fit.py $C $R/quarter GEO_body:w0 'GEO_body:rall!0' > $R/quarter.log 2>&1
+  PF_FOREIGN="$FH" PF_IN="$(cygpath -w $R/quarter)" ./fcrun.sh panel_fit_freecad.py >> $R/quarter.log 2>&1
   python fill_holes.py $C $R/quarter GEO_body >> $R/quarter.log 2>&1
   PF_IN="$(cygpath -w $R/quarter/fill)" ./fcrun.sh panel_fit_freecad.py >> $R/quarter.log 2>&1 && python merge.py $R/quarter >> $R/quarter.log
   echo "quarter: $(python score_faces.py $C $R/quarter GEO_body | tail -1)"
-  unset PF_CLIP PF_NOROOF PF_MASTER
+  unset PF_CLIP PF_NOROOF PF_MASTER PF_NOHATCH PF_HATCH_BUILD
 fi
 if [ "$what" = bonnet ] || [ "$what" = all ]; then
-  unset PF_CLIP PF_NOROOF PF_MASTER
+  unset PF_CLIP PF_NOROOF PF_MASTER PF_NOHATCH PF_HATCH_BUILD
   python bonnet_build.py $C $R/bonnet > $R/bonnet.log 2>&1
   PF_SAVE_FACES=0 PF_IN="$(cygpath -w $R/bonnet)" ./fcrun.sh panel_fit_freecad.py >> $R/bonnet.log 2>&1 && python pack_build.py $R/bonnet $R/bonnet/build.npz >> $R/bonnet.log
   echo "bonnet: $(python bonnet_score.py $C $R/bonnet/build.npz | head -1)"

@@ -61,7 +61,9 @@ def diff2(n):
 
 
 # ---------- data ----------
+LAST_CAR = None                                  # the car of the last load_mesh (fit_panel's hatch snap needs it)
 def load_mesh(car_dir, name, raw=False):
+    global LAST_CAR; LAST_CAR = car_dir
     kn5 = sorted(glob.glob(os.path.join(car_dir, '*.kn5')), key=os.path.getsize)[-1]
     k = KN5(kn5, load_textures=False)
     m = next(m for m in k.meshes if m.name == name)
@@ -303,12 +305,13 @@ def basis_open_raw(t, kv, n, p=3):
 
 
 _MASTER = {}
-def master_snap(loops3, step=0.002, tol=0.0025):
+_HSNAP = {}
+def master_snap(loops3, step=0.002, tol=0.0025, path=None, only=None):
     """loops3: the piece's boundary loops (3D, metres). With PF_MASTER set: each loop densified every 2 mm and every
     point within tol of the master build's open boundary moved onto it (nearest point on its boundary segments).
     Returns (new loops, the moved points) or None. Kunos vertices on a shared edge sit 0.1-0.3 mm from our master
     edge; the master's other boundaries (a 2-4 mm strip's far side) are further, so the nearest is the right one."""
-    path = os.environ.get('PF_MASTER')
+    path = path or os.environ.get('PF_MASTER')
     if not path: return None
     if path not in _MASTER:
         d = np.load(path); Pm, Fm = d['P'], d['F']
@@ -322,6 +325,7 @@ def master_snap(loops3, step=0.002, tol=0.0025):
         tq = np.unique(np.r_[np.arange(0, dq[-1], step), dq[:-1]]); X = np.c_[[np.interp(tq, dq, Q[:, k]) for k in range(3)]].T
         lo = A.min(0) - 0.01; hi = A.max(0) + 0.01; X2 = X.copy()
         near = ((X > lo) & (X < hi)).all(1); n0 = len(moved)
+        if only is not None and near.any(): near[near] = only(X[near])   # only the points this neighbour shares
         for i in np.where(near)[0]:
             t = np.clip(((X[i] - A) * D).sum(1) / L2, 0, 1); C = A + t[:, None] * D; dd = np.linalg.norm(C - X[i], axis=1)
             j = dd.argmin()
@@ -345,6 +349,18 @@ def fit_panel(name, V, F, Nv, verbose=True, fr=None, outline_only=False, extra=N
     # are fit data too, so the face passes through the master's edge and is trimmed on it - one edge, no gap
     _, wid_ = components(V, F); rep_ = {w: i for i, w in enumerate(wid_)}
     snap = master_snap([V[[rep_[w] for w in L]] for L in boundary_loops(F, wid_)])
+    hb_ = os.environ.get('PF_HATCH_BUILD')
+    if hb_ and os.path.exists(hb_):
+        # the hatch build owns the panel next door (PF_NOHATCH): outline points Kunos SHARES with the hatch (on a
+        # hatch-owned triangle) go onto the hatch build's open edge; the shut-line gap beside the hatch stays a gap
+        import hatch_build as HB_
+        if 'Th' not in _HSNAP: _HSNAP['Th'] = HB_.pieces(LAST_CAR)[0][HB_.hatch_owned(LAST_CAR)]
+        Th_ = _HSNAP['Th']
+        loops_ = snap[0] if snap is not None else [V[[rep_[w] for w in L]] for L in boundary_loops(F, wid_)]
+        sh_ = master_snap(loops_, tol=0.004, path=hb_, only=lambda X: point_to_tris(X, Th_) < 3e-4)
+        if sh_ is not None and len(sh_[1]):
+            print(f'{name}: {len(sh_[1])} outline points snapped onto the hatch build')
+            snap = (sh_[0], np.r_[snap[1], sh_[1]] if snap is not None else sh_[1])
     if snap is not None and len(snap[1]):
         S = np.r_[S, np.repeat(to_plane(snap[1], fr), 3, axis=0)]
     pad = 0.02
@@ -1434,6 +1450,18 @@ def main():
             if os.environ.get('PF_STRIPS', '1') == '1':          # narrow steps / returns: ruled between shared edge curves
                 import strip_build as SB
                 strips_ = SB.find_strips(V, F, Nv, pcs_, components, boundary_loops, amin=amin)
+            # a side whose neighbour another build owns (PF_NOHATCH: the hatch) has no neighbour piece here; with
+            # PF_HATCH_BUILD (the hatch's packed npz) it takes the hatch build's real edge instead of the Kunos vertex rail: its
+            # nb_name is the foreign prefix 'hatch/' (the FreeCAD stage loads those faces with PF_FOREIGN=hatch=DIR)
+            fside_ = None
+            if os.environ.get('PF_HATCH_BUILD') and name == 'GEO_body':
+                import hatch_build as HB_
+                from exact_dist import point_to_tris as p2t_
+                Vh_, _, _, _ = HB_.pieces(car)
+                Th_ = Vh_[HB_.hatch_owned(car)]
+                def fside_(pts):
+                    X_ = np.asarray(pts)
+                    return len(X_) >= 3 and np.mean(p2t_(X_, Th_) < 3e-4) > 0.6
             for ri, Fr in enumerate(pcs_):
                 if ri in skip: continue
                 T_ = V[Fr]; A_ = np.linalg.norm(np.cross(T_[:, 1] - T_[:, 0], T_[:, 2] - T_[:, 0]), axis=1).sum() / 2
@@ -1443,10 +1471,14 @@ def main():
                     for sd_ in [x for sub_ in st_.get('subs', [st_]) for x in sub_['sides']]:
                         sd_['nb_name'] = None if sd_['nb'] is None else f'{name}:r{sd_["nb"]}'
                         sd_['nb_strip'] = sd_['nb'] in strips_
+                        if sd_['nb'] is None and not sd_.get('chain') and fside_ is not None and fside_(sd_['pts']):
+                            sd_['nb_name'] = 'hatch/'; print(f'{name}:r{ri}: side on the hatch build (foreign edge)')
                         sd_['key'] = f'{name}:' + '|'.join(sd_['key'])
                         for r_ in sd_.get('runs', []):                 # chain side: one run per neighbour
                             r_['nb_name'] = None if r_['nb'] is None else f'{name}:r{r_["nb"]}'
                             r_['nb_strip'] = r_['nb'] in strips_
+                            if r_['nb'] is None and fside_ is not None and fside_(r_['pts']):
+                                r_['nb_name'] = 'hatch/'; print(f'{name}:r{ri}: chain run on the hatch build (foreign edge)')
                             r_['key'] = f'{name}:' + '|'.join(r_['key'])
                     if 'subs' in st_:                                  # flange with a fold row: two strips
                         for k_, sub_ in enumerate(st_['subs']):

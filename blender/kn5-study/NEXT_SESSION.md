@@ -1,4 +1,4 @@
-# Next session: Blender Work / AE86 replica (handover, 2026-11-13 midday)
+# Next session: Blender Work / AE86 replica (handover, 2026-11-17)
 
 **Start here.** HATCH in progress (report `blender/research/reports/Hatch surfacing.md`). The hatch is NOT a separate Kunos
 mesh: it is GEO_body crease piece 2 + returns (pieces 4, 14, 22, 116/117), and the quarter's old "C-pillar" sweep (r1p,
@@ -23,10 +23,12 @@ NEXT (in order):
   then 1.4 mm off its own vertices). Close it at the sewing / assembly step, or rebuild that end of the U's top band.
 - Header / pillar-top join: plane cut + fitted header; looks clean in grey, header max 1.1 mm; header mirror 0.19 mm
   (fit_panel is not symmetric: fit the left half and mirror, as the returns).
-- Quarter: rebuild with `PF_NOHATCH=1` (spec without `pillar1`, `rall!0`), its drip rail's hatch-side rail from the
-  hatch's faces (`PF_FOREIGN`); regress order roof -> hatch -> quarter (regress.sh already builds the hatch before the
-  quarter, but the quarter step does NOT use PF_NOHATCH yet: both builds still make the left side band and the quarter
-  still makes the left ring flange r6).
+- **Quarter switch DONE 17 Nov**: the quarter step builds with `PF_NOHATCH=1`, spec `w0 'rall!0'` (no `pillar1`); faces
+  on the hatch 13075 -> 2 triangles. Its two real joins with the hatch take the hatch build's edges: gutter strip r5
+  (chain run -> foreign prefix `hatch/`, 185 of 215 edge points within 0.1 mm) and the bottom face r9 (outline points
+  Kunos shares with the hatch snapped onto the hatch build, `PF_HATCH_BUILD`; its outline now within 1.1 mm of Kunos's).
+  Remaining 2-5 mm next to the hatch = real shut-line gaps (Kunos has the same).
+- Bumpers, then sills (not started). Watertight / sewing across builds at assembly.
 1. Read this page (where we are, how to run, what's next).
 2. `PANEL_FIT_TECHNIQUE.md`: the method that works, with every lesson we paid for (bottom of the file).
 3. `ACHIEVEMENTS_REPORT.md`: the story so far (section 7 = the 10 Nov work on the door, wing and rear quarter).
@@ -42,7 +44,7 @@ model now; later they will come from photos.
 |---|---|---|---|
 | Door (80 faces incl. glass, mirror, trims; 23 strips) | done | 88.5 % / 99.7 % | - |
 | Front wing (arch lip, sub-panels) | done, small items left | 70.5 % / 96.1 % | 92.5 % / 99.3 % |
-| Rear quarter + C-pillar (17 strips) | done 11 Nov: pillar + foot = one swept surface (sweep_build.py); small join items left (Next 0) | 85.9 % / 99.3 % | 90.1 % / 98.2 % |
+| Rear quarter (strips; the C-pillar sweep moved to the hatch) | 17 Nov: built without the hatch's triangles, joins on the hatch build's edges | 83.6 % / 99.5 % (own area) | |
 | Roof (crown + rear band + 2 side bands + rear roll) + 7 neighbour strips | 11 Nov (roof_build.py): fair crown, G2 rear roll, strips on its built edges | 65.0 % / 100.0 % | 72.4 % within 0.3 mm, 97.0 % within 1 mm (median 0.13, max 1.2); strips median 0.07-0.27 mm |
 | Bonnet (skin, nose, 13 edge strips, corner rounds, underside, nozzles) | done 11 Nov | | skin 100 % within 1 mm, edges 99.2 % |
 | Hatch (U sweep + header + deck) | skin built 12 Nov, lower corners 13 Nov (hatch_build.py); corner tab, returns, quarter switch left | | skin median 0.16 mm, 97.5 % within 1 mm (tail 96.5 %) |
@@ -357,6 +359,12 @@ skin UV, baked AO, LODs, standard dummy names, two-layer glass.
 ### 7. Afterwards
 Lamps, grille, badges; interior survey; then **from photos** (Nova first: it has solved cameras and traced windows):
 trace outlines and character lines, run the same fit/trim/cut, check by eye. Parked: steward app, Nova grading.
+
+## What happened on 17 Nov
+- Quarter without the hatch (`PF_NOHATCH`): new spec, `PF_HATCH_BUILD` (wide-face outline points shared with the hatch
+  snap onto the hatch build: `master_snap(path=, only=)`) and foreign strip sides (`nb_name = 'hatch/'`, faces loaded by
+  `PF_FOREIGN=hatch=<hatch>/faces`). Cross-build check: `build_joins.py A B` (open edges of A near
+  B with their gaps, A triangles lying on B). Picture `D:/ClaudeData/tmp/quarter2/qh_new.png` (quarter + hatch + roof).
 
 ## What happened on 13 Nov (morning)
 - Hatch lower corners: our corner sat 1-3 mm inside Kunos (sections through the fan's flat facets) and creased in grey (an
