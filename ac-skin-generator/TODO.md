@@ -27,7 +27,7 @@ Dropped (Nik, 11 Nov): Talbot lower-door name behind the sill trim, Escort Mk2 t
 Details of earlier fixes: `PLAN_next_session.md`.
 
 ## Next - Nik 16 Nov evening (AFTER he has tested 1.11.0 - don't start before)
-1. **Edit an existing skin**: a skin drop-down (skins made by the app AND stock skins), picking one loads an automatic
+1. [x] (1.12.0, 17 Nov) **Edit an existing skin**: a skin drop-down (skins made by the app AND stock skins), picking one loads an automatic
    preview. Plan: Create writes the design into the skin (r4s_design.json) so app-made skins reopen fully editable;
    older app skins and stock skins start from their own body texture (instead of a pattern) with logos / names on top.
 2. **Encrypted (CSP-protected) cars**: Nik paints these by hand from the body texture / CM's AO (2D layout, GIMP,

@@ -170,6 +170,9 @@ def tour_steps(app):
          'tip. Help can be switched off on the Car tab.'),
         ('Car', h.get('car'), '1. Pick your car',
          'Choose the car to make a skin for. Type part of its name to find it quickly.'),
+        ('Car', h.get('start_from'), 'Or change a skin you have',
+         'Pick a skin already on the car to change it - it shows on the preview by itself. Skins made with this app come '
+         'back as you made them; any other skin keeps its paint and is saved as a new skin.'),
         ('Car', h.get('skin_name'), '2. Name your skin',
          'The new skin gets this name in the game. Using the same name again replaces a skin you made before.'),
         ('Car', h.get('new_livery'), 'Start again any time',
@@ -211,6 +214,8 @@ TIPS = {
     'Show me round': 'Starts the guided tour of the app again.',
     'AC cars folder': "Where your Assetto Corsa cars are. Found by itself - change it only if your game is somewhere else.",
     'Car (type to search)': 'The car to make a skin for. Type part of its name to find it.',
+    'Start from': 'Change a skin already on the car: one made with this app comes back as you made it; any other skin '
+                  'keeps its paint and is saved as a new skin (the original is never changed).',
     'Skin name': 'The name of the new skin. Using the same name again replaces a skin you made before with this app.',
     'Windows etc. from': "Optional: the car's other files (windows, interior, plates) are copied from one of its own skins.",
     'App colours': "The app's own colours. The app restarts in them; your livery is kept.",
@@ -278,7 +283,7 @@ TIPS = {
 }
 
 # controls the tour points at: (words on it or beside it) -> name
-HELP_KEYS = {'Car (type to search)': 'car', 'Skin name': 'skin_name', 'Start new livery': 'new_livery',
+HELP_KEYS = {'Car (type to search)': 'car', 'Start from': 'start_from', 'Skin name': 'skin_name', 'Start new livery': 'new_livery',
              'Base colour': 'base', 'Pattern': 'pattern', 'Paint finish': 'finish', 'Team / wordmark': 'team',
              'Add logos…': 'add_logos', 'Place on car': 'place', 'Make new window stickers': 'win_enable',
              'Preview': 'preview', 'Create skin in car': 'create'}

@@ -1,5 +1,5 @@
 =====================================================================================
-  RATTY'S4SKIN GENERATOR  v1.11.1          -  the user guide
+  RATTY'S4SKIN GENERATOR  v1.12.0          -  the user guide
   Custom liveries (skins) for Assetto Corsa cars. No AI, no internet, no Photoshop.
 =====================================================================================
 
@@ -91,6 +91,15 @@ CONTENTS
                        somewhere unusual: "..." and choose
                        ...\steamapps\common\assettocorsa\content\cars
   Car                  The car to make a skin for. Type part of its name to find it.
+  Start from           Change a skin that is already on the car - pick it and it shows on the
+                       preview by itself:
+                       - a skin made with this app (1.12 or later) comes back exactly as you
+                         made it: colours, pattern, writing, logos and your hand moves. Saving
+                         replaces it (it asks first);
+                       - any other skin (the car's own, a downloaded one, or one made with an
+                         older version) keeps its paint, and your number, names and logos go on
+                         top. It is saved as a NEW skin ("<name> custom") - the original is never
+                         changed.
   Skin name            The name of the new skin. Using a name again replaces a skin you
                        made before with this app (it asks first). It never overwrites a
                        skin the app did not make - a stock skin is always safe.

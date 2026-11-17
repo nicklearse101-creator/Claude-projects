@@ -680,7 +680,7 @@ DEFAULT_DESIGN = dict(
     win_tint=None, win_tint_dark=0.5, win_tint_windscreen=False,
     win_enable=False, win_clear=True, win_banner='RATTY RACING', win_banner_colour='#111111', win_text_colour='#ffffff',
     win_number=True, win_name=True, win_banner_height=0.12, win_side_place='rear', debug_decals=False,
-    font_team=None, font_name=None, font_number=None, adjust=None, compress=True, avoid_mirror=False, paint_finish='standard',
+    font_team=None, font_name=None, font_number=None, adjust=None, compress=True, avoid_mirror=False, paint_finish='standard', base_skin=None,
     font=DEFAULT_FONT,
 )
 
@@ -1265,7 +1265,7 @@ def pattern_swatch(design, width=300):
     return small
 
 
-def render_design(car, tm, paint, design, log=print, info=None, ctx=None, mem=None):
+def render_design(car, tm, paint, design, log=print, info=None, ctx=None, mem=None, pattern=None):
     """Return an (n_texels, 3) colour array for the texels in tm (car-space design) and which
     texels a decal covers."""
     P, N = tm.P, tm.N
@@ -1286,7 +1286,9 @@ def render_design(car, tm, paint, design, log=print, info=None, ctx=None, mem=No
     # patterns are worked out at four points inside every texel and averaged, so edges are smooth, not stepped.
     # What the pattern says is only said when it is worked out (not kept for a Create to say again: see _paint_texture)
     plog = getattr(log, 'unkept', log)
-    if mem is not None and 'pattern' in mem:
+    if pattern is not None:
+        col = np.asarray(pattern, np.float64).copy()   # a skin's own paint (base_skin)
+    elif mem is not None and 'pattern' in mem:
         col = mem['pattern'].copy()                    # same pattern as last time: only the decals change
     elif PATTERN_AA and tm is not None and getattr(tm, 't_px', None) is not None:
         col = aa_pattern(design, tm, car, sill, belt, plog)
@@ -3253,7 +3255,24 @@ def design_key(design, resolution=None):
     walk(design)
     return json.dumps([design, files, resolution], sort_keys=True, default=repr)
 PATTERN_KEYS = ('base', 'accent', 'accent2', 'text', 'pattern', 'halftone', 'carbon', 'pattern_image', 'pattern_mode',
-                'pattern_simplify', 'pattern_recolour')
+                'pattern_simplify', 'pattern_recolour', 'base_skin')
+
+
+def skin_base(car, tex, skin, W, H):
+    """A skin's own look of body texture `tex` as W x H float RGB (Nik 16 Nov: edit a stock skin or one made before):
+    its own texture file (or the model's), times the colour of its detail texture where the car takes its paint colour
+    from one (Kunos style). None when there is no such skin."""
+    if not skin or not os.path.isdir(os.path.join(car.dir, 'skins', skin)): return None
+    im = car.stock_texture(tex, skin)
+    if im is None and tex in car.kn5.textures: im = load_image(car.kn5.textures[tex])
+    if im is None: return None
+    a = np.asarray(im.convert('RGB').resize((W, H), Image.LANCZOS)).astype(np.float32)
+    det = next((m.mat.samplers.get('txDetail') for m in car.meshes_for(tex) if m.mat is not None
+                and m.mat.samplers.get('txDetail')), None)
+    dimg = car.stock_texture(det, skin) if det else None
+    if dimg is not None:
+        a = a * (np.asarray(dimg.convert('RGB')).reshape(-1, 3).astype(np.float32).mean(0) / 255)
+    return a
 
 
 def _paint_texture(car, tm, mem, base, paint, shade, design, said, info, ctx, log):
@@ -3264,7 +3283,16 @@ def _paint_texture(car, tm, mem, base, paint, shade, design, said, info, ctx, lo
         said.append(m_); out(m_)
     log.unkept = log.__defaults__[0]
     if 'prof' in _MEMO and not ctx: ctx['prof'] = _MEMO['prof']
-    cols, forced = render_design(car, tm, paint, design, log, info, ctx, mem)
+    over = None
+    mem.pop('skin_base', None)
+    if design.get('base_skin'):
+        sb = skin_base(car, tm.tex, design['base_skin'], tm.W, tm.H)
+        if sb is not None:
+            # the skin's own paint instead of a pattern (taken back out of the stock shading the canvas puts on again)
+            base = mem['skin_base'] = sb
+            over = np.clip(sb[tm.yy, tm.xx] / np.clip(shade[tm.yy, tm.xx], 0.35, None)[:, None], 0, 255)
+            log(f'starting from the skin "{design["base_skin"]}": its paint is kept, the design goes on top')
+    cols, forced = render_design(car, tm, paint, design, log, info, ctx, mem, pattern=over)
     if 'prof' in ctx: _MEMO['prof'] = ctx['prof']
     # a decal is never broken: texels inside it that the paint mask left out (a stock logo, a
     # separate trim panel) are painted too - but not lights, grilles or glass
@@ -3313,6 +3341,7 @@ def clean_views(serial, width=1600, alpha=True, which=('left', 'right', 'front',
             mem = _MEMO.get('tex', {}).get(t)
             if not mem or 'pattern' not in mem or mem.get('tm') is not tm: continue
             base, alpha_, paint, shade = mem['stock']
+            base = mem.get('skin_base', base)
             out_rgb = _paint_canvas(tm, np.clip(mem['pattern'], 0, 255), base, paint, shade)
             spot_parts(tm, out_rgb, lp['base'], lambda m_: None)
             img = Image.fromarray(np.clip(out_rgb, 0, 255).astype(np.uint8)); img.putalpha(Image.fromarray(alpha_))

@@ -14,7 +14,7 @@ import tour
 messagebox = theme.messagebox      # dark dialogs, same calls as tkinter.messagebox (tests replace these)
 
 APP_NAME = skingen.APP_NAME
-VERSION = '1.11.1'
+VERSION = '1.12.0'
 
 
 def find_data_dir(exe_dir, appdata):
@@ -246,6 +246,8 @@ class App(tk.Tk):
         self._auto_job, self._auto_pending, self._auto_running, self._save_pending = None, False, False, False
         self._dragged = False
         self.tour, self.tour_done = None, bool(self.cfg.get('tour_done'))   # the first-start tour (Nik 16 Nov)
+        self.base_skin = None                            # a skin on the car whose paint the livery starts from
+        self._start_map = {}
         self.build()
         self.refresh_cars()
         self.refresh_library()
@@ -271,9 +273,9 @@ class App(tk.Tk):
         if not d.get('cars_dir') or not os.path.isdir(d['cars_dir']): d['cars_dir'] = find_ac_cars()
         return d
 
-    def save_cfg(self, keep_livery=False):
+    def cfg_dict(self):
+        """Everything on the tabs as saved (keys as in settings.json)."""
         d = {k: v.get() for k, v in self.vars.items()}
-        if keep_livery: d['keep_livery'] = True               # the app restarts itself: the next start keeps the livery
         d['tour_done'] = self.tour_done
         d['pattern'] = next((k for k, v in skingen.PATTERNS.items() if v == self.vars['pattern_name'].get()), 'sweep')
         d['number_style'] = next((k for k, v in NUMBER_STYLES.items() if v == self.vars['number_style_name'].get()), 'board')
@@ -286,9 +288,23 @@ class App(tk.Tk):
         d['adjust_by_car'] = self.adjust_by_car
         names = {v: k for k, v in theme.theme_names().items()}
         d['ui_theme'] = names.get(d.pop('ui_theme_name', ''), theme.THEME)
+        return d
+
+    def save_cfg(self, keep_livery=False):
+        d = self.cfg_dict()
+        if keep_livery: d['keep_livery'] = True               # the app restarts itself: the next start keeps the livery
         try:
             with open(SETTINGS, 'w', encoding='utf8') as f: json.dump(d, f, indent=2)
         except Exception: pass
+
+    def design_record(self):
+        """The livery as it is now, kept in each skin the app makes (r4s_design.json) so it can be opened again and
+        changed (Nik 16 Nov). Logos by their file name in the library."""
+        d = self.cfg_dict()
+        return dict(version=VERSION, livery={k: d[k] for k in BLANK if k in d and k not in ('adjust_by_car', 'skin_name')},
+                    logos=[dict(file=l['file'], places=places_of(l), bg=l.get('bg', 'auto'), tint=bool(l.get('tint')))
+                           for l in self.library if places_of(l)],
+                    adjust=copy.deepcopy(self.adjust_by_car.get(self.vars['car'].get(), {})), base_skin=self.base_skin)
 
     def load_library(self):
         try: lib = json.load(open(LIBRARY, encoding='utf8'))
@@ -377,6 +393,12 @@ class App(tk.Tk):
         self.car_box.bind('<<ComboboxSelected>>', lambda e: self.refresh_skins())
         theme.wheel_scrolls_page(self.car_box, self.tabbar)
         self.car_box.bind('<KeyRelease>', self.filter_cars)
+        self.start_var = tk.StringVar(value='New livery (blank)')
+        self.start_box = row('car', 'Start from', lambda f: ttk.Combobox(f, textvariable=self.start_var, state='readonly', width=36))
+        self.start_box.bind('<<ComboboxSelected>>', self.on_start_from)
+        theme.wheel_scrolls_page(self.start_box, self.tabbar)        # one notch would load a skin
+        note('car', 'Change a skin already on the car: one made with this app comes back as you made it; any other '
+                    'skin keeps its paint and is saved as a new skin (the original is never changed).')
         row('car', 'Skin name', lambda f: ttk.Entry(f, textvariable=self.var('skin_name')))
         self.copy_box = row('car', 'Windows etc. from', lambda f: ttk.Combobox(f, textvariable=self.var('copy_from'), width=36))
         theme.wheel_scrolls_page(self.copy_box, self.tabbar)
@@ -639,6 +661,7 @@ class App(tk.Tk):
                                              'Your car and your logo library stay.'):
             return
         self.apply_livery(BLANK)
+        self.base_skin = None; self.start_var.set('New livery (blank)')
         for lg in self.library: set_places(lg, [])
         self.save_library(); self.refresh_library()
         self.adjust_by_car = {}
@@ -649,6 +672,57 @@ class App(tk.Tk):
         self.save_cfg()
         self.log_box.delete('1.0', 'end')
         self.set_progress(0, 'New livery - pick your colours and pattern')
+
+    def on_start_from(self, e=None):
+        skin = self._start_map.get(self.start_var.get())
+        if skin is None:
+            self.base_skin = None; return
+        self.load_skin(skin)
+
+    def free_skin_name(self, name):
+        """name, or name 2, name 3 ... - the first whose skin folder is not on the car yet."""
+        car = os.path.join(self.vars['cars_dir'].get(), self.vars['car'].get())
+        k, cand = 1, name
+        while os.path.exists(os.path.join(car, 'skins', re.sub(r'[^a-z0-9_]+', '_', cand.lower()).strip('_'))):
+            k += 1; cand = f'{name} {k}'
+        return cand
+
+    def load_skin(self, skin):
+        """Start from a skin on the car and preview it (Nik 16 Nov). Made with this app (1.12+): its saved design comes
+        back as it was, under its own name. Any other skin: its paint is the starting point and it saves as a new skin
+        ('<skin> custom') - never over the original."""
+        if self.busy:
+            messagebox.showinfo(APP_NAME, 'Wait for the skin being built to finish first.'); return
+        car = os.path.join(self.vars['cars_dir'].get(), self.vars['car'].get())
+        rec = None
+        if skingen.app_made(car, skin):
+            try: rec = json.load(open(os.path.join(car, 'skins', skin, 'r4s_design.json'), encoding='utf8'))
+            except Exception: rec = None
+        cur = self.vars['car'].get()
+        self.apply_livery(BLANK)
+        for lg in self.library: set_places(lg, [])
+        self.adjust_by_car.pop(cur, None)
+        if rec:
+            self.apply_livery(rec.get('livery') or {})
+            have = {l['file']: l for l in self.library}
+            gone = []
+            for e in rec.get('logos') or []:
+                lg = have.get(e.get('file'))
+                if lg is None: gone.append(e.get('file') or '?'); continue
+                set_places(lg, e.get('places') or []); lg['bg'] = e.get('bg', 'auto'); lg['tint'] = bool(e.get('tint'))
+            if rec.get('adjust'): self.adjust_by_car[cur] = copy.deepcopy(rec['adjust'])
+            self.base_skin = rec.get('base_skin')
+            self.vars['skin_name'].set(rec.get('skin_name') or skin)
+            if gone: self.log(f'(logos no longer in the library, left off: {", ".join(gone)[:120]})')
+        else:
+            self.base_skin = skin
+            self.vars['skin_name'].set(self.free_skin_name(f'{skin} custom'))
+            if skin in skingen.source_skins(car): self.vars['copy_from'].set(skin)
+        self.save_library(); self.refresh_library()
+        self.views, self.info, self.adjust_gen, self.sel, self.saved, self.views_car = {}, {}, {}, None, False, None
+        self.clean, self._view_cache = {}, None
+        self.show_missing([]); self.redraw()
+        self.run(save=False)
 
     def apply_livery(self, d):
         """Put the livery settings in d (as saved: 'pattern', 'team_places' ...) into the app's fields."""
@@ -859,6 +933,13 @@ class App(tk.Tk):
         skins = skingen.source_skins(car) if os.path.isdir(car) else []      # the car's own skins, not ones made here
         self.copy_box['values'] = [''] + skins
         if self.vars['copy_from'].get() not in skins: self.vars['copy_from'].set('')   # a skin of another car
+        allskins = skingen.stock_skins(car) if os.path.isdir(car) and self.vars['car'].get() else []
+        self._start_map = {'New livery (blank)': None}
+        for s_ in allskins:
+            self._start_map[s_ + ('  ·  made with the app' if skingen.app_made(car, s_) else '')] = s_
+        self.start_box['values'] = list(self._start_map)
+        if self.base_skin not in allskins or self.views_car != self.car_key():
+            self.base_skin = None; self.start_var.set('New livery (blank)')
         self.update_header()
         self.forget_other_preview()
         self.request_ghost(car)
@@ -1056,6 +1137,7 @@ class App(tk.Tk):
         for key in ('font_team', 'font_name', 'font_number'):
             d[key] = list_fonts().get(self.vars[key + '_name'].get())          # None = the default font
         d['adjust'] = copy.deepcopy(self.adjust_by_car.get(self.vars['car'].get(), {}))
+        d['base_skin'] = self.base_skin
         return d
 
     def run(self, save, auto=False):
@@ -1089,7 +1171,8 @@ class App(tk.Tk):
         self.log_box.delete('1.0', 'end')
         self.set_progress(0, 'Starting…')
         opts = dict(design=self.design(), resolution=4096 if self.vars['hires'].get() else None,
-                    copy_from=self.vars['copy_from'].get() or None)      # read here: tk variables belong to this thread
+                    copy_from=self.vars['copy_from'].get() or None,      # read here: tk variables belong to this thread
+                    record=dict(self.design_record(), skin_name=name) if save else None)
         threading.Thread(target=self.work, args=(car, name, save, replace, opts, auto), daemon=True).start()
 
     def set_progress(self, frac, text):
@@ -1117,6 +1200,11 @@ class App(tk.Tk):
                 shutil.move(out, replace)
                 shutil.rmtree(build_root, ignore_errors=True)
                 self.log(f'replaced the old skin: {replace}')
+            if save and opts.get('record'):          # the design kept in the skin: "Start from" opens it again
+                try:
+                    with open(os.path.join(replace or out, 'r4s_design.json'), 'w', encoding='utf8') as f:
+                        json.dump(opts['record'], f, indent=1)
+                except OSError: pass
             if save:
                 self.log('Done. In Content Manager pick the car and skin, then click "Update preview".')
             if not save:

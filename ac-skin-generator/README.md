@@ -18,6 +18,13 @@ or in a `data` folder next to the installed app when "Keep my logos and settings
 (v1.9.0; copied from AppData, the old copy is left). Updates, moves and the uninstaller never delete it.
 
 ## Use
+**New in 1.12.0 (17 Nov 2026):** **Start from** (Car tab) - edit a skin already on the car, previewed by itself.
+Every skin the app makes keeps its design (`r4s_design.json`: livery as saved, logos by library file name, hand
+moves, `base_skin`), so an app-made skin comes back fully editable (`load_skin`). Any other skin becomes the starting
+paint: `design['base_skin']` -> `skingen.skin_base()` (its body texture, times the mean of its colour detail texture
+on Kunos-style cars) replaces the pattern and the canvas base in `_paint_texture`; it saves as `<skin> custom`
+(`free_skin_name`), never over the original, and copies the skin's other files ("Windows etc. from").
+
 **New in 1.11.0 (16 Nov 2026, Nik's list):** a blank livery on every start + **Start new livery** (`BLANK`,
 `PREF_KEYS`; the restart for new app colours keeps the livery once, `keep_livery`); a first-start **tour** and a
 tip on every control (`tour.py`; "Show help" / "Show me round" on the Car tab); **logos move live** on the preview
