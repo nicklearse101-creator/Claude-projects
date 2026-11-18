@@ -71,6 +71,8 @@ Found by the close-ups (ownership view: D:/ClaudeData/tmp/bumper/rail_owner.png)
   builds (scratch D:/ClaudeData/tmp/exact): sill 98.5 -> 100 %, tail 86.5 -> 90.9 %, quarter neutral (83.3 vs 83.6),
   WING much worse (70.5 -> 54.9: its pieces change and fill_holes trips) -> ON for sill + tail only (regress.sh).
   The quarter side of the tail seam still ends on Kunos's triangle edges (gap smaller, not gone).
+- Tried + reverted: a smoothing spline through the front face's rows (against facet chord sag): score 92.2 -> 93.4 %
+  but the chin came out lumpy by eye (rows smoothed one by one disagree). Not kept.
 NEXT: the clip-box seam (quarter side), then front bumper corner (seam + banding) and tail lower-band wrap seams, hood_SUB2 (55 %: the bonnet
 underside frame is a simplified cap).
 
