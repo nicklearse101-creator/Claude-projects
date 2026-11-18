@@ -52,6 +52,29 @@ NEXT (in order):
 
 Older background: `HANDOVER.md` (kn5 study tools and environment), `REPLICA_PLAN.md` (the full results log).
 
+## Front bumper corner (18 Nov, morning)
+- Front skin: whole mesh **93.5 %** of Kunos vertices within 1 mm (was 92.2), within 0.3 mm 76.6 % (was 70.3); by eye
+  the face's horizontal streaks are gone and the corner seam (sweep / end face r0eL) is gone. Picture (local):
+  `images/front_bumper_v3_grey.png`. Spec `front`: `pn=True, extend=0.12` (env BB_PN / BB_EXT override).
+- **PN lift** (`pn_lift`, `pn_eval`, `pn_sample`): every station row point lies on a Kunos FLAT triangle; it is moved
+  onto the curved PN triangle (Vlachos 2001: the cubic the triangle's vertex normals describe = what Kunos's shading
+  shows). Sections through big facets sat up to the sagitta inside, differently per column: the streaks along the
+  sweep. Median lift 0.24 mm, max 2.2.
+- **Sweep run on** (`extend`): the face band no longer stops at the trim (where the flare r5 cuts into it); partial
+  rows on to the spine end, the face band at the last full row's HEIGHTS (`station_rows(..., yfix=, s_full_max=)`),
+  points the section no longer reaches (and the narrow top bands, whose sections mismatch there: a kink in the lip)
+  = the last full row's profile slid with the row's nearest valid point; then each band face is TRIMMED by its own
+  Kunos outline (`end_trim`: outline densified to 1 mm, projected into grid index space, per column the last row;
+  columns with no outline point run the full length). FreeCAD: `trim` -> Part.Face(srf, polygon in (u, v)), points
+  near the domain edge snapped onto it. The old end faces shrink to slivers past the last row.
+- Tried: dense PN points as end-face data (no help: the end face wraps the top round and folds in its plane fit).
+- FreeCAD stage: trimmed / holed grid faces now get EXACT surface normals: `face.tessellate()` + `getUVNodes()` - the
+  nodes are NOT in the points' order (matched by position, 1e-4 mm); triangle-averaged normals shaded a fine crinkle.
+  `srf.approximate` failing ('Surface not done') falls back to interpolate.
+- LEFT at the front corner: thin slivers of daylight along the flare r5's arch edge; the rib's bevelled end at the
+  flare (Kunos has a small chamfer, ours runs straight in); a faint dark smudge on the top round near the end; the
+  vertical seam in the chin below the face (a strip / lower band join, not the corner).
+
 ## Whole car assembled (18 Nov, 02:30) - plan step 5 started
 `python assemble.py CAR regress OUT.npz [OUT.png]` (PICTURE_ONLY=1 redraws): every regress build, left-only parts
 mirrored -> `_scratch_research/kn5_study/car_v1.npz` (1.4 M tris). Kunos shell vertices -> nearest of ours, within 1 / 3 mm:

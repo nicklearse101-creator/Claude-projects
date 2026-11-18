@@ -34,7 +34,7 @@ SPEC = dict(rear=dict(mesh='GEO_rearbumper', bands=[1, 12, 0, 21, 20, 0, 3], spi
             # piece through others() (faces / strips / wrap splits) - the per-piece baseline before any sweep
             front=dict(mesh='GEO_frontbumper_SUB2', bands=[0, 1, 13], spine_pair=(1, 14), anchor_band=0, name='fbump',
                        centre_z=1.55, zdir=1, mm_per_col=5.0, bridge=0.15, ycols=(0,), trim_shrink=0.85,
-                       extra=['GEO_frontbumper_SUB0', 'GEO_frontbumper_SUB1'],
+                       extra=['GEO_frontbumper_SUB0', 'GEO_frontbumper_SUB1'], pn=True, extend=0.12,
                        # Kunos splits one surface into differently numbered pieces along the bumper: the lip r15
                        # carries on as r68 past x 676; r8 (the face's top, fading crease to r0) ends at x 674; r65 / r99
                        # (a 5 mm line beside the plate recess) and r75 are bits of the face
@@ -145,7 +145,7 @@ def _match(seq, sq):
     return None
 
 
-def station_rows(V, pcs, bands, Sp, arc, step, ncol, verbose=True, anchor_band=2, s_max=None, offsets=None):
+def station_rows(V, pcs, bands, Sp, arc, step, ncol, verbose=True, anchor_band=2, s_max=None, offsets=None, s_full_max=None, yfix=None):
     """rows (n_st, sum(ncol) - len(bands) + 1, 3) of the band sequence at stations every `step` along the left half's
     spine (arc positions returned too); stations whose section does not hold the full sequence are skipped.
     With `offsets` (per band: the columns' arc offsets from the band's crease on the anchor side, m) the stations past
@@ -168,7 +168,7 @@ def station_rows(V, pcs, bands, Sp, arc, step, ncol, verbose=True, anchor_band=2
         if Q is None: skipped.append(s); continue
         seq = [r[0] for r in runs]
         hit = _match(seq, bands)
-        if hit is not None:
+        if hit is not None and (s_full_max is None or s <= s_full_max + 1e-9):
             rev, j = hit
             rr = runs[j:j + len(bands)]
             if rev: rr = rr[::-1]
@@ -211,6 +211,15 @@ def station_rows(V, pcs, bands, Sp, arc, step, ncol, verbose=True, anchor_band=2
                 q = d[-1] - offsets[k][::-1]
             else: q = offsets[k]
             if not free_end: q = np.linspace(0, d[-1], ncol[k])           # both creases present: evenly, as the full rows
+            if yfix is not None and k in yfix:
+                # a band whose columns are spaced by height (the front face): the same HEIGHTS as the last full row,
+                # so its feature lines run on along the same columns; heights the section no longer reaches (the flare
+                # took them) are NaN, carried on and trimmed by the band's outline (19 Nov)
+                dy = np.r_[0, np.cumsum(np.abs(np.diff(P[:, 1])) + 1e-6)]
+                yq = np.abs(np.asarray(yfix[k]) - P[0, 1]); okq = (np.sign(np.asarray(yfix[k]) - P[0, 1]) == np.sign(P[-1, 1] - P[0, 1])) | (yq < 1e-6)
+                qq = np.where(okq & (yq <= dy[-1] + 1e-6), yq, np.nan)
+                R = np.c_[[np.interp(qq, dy, P[:, c]) for c in range(3)]].T; R[np.isnan(qq)] = np.nan
+                row[c0[k]:c0[k] + ncol[k]] = R; continue
             ok = (q >= -1e-6) & (q <= d[-1] + 1e-6)
             R = np.c_[[np.interp(q, d, P[:, c]) for c in range(3)]].T; R[~ok] = np.nan
             row[c0[k]:c0[k] + ncol[k]] = np.where(np.isnan(row[c0[k]:c0[k] + ncol[k]]), R, row[c0[k]:c0[k] + ncol[k]])
@@ -219,6 +228,55 @@ def station_rows(V, pcs, bands, Sp, arc, step, ncol, verbose=True, anchor_band=2
         print(f'stations: {len(rows)} ({partial} partial, towards the arch) of {len(rows) + len(skipped)} (arc {arcs[0]*1e3:.0f}..{arcs[-1]*1e3:.0f} mm'
               f' of {arc[-1]*1e3:.0f}); skipped at ' + ', '.join(f'{x*1e3:.0f}' for x in skipped[:12]) + (' ...' if len(skipped) > 12 else ''), flush=True)
     return np.array(rows), np.array(arcs)
+
+
+def pn_eval(P, Nt, uvw):
+    """points of the PN triangle (Vlachos 2001) over corners P (3x3) with unit normals Nt at barycentrics uvw (k x 3)"""
+    P1, P2, P3 = P; N1, N2, N3 = Nt
+    wij = lambda Pi, Pj, Ni: (Pj - Pi) @ Ni
+    b210 = (2 * P1 + P2 - wij(P1, P2, N1) * N1) / 3; b120 = (2 * P2 + P1 - wij(P2, P1, N2) * N2) / 3
+    b021 = (2 * P2 + P3 - wij(P2, P3, N2) * N2) / 3; b012 = (2 * P3 + P2 - wij(P3, P2, N3) * N3) / 3
+    b102 = (2 * P3 + P1 - wij(P3, P1, N3) * N3) / 3; b201 = (2 * P1 + P3 - wij(P1, P3, N1) * N1) / 3
+    E = (b210 + b120 + b021 + b012 + b102 + b201) / 6; Vc = (P1 + P2 + P3) / 3; b111 = E + (E - Vc) / 2
+    u, v, w = [np.asarray(uvw)[:, i:i + 1] for i in range(3)]
+    return (P1 * u ** 3 + P2 * v ** 3 + P3 * w ** 3 + b210 * 3 * u * u * v + b120 * 3 * u * v * v + b201 * 3 * u * u * w
+            + b021 * 3 * v * v * w + b102 * 3 * u * w * w + b012 * 3 * v * w * w + b111 * 6 * u * v * w)
+
+
+def pn_sample(V, F, N, n=5):
+    """dense points on the PN triangles of (V, F) with vertex normals N: (n+1)(n+2)/2 per triangle (corners shared)"""
+    Nn = N / np.maximum(np.linalg.norm(N, axis=1), 1e-12)[:, None]
+    uvw = np.array([(i / n, j / n, (n - i - j) / n) for i in range(n + 1) for j in range(n + 1 - i)])
+    return np.unique(np.round(np.vstack([pn_eval(V[f], Nn[f], uvw) for f in F]), 7), axis=0)
+
+
+def pn_lift(V, F, N, X, tol=2e-4):
+    """points X lying on Kunos's flat triangles moved onto the curved PN triangle (Vlachos 2001: the cubic patch the
+    triangle's vertex normals describe, i.e. the surface Kunos's smooth shading shows). A section through big facets
+    sits up to the facet's sagitta inside the shaded surface, by a different amount at every column: across the
+    columns that read as streaks along the sweep (the front bumper's corner, 19 Nov). Points further than tol from
+    every triangle (chords across a bridged opening) are left as they are."""
+    from scipy.spatial import cKDTree
+    from exact_dist import point_to_tris
+    X = np.asarray(X, float); sh = X.shape; X = X.reshape(-1, 3); out = X.copy()
+    ok = ~np.isnan(X[:, 0]); T = V[F]; tc = cKDTree(T.mean(1))
+    Nn = N / np.maximum(np.linalg.norm(N, axis=1), 1e-12)[:, None]
+    moved = []
+    for i in np.nonzero(ok)[0]:
+        x = X[i]; kk = tc.query(x, 12)[1]
+        d = [point_to_tris(x[None], T[k][None])[0] for k in kk]; j = int(np.argmin(d))
+        if d[j] > tol: continue
+        f = F[kk[j]]; P1, P2, P3 = V[f]; N1, N2, N3 = Nn[f]
+        # barycentrics of x's projection on the flat triangle
+        e1, e2 = P2 - P1, P3 - P1; r = x - P1
+        a11, a12, a22 = e1 @ e1, e1 @ e2, e2 @ e2; b1, b2 = r @ e1, r @ e2; det = a11 * a22 - a12 ** 2
+        if det < 1e-18: continue
+        v = (a22 * b1 - a12 * b2) / det; w = (a11 * b2 - a12 * b1) / det; u = 1 - v - w
+        u, v, w = np.clip([u, v, w], 0, 1); s_ = u + v + w; u, v, w = u / s_, v / s_, w / s_
+        flat = u * P1 + v * P2 + w * P3; pn = pn_eval(V[f], Nn[f], np.array([[u, v, w]]))[0]
+        out[i] = x + (pn - flat); moved.append(np.linalg.norm(pn - flat))
+    if moved: print(f'PN lift: {len(moved)} of {ok.sum()} row points moved, median {np.median(moved)*1e3:.2f} max {np.max(moved)*1e3:.2f} mm', flush=True)
+    return out.reshape(sh)
 
 
 def fill_nan_rows(R, A):
@@ -255,6 +313,42 @@ def grid_project(G, X, iters=8):
         det = A11 * A22 - A12 ** 2 + 1e-18
         s = np.clip(s + (A22 * b1 - A12 * b2) / det, 0, nr - 1); t = np.clip(t + (A11 * b2 - A12 * b1) / det, 0, nc - 1)
     return s, t, np.linalg.norm(X - ev(s, t), axis=1)
+
+
+def end_trim(V, Fp, Gk, s_t, tol=2e-3):
+    """the outline a band face keeps when the sweep runs on past where the band ends (BB_EXT): the band piece's outer
+    loop near the left end, projected into the grid's index space (row s, column t), gives each column's last row
+    s_end(t); the polygon (s_end(t), t) on the left, its mirror on the right, mapped back onto the grid surface (3D,
+    metres). None when the band runs the grid's full length."""
+    from scipy.interpolate import RectBivariateSpline
+    nr, nc, _ = Gk.shape
+    _, wid_ = PF.components(V, Fp); rep_ = {w: i for i, w in enumerate(wid_)}
+    L3 = [V[[rep_[w] for w in L]] for L in PF.boundary_loops(Fp, wid_)]
+    X = max(L3, key=lambda X: np.linalg.norm(np.diff(X, axis=0), axis=1).sum())
+    X = X[X[:, 0] > 0]
+    # densify the outline (Kunos's edges are long): 1 mm steps
+    Xd = [X[0]]
+    for a, b in zip(X[:-1], X[1:]):
+        n_ = max(1, int(np.linalg.norm(b - a) / 1e-3)); Xd += list(a + (b - a) * (np.arange(1, n_ + 1) / n_)[:, None])
+    X = np.array(Xd)
+    s_, t_, d_ = grid_project(Gk, X)
+    m = (d_ < tol) & (s_ > s_t - 2) & (s_ < nr - 1.3) & (t_ > 0.3) & (t_ < nc - 1.3)
+    if m.sum() < 5: return None
+    tt = np.arange(0, nc - 1 + 1e-9, 0.25); se = np.full(len(tt), np.nan)
+    for i, t0 in enumerate(tt):
+        w = m & (np.abs(t_ - t0) < 0.5)
+        if w.any(): se[i] = np.median(s_[w])
+    ok = ~np.isnan(se)
+    if ok.sum() < 2: return None
+    # a column with no outline point in the run-on rows runs past the grid's end (the outline there lies beyond the
+    # last row): it keeps the full length (interpolating from the flare columns cut the top bands short: a gap, 19 Nov)
+    se = np.clip(np.where(ok, se, nr - 1), s_t, nr - 1)
+    if (se > nr - 1.3).all(): return None
+    kx, ky = min(3, nr - 1), min(3, nc - 1)
+    Sp = [RectBivariateSpline(np.arange(nr, dtype=float), np.arange(nc, dtype=float), Gk[:, :, c], kx=kx, ky=ky, s=0) for c in range(3)]
+    ev = lambda s, t: np.stack([Sp[c].ev(s, t) for c in range(3)], -1)
+    left = ev(se, tt); right = ev((nr - 1) - se[::-1], tt[::-1])
+    return np.r_[left, right]
 
 
 def others(V, F, N, pcs, bands, pre, amin=2e-5):
@@ -421,6 +515,8 @@ def build(car, out, which='rear'):
     ncol = [int(np.clip(round(x * 1e3 / sp['mm_per_col']) + 1, 3, 40)) for x in w]
     print('bands', bands, 'widths', [round(x * 1e3, 1) for x in w], 'columns', ncol, flush=True)
     R, A = station_rows(V, pcs, bands, Sp, arc, STEP, ncol, anchor_band=sp['anchor_band'])
+    if os.environ.get('BB_PN', '1' if sp.get('pn') else '0') == '1':
+        R = pn_lift(V, np.vstack([pcs[b] for b in sorted(set(bands))]), N, R)
     if sp.get('trim_shrink'):
         # the stations past the point where a band starts to shrink (front: the side flare r5 cuts into the face
         # towards the corner, its rows crumpled the grid there) are dropped; the end faces take that part
@@ -440,14 +536,49 @@ def build(car, out, which='rear'):
     if float(os.environ.get('BB_TAIL', 0)) > 0:      # partial rows towards the arch (tried 17 Nov: rows kink and fold there)
         R, A = station_rows(V, pcs, bands, Sp, arc, STEP, ncol, anchor_band=sp['anchor_band'], s_max=arc[-1] + float(os.environ['BB_TAIL']), offsets=offs)
         R = fill_nan_rows(R, A)
-    if A[0] > 1e-6:                                             # the centre station: the mirror plane
+    ext = float(os.environ.get('BB_EXT', sp.get('extend', 0)))
+    if ext > 0:
+        # the sweep carried on past the trim towards the arch (front: the face's rib and round ran out at the end face,
+        # a seam; 19 Nov): partial rows, the face band at the last full row's HEIGHTS (yfix), the columns the flare
+        # takes carried on along the spine and trimmed by the band's outline in the FreeCAD stage
+        a_t = A[-1]; ab_ = sp['anchor_band']
+        yf = {ab_: R[-1, c0_[ab_]:c0_[ab_] + ncol[ab_], 1].copy()}
+        R2, A2 = station_rows(V, pcs, bands, Sp, arc, STEP, ncol, anchor_band=ab_, s_max=a_t + ext, offsets=offs,
+                              s_full_max=a_t, yfix=yf)
+        new = A2 > a_t + 1e-9
+        # the other bands (the narrow top lip / top face) are not sampled again: their sections there mismatch (a kink
+        # in the lip 30 mm before the end, 19 Nov); they ride on as the last full row's profile with the face band
+        keepc = np.zeros(R2.shape[1], bool); keepc[c0_[ab_]:c0_[ab_] + ncol[ab_]] = True
+        R2[np.ix_(new, ~keepc)] = np.nan
+        if os.environ.get('BB_PN', '1' if sp.get('pn') else '0') == '1' and new.any():
+            R2[new] = pn_lift(V, np.vstack([pcs[b] for b in sorted(set(bands))]), N, R2[new])
+        assert int((~new).sum()) == len(R), (int((~new).sum()), len(R)); R2[~new] = R
+        nanf = np.isnan(R2[new][..., 0]).mean() if new.any() else 0
+        print(f'extended: {new.sum()} partial rows to {A2[-1]*1e3:.0f} mm (trim at {a_t*1e3:.0f}), {nanf*100:.0f} % of their points carried on', flush=True)
+        # points the section no longer reaches: the last full row's profile slid along with the row's nearest valid
+        # point (per column along the spine they were extrapolated one by one: a crinkled, jagged end)
+        i0 = int((~new).sum()) - 1
+        for i in np.nonzero(new)[0]:
+            v_ = ~np.isnan(R2[i, :, 0])
+            if not v_.any(): R2[i] = R2[i - 1]; continue
+            iv = np.nonzero(v_)[0]
+            for j in np.nonzero(~v_)[0]:
+                jv = iv[np.argmin(np.abs(iv - j))]; R2[i, j] = R2[i0, j] + (R2[i, jv] - R2[i0, jv])
+        R, A = R2, A2
+        N_MAIN = i0 + 1
+
+    if A[0] > 1e-6:                                            # the centre station: the mirror plane
         pass
     # symmetric data set: left rows + mirrored rows at arcs -a
     keep = A > 1e-6
     A_ = np.r_[-A[keep][::-1], A]; R_ = np.r_[(R[keep] * MIR)[::-1], R]
     ab = sp['anchor_band']; anchor = int(np.cumsum([0] + [n - 1 for n in ncol])[ab] + ncol[ab] // 2)     # a point on the upper face
+    lam0 = None
+    if ext > 0:     # the smoothing strength from the main rows (the partial rows' noise would pull it to its floor)
+        km = np.abs(A_) <= A[N_MAIN - 1] + 1e-9
+        lam0 = HB.smooth_rows_local(A_[km], R_[km], spacing=float(os.environ.get('BB_SPACING', 0.03)), col=anchor, nrm_rms=1e-4, nrm_p99=4e-4)[3]
     fsm, nrms, nmax_, lam = HB.smooth_rows_local(A_, R_, spacing=float(os.environ.get('BB_SPACING', 0.03)), col=anchor,
-                                                 nrm_rms=1e-4, nrm_p99=4e-4)
+                                                 nrm_rms=1e-4, nrm_p99=4e-4, lam=lam0)
     n_half = int(np.ceil(A[-1] / STEP))
     a_l = np.linspace(0, A[-1], n_half + 1)
     a_all = np.r_[-a_l[::-1], a_l[1:]]
@@ -459,6 +590,10 @@ def build(car, out, which='rear'):
         nb = N[np.unique(pcs[b])].mean(0); nb /= np.linalg.norm(nb)
         res.append(dict(name=f'{sp["name"]}:r{b}b{k}', maxlen=float(os.environ.get('BB_MAXLEN', 8)), structured=True,
                         grid=(G[:, c0_[k]:c0_[k] + ncol[k]] * 1000).tolist(), frame=[[0, 0, 0], [1, 0, 0], [0, 1, 0], nb.tolist()], band_piece=int(b)))
+        if ext > 0:
+            tr = end_trim(V, pcs[b], G[:, c0_[k]:c0_[k] + ncol[k]], int(np.searchsorted(a_all, A[N_MAIN - 1] - 1e-9)))
+            if tr is not None:
+                res[-1]['trim'] = (tr * 1000).tolist(); print(f'r{b}: band face trimmed at its ends by the outline ({len(tr)} points)', flush=True)
         if BRIDGE > 0:
             # openings the sweep bridged (the plate recess, the lower intake): the band piece's inner boundary loops
             # lying within the swept span, cut out of the grid face in the FreeCAD stage
@@ -499,6 +634,13 @@ def build(car, out, which='rear'):
         # then folds over itself in the fit plane and the trim cut a false opening (a 150 mm slot of daylight through
         # r0eL at the arch, 17 Nov). Clip the region 3 mm past the plane first (the exact plane cut trims the rest).
         Vc, Fc, Nc = clip_tris(V, Fe, N, m_, n_, 3e-3)
+        if os.environ.get('BB_PN', '1' if sp.get('pn') else '0') == '1':
+            # the end region's few big triangles: their corners alone let the fit pick a coarse face that dropped the
+            # face's horizontal rib and round (a seam where the sweep, which has them, ends; 19 Nov). Dense points on
+            # the PN surface (what Kunos's shading shows) are fit data too.
+            Xd = pn_sample(Vc, Fc, Nc, int(os.environ.get('BB_PN_N', 5)))
+            print(f'r{b}: end face data + {len(Xd)} PN points', flush=True)
+            X = np.r_[X, Xd]
         try:
             e = PF.fit_panel(f'{sp["name"]}:r{b}eL', Vc, Fc, Nc, extra=X, extra_rep=3)
         except Exception as ex:

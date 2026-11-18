@@ -62,16 +62,37 @@ for p in res:
     if p.get('grid'):                     # station-profile surface (blend_build.pillar_grid): through the grid points
         tf = time.time(); G_ = np.array(p['grid'])
         srf = Part.BSplineSurface()
-        srf.approximate(Points=[[App.Vector(*q) for q in row] for row in G_], DegMin=3, DegMax=5, Tolerance=0.02)
-        face = srf.toShape()
-        dev = max(srf.toShape().distToShape(Part.Vertex(App.Vector(*q)))[0] for q in G_.reshape(-1, 3)[::7])
+        try:
+            srf.approximate(Points=[[App.Vector(*q) for q in row] for row in G_], DegMin=3, DegMax=5, Tolerance=0.02)
+            face = srf.toShape()
+            dev = max(srf.toShape().distToShape(Part.Vertex(App.Vector(*q)))[0] for q in G_.reshape(-1, 3)[::7])
+        except Exception as ex:          # 'Surface not done' (an extended sweep's narrow band, 19 Nov): interpolate it
+            print(p['name'], 'approximate failed:', ex, flush=True); dev = 1e9
         if dev > 0.5:     # approximate can fail quietly on a long, unevenly spaced grid (6 poles over 54 stations, 17 mm
             srf = Part.BSplineSurface(); srf.interpolate([[App.Vector(*q) for q in row] for row in G_])   # off): interpolate it
             face = srf.toShape()
             dev = max(face.distToShape(Part.Vertex(App.Vector(*q)))[0] for q in G_.reshape(-1, 3)[::7])
         shapes.append(face); built[p['name']] = face
         ml_ = float(os.environ.get('PF_MAXLEN') or p.get('maxlen') or 6)
-        if p.get('holes'):
+        if p.get('trim'):
+            # a sweep carried on past where its band ends (bumper_build BB_EXT): the face kept inside the band's
+            # outline polygon, mapped onto (u, v); points within 0.2 % of the domain's edge go onto the edge, so the
+            # long sides stay exactly the grid's edges (no sliver lost beside the neighbour band)
+            try:
+                V2 = App.Base.Vector2d; u0_, u1_, v0_, v1_ = srf.bounds(); eu_, ev_ = (u1_ - u0_) * 2e-3, (v1_ - v0_) * 2e-3
+                uv_ = []
+                for q in p['trim']:
+                    u_, v_ = srf.parameter(App.Vector(*q))
+                    u_ = u0_ if u_ - u0_ < eu_ else u1_ if u1_ - u_ < eu_ else u_
+                    v_ = v0_ if v_ - v0_ < ev_ else v1_ if v1_ - v_ < ev_ else v_
+                    if not uv_ or (u_ - uv_[-1][0]) ** 2 + (v_ - uv_[-1][1]) ** 2 > 1e-14: uv_.append((u_, v_))
+                ed_ = [Part.Geom2d.Line2dSegment(V2(*uv_[i_]), V2(*uv_[(i_ + 1) % len(uv_)])).toShape(srf) for i_ in range(len(uv_))]
+                ft_ = Part.Face(srf, Part.Wire(ed_)); ft_.fix(1e-3, 1e-4, 1e-2)
+                print(f"{p['name']:24s} trimmed by its outline: area {face.Area / 1e6:.4f} -> {ft_.Area / 1e6:.4f} m2, valid {ft_.isValid()}", flush=True)
+                if ft_.isValid() and 0.5 * face.Area < ft_.Area < face.Area:
+                    face = ft_; shapes[-1] = face; built[p['name']] = face; p = dict(p); p['holes'] = p.get('holes') or []; p['_trimmed'] = True
+            except Exception as ex: print(p['name'], 'trim failed:', ex, flush=True)
+        if p.get('holes') or p.get('_trimmed'):
             # openings in a swept band (the front bumper's plate recess and lower intake, bridged by the sweep): each
             # Kunos inner loop mapped onto the surface's (u, v), a polyline there, cut out of the face; meshed from
             # the B-rep (the structured mesh cannot end on a hole's edge)
@@ -82,17 +103,36 @@ for p in res:
                     ed_ = [Part.Geom2d.Line2dSegment(V2(*uv_[i_]), V2(*uv_[(i_ + 1) % len(uv_)])).toShape(srf) for i_ in range(len(uv_))
                            if (np.subtract(uv_[i_], uv_[(i_ + 1) % len(uv_)]) ** 2).sum() > 1e-14]
                     hw_.append(Part.Wire(Part.__sortEdges__(ed_)))
-                fx_ = face.copy(); fx_.cutHoles(hw_); fx2_ = fx_.copy(); fx2_.fix(1e-3, 1e-4, 1e-2)
-                if fx2_.isValid(): fx_ = fx2_
+                fx_ = face.copy()
+                if hw_:
+                    fx_.cutHoles(hw_); fx2_ = fx_.copy(); fx2_.fix(1e-3, 1e-4, 1e-2)
+                    if fx2_.isValid(): fx_ = fx2_
                 print(f"{p['name']:24s} holes: {len(hw_)} cut, area {face.Area / 1e6:.4f} -> {fx_.Area / 1e6:.4f} m2, valid {fx_.isValid()}", flush=True)
-                if fx_.isValid() and fx_.Area < face.Area:
+                if fx_.isValid() and (fx_.Area < face.Area or p.get('_trimmed')):
                     face = fx_; shapes[-1] = face; built[p['name']] = face; p = dict(p); p['structured'] = False
                     # mesh it here: normals from the surface by one projection per point took 210 s (16 k points)
-                    m = MeshPart.meshFromShape(Shape=face, LinearDeflection=0.05, AngularDeflection=0.35, Relative=False); pts, fc = m.Topology   # standard mesher: MaxLength took 194 s
-                    Pm_ = np.array([[q.x, q.y, q.z] for q in pts]); fc = np.array(fc, int)
-                    tn_ = np.cross(Pm_[fc[:, 1]] - Pm_[fc[:, 0]], Pm_[fc[:, 2]] - Pm_[fc[:, 0]])
-                    nn = np.zeros_like(Pm_)
-                    for c_ in range(3): np.add.at(nn, fc[:, c_], tn_)
+                    try:
+                        # the B-rep's own tessellation, its nodes' (u, v) and the EXACT surface normals there (normals
+                        # averaged from the triangles shaded a fine crinkle over the whole face, 19 Nov)
+                        pts, fc = face.tessellate(0.05); uvn_ = face.getUVNodes()
+                        Pm_ = np.array([[q.x, q.y, q.z] for q in pts]); fc = np.array(fc, int)
+                        # getUVNodes is NOT in the points' order (a trimmed face's nodes came back shuffled: 19 Nov):
+                        # each point is matched to its node by position (srf.value at the node, 1e-4 mm)
+                        key_ = {tuple(np.round([w.x, w.y, w.z], 4)): i_ for i_, w in enumerate(srf.value(u_, v_) for u_, v_ in uvn_)}
+                        hit_ = [key_.get(tuple(np.round(q_, 4))) for q_ in Pm_]
+                        nn = np.zeros_like(Pm_); miss_ = [i_ for i_, h_ in enumerate(hit_) if h_ is None]
+                        for i_, h_ in enumerate(hit_):
+                            if h_ is not None: w = srf.normal(*uvn_[h_]); nn[i_] = (w.x, w.y, w.z)
+                        for i_ in miss_:
+                            u_, v_ = srf.parameter(App.Vector(*Pm_[i_])); w = srf.normal(u_, v_); nn[i_] = (w.x, w.y, w.z)
+                        if miss_: print(p['name'], f'uv normals: {len(miss_)} of {len(Pm_)} points projected', flush=True)
+                    except Exception as ex_:
+                        print(p['name'], 'uv normals failed:', ex_, flush=True)
+                        m = MeshPart.meshFromShape(Shape=face, LinearDeflection=0.05, AngularDeflection=0.35, Relative=False); pts, fc = m.Topology   # standard mesher: MaxLength took 194 s
+                        Pm_ = np.array([[q.x, q.y, q.z] for q in pts]); fc = np.array(fc, int)
+                        tn_ = np.cross(Pm_[fc[:, 1]] - Pm_[fc[:, 0]], Pm_[fc[:, 2]] - Pm_[fc[:, 0]])
+                        nn = np.zeros_like(Pm_)
+                        for c_ in range(3): np.add.at(nn, fc[:, c_], tn_)
                     nn /= np.maximum(np.linalg.norm(nn, axis=1), 1e-12)[:, None]
                     nn *= np.sign((nn @ np.array(p['frame'][3])).mean() or 1.0)
                     mesh[p['name'] + '_P'] = Pm_ / 1000.0; mesh[p['name'] + '_F'] = fc; normals[p['name']] = nn
