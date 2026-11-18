@@ -28,8 +28,9 @@ def recolour(img, hexcol):
         lab = RC.srgb_to_oklab(a[..., :3]); L = lab[..., 0]
         ref = np.percentile(L[L > 0.08], 90); t = RC.srgb_to_oklab(T)
         out = np.empty_like(lab)
-        out[..., 0] = np.clip(t[0] * L / ref, 0, 1)
-        out[..., 1:] = t[1:] * np.clip(L / ref, 0, 1.1)[..., None]
+        r = np.clip(L / ref, 0, 1.0)      # never paler than the colour (baked highlights went peach in the sun)
+        out[..., 0] = t[0] * r
+        out[..., 1:] = t[1:] * r[..., None]
         rgb, g = RC.oklab_to_srgb(RC.gamut_clip(out)), 1.0
     else:
         rgb, g = RC.m_hybrid(a[..., :3], T, None, gmin=0.6, gmax=1.3)
@@ -57,11 +58,7 @@ def main():
     s = Image.new('RGB', (520, len(sheet) * 266), (20, 20, 20))
     for i, p in enumerate(sheet): s.paste(p, (0, i * 266))
     s.save(r'D:\ClaudeData\tmp\interior_mx5_before_after.png')
-    # 18 Nov, Nik in game: "the orange roll cage is more like a tint" - its material is made for white paint (ksDiffuse
-    # 0.18, ksAmbient 0.3, shiny), so a colour showed faintly. More diffuse, less white reflection (CSP):
-    open(os.path.join(OUT, 'ext_config.ini'), 'w', encoding='utf8').write(
-        '[SHADER_REPLACEMENT_0_R4S_CAGE]\nMATERIALS = INT_OCC_White_Paint\nPROP_0 = ksDiffuse, 0.5\nPROP_1 = ksAmbient, 0.45\n'
-        'PROP_2 = ksSpecular, 0.25\nPROP_3 = fresnelMaxLevel, 0.1\n')
+    # (18 Nov: a CSP 'more diffuse light' setting for the cage was tried and dropped - it overexposed the sunlit tubes)
     import json
     json.dump({'skinname': 'R4S interior test', 'drivername': 'Nicklearse101', 'country': '', 'team': "Ratty's Racing", 'number': 101},
               open(os.path.join(OUT, 'ui_skin.json'), 'w'), indent=4)
