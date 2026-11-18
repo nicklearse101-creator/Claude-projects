@@ -22,7 +22,17 @@ JOBS = (('leather.dds', '#9b3dff'), ('alcnt.dds', '#3a1060'), ('INT_RollBar_OCC.
 def recolour(img, hexcol):
     a = np.asarray(img.convert('RGBA')).astype(np.float32) / 255
     T = np.array([int(hexcol[i:i + 2], 16) for i in (1, 3, 5)], np.float32) / 255
-    rgb, g = RC.m_hybrid(a[..., :3], T, None, gmin=0.6, gmax=1.3)
+    if 'occ' in getattr(img, 'r4s_name', '').lower():
+        # a shading sheet (AO): its brightest, unshadowed level is the paint itself - measured from the middle the
+        # bright tubes came out nearly white (Nik 18 Nov: "the orange roll cage is more like a tint")
+        lab = RC.srgb_to_oklab(a[..., :3]); L = lab[..., 0]
+        ref = np.percentile(L[L > 0.08], 90); t = RC.srgb_to_oklab(T)
+        out = np.empty_like(lab)
+        out[..., 0] = np.clip(t[0] * L / ref, 0, 1)
+        out[..., 1:] = t[1:] * np.clip(L / ref, 0, 1.1)[..., None]
+        rgb, g = RC.oklab_to_srgb(RC.gamut_clip(out)), 1.0
+    else:
+        rgb, g = RC.m_hybrid(a[..., :3], T, None, gmin=0.6, gmax=1.3)
     out = np.dstack([rgb, a[..., 3]])
     return Image.fromarray(np.clip(np.round(out * 255), 0, 255).astype(np.uint8), 'RGBA'), g
 
@@ -37,7 +47,7 @@ def main():
             shutil.copyfile(os.path.join(src, f), os.path.join(OUT, f))
     sheet = []
     for tex, col in JOBS:
-        img = skingen.load_image(car.kn5.textures[tex])
+        img = skingen.load_image(car.kn5.textures[tex]); img.r4s_name = tex
         new, g = recolour(img, col)
         name = skingen.skin_file_name(car, CAR, tex)
         skingen.write_texture(new, os.path.join(OUT, name), compress=False)
