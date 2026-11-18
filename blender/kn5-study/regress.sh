@@ -104,7 +104,7 @@ if [ "$what" = tail ] || [ "$what" = all ]; then
   # tail panel (GEO_body behind the hatch: rail over the lamp openings, raised plate panel, lower band round the
   # corners), without the hatch's triangles: the plate panel swept along x (bumper_build.py tail), the rest per piece
   unset PF_NOROOF PF_MASTER PF_HATCH_BUILD
-  export PF_NOHATCH=1 PF_CLIP=-1,1,0.45,0.85,-2.2,-1.95
+  export PF_NOHATCH=1 PF_CLIP=-0.45,0.45,0.45,0.85,-2.2,-1.95   # x within the quarter clip (x > 0.45 is the quarter build: one owner)
   python bumper_build.py $C $R/tail tail > $R/tail.log 2>&1
   PF_SAVE_FACES=0 PF_IN="$(cygpath -w $R/tail)" ./fcrun.sh panel_fit_freecad.py >> $R/tail.log 2>&1 && python pack_build.py $R/tail $R/tail/build.npz >> $R/tail.log
   echo "tail: $(python bumper_score.py $C $R/tail/build.npz tail | grep -E '^whole')"

@@ -43,7 +43,7 @@ SPEC = dict(rear=dict(mesh='GEO_rearbumper', bands=[1, 12, 0, 21, 20, 0, 3], spi
                        # merged into one band; bands keep only the real creases
                        alias={68: 15, 15: 0, 14: 1, 8: 0, 65: 0, 99: 0, 75: 0}))
 
-# tail panel: GEO_body behind the hatch (run with PF_NOHATCH=1 PF_CLIP=-1,1,0.45,0.85,-2.2,-1.95): the raised plate
+# tail panel: GEO_body behind the hatch (run with PF_NOHATCH=1 PF_CLIP=-0.45,0.45,0.45,0.85,-2.2,-1.95): the raised plate
 # panel r0 + the band under it r1 swept along x (straight); the rest per piece
 SPEC['tail'] = dict(mesh='GEO_body', bands=[0], spine_pair=(1, 0), anchor_band=0, name='tail', centre_z=-1.5,
                     mm_per_col=5.0, ycols=(0,), trim_shrink=0.85)
