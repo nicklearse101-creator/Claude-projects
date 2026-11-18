@@ -7,6 +7,7 @@ import tkinter.font as tkfont
 from tkinter import ttk, filedialog, colorchooser
 from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps, ImageTk
 
+import interior
 import skingen
 import template2d
 import theme
@@ -15,7 +16,7 @@ import tour
 messagebox = theme.messagebox      # dark dialogs, same calls as tkinter.messagebox (tests replace these)
 
 APP_NAME = skingen.APP_NAME
-VERSION = '1.13.0'
+VERSION = '1.14.0'
 
 
 def find_data_dir(exe_dir, appdata):
@@ -39,6 +40,7 @@ NUMBER_STYLES = {'board': 'Number board', 'plain': 'Plain number', 'none': 'No n
 
 
 DEFAULT_FONT_NAME = 'Default (Bahnschrift condensed)'
+INTERIOR_SHOWN = ('seats', 'alcantara', 'fabric', 'cage', 'carpet', 'dash', 'belts')      # the Interior tab, in this order
 _FONTS = None
 
 # Every start of the app is a blank canvas (Nik 16 Nov: friends got "RATTY RACING" and Nik's name on a fresh install).
@@ -53,7 +55,10 @@ BLANK = dict(base='#ffffff', accent='#7020d2', accent2='#be6eff', text='#111111'
              win_tint_colour='#14181c', win_tint_pct='50', win_tint_windscreen=False, use_wheels=False,
              wheel_colour='#7020d2', use_tyres=False, tyre_colour='#ff8000', font_team_name=DEFAULT_FONT_NAME,
              font_name_name=DEFAULT_FONT_NAME, font_number_name=DEFAULT_FONT_NAME, team_places=['front_wings', 'boot', 'rear', 'front'],
-             name_places=['front_wings'], skin_name='My Skin', copy_from='', adjust_by_car={}, paint_finish='standard')
+             name_places=['front_wings'], skin_name='My Skin', copy_from='', adjust_by_car={}, paint_finish='standard',
+             **{f'int_{g}': False for g in interior.GROUPS},
+             int_seats_col='#9b3dff', int_alcantara_col='#3a1060', int_fabric_col='#303030', int_cage_col='#ff6a00',
+             int_carpet_col='#1a1a1a', int_dash_col='#202020', int_belts_col='#ff6a00')
 
 
 # sporty fonts built into the app (free Google Fonts, Open Font Licence - fonts/licences), first in every font list
@@ -360,7 +365,7 @@ class App(tk.Tk):
         ind = tkfont.Font(root=self, family=theme.HEAD, size=10).measure('0') * 21 + 2   # field label width: previews line up
         tabs = {}
         for key, title in (('car', 'Car'), ('livery', 'Livery'), ('number', 'Number & names'),
-                           ('logos', 'Logos'), ('windows', 'Windows'), ('lights', 'Wheels')):
+                           ('logos', 'Logos'), ('windows', 'Windows'), ('lights', 'Wheels'), ('interior', 'Interior')):
             tabs[key] = self.tabbar.add(title)
 
         def row(tab, label, widget_fn):
@@ -572,6 +577,19 @@ class App(tk.Tk):
         row('lights', '', lambda f: ttk.Checkbutton(f, text='Recolour the tyres', variable=self.var('use_tyres', tk.BooleanVar)))
         row('lights', 'Tyre colour', lambda f: self.colour_button(f, 'tyre_colour'))
         note('lights', 'Rims and tyres are separate. Only cars with their own rim / tyre textures can change.')
+
+        # --- interior (Nik 17-18 Nov)
+        for g in INTERIOR_SHOWN:
+            def irow(f, g=g):
+                fr = ttk.Frame(f)
+                ttk.Checkbutton(fr, variable=self.var(f'int_{g}', tk.BooleanVar)).pack(side='left')
+                self.colour_button(fr, f'int_{g}_col').pack(side='left', padx=(4, 0))
+                return fr
+            row('interior', interior.GROUPS[g][0], irow)
+        note('interior', 'Tick a part to give it a new colour; the material (grain, stitching, shading) stays. The app finds '
+                         'the parts by their names in the car - the log says which it changed. Parts that share their '
+                         'texture with the outside of the car are left alone, and so are displays, glass and carbon. '
+                         'Not on protected cars. The preview shows the outside only - look inside in the game.')
 
         # --- buttons + log
         # Preview / Create / progress / log always stay in the window: packed first, at the bottom; the tab pages get
@@ -1142,6 +1160,8 @@ class App(tk.Tk):
         try: d['win_tint_dark'] = min(90.0, max(5.0, float(self.vars['win_tint_pct'].get()))) / 100
         except ValueError: d['win_tint_dark'] = 0.5
         d['beam_colour'] = None              # cast-light colour option removed (Nik, 11 Nov)
+        d['interior'] = {g: self.vars[f'int_{g}_col'].get() for g in interior.GROUPS
+                         if f'int_{g}' in self.vars and self.vars[f'int_{g}'].get()} or None
         for key in ('font_team', 'font_name', 'font_number'):
             d[key] = list_fonts().get(self.vars[key + '_name'].get())          # None = the default font
         d['adjust'] = copy.deepcopy(self.adjust_by_car.get(self.vars['car'].get(), {}))

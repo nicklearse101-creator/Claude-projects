@@ -1,5 +1,5 @@
 =====================================================================================
-  RATTY'S4SKIN GENERATOR  v1.13.0          -  the user guide
+  RATTY'S4SKIN GENERATOR  v1.14.0          -  the user guide
   Custom liveries (skins) for Assetto Corsa cars. No AI, no internet, no Photoshop.
 =====================================================================================
 
@@ -23,6 +23,7 @@ CONTENTS
   7. Logos tab
   8. Windows tab
   9. Wheels tab
+ 9b. Interior tab
  10. Preview, and moving things on the car
  11. Saving the skin into the game
  12. Things that need Custom Shaders Patch (CSP)
@@ -218,6 +219,21 @@ CONTENTS
 -------------------------------------------------------------------------------------
   Recolour the wheel rims and / or the tyres (separate colours). Only cars whose rims or
   tyres have their own texture can change.
+
+
+9b. INTERIOR TAB
+-------------------------------------------------------------------------------------
+  Seats & leather, Alcantara / suede, Fabric / cloth, Roll cage, Carpet / floor,
+  Dashboard, Seat belts: tick a part and pick its colour. The material stays - grain,
+  stitching and shading are kept - only the colour changes.
+  - The app finds the parts by their names in the car; the log says which it changed
+    and which it left alone.
+  - A part whose texture the outside of the car also uses is left alone (on some cars
+    the dashboard plastic is the same as the outside trim), and so are displays, glass,
+    carbon and metal.
+  - The preview shows the outside of the car only: look inside in the game (cockpit
+    view or close up).
+  - Not on protected cars.
 
 
 10. PREVIEW, AND MOVING THINGS ON THE CAR

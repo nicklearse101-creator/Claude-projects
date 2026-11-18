@@ -18,6 +18,15 @@ or in a `data` folder next to the installed app when "Keep my logos and settings
 (v1.9.0; copied from AppData, the old copy is left). Updates, moves and the uninstaller never delete it.
 
 ## Use
+**New in 1.14.0 (18 Nov 2026):** **Interior tab** (`interior.py`; research `research/Interior colours for AC skins.md`;
+phase-0 hand skin `research/proto_interior_mx5.py` checked in game on the MX-5 Cup: purple seats, "orange as orange"
+cage). Parts by name (AC's COCKPIT_HR/LR nodes, INT_ token, part words; belts before seats; stitches, displays, glass,
+carbon, metal skipped). Per part the texture that holds its colour: a txDetail colour tile (OKLab lightness matching,
+detail gain 0.6-1.3) or the txDiffuse shading sheet (90th-percentile level -> the colour, ratio capped at 1: nothing paler
+than the colour - baked highlights went peach in the sun); a texture several parts use -> only the part's own texels
+(texel map), colours far from the part's kept. A texture any outside part uses is never written. Same-name textures in
+the skin (no CSP). A CSP 'more diffuse' material tweak was tried in game and dropped (overexposed). Off by default.
+
 **New in 1.13.0 (17 Nov 2026):** **2D mode** for CSP-protected cars (`template2d.py`; research in
 `research/Encrypted cars 2D livery painting.md`; phase-0 hand skin `research/proto_2d_f296.py` checked in game by Nik).
 Only where `generate` finds the main paint texture protected (`scrambled_uv` > 0.5) and `design['mode_2d']` (default

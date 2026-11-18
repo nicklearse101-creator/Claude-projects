@@ -193,6 +193,9 @@ def tour_steps(app):
          'Click a logo in the list, then pick where it goes. Pick more places to use the same logo on several parts.'),
         ('Windows', h.get('win_enable'), '7. Windows',
          'Window stickers (a banner across the top of the windscreen, number and name on the windows) and tinted glass.'),
+        ('Interior', h.get('interior'), 'Interior colours',
+         'Seats, roll cage, carpet, belts ... tick a part and pick its colour. The material and its shading stay; the '
+         'outside of the car is never touched. Look inside in the game.'),
         (None, h.get('preview'), '8. Preview',
          'See your livery on the car. The first preview of a car takes up to a minute; after that it is quick.'),
         (None, h.get('canvas'), '9. Move things on the car',
@@ -212,6 +215,13 @@ TIPS = {
     'Start new livery': 'Clears the livery back to a plain white car: colours, pattern, number, names, logos on the car, '
                         'windows and wheels. Your car and your logo library stay.',
     'Show me round': 'Starts the guided tour of the app again.',
+    'Seats & leather': 'Seats, leather trim and the steering wheel leather: tick and pick a colour.',
+    'Alcantara / suede': 'Alcantara / suede parts (steering wheel, seat inserts, dash covers).',
+    'Fabric / cloth': 'Cloth seats and trim.',
+    'Roll cage': 'The roll cage tubes.',
+    'Carpet / floor': 'Carpet and floor mats.',
+    'Dashboard': 'The dashboard - only where its texture is not shared with the outside of the car.',
+    'Seat belts': 'The belts / harness (and window nets on some cars).',
     'Front of the car': 'Protected cars (2D mode): which way the front of the car points on the sheet\'s roof / bonnet '
                         'panel - the logos there are turned to match.',
     'AC cars folder': "Where your Assetto Corsa cars are. Found by itself - change it only if your game is somewhere else.",
@@ -288,7 +298,7 @@ TIPS = {
 HELP_KEYS = {'Car (type to search)': 'car', 'Start from': 'start_from', 'Skin name': 'skin_name', 'Start new livery': 'new_livery',
              'Base colour': 'base', 'Pattern': 'pattern', 'Paint finish': 'finish', 'Team / wordmark': 'team',
              'Add logos…': 'add_logos', 'Place on car': 'place', 'Make new window stickers': 'win_enable',
-             'Preview': 'preview', 'Create skin in car': 'create'}
+             'Preview': 'preview', 'Create skin in car': 'create', 'Seats & leather': 'interior'}
 
 
 def attach(app, root, enabled):

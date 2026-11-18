@@ -34,7 +34,7 @@ Details of earlier fixes: `PLAN_next_session.md`.
    export .dds + .png, usually < 10 MB). Plan: a 2D "template" mode - the stock body texture is readable even when the
    model's UVs are scrambled; paint the pattern in texture space on its panels, logos placed on the 2D layout, keep the
    stock shading. Lighter files too. RULE: must not change anything for the cars that work now (same_output_cars.py).
-3. **Interior colours** (seats, dash, door cards, roll cage, carpet, headliner): a name dictionary of interior
+3. [x] (1.14.0, 18 Nov) **Interior colours** (seats, dash, door cards, roll cage, carpet, headliner): a name dictionary of interior
    textures / meshes from all 868 cars (as for the body), recolour keeping the texture's shading; CSP material
    options where a texture is shared. Check CSP docs (GitHub, local extension/config).
 4. **Other sims**: the 2D template engine of item 2 is the way in (iRacing, ACC, LMU / rF2, AMS2 models are

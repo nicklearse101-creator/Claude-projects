@@ -680,7 +680,7 @@ DEFAULT_DESIGN = dict(
     win_tint=None, win_tint_dark=0.5, win_tint_windscreen=False,
     win_enable=False, win_clear=True, win_banner='RATTY RACING', win_banner_colour='#111111', win_text_colour='#ffffff',
     win_number=True, win_name=True, win_banner_height=0.12, win_side_place='rear', debug_decals=False,
-    font_team=None, font_name=None, font_number=None, adjust=None, compress=True, avoid_mirror=False, paint_finish='standard', base_skin=None, mode_2d=True,
+    font_team=None, font_name=None, font_number=None, adjust=None, compress=True, avoid_mirror=False, paint_finish='standard', base_skin=None, mode_2d=True, interior=None,
     font=DEFAULT_FONT,
 )
 
@@ -720,6 +720,7 @@ PATTERNS.update({
 })
 import patterns_plus                             # the v1.10 patterns (Nik 12 Nov: "we need a lot more")
 import template2d                                # 1.13: protected cars painted on their flat paint sheet
+import interior                                  # 1.14: interior colours
 _pic = PATTERNS.pop('picture')
 PATTERNS.update(patterns_plus.NAMES)
 PATTERNS['picture'] = _pic
@@ -3516,6 +3517,13 @@ def _generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pr
             wheel_out[tex] = recolour_wheels(car, tex, design['tyre_colour'], log, only=car.tyre_meshes[tex] if both else None,
                                              start=wheel_out.get(tex), what='tyres')
     made = dict(tex_out); made.update(wheel_out)
+    if design.get('interior') and two_d is None and not main_locked:
+        # seats, cage, carpet ... recoloured in the textures that hold their colour (never one the outside uses)
+        made.update(interior.paint_interior(car, design['interior'],
+                                            lambda t_: current_texture(car, t_, made, copy_other_from), made, texel_map,
+                                            rgb, log))
+    elif design.get('interior') and (two_d is not None or main_locked):
+        log('interior: this car is protected - its interior colours stay as they are')
     glass_layers, csp_jobs = [], []
     if design.get('win_enable'):
         win, glass_layers = make_window_stickers(car, design, made, copy_other_from, log, resolution, info, csp_jobs)
