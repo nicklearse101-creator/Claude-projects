@@ -71,9 +71,20 @@ Older background: `HANDOVER.md` (kn5 study tools and environment), `REPLICA_PLAN
 - FreeCAD stage: trimmed / holed grid faces now get EXACT surface normals: `face.tessellate()` + `getUVNodes()` - the
   nodes are NOT in the points' order (matched by position, 1e-4 mm); triangle-averaged normals shaded a fine crinkle.
   `srf.approximate` failing ('Surface not done') falls back to interpolate.
-- LEFT at the front corner: thin slivers of daylight along the flare r5's arch edge; the rib's bevelled end at the
-  flare (Kunos has a small chamfer, ours runs straight in); a faint dark smudge on the top round near the end; the
-  vertical seam in the chin below the face (a strip / lower band join, not the corner).
+- Evening (leftovers): front skin **94.3 %** (max 2.7 mm), tail 92.2 % (was 90.9), rear unchanged 99.2 %.
+  - flare edge: the band faces' trim ends are the MASTER edge for the other pieces (`PF._MASTER['bb:trim']`
+    = segments, `PF_MASTER_TOL` 5 mm, new env read by fit_panel): r5 snaps 185 outline points onto it; gap median
+    0.72 -> 0.16 mm, no daylight at normal distance (two ~1 mm hairlines in a 60 mm close-up at the rib).
+  - `end_trim`: columns with no outline point BETWEEN columns that have one are interpolated (at the rib the outline
+    runs over Kunos's bevel > 2 mm off ours: the edge jogged, the rib poked over the flare); light 5-bin average on
+    the per-column ends (the medians zig-zagged: notches).
+  - `fit_best` (others()): every fitted piece also over the plane square to its MEAN vertex normal, kept when p95
+    < 0.8 x (r5 flare 3.9 -> 1.3 mm; tail + front SUB1 pieces too).
+  - run-on rows: the top bands move straight on along the spine's tangent at the last full row (riding on the face
+    band's top point they followed its jitter).
+  - LEFT: a faint bend in the top lip in the last ~100 mm (Kunos's top face narrows where r8 ends; our run-on
+    carries it rigidly: up to 2 mm off at the very end); the rib's end is cut by the flare, Kunos has a small bevel;
+    the chin's vertical seam (a strip / lower band join).
 
 ## Whole car assembled (18 Nov, 02:30) - plan step 5 started
 `python assemble.py CAR regress OUT.npz [OUT.png]` (PICTURE_ONLY=1 redraws): every regress build, left-only parts

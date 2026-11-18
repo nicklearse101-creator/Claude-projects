@@ -342,13 +342,41 @@ def end_trim(V, Fp, Gk, s_t, tol=2e-3):
     if ok.sum() < 2: return None
     # a column with no outline point in the run-on rows runs past the grid's end (the outline there lies beyond the
     # last row): it keeps the full length (interpolating from the flare columns cut the top bands short: a gap, 19 Nov)
-    se = np.clip(np.where(ok, se, nr - 1), s_t, nr - 1)
+    # ... but a gap BETWEEN columns that have outline points is interpolated: at the rib the outline runs over Kunos's
+    # bevel, more than tol off our straight-on rib, and those columns ran full length (a jog in the edge, the rib
+    # poking out over the flare, 19 Nov)
+    iv = np.nonzero(ok)[0]; inner = (np.arange(len(tt)) > iv[0]) & (np.arange(len(tt)) < iv[-1])
+    se = np.where(ok, se, np.where(inner, np.interp(tt, tt[ok], np.nan_to_num(se[ok])), nr - 1))
+    # the per-bin medians zig-zag by a few tenths of a row (the edge then stepped: notches of daylight beside the flare,
+    # whose outline is snapped onto this edge); Kunos's edge is a straight-ish line here: a light 5-bin average
+    k_ = np.array([1, 2, 3, 2, 1], float); k_ /= k_.sum()
+    sp_ = np.convolve(np.r_[[se[0]] * 2, se, [se[-1]] * 2], k_, 'valid')
+    se = np.where(se < nr - 1.3, np.minimum(sp_, nr - 1), se)
+    se = np.clip(se, s_t, nr - 1)
     if (se > nr - 1.3).all(): return None
     kx, ky = min(3, nr - 1), min(3, nc - 1)
     Sp = [RectBivariateSpline(np.arange(nr, dtype=float), np.arange(nc, dtype=float), Gk[:, :, c], kx=kx, ky=ky, s=0) for c in range(3)]
     ev = lambda s, t: np.stack([Sp[c].ev(s, t) for c in range(3)], -1)
     left = ev(se, tt); right = ev((nr - 1) - se[::-1], tt[::-1])
     return np.r_[left, right]
+
+
+def fit_best(nm, V, Fw, N):
+    """PF.fit_panel over the piece's best-fit plane, and (BB_FRAME2, default on) over the plane square to its MEAN
+    vertex normal; the one with the smaller fit p95 is kept. A piece that wraps (the front flare r5 runs round the
+    arch and over onto the top) leans its best-fit plane: p95 3.9 mm there, 1.8 over the mean-normal plane (19 Nov)."""
+    a = PF.fit_panel(nm, V, Fw, N, verbose=False)
+    if os.environ.get('BB_FRAME2', '1') != '1': return a
+    P = V[np.unique(Fw)]; w = N[np.unique(Fw)].mean(0); w /= max(np.linalg.norm(w), 1e-12)
+    if abs(w @ np.array(a['frame'][3])) > np.cos(np.radians(5)): return a        # the same plane, near enough
+    z = np.array([0, 0, 1.0]); e1 = z - (z @ w) * w
+    if np.linalg.norm(e1) < 0.5: y = np.array([0, 1.0, 0]); e1 = y - (y @ w) * w
+    e1 /= np.linalg.norm(e1)
+    try: b = PF.fit_panel(nm, V, Fw, N, verbose=False, fr=(P.mean(0), e1, np.cross(w, e1), w))
+    except Exception: return a
+    if b['fit_p95_mm'] < 0.8 * a['fit_p95_mm']:
+        print(f'{nm}: mean-normal plane fits better (p95 {a["fit_p95_mm"]:.2f} -> {b["fit_p95_mm"]:.2f} mm)', flush=True); return b
+    return a
 
 
 def others(V, F, N, pcs, bands, pre, amin=2e-5):
@@ -414,7 +442,7 @@ def others(V, F, N, pcs, bands, pre, amin=2e-5):
             if len(parts) > 1 and len(Fw) < 4: continue
             nm = f'{pre}:r{ri}' + (f'w{wi}' if len(parts) > 1 else '')
             try:
-                out.append(PF.fit_panel(nm, V, Fw, N, verbose=False))
+                out.append(fit_best(nm, V, Fw, N))
             except Exception as ex:
                 cf = corner_fill(V, F, N, Fw, f'{pre}cf:r{ri}' + (f'w{wi}' if len(parts) > 1 else ''))
                 if cf: out.append(cf)
@@ -562,7 +590,18 @@ def build(car, out, which='rear'):
             v_ = ~np.isnan(R2[i, :, 0])
             if not v_.any(): R2[i] = R2[i - 1]; continue
             iv = np.nonzero(v_)[0]
+            # the other bands (top lip / top face): moved along the SPINE from the last full row (riding on the face
+            # band's top point they followed its jitter where the face meets the rib's bevel: a kink in the top
+            # round near the end, 19 Nov); the face band's own run-out points (past the flare, trimmed) still slide
+            def _sp(s):
+                if s <= arc[-1]: return np.array([np.interp(s, arc, Sp[:, c]) for c in range(3)])
+                t_ = Sp[-1] - Sp[-3]; return Sp[-1] + (s - arc[-1]) * t_ / np.linalg.norm(t_)
+            # straight on along the spine's tangent at the last full row (the spine itself bends into the arch past
+            # there; Kunos's top lip runs straight: the lip kinked up following it)
+            t0_ = _sp(A2[i0] + 0.01) - _sp(A2[i0] - 0.01); t0_[1] = 0; t0_ /= np.linalg.norm(t0_)
+            dsp = (A2[i] - A2[i0]) * t0_
             for j in np.nonzero(~v_)[0]:
+                if not keepc[j]: R2[i, j] = R2[i0, j] + dsp; continue
                 jv = iv[np.argmin(np.abs(iv - j))]; R2[i, j] = R2[i0, j] + (R2[i, jv] - R2[i0, jv])
         R, A = R2, A2
         N_MAIN = i0 + 1
@@ -648,8 +687,22 @@ def build(car, out, which='rear'):
         e['cut_planes'] = [[(m_ * 1000).tolist(), n_.tolist()]]
         res.append(e); res.append(dict(name=f'{sp["name"]}:r{b}eR', mirror_of=f'{sp["name"]}:r{b}eL'))
         print(f'r{b}: end face over {len(Fe)} triangles (bands {ks})', flush=True)
+    trims = [np.array(r['trim']) / 1000 for r in res if r.get('trim')]
+    if trims and os.environ.get('BB_TRIM_SNAP', '1') == '1':
+        # the band faces' trimmed ends are the edge their neighbours (the flare r5) meet: those pieces' outlines are
+        # snapped onto it (panel_fit.master_snap, the edge given as segments) and fitted through it, so both faces end
+        # on ONE edge (each on its own copy of Kunos's outline missed by ~1 mm, up to 7 at the rib: slivers of
+        # daylight along the flare, 19 Nov). Only the dense end parts: the polygon's long sides are chords.
+        sA_, sB_ = [], []
+        for T in trims:
+            a, b = T[:-1], T[1:]; ok = (np.linalg.norm(b - a, axis=1) < 0.01) & (np.sign(a[:, 0]) == np.sign(b[:, 0]))
+            sA_.append(a[ok]); sB_.append(b[ok])
+        PF._MASTER["bb:trim"] = (np.vstack(sA_), np.vstack(sB_)); os.environ['PF_MASTER'] = 'bb:trim'
+        os.environ.setdefault('PF_MASTER_TOL', '0.005')   # the rib's bevel: Kunos's outline 2.5-5 mm off our face's end
+        print(f'trim edges: {sum(len(a) for a in sA_)} segments are the master edge for the other pieces', flush=True)
     if os.environ.get('BB_OTHERS', '1') == '1':
         res += others(V, F, N, pcs, bands, sp['name'])
+        if os.environ.get('PF_MASTER') == 'bb:trim': del os.environ['PF_MASTER']; os.environ.pop('PF_MASTER_TOL', None)
         # the part's other Kunos meshes (front: SUB0 = recess back panels + badge, SUB1 = slot inserts), per piece
         for k_, mn in enumerate(sp.get('extra', [])):
             V2, F2, N2 = PF.load_mesh(car, mn)

@@ -382,7 +382,7 @@ def fit_panel(name, V, F, Nv, verbose=True, fr=None, outline_only=False, extra=N
     # outline runs along the master's boundary, the outline IS that boundary (exact edge points) and those points
     # are fit data too, so the face passes through the master's edge and is trimmed on it - one edge, no gap
     _, wid_ = components(V, F); rep_ = {w: i for i, w in enumerate(wid_)}
-    snap = master_snap([V[[rep_[w] for w in L]] for L in boundary_loops(F, wid_)])
+    snap = master_snap([V[[rep_[w] for w in L]] for L in boundary_loops(F, wid_)], tol=float(os.environ.get('PF_MASTER_TOL', 0.0025)))
     hb_ = os.environ.get('PF_HATCH_BUILD')
     if hb_ and os.path.exists(hb_):
         # the hatch build owns the panel next door (PF_NOHATCH): outline points Kunos SHARES with the hatch (on a
@@ -397,6 +397,7 @@ def fit_panel(name, V, F, Nv, verbose=True, fr=None, outline_only=False, extra=N
             snap = (sh_[0], np.r_[snap[1], sh_[1]] if snap is not None else sh_[1])
     if snap is not None and len(snap[1]):
         S = np.r_[S, np.repeat(to_plane(snap[1], fr), 3, axis=0)]
+        if os.environ.get('PF_MASTER') == 'bb:trim': print(f'{name}: {len(snap[1])} outline points snapped onto a band face end', flush=True)
     pad = 0.02
     dom = [S[:, 0].min() - pad, S[:, 0].max() + pad, S[:, 1].min() - pad, S[:, 1].max() + pad]
     if outline_only:
