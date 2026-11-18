@@ -47,6 +47,11 @@ def main():
     s = Image.new('RGB', (520, len(sheet) * 266), (20, 20, 20))
     for i, p in enumerate(sheet): s.paste(p, (0, i * 266))
     s.save(r'D:\ClaudeData\tmp\interior_mx5_before_after.png')
+    # 18 Nov, Nik in game: "the orange roll cage is more like a tint" - its material is made for white paint (ksDiffuse
+    # 0.18, ksAmbient 0.3, shiny), so a colour showed faintly. More diffuse, less white reflection (CSP):
+    open(os.path.join(OUT, 'ext_config.ini'), 'w', encoding='utf8').write(
+        '[SHADER_REPLACEMENT_0_R4S_CAGE]\nMATERIALS = INT_OCC_White_Paint\nPROP_0 = ksDiffuse, 0.5\nPROP_1 = ksAmbient, 0.45\n'
+        'PROP_2 = ksSpecular, 0.25\nPROP_3 = fresnelMaxLevel, 0.1\n')
     import json
     json.dump({'skinname': 'R4S interior test', 'drivername': 'Nicklearse101', 'country': '', 'team': "Ratty's Racing", 'number': 101},
               open(os.path.join(OUT, 'ui_skin.json'), 'w'), indent=4)
