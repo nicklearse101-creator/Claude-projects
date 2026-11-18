@@ -59,3 +59,4 @@ Other confirmed write-ups in this repo: `tools/ac-wiper/` (wiper report + proven
 - [Skin gen reminder 12 Nov](projects/skin-gen-reminder-nov12.md) - REMIND NIK: logo list mouse wheel only full screen; Corvette side-window tint on the windscreen; 13 Nov: alignment grid on the preview; window stickers unreliable (missing / inside only) - all for later, his choice
 - [Skin gen reminder 16 Nov](projects/skin-gen-reminder-nov16.md) - REMIND NIK: edit skins (1.12) + encrypted cars 2D mode (1.13) done; left: interior colours, other sims
 - [Watch long runs myself](preferences/feedback-watch-long-runs.md) — every long background run: timeout + Monitor for stall (log quiet 5 min) / errors / finish; Nik had to ask about a 15-min hang (17 Nov)
+- [Research agents on Sonnet](preferences/feedback-sonnet-for-research.md) — spawn research/search subagents with model "sonnet" (cheaper); Opus keeps judgement + code (Nik 18 Nov)

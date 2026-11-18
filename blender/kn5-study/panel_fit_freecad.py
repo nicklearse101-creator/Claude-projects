@@ -581,6 +581,21 @@ def round_corner(X, cs, fA, fB, n=12, m=9):
     return srf.toShape(), float(np.mean(ths))
 
 
+def sliver_face(X, n=None):
+    """ruled face between the two long sides of a thin closed outline X (mm): the tips = the pair half the perimeter
+    apart that are farthest apart; each side resampled ~1 mm by arc length, joined by straight rulings"""
+    m = len(X); dl = np.linalg.norm(np.diff(np.r_[X, X[:1]], axis=0), axis=1); cl = np.r_[0, np.cumsum(dl)]; per = cl[-1]
+    j_ = np.searchsorted(cl, (cl[:-1] + per / 2) % per) % m
+    i1 = int(np.argmax(np.linalg.norm(X - X[j_], axis=1))); i2 = int(j_[i1])
+    def chain(a, b):
+        idx = [(a + t) % m for t in range(((b - a) % m) + 1)]; return X[idx]
+    A = chain(i1, i2); B = chain(i2, i1)[::-1]
+    n = n or int(np.clip(max(np.linalg.norm(np.diff(A, axis=0), axis=1).sum(), 2) + 1, 8, 200))
+    def rs(Q):
+        d = np.r_[0, np.cumsum(np.linalg.norm(np.diff(Q, axis=0), axis=1))]; t = np.linspace(0, d[-1], n)
+        return [App.Vector(*q) for q in np.c_[[np.interp(t, d, Q[:, c]) for c in range(3)]].T]
+    ca = Part.BSplineCurve(); ca.interpolate(rs(A)); cb = Part.BSplineCurve(); cb.interpolate(rs(B))
+    return Part.makeRuledSurface(ca.toShape(), cb.toShape()).Faces[0]
 def _coons(X, cs, n, dense=False):
     m = len(X)
     def side(i0, i1, cnt):
@@ -610,17 +625,21 @@ for p in cfs:
     try:
         L_ = np.array(cf['outline'])
         own = {n_: sh for n_, sh in built.items() if '/' not in n_}
+        # a long thin fill reaches 3 mm for its neighbours' edges: the rear bumper's arch-end sliver r62 lay 1.3-2.2 mm
+        # off r8 / r0eL, snapped 51 of 181 points at 1.5 mm and left a wedge of daylight (17 Nov)
+        perK = np.linalg.norm(np.diff(np.r_[L_, L_[:1]], axis=0), axis=1).sum()
+        snap_ = max(CF_SNAP, 3.0) if 4 * np.pi * cf['area'] / max(perK, 1e-9) ** 2 < 0.3 else CF_SNAP
         snapped, owner, nsn = [], [], 0
         for q in L_:
             best = (1e9, None, None)
             for n_, sh in own.items():
-                bb = sh.BoundBox; bb.enlarge(CF_SNAP + 1)
+                bb = sh.BoundBox; bb.enlarge(snap_ + 1)
                 if not bb.isInside(App.Vector(*q)): continue
                 for e in sh.Edges:
                     if e.Length < 0.2: continue
                     d_, pr_, _ = e.distToShape(Part.Vertex(App.Vector(*q)))
                     if d_ < best[0]: best = (d_, pr_[0][0], n_)
-            if best[0] < CF_SNAP: snapped.append(best[1]); owner.append(best[2]); nsn += 1
+            if best[0] < snap_: snapped.append(best[1]); owner.append(best[2]); nsn += 1
             else: snapped.append(App.Vector(*q)); owner.append('free')
         runs_ = []
         for o_ in owner:
@@ -659,7 +678,20 @@ for p in cfs:
             if (cs_[1] - cs_[0]) % m_ == len(rA[1]) - 1 and cs_[2] in rB[1]:          # both runs in index order
                 face, th_ = round_corner(X_, cs_, own[rA[0]], own[rB[0]])
                 if face is not None: ncorner = f'G1 round ({th_:.0f} deg)'
-        if face is None: face, ncorner = coons_face(X_, cs=cs_, dense=bool(cf.get('dense')))
+        # a long sliver (4 pi A / P^2 < 0.1: the rear bumper's arch-end r62, 180 mm round, 68 mm2) needs the dense grid
+        # too: on 14 x 14 it ballooned to 441 mm2 (17 Nov)
+        per_ = np.linalg.norm(np.diff(np.r_[X_, X_[:1]], axis=0), axis=1).sum()
+        sliver = 4 * np.pi * cf['area'] / max(per_, 1e-9) ** 2 < 0.1
+        if face is None: face, ncorner = coons_face(X_, cs=cs_, dense=bool(cf.get('dense')) or sliver)
+        # a long thin fill: a Coons patch on its 4 sharpest turns spans ACROSS the sliver (r62: 963 mm2 vs Kunos 68);
+        # also try a ruled face between its two long sides (tip to tip) and keep the one whose area is nearer Kunos
+        if 4 * np.pi * cf['area'] / max(per_, 1e-9) ** 2 < 0.3:
+            try:
+                rf_ = sliver_face(X_)
+                if abs(rf_.Area - cf['area']) < abs(face.Area - cf['area']):
+                    print(f"    {p['name']} ruled sliver {rf_.Area:.1f} mm2 instead of Coons {face.Area:.1f}", flush=True)
+                    face, ncorner = rf_, 'ruled sliver'
+            except Exception as ex_: print('    sliver face failed:', ex_, flush=True)
         pts_ = [App.Vector(*q) for q in X_]
         if cf.get('inner'): print('   ', p['name'], f"{len(cf['inner'])} Kunos inside vertices off the patch:",
                                   ' '.join(f'{face.distToShape(Part.Vertex(App.Vector(*q)))[0]:.2f}' for q in cf['inner']), flush=True)

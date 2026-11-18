@@ -52,6 +52,21 @@ NEXT (in order):
 
 Older background: `HANDOVER.md` (kn5 study tools and environment), `REPLICA_PLAN.md` (the full results log).
 
+## Rear bumper arch end (18 Nov, night)
+- Whole mesh **99.2 %** of Kunos vertices within 1 mm (was 97.9), bands 99.8 % (max 1.13 mm). Picture (local):
+  `images/rear_bumper_v3_grey.png`. Full regress: every other part unchanged (bonnet 75.7 -> 77.4 % within 0.3 mm).
+- Fixes (general, in the fitters):
+  - corner fills that are long slivers (4 pi A / P^2 < 0.3) also try a **ruled face** between their two long sides and
+    keep whichever area is nearer Kunos (arch-end r62: Coons 963 mm2 vs Kunos 68 -> ruled 32), and snap 3 mm (not 1.5)
+    onto neighbours' edges; left/right fill pairs: right = mirror of left (bumper_build others()).
+  - end faces: Kunos's long thin triangles straddle the cut plane and reach 50-77 mm back, so the end region's outline
+    folded over itself in the fit plane and the trim cut a false 150 mm slot through r0eL. Now the region is clipped
+    3 mm past the plane first (`clip_tris`).
+- Left: thin slivers low by r18/r40, the sweep / end-face shading step, groove bottom 0.35-0.7 mm.
+- Tools (D:/ClaudeData/tmp/bumper): `idrender.py` (our faces coloured + labelled: finds which face a slit belongs to),
+  `ray.py` (what Kunos / ours hit through one pixel), `cmp.py`.
+- NEXT: front bumper, then sills.
+
 ## Where we are
 The car is being rebuilt panel by panel from fitted CAD surfaces (B-spline faces trimmed to their real outlines,
 cut exactly on their character lines). It is a **method test** on the Kunos AE86: the curves come from the real
@@ -65,7 +80,8 @@ model now; later they will come from photos.
 | Roof (crown + rear band + 2 side bands + rear roll) + 7 neighbour strips | 11 Nov (roof_build.py): fair crown, G2 rear roll, strips on its built edges | 65.0 % / 100.0 % | 72.4 % within 0.3 mm, 97.0 % within 1 mm (median 0.13, max 1.2); strips median 0.07-0.27 mm |
 | Bonnet (skin, nose, 13 edge strips, corner rounds, underside, nozzles) | done 11 Nov | | skin 100 % within 1 mm, edges 99.2 % |
 | Hatch (U sweep + header + deck) | skin built 12 Nov, lower corners 13 Nov (hatch_build.py); corner tab, returns, quarter switch left | | skin median 0.16 mm, 97.5 % within 1 mm (tail 96.5 %) |
-| Bumpers, sills | not started | | |
+| Rear bumper (7-band sweep + end faces + strips/fills) | 18 Nov: arch end closed | | whole 99.2 % within 1 mm, bands 99.8 % |
+| Front bumper, sills | not started | | |
 
 The **vertex** score is the honest one: Kunos uses 100-150 mm flat triangles that cut chords across curves, so the
 area score marks a correct smooth surface as "off" between vertices.

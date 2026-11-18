@@ -235,11 +235,49 @@ def others(V, F, N, pcs, bands, pre, amin=2e-5):
                 cf = corner_fill(V, F, N, Fw, f'{pre}cf:r{ri}' + (f'w{wi}' if len(parts) > 1 else ''))
                 if cf: out.append(cf)
                 print(f'{nm} fit failed ({ex}): ' + ('corner fill' if cf else 'skipped'), flush=True)
+    # left / right corner fill pairs: the right one (x < 0) = the left one mirrored, so both snap the same way (built
+    # apart, r62 and r63 snapped 180 / 101 of their outline points onto different neighbours, 17 Nov)
+    from scipy.spatial import cKDTree
+    cfo = [o for o in out if o.get('corner_fill')]
+    for b_ in [o for o in cfo if np.array(o['corner_fill']['outline'])[:, 0].mean() < 0]:
+        Xb = np.array(b_['corner_fill']['outline'])
+        for a_ in [o for o in cfo if np.array(o['corner_fill']['outline'])[:, 0].mean() > 0]:
+            if abs(a_['corner_fill']['area'] - b_['corner_fill']['area']) > 0.03 * a_['corner_fill']['area']: continue
+            Xa = np.array(a_['corner_fill']['outline']) * [-1, 1, 1]
+            if cKDTree(Xa).query(Xb)[0].mean() < 1.0:
+                out[out.index(b_)] = dict(name=b_['name'], mirror_of=a_['name']); break
     print(f'other pieces: {sum(1 for o in out if o.get("strip"))} strips, {sum(1 for o in out if o.get("corner_fill"))} corner fills, '
           f'{sum(1 for o in out if not o.get("strip") and not o.get("corner_fill"))} faces', flush=True)
     return out
 
 
+def clip_tris(V, Fr, N, m, n, margin):
+    """triangles Fr clipped to (X - m).n <= margin: a new (V, F, N) with the cut points shared between neighbours
+    (an edge is cut once, keyed by its welded end positions)"""
+    key = lambda i: tuple(np.round(V[i], 6))
+    Vo, No, idx, F2, cut = [], [], {}, [], {}
+    def vid(i):
+        k = key(i)
+        if k not in idx: idx[k] = len(Vo); Vo.append(V[i]); No.append(N[i])
+        return idx[k]
+    def eid(a, b):
+        ka, kb = key(a), key(b)
+        if kb < ka: a, b, ka, kb = b, a, kb, ka
+        if (ka, kb) not in cut:
+            sa, sb = (V[a] - m) @ n - margin, (V[b] - m) @ n - margin; t = sa / (sa - sb)
+            q = V[a] + t * (V[b] - V[a]); nq = N[a] + t * (N[b] - N[a])
+            cut[(ka, kb)] = len(Vo); Vo.append(q); No.append(nq / np.linalg.norm(nq))
+        return cut[(ka, kb)]
+    for f in Fr:
+        sd = (V[f] - m) @ n - margin
+        if (sd > 0).all(): continue
+        poly = []
+        for k in range(3):
+            a, b = f[k], f[(k + 1) % 3]
+            if sd[k] <= 0: poly.append(vid(a))
+            if (sd[k] <= 0) != (sd[(k + 1) % 3] <= 0): poly.append(eid(a, b))
+        for k in range(1, len(poly) - 1): F2.append([poly[0], poly[k], poly[k + 1]])
+    return np.array(Vo), np.array(F2, int), np.array(No)
 def corner_fill(V, F, N, Fr, name, clip=None):
     """a small piece as a corner fill (as bonnet_build): its one outline every 1 mm + inner vertices, in mm.
     clip = (point, normal) in metres: the outline is clipped to the side (X - point) . normal <= 0 (a groove end past
@@ -336,8 +374,12 @@ def build(car, out, which='rear'):
                 res.append(cf); res.append(dict(name=f'{sp["name"]}cf:r{b}eR', mirror_of=cf['name']))   # mirrors are made last (after the end faces' mirrors)
             print(f'r{b}: end = corner fills over {len(Fe)} triangles', flush=True); continue
         X = np.vstack([G[-3:, c0_[k]:c0_[k] + ncol[k]].reshape(-1, 3) for k in ks])
+        # Kunos's long thin triangles straddle the plane and reach up to 77 mm back over it: the end region's outline
+        # then folds over itself in the fit plane and the trim cut a false opening (a 150 mm slot of daylight through
+        # r0eL at the arch, 17 Nov). Clip the region 3 mm past the plane first (the exact plane cut trims the rest).
+        Vc, Fc, Nc = clip_tris(V, Fe, N, m_, n_, 3e-3)
         try:
-            e = PF.fit_panel(f'{sp["name"]}:r{b}eL', V, Fe, N, extra=X, extra_rep=3)
+            e = PF.fit_panel(f'{sp["name"]}:r{b}eL', Vc, Fc, Nc, extra=X, extra_rep=3)
         except Exception as ex:
             print(f'r{b}: end face failed ({ex})', flush=True); continue
         e['cut_planes'] = [[(m_ * 1000).tolist(), n_.tolist()]]
