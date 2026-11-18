@@ -64,6 +64,7 @@ if [ "$what" = hatch ] || [ "$what" = all ]; then
 fi
 if [ "$what" = quarter ] || [ "$what" = all ]; then
   export PF_CLIP=0.45,1,0,1.3,-2.2,-0.5          # y up to the roof: the roof triangles are left out by PF_NOROOF
+  export PF_CLIP_EXACT=1    # triangles cut ON the box planes: the tail (x < 0.45) and the sill (z > -0.5) are cut there too (seam gap 2.3 -> 0.3 mm, 19 Nov)
   export PF_NOROOF=1                                 # the roof build owns the roof + its strips (one owner per surface)
   [ -f $R/roof/build.npz ] && export PF_MASTER=$R/roof/build.npz   # faces along the roof are trimmed on its edges
   # the hatch build owns the hatch skin + returns (its side band = the old 'C-pillar' r1 here, the ring flange = old r6):
@@ -76,8 +77,9 @@ if [ "$what" = quarter ] || [ "$what" = all ]; then
   PF_FOREIGN="$FH" PF_IN="$(cygpath -w $R/quarter)" ./fcrun.sh panel_fit_freecad.py >> $R/quarter.log 2>&1
   python fill_holes.py $C $R/quarter GEO_body >> $R/quarter.log 2>&1
   PF_IN="$(cygpath -w $R/quarter/fill)" ./fcrun.sh panel_fit_freecad.py >> $R/quarter.log 2>&1 && python merge.py $R/quarter >> $R/quarter.log
+  python pack_build.py $R/quarter $R/quarter/build.npz >> $R/quarter.log 2>&1   # assemble.py reads build.npz (it was a stale 17 Nov pack)
   echo "quarter: $(python score_faces.py $C $R/quarter GEO_body | tail -1)"
-  unset PF_CLIP PF_NOROOF PF_MASTER PF_NOHATCH PF_HATCH_BUILD
+  unset PF_CLIP PF_CLIP_EXACT PF_NOROOF PF_MASTER PF_NOHATCH PF_HATCH_BUILD
 fi
 if [ "$what" = bonnet ] || [ "$what" = all ]; then
   unset PF_CLIP PF_NOROOF PF_MASTER PF_NOHATCH PF_HATCH_BUILD

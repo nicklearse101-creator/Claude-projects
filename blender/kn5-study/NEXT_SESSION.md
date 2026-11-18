@@ -86,6 +86,16 @@ Older background: `HANDOVER.md` (kn5 study tools and environment), `REPLICA_PLAN
     carries it rigidly: up to 2 mm off at the very end); the rib's end is cut by the flare, Kunos has a small bevel;
     the chin's vertical seam (a strip / lower band join).
 
+## Tail / quarter seam (18 Nov, evening)
+- Quarter now cut EXACTLY on its clip box too (regress `quarter`: PF_CLIP_EXACT=1), like the tail (x = 0.45) and the
+  sill (z = -0.5): seam gap median 2.3 -> 0.3 mm (`D:/ClaudeData/tmp/exact/seamx.py`), quarter 83.6 -> 83.3 % (neutral).
+  17 points still 1-4 mm: quarter piece corners that round off 1-3 mm short of the plane (y 0.51, 0.61, 0.74, 0.77).
+- FOUND: regress never packed the quarter's build.npz - assemble.py read a stale 17 Nov pack (before PF_NOHATCH);
+  regress now packs it. Whole car v4: GEO_body **92.8 / 98.5 %** within 1 / 3 mm (v3 91.0 / 98.6).
+  Pictures (local): images/whole_car_v4_grey.png, images/tail_quarter_seam_v1_grey.png.
+- LEFT: shading step across the seam on the lower band under the lamps (tail lower band vs the quarter piece:
+  tangents differ) + a dark smudge on the tail's lower band = the 'tail lower-band wrap seams' item, next.
+
 ## Whole car assembled (18 Nov, 02:30) - plan step 5 started
 `python assemble.py CAR regress OUT.npz [OUT.png]` (PICTURE_ONLY=1 redraws): every regress build, left-only parts
 mirrored -> `_scratch_research/kn5_study/car_v1.npz` (1.4 M tris). Kunos shell vertices -> nearest of ours, within 1 / 3 mm:
