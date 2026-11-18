@@ -43,6 +43,11 @@ SPEC = dict(rear=dict(mesh='GEO_rearbumper', bands=[1, 12, 0, 21, 20, 0, 3], spi
                        # merged into one band; bands keep only the real creases
                        alias={68: 15, 15: 0, 14: 1, 8: 0, 65: 0, 99: 0, 75: 0}))
 
+# tail panel: GEO_body behind the hatch (run with PF_NOHATCH=1 PF_CLIP=-1,1,0.45,0.85,-2.2,-1.95): the raised plate
+# panel r0 + the band under it r1 swept along x (straight); the rest per piece
+SPEC['tail'] = dict(mesh='GEO_body', bands=[0], spine_pair=(1, 0), anchor_band=0, name='tail', centre_z=-1.5,
+                    mm_per_col=5.0, ycols=(0,), trim_shrink=0.85)
+
 
 def pieces(V, F, N, sp):
     """crease pieces with the spec's alias pieces merged into their band piece (the alias left empty: indices and
@@ -180,7 +185,9 @@ def station_rows(V, pcs, bands, Sp, arc, step, ncol, verbose=True, anchor_band=2
                 q = np.linspace(0, d[-1], ncol[k])
                 R = np.c_[[np.interp(q, d, P[:, c]) for c in range(3)]].T
                 row.append(R if k == 0 else R[1:])
-            rows.append(np.vstack(row)); arcs.append(s); continue
+            row = np.vstack(row)
+            if len(bands) == 1 and row[0, 1] < row[-1, 1]: row = row[::-1]   # one band: no sequence fixes its direction (top first)
+            rows.append(row); arcs.append(s); continue
         if offsets is None or not arcs or s < arcs[-1]: skipped.append(s); continue
         # partial: the longest run of consecutive bands holding the anchor band
         best = None

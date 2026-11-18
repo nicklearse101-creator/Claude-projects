@@ -72,7 +72,11 @@ Older background: `HANDOVER.md` (kn5 study tools and environment), `REPLICA_PLAN
 - **Tail panel** (new, was not on the list; regress step `tail`): GEO_body behind the hatch - rail over the lamp
   openings, raised plate panel, lower band round the corners. First build per piece: 54.8 % / 86.4 % area within
   1 / 3 mm; small faces 0.1-0.3 mm but the raised plate panel (r0: walls in one piece, max 12 mm) and the wrapped lower
-  band (r1 w0-w2, 4-10 mm) want a sweep like the bumpers. Picture: `images/tail_panel_v1_grey.png`. (PF_CREASE can't
+  band (r1 w0-w2, 4-10 mm) want a sweep like the bumpers. THEN: the plate panel swept along x (`bumper_build.py tail`,
+  one band, rows oriented top-first) -> tail **89.8 %** of Kunos vertices within 1 mm (per piece 79.8), plate panel
+  90.9 %. Sweeping the band under it too made it worse (its lamp-frame end became one poor end face: 38.7 %).
+  LEFT: the lower band's wrap-split seams at the corners, a faint fold along the plate panel's lower round.
+  Pictures: `images/tail_panel_v1_grey.png` (per piece), `images/tail_panel_v2_grey.png` (swept). (PF_CREASE can't
   be changed with PF_NOHATCH: the hatch ownership lookup asserts its piece sizes.)
 - Body coverage: with sill + tail, 92.4 % of GEO_body's vertices are within 1 mm of some build, 21 uncovered (was 344).
 - FreeCAD stage: `safe_normal()` everywhere a mesh normal is taken (collapsed strip / sliver tips crashed it twice).
@@ -108,7 +112,7 @@ model now; later they will come from photos.
 | Rear bumper (7-band sweep + end faces + strips/fills) | 18 Nov: arch end closed | | whole 99.2 % within 1 mm, bands 99.8 % |
 | Front bumper (3-band sweep, openings cut, SUB0/SUB1 per piece) | 18 Nov night: first full build | | skin 92.2 % within 1 mm, SUB0 99.7 %, SUB1 91 % |
 | Sills | 18 Nov night | 98.5 % / 98.5 % | |
-| Tail panel | 18 Nov night: per-piece first build | 54.8 % / 86.4 % | |
+| Tail panel | 18 Nov night: plate panel swept, rest per piece | | 89.8 % within 1 mm |
 
 The **vertex** score is the honest one: Kunos uses 100-150 mm flat triangles that cut chords across curves, so the
 area score marks a correct smooth surface as "off" between vertices.
