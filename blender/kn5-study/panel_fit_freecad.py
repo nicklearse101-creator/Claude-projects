@@ -78,6 +78,17 @@ for p in res:
                 print(f"{p['name']:24s} holes: {len(hw_)} cut, area {face.Area / 1e6:.4f} -> {fx_.Area / 1e6:.4f} m2, valid {fx_.isValid()}", flush=True)
                 if fx_.isValid() and fx_.Area < face.Area:
                     face = fx_; shapes[-1] = face; built[p['name']] = face; p = dict(p); p['structured'] = False
+                    # mesh it here: normals from the surface by one projection per point took 210 s (16 k points)
+                    m = MeshPart.meshFromShape(Shape=face, LinearDeflection=0.05, AngularDeflection=0.35, Relative=False); pts, fc = m.Topology   # standard mesher: MaxLength took 194 s
+                    Pm_ = np.array([[q.x, q.y, q.z] for q in pts]); fc = np.array(fc, int)
+                    tn_ = np.cross(Pm_[fc[:, 1]] - Pm_[fc[:, 0]], Pm_[fc[:, 2]] - Pm_[fc[:, 0]])
+                    nn = np.zeros_like(Pm_)
+                    for c_ in range(3): np.add.at(nn, fc[:, c_], tn_)
+                    nn /= np.maximum(np.linalg.norm(nn, axis=1), 1e-12)[:, None]
+                    nn *= np.sign((nn @ np.array(p['frame'][3])).mean() or 1.0)
+                    mesh[p['name'] + '_P'] = Pm_ / 1000.0; mesh[p['name'] + '_F'] = fc; normals[p['name']] = nn
+                    print(f"{p['name']:24s} GRID area {face.Area / 1e6:.3f} m2  with openings, mesh {len(fc)} tris  {time.time() - tf:.1f} s", flush=True)
+                    continue
             except Exception as ex: print(p['name'], 'holes failed:', ex, flush=True)
         if p.get('structured'):
             # mesh straight from the grid's own (u, v): rows of quads along the sweep, exact normals by srf.normal
@@ -725,11 +736,13 @@ for p in cfs:
     U0_, U1_, V0_, V1_ = sf.bounds()
     for q in pts:
         u_, v_ = sf.parameter(q)
-        try: n_ = sf.normal(u_, v_)
-        except Exception:                 # a collapsed side (a patch tapering to a point: the groove ends): no normal
-            u_ = u_ + 1e-3 * (U1_ - U0_) * (1 if u_ < (U0_ + U1_) / 2 else -1)   # there; step just inside
-            v_ = v_ + 1e-3 * (V1_ - V0_) * (1 if v_ < (V0_ + V1_) / 2 else -1)
-            n_ = sf.normal(u_, v_)
+        n_ = None
+        for st_ in (0.0, 1e-3, 1e-2, 5e-2):  # a collapsed side (a patch tapering to a point: groove ends, ruled sliver
+            try:                             # tips): no normal there; step inside, else the fill's own normal
+                n_ = sf.normal(u_ + st_ * (U1_ - U0_) * (1 if u_ < (U0_ + U1_) / 2 else -1),
+                               v_ + st_ * (V1_ - V0_) * (1 if v_ < (V0_ + V1_) / 2 else -1)); break
+            except Exception: pass
+        if n_ is None: n_ = App.Vector(*cf['normal'])
         nn.append([n_.x, n_.y, n_.z])
     nn = np.array(nn); nn *= np.sign((nn @ np.array(cf['normal'])).mean() or 1.0)
     mesh[p['name'] + '_P'] = np.array([[q.x, q.y, q.z] for q in pts]) / 1000.0; mesh[p['name'] + '_F'] = np.array(fc, int)

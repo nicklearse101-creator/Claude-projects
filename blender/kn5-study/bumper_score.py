@@ -19,3 +19,6 @@ for b in sorted(set(sp['bands'])):
 line('whole mesh', point_to_tris(V[np.unique(F)], TB) * 1000)
 S = P[::max(1, len(P) // 4000)]; ds = point_to_tris(S * BB.MIR, TB) * 1000
 print(f'mirror check: median {np.median(ds):.4f}  max {ds.max():.4f} mm')
+for mn in sp.get('extra', []):
+    V2, F2, N2 = PF.load_mesh(car, mn)
+    line(mn, point_to_tris(V2[np.unique(F2)], TB) * 1000)

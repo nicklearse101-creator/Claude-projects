@@ -32,8 +32,9 @@ SPEC = dict(rear=dict(mesh='GEO_rearbumper', bands=[1, 12, 0, 21, 20, 0, 3], spi
                       centre_z=-1.55, mm_per_col=5.0),
             # front: GEO_frontbumper_SUB2 (the skin; SUB0 / SUB1 = the badge + slot inserts, later). bands=[]: every
             # piece through others() (faces / strips / wrap splits) - the per-piece baseline before any sweep
-            front=dict(mesh='GEO_frontbumper_SUB2', bands=[7, 0, 1, 13], spine_pair=(1, 14), anchor_band=1, name='fbump',
-                       centre_z=1.55, zdir=1, mm_per_col=5.0, bridge=0.15, ycols=(1,),
+            front=dict(mesh='GEO_frontbumper_SUB2', bands=[0, 1, 13], spine_pair=(1, 14), anchor_band=0, name='fbump',
+                       centre_z=1.55, zdir=1, mm_per_col=5.0, bridge=0.15, ycols=(0,), trim_shrink=0.85,
+                       extra=['GEO_frontbumper_SUB0', 'GEO_frontbumper_SUB1'],
                        # Kunos splits one surface into differently numbered pieces along the bumper: the lip r15
                        # carries on as r68 past x 676; r8 (the face's top, fading crease to r0) ends at x 674; r65 / r99
                        # (a 5 mm line beside the plate recess) and r75 are bits of the face
@@ -413,6 +414,16 @@ def build(car, out, which='rear'):
     ncol = [int(np.clip(round(x * 1e3 / sp['mm_per_col']) + 1, 3, 40)) for x in w]
     print('bands', bands, 'widths', [round(x * 1e3, 1) for x in w], 'columns', ncol, flush=True)
     R, A = station_rows(V, pcs, bands, Sp, arc, STEP, ncol, anchor_band=sp['anchor_band'])
+    if sp.get('trim_shrink'):
+        # the stations past the point where a band starts to shrink (front: the side flare r5 cuts into the face
+        # towards the corner, its rows crumpled the grid there) are dropped; the end faces take that part
+        c0t = np.cumsum([0] + [n - 1 for n in ncol])
+        Wb = np.array([[np.linalg.norm(np.diff(r[c0t[k]:c0t[k] + ncol[k]], axis=0), axis=1).sum() for k in range(len(bands))] for r in R])
+        ab_ = sp['anchor_band']                          # the face band only (the top band narrows where r8 ends: legit)
+        ok = Wb[:, ab_] > sp['trim_shrink'] * np.median(Wb[:, ab_])
+        last = len(ok) if ok.all() else int(np.argmin(ok))
+        if last < len(R): print(f'stations trimmed at {A[last]*1e3:.0f} mm (a band shrinks there): {len(R) - last} dropped', flush=True)
+        R, A = R[:last], A[:last]
     # column offsets per band (from the crease on the anchor side) at the last full stations: for the partial rows
     c0_ = np.cumsum([0] + [n - 1 for n in ncol]); offs = []
     for k in range(len(bands)):
@@ -490,6 +501,11 @@ def build(car, out, which='rear'):
         print(f'r{b}: end face over {len(Fe)} triangles (bands {ks})', flush=True)
     if os.environ.get('BB_OTHERS', '1') == '1':
         res += others(V, F, N, pcs, bands, sp['name'])
+        # the part's other Kunos meshes (front: SUB0 = recess back panels + badge, SUB1 = slot inserts), per piece
+        for k_, mn in enumerate(sp.get('extra', [])):
+            V2, F2, N2 = PF.load_mesh(car, mn)
+            print(f'== {mn}', flush=True)
+            res += others(V2, F2, N2, PF.crease_pieces(V2, F2, N2), [], f'{sp["name"]}{k_}')
     os.makedirs(out, exist_ok=True)
     json.dump(res, open(os.path.join(out, 'panels_fit.json'), 'w'))
     np.savez(os.path.join(out, 'grid.npz'), G=G, arcs=a_all, raw=R_, raw_arc=A_, ncol=ncol, bands=bands)

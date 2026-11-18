@@ -90,6 +90,16 @@ if [ "$what" = bonnet ] || [ "$what" = all ]; then
   echo "bonnet holes: $(grep -c 'holefill:' $R/bonnet/holes.log) filled; $(grep -E '^underside|^nozzles' $R/bonnet/underside.log | tr '
 ' ' ')"
 fi
+if [ "$what" = sill ] || [ "$what" = all ]; then
+  # sills: GEO_body between the quarter's clip (z < -0.5) and the wing's (z > 0.62), below the door opening: 3 flat
+  # faces + a 4 mm strip, per piece (rall)
+  unset PF_NOROOF PF_MASTER PF_NOHATCH PF_HATCH_BUILD
+  export PF_CLIP=0.45,1,0,0.45,-0.5,0.62
+  python panel_fit.py $C $R/sill 'GEO_body:rall' > $R/sill.log 2>&1
+  PF_IN="$(cygpath -w $R/sill)" ./fcrun.sh panel_fit_freecad.py >> $R/sill.log 2>&1
+  echo "sill: $(python score_faces.py $C $R/sill GEO_body | tail -1)"
+  unset PF_CLIP
+fi
 if [ "$what" = frontbumper ] || [ "$what" = all ]; then
   # front bumper skin (GEO_frontbumper_SUB2): bands [7, 0, 1, 13] (soft piece edges merged, face columns by height),
   # the plate recess / lower intake bridged by the sweep and cut out as openings (bumper_build.py front)
