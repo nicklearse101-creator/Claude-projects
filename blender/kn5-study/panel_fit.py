@@ -82,8 +82,42 @@ def load_mesh(car_dir, name, raw=False):
     clip = os.environ.get('PF_CLIP')            # 'xmin,xmax,ymin,ymax,zmin,zmax' (AC metres): one panel of a shell
     if clip:
         b = np.array([float(x) for x in clip.split(',')]).reshape(3, 2); c = V[F].mean(1)
+        if os.environ.get('PF_CLIP_EXACT') == '1':
+            # triangles cut EXACTLY on the box planes (new vertices on the cut, shared by both sides' triangles), so two
+            # builds meeting at a box edge end on the same plane (by centroid each ended on Kunos's own triangle edges:
+            # a triangle gap between the tail and the quarter at x = 0.45, 18 Nov)
+            return clip_box(V, F, N, b)
         F = F[((c >= b[:, 0]) & (c <= b[:, 1])).all(1)]
     return V, F, N
+
+
+def clip_box(V, F, N, b):
+    """(V, F, N) with every triangle clipped to the box b (3 x 2: min, max per axis); cut vertices keyed by position"""
+    Vo, No, F2, key = list(V), list(N), [], {}
+    def vid(p, n):
+        k = tuple(np.round(p, 7))
+        if k not in key: key[k] = len(Vo); Vo.append(p); No.append(n / max(np.linalg.norm(n), 1e-12))
+        return key[k]
+    inside_all = ((V[F] >= b[:, 0] - 1e-12) & (V[F] <= b[:, 1] + 1e-12)).all((1, 2))
+    for f, ok in zip(F, inside_all):
+        if ok: F2.append(list(f)); continue
+        P = [(V[i], N[i], i) for i in f]
+        for ax in range(3):
+            for lim, sgn in ((b[ax, 0], 1), (b[ax, 1], -1)):
+                if not P: break
+                out = []
+                for j in range(len(P)):
+                    a_, c_ = P[j], P[(j + 1) % len(P)]
+                    da, dc = sgn * (a_[0][ax] - lim), sgn * (c_[0][ax] - lim)
+                    if da >= 0: out.append(a_)
+                    if (da >= 0) != (dc >= 0):
+                        t = da / (da - dc); out.append((a_[0] + t * (c_[0] - a_[0]), a_[1] + t * (c_[1] - a_[1]), None))
+                P = out
+        if len(P) < 3: continue
+        ids = [p[2] if p[2] is not None else vid(p[0], p[1]) for p in P]
+        for k in range(1, len(ids) - 1):
+            if len({ids[0], ids[k], ids[k + 1]}) == 3: F2.append([ids[0], ids[k], ids[k + 1]])
+    return np.array(Vo), np.array(F2, int).reshape(-1, 3), np.array(No)
 
 
 def components(V, F):

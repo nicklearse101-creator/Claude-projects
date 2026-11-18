@@ -67,7 +67,11 @@ Found by the close-ups (ownership view: D:/ClaudeData/tmp/bumper/rail_owner.png)
   the box plane (clip_tris, as the bumper end faces) + a cut plane on every face/strip/grid at the boundary.
 - (checked: NOT a z-fight - build_joins.py quarter vs hatch: 2 overlap triangles; the two surfaces sit 1.4-9 mm apart =
   the hatch shut gap seen edge-on.)
-NEXT: the clip-box seam, then front bumper corner (seam + banding) and tail lower-band wrap seams, hood_SUB2 (55 %: the bonnet
+- PF_CLIP_EXACT=1 (panel_fit.load_mesh -> clip_box): triangles cut exactly on the clip box. Tried on all four box
+  builds (scratch D:/ClaudeData/tmp/exact): sill 98.5 -> 100 %, tail 86.5 -> 90.9 %, quarter neutral (83.3 vs 83.6),
+  WING much worse (70.5 -> 54.9: its pieces change and fill_holes trips) -> ON for sill + tail only (regress.sh).
+  The quarter side of the tail seam still ends on Kunos's triangle edges (gap smaller, not gone).
+NEXT: the clip-box seam (quarter side), then front bumper corner (seam + banding) and tail lower-band wrap seams, hood_SUB2 (55 %: the bonnet
 underside frame is a simplified cap).
 
 ## Night of 18 Nov: front bumper, sills, tail panel
@@ -129,8 +133,8 @@ model now; later they will come from photos.
 | Hatch (U sweep + header + deck) | skin built 12 Nov, lower corners 13 Nov (hatch_build.py); corner tab, returns, quarter switch left | | skin median 0.16 mm, 97.5 % within 1 mm (tail 96.5 %) |
 | Rear bumper (7-band sweep + end faces + strips/fills) | 18 Nov: arch end closed | | whole 99.2 % within 1 mm, bands 99.8 % |
 | Front bumper (3-band sweep, openings cut, SUB0/SUB1 per piece) | 18 Nov night: first full build | | skin 92.2 % within 1 mm, SUB0 99.7 %, SUB1 91 % |
-| Sills | 18 Nov night | 98.5 % / 98.5 % | |
-| Tail panel | 18 Nov night: plate panel swept, rest per piece | | 89.8 % within 1 mm |
+| Sills | 18 Nov night (exact box clip) | 100 % / 100 % | |
+| Tail panel | 18 Nov night: plate panel swept, rest per piece, |x| < 0.45 (quarter owns outboard) | | 90.9 % within 1 mm |
 
 The **vertex** score is the honest one: Kunos uses 100-150 mm flat triangles that cut chords across curves, so the
 area score marks a correct smooth surface as "off" between vertices.

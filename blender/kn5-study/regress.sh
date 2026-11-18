@@ -94,21 +94,21 @@ if [ "$what" = sill ] || [ "$what" = all ]; then
   # sills: GEO_body between the quarter's clip (z < -0.5) and the wing's (z > 0.62), below the door opening: 3 flat
   # faces + a 4 mm strip, per piece (rall)
   unset PF_NOROOF PF_MASTER PF_NOHATCH PF_HATCH_BUILD
-  export PF_CLIP=0.45,1,0,0.45,-0.5,0.62
+  export PF_CLIP=0.45,1,0,0.45,-0.5,0.62 PF_CLIP_EXACT=1     # triangles cut exactly on the box (98.5 -> 100 %)
   python panel_fit.py $C $R/sill 'GEO_body:rall' > $R/sill.log 2>&1
   PF_IN="$(cygpath -w $R/sill)" ./fcrun.sh panel_fit_freecad.py >> $R/sill.log 2>&1
   echo "sill: $(python score_faces.py $C $R/sill GEO_body | tail -1)"
-  unset PF_CLIP
+  unset PF_CLIP PF_CLIP_EXACT
 fi
 if [ "$what" = tail ] || [ "$what" = all ]; then
   # tail panel (GEO_body behind the hatch: rail over the lamp openings, raised plate panel, lower band round the
   # corners), without the hatch's triangles: the plate panel swept along x (bumper_build.py tail), the rest per piece
   unset PF_NOROOF PF_MASTER PF_HATCH_BUILD
-  export PF_NOHATCH=1 PF_CLIP=-0.45,0.45,0.45,0.85,-2.2,-1.95   # x within the quarter clip (x > 0.45 is the quarter build: one owner)
+  export PF_CLIP_EXACT=1 PF_NOHATCH=1 PF_CLIP=-0.45,0.45,0.45,0.85,-2.2,-1.95   # x within the quarter clip (x > 0.45 is the quarter build: one owner)
   python bumper_build.py $C $R/tail tail > $R/tail.log 2>&1
   PF_SAVE_FACES=0 PF_IN="$(cygpath -w $R/tail)" ./fcrun.sh panel_fit_freecad.py >> $R/tail.log 2>&1 && python pack_build.py $R/tail $R/tail/build.npz >> $R/tail.log
   echo "tail: $(python bumper_score.py $C $R/tail/build.npz tail | grep -E '^whole')"
-  unset PF_NOHATCH PF_CLIP
+  unset PF_NOHATCH PF_CLIP PF_CLIP_EXACT
 fi
 if [ "$what" = frontbumper ] || [ "$what" = all ]; then
   # front bumper skin (GEO_frontbumper_SUB2): bands [7, 0, 1, 13] (soft piece edges merged, face columns by height),
