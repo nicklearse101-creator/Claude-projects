@@ -52,6 +52,15 @@ NEXT (in order):
 
 Older background: `HANDOVER.md` (kn5 study tools and environment), `REPLICA_PLAN.md` (the full results log).
 
+## Whole car assembled (18 Nov, 02:30) - plan step 5 started
+`python assemble.py CAR regress OUT.npz [OUT.png]` (PICTURE_ONLY=1 redraws): every regress build, left-only parts
+mirrored -> `_scratch_research/kn5_study/car_v1.npz` (1.4 M tris). Kunos shell vertices -> nearest of ours, within 1 / 3 mm:
+GEO_body 91.8 / 98.8 %, doors L 83.6-93.6 / 97.5-99.3 % (R 89.5 / 94.6: Kunos's right door is not an exact mirror),
+bonnet skin 100 %, hood_SUB2 55 % (its underside frame: our underside cap is a simplified stand-in), front bumper
+92.2 / 98.2 %, SUB0 98.7 %, SUB1 91.0 %, rear bumper 98.0 / 100 %. Picture: `images/whole_car_v1_grey.png` (Kunos left,
+ours right; the door window shows because our door build includes the glass).
+NEXT: zebra / close-ups per join (shut lines between builds), front bumper corner + tail lower-band seams, hood_SUB2.
+
 ## Night of 18 Nov: front bumper, sills, tail panel
 - **Front bumper** (`bumper_build.py front`, regress step `frontbumper`): skin GEO_frontbumper_SUB2 **92.2 %** of Kunos
   vertices within 1 mm (per-piece baseline 87.1), recess panels + badge (SUB0) 99.7 %, slot inserts (SUB1) 91 %.
