@@ -90,6 +90,15 @@ if [ "$what" = bonnet ] || [ "$what" = all ]; then
   echo "bonnet holes: $(grep -c 'holefill:' $R/bonnet/holes.log) filled; $(grep -E '^underside|^nozzles' $R/bonnet/underside.log | tr '
 ' ' ')"
 fi
+if [ "$what" = frontbumper ] || [ "$what" = all ]; then
+  # front bumper skin (GEO_frontbumper_SUB2): bands [7, 0, 1, 13] (soft piece edges merged, face columns by height),
+  # the plate recess / lower intake bridged by the sweep and cut out as openings (bumper_build.py front)
+  unset PF_CLIP PF_NOROOF PF_MASTER PF_NOHATCH PF_HATCH_BUILD
+  python bumper_build.py $C $R/frontbumper front > $R/frontbumper.log 2>&1
+  PF_SAVE_FACES=0 PF_IN="$(cygpath -w $R/frontbumper)" ./fcrun.sh panel_fit_freecad.py >> $R/frontbumper.log 2>&1 && python pack_build.py $R/frontbumper $R/frontbumper/build.npz >> $R/frontbumper.log
+  echo "front bumper: $(python bumper_score.py $C $R/frontbumper/build.npz front | grep -E '^bands|^whole' | tr '
+' ' ')"
+fi
 if [ "$what" = rearbumper ] || [ "$what" = all ]; then
   # rear bumper (its own Kunos mesh): main profile swept as 7 bands along the plan line, end faces at the arches cut on
   # the last station plane, every other piece as strips / faces on the built edges (bumper_build.py)

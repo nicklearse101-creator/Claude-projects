@@ -26,12 +26,39 @@ if os.path.isdir(r'D:\ClaudeData\pylibs') and r'D:\ClaudeData\pylibs' not in sys
 import panel_fit as PF
 
 MIR = np.array([-1.0, 1.0, 1.0])
+BRIDGE = 0.0          # m: join section chains across an opening in a band (spec 'bridge')
+YCOLS = ()            # band indices whose columns are spaced by height (spec 'ycols')
 SPEC = dict(rear=dict(mesh='GEO_rearbumper', bands=[1, 12, 0, 21, 20, 0, 3], spine_pair=(1, 12), anchor_band=2, name='rbump',
-                      centre_z=-1.55, mm_per_col=5.0))
+                      centre_z=-1.55, mm_per_col=5.0),
+            # front: GEO_frontbumper_SUB2 (the skin; SUB0 / SUB1 = the badge + slot inserts, later). bands=[]: every
+            # piece through others() (faces / strips / wrap splits) - the per-piece baseline before any sweep
+            front=dict(mesh='GEO_frontbumper_SUB2', bands=[7, 0, 1, 13], spine_pair=(1, 14), anchor_band=1, name='fbump',
+                       centre_z=1.55, zdir=1, mm_per_col=5.0, bridge=0.15, ycols=(1,),
+                       # Kunos splits one surface into differently numbered pieces along the bumper: the lip r15
+                       # carries on as r68 past x 676; r8 (the face's top, fading crease to r0) ends at x 674; r65 / r99
+                       # (a 5 mm line beside the plate recess) and r75 are bits of the face
+                       # soft boundaries (piece edges along big triangles over smooth / flat skin, wandering from
+                       # station to station: r1 / r14 on the flat top 30-77 mm, r0 / r15 low on the face 8-31 mm) are
+                       # merged into one band; bands keep only the real creases
+                       alias={68: 15, 15: 0, 14: 1, 8: 0, 65: 0, 99: 0, 75: 0}))
+
+
+def pieces(V, F, N, sp):
+    """crease pieces with the spec's alias pieces merged into their band piece (the alias left empty: indices and
+    names of every other piece unchanged)"""
+    pcs = PF.crease_pieces(V, F, N)
+    al = dict(sp.get('alias', {}))
+    def tgt(a):
+        while a in al: a = al[a]
+        return a
+    for a in al:
+        t = tgt(a)
+        if len(pcs[a]): pcs[t] = np.vstack([pcs[t], pcs[a]]); pcs[a] = np.zeros((0, 3), int)
+    return pcs
 STEP = float(os.environ.get('BB_STEP', 0.015))
 
 
-def spine(V, pcs, pair, centre_z, step=0.001):
+def spine(V, pcs, pair, centre_z, step=0.001, zdir=-1):
     """plan line (x, z) of the edge shared by crease pieces pair, left half (x >= 0) from the centre out, as a dense
     3D polyline at y = 0 (m) with arc lengths; symmetric by construction (mirrored points, fit, left half)"""
     import strip_build as SB
@@ -40,7 +67,7 @@ def spine(V, pcs, pair, centre_z, step=0.001):
     X = np.array([v for v, k in zip(V[np.unique(pcs[pair[1]])], key(V[np.unique(pcs[pair[1]])])) if tuple(k) in A])
     X = np.unique(np.round(X, 6), axis=0)
     X = np.r_[X, X * MIR]
-    ang = np.arctan2(X[:, 0], -(X[:, 2] - centre_z))            # 0 at the tail centre, + towards x > 0
+    ang = np.arctan2(X[:, 0], zdir * (X[:, 2] - centre_z))      # 0 at the tail (zdir -1) / nose (+1) centre, + towards x > 0
     X = X[np.argsort(ang)]; P = np.c_[X[:, 0], np.zeros(len(X)), X[:, 2]]
     a = np.r_[0, np.cumsum(np.linalg.norm(np.diff(P, axis=0), axis=1))]
     f = SB.fit_graph(a, P, [0, a[-1]], tol=1e-3, nmax=int(np.clip(a[-1] / 0.05, 4, 60)), mu=1e-4)
@@ -59,6 +86,44 @@ def _runs(V, T, Lb, cen, o, t):
     if len(segs) < 5: return None, None
     Q, tr = SW._chain_near(segs, tri, o)
     lab = Lb[np.nonzero(m)[0][tr]]
+    if BRIDGE > 0:
+        # an opening in a band (the front bumper's plate recess, left out of the bands): the section breaks there;
+        # chains whose end lies within BRIDGE of ours on the SAME band piece are joined straight across the gap
+        rest = np.ones(len(segs), bool)
+        kk = {tuple(np.round(q / 1e-6).astype(np.int64)) for q in Q}
+        for i_ in range(len(segs)):                         # used: either end on our chain (else re-chained: doubled back)
+            if tuple(np.round(segs[i_][0] / 1e-6).astype(np.int64)) in kk or tuple(np.round(segs[i_][1] / 1e-6).astype(np.int64)) in kk: rest[i_] = False
+        for _ in range(4):
+            idx = np.nonzero(rest)[0]
+            if len(idx) < 2: break
+            best = None
+            for end in (0, -1):
+                d_ = np.minimum(np.linalg.norm(segs[idx, 0] - Q[end], axis=1), np.linalg.norm(segs[idx, 1] - Q[end], axis=1))
+                j_ = int(np.argmin(d_))
+                if d_[j_] < BRIDGE and (best is None or d_[j_] < best[0]): best = (d_[j_], end, idx[j_])
+            if best is None: break
+            _, end, k_ = best
+            Q2, tr2 = SW._chain_near(segs[rest], tri[rest], segs[k_].mean(0))
+            lab2 = Lb[np.nonzero(m)[0][tr2]]
+            # the chord must carry both chains straight on (no doubling back onto a side chain)
+            def _ok(Pa, Pb):                                     # Pa ends at the gap (last point), Pb starts there
+                g_ = Pb[0] - Pa[-1]; gl = np.linalg.norm(g_)
+                if gl < 1e-6: return True
+                ta = Pa[-1] - Pa[max(len(Pa) - 4, 0)]; tb = Pb[min(3, len(Pb) - 1)] - Pb[0]
+                ta /= max(np.linalg.norm(ta), 1e-12); tb /= max(np.linalg.norm(tb), 1e-12)
+                return ta @ g_ / gl > 0.5 and tb @ g_ / gl > 0.5
+            if end == 0:                                        # attach before Q: Q2 must end at our start
+                if np.linalg.norm(Q2[0] - Q[0]) < np.linalg.norm(Q2[-1] - Q[0]): Q2, tr2, lab2 = Q2[::-1], tr2[::-1], lab2[::-1]
+                if lab2[-1] != lab[0] or not _ok(Q2, Q): break
+                Q = np.r_[Q2, Q]; tr = np.r_[tr2, tr2[-1:], tr]; lab = np.r_[lab2, lab2[-1:], lab]   # + the chord's label
+            else:
+                if np.linalg.norm(Q2[-1] - Q[-1]) < np.linalg.norm(Q2[0] - Q[-1]): Q2, tr2, lab2 = Q2[::-1], tr2[::-1], lab2[::-1]
+                if lab2[0] != lab[-1] or not _ok(Q, Q2): break
+                Q = np.r_[Q, Q2]; tr = np.r_[tr, tr[-1:], tr2]; lab = np.r_[lab, lab[-1:], lab2]
+            kk = {tuple(np.round(q / 1e-6).astype(np.int64)) for q in Q2}
+            sub = np.nonzero(rest)[0]
+            for i_ in sub:
+                if tuple(np.round(segs[i_][0] / 1e-6).astype(np.int64)) in kk or tuple(np.round(segs[i_][1] / 1e-6).astype(np.int64)) in kk: rest[i_] = False
     runs = []
     for k, l in enumerate(lab):
         if not runs or runs[-1][0] != l: runs.append([l, k, k])
@@ -105,7 +170,12 @@ def station_rows(V, pcs, bands, Sp, arc, step, ncol, verbose=True, anchor_band=2
             for k, (l, a, b) in enumerate(rr):
                 P = Q[a:b + 2]
                 if rev: P = P[::-1]
-                d = np.r_[0, np.cumsum(np.linalg.norm(np.diff(P, axis=0), axis=1))]
+                if k in YCOLS:      # a near-vertical band with horizontal feature lines (the front bumper's face):
+                    # columns spaced by HEIGHT, so a line at constant height falls on the same column at every station
+                    # (by arc length the recess chord / molding moved the columns: vertical ripples, 18 Nov)
+                    d = np.r_[0, np.cumsum(np.abs(np.diff(P[:, 1])) + 1e-6)]
+                else:
+                    d = np.r_[0, np.cumsum(np.linalg.norm(np.diff(P, axis=0), axis=1))]
                 q = np.linspace(0, d[-1], ncol[k])
                 R = np.c_[[np.interp(q, d, P[:, c]) for c in range(3)]].T
                 row.append(R if k == 0 else R[1:])
@@ -191,7 +261,7 @@ def others(V, F, N, pcs, bands, pre, amin=2e-5):
     # too small for a fitted face (no outline wire). Touching ones (a shared edge) that face the same way are one
     # group -> one corner fill, its outline snapped onto the built edges in the FreeCAD stage
     _, wid = PF.components(V, F)
-    tiny = [ri for ri, Fr in enumerate(pcs) if len(Fr) <= 3 and ri not in set(bands) and ri not in st]
+    tiny = [ri for ri, Fr in enumerate(pcs) if 0 < len(Fr) <= 3 and ri not in set(bands) and ri not in st]
     nr_ = {ri: (lambda n: n / np.linalg.norm(n))(N[pcs[ri]].mean((0, 1))) for ri in tiny}
     vs_ = {ri: set(wid[pcs[ri].ravel()]) for ri in tiny}
     par = {ri: ri for ri in tiny}
@@ -208,8 +278,20 @@ def others(V, F, N, pcs, bands, pre, amin=2e-5):
         if cf: out.append(cf)
         else: print(f'{pre}cf:r{g[0]} ({len(g)} pieces): no single outline - skipped', flush=True)
     tiny = set(tiny)
+    # right-hand pieces (x < 0) that are a left piece mirrored: built as its mirror (front bumper r6 was fitted on its
+    # own, 18 mm off, while its twin r5 was right; the mirror check said 10.9 mm). BB_MIRROR=0: off.
+    mkey = lambda X: frozenset(map(tuple, np.round(X * 2e3).astype(np.int64)))
+    twin = {}
+    if os.environ.get('BB_MIRROR', '1') == '1':
+        left_ = {mkey(V[np.unique(Fr)]): ri for ri, Fr in enumerate(pcs) if len(Fr) and V[np.unique(Fr)][:, 0].min() > 1e-4}
+        for ri, Fr in enumerate(pcs):
+            if not len(Fr): continue
+            X_ = V[np.unique(Fr)]
+            if X_[:, 0].max() < -1e-4 and ri not in tiny and ri not in set(bands):
+                li = left_.get(mkey(X_ * MIR))
+                if li is not None and li not in tiny: twin[ri] = li
     for ri, Fr in enumerate(pcs):
-        if ri in set(bands): continue
+        if ri in set(bands) or ri in twin or not len(Fr): continue
         T_ = V[Fr]; A_ = np.linalg.norm(np.cross(T_[:, 1] - T_[:, 0], T_[:, 2] - T_[:, 0]), axis=1).sum() / 2
         if A_ < amin: continue
         if ri in st:
@@ -235,6 +317,11 @@ def others(V, F, N, pcs, bands, pre, amin=2e-5):
                 cf = corner_fill(V, F, N, Fw, f'{pre}cf:r{ri}' + (f'w{wi}' if len(parts) > 1 else ''))
                 if cf: out.append(cf)
                 print(f'{nm} fit failed ({ex}): ' + ('corner fill' if cf else 'skipped'), flush=True)
+    import re
+    for ri, li in twin.items():
+        for o in [o for o in out if re.match(rf'{re.escape(pre)}:r{li}(?!\d)', o['name'])]:
+            out.append(dict(name=re.sub(rf'^{re.escape(pre)}:r{li}', f'{pre}:r{ri}', o['name']), mirror_of=o['name']))
+    if twin: print(f'mirrored pieces: {len(twin)}', flush=True)
     # left / right corner fill pairs: the right one (x < 0) = the left one mirrored, so both snap the same way (built
     # apart, r62 and r63 snapped 180 / 101 of their outline points onto different neighbours, 17 Nov)
     from scipy.spatial import cKDTree
@@ -312,9 +399,13 @@ def corner_fill(V, F, N, Fr, name, clip=None):
 def build(car, out, which='rear'):
     import hatch_build as HB
     sp = SPEC[which]
-    V, F, N = PF.load_mesh(car, sp['mesh']); pcs = PF.crease_pieces(V, F, N)
+    V, F, N = PF.load_mesh(car, sp['mesh']); pcs = pieces(V, F, N, sp)
+    global BRIDGE, YCOLS; BRIDGE = sp.get('bridge', 0.0); YCOLS = tuple(sp.get('ycols', ()))
     bands = sp['bands']
-    Sp, arc, err = spine(V, pcs, sp['spine_pair'], sp['centre_z'])
+    if not bands:
+        res = others(V, F, N, pcs, [], sp['name'])
+        os.makedirs(out, exist_ok=True); json.dump(res, open(os.path.join(out, 'panels_fit.json'), 'w')); return
+    Sp, arc, err = spine(V, PF.crease_pieces(V, F, N), sp['spine_pair'], sp['centre_z'], zdir=sp.get('zdir', -1))   # raw pieces: the pair's edge
     print(f'spine: {arc[-1]*1e3:.0f} mm (left half), fit max {err*1e3:.2f} mm', flush=True)
     # columns per band: from the band's typical width
     R0, _ = station_rows(V, pcs, bands, Sp, arc, 0.1, [3] * len(bands), verbose=False)
@@ -350,6 +441,18 @@ def build(car, out, which='rear'):
         nb = N[np.unique(pcs[b])].mean(0); nb /= np.linalg.norm(nb)
         res.append(dict(name=f'{sp["name"]}:r{b}b{k}', maxlen=float(os.environ.get('BB_MAXLEN', 8)), structured=True,
                         grid=(G[:, c0_[k]:c0_[k] + ncol[k]] * 1000).tolist(), frame=[[0, 0, 0], [1, 0, 0], [0, 1, 0], nb.tolist()], band_piece=int(b)))
+        if BRIDGE > 0:
+            # openings the sweep bridged (the plate recess, the lower intake): the band piece's inner boundary loops
+            # lying within the swept span, cut out of the grid face in the FreeCAD stage
+            _, wid_ = PF.components(V, pcs[b]); rep_ = {w: i for i, w in enumerate(wid_)}
+            L3 = [V[[rep_[w] for w in L]] for L in PF.boundary_loops(pcs[b], wid_)]
+            if len(L3) > 1:
+                L3.sort(key=lambda X: -np.linalg.norm(np.diff(np.r_[X, X[:1]], axis=0), axis=1).sum())
+                xmax = np.abs(G[0, c0_[k]:c0_[k] + ncol[k], 0]).min()
+                hs = [X for X in L3[1:] if np.abs(X[:, 0]).max() < xmax - 0.005]
+                if hs:
+                    res[-1]['holes'] = [(X * 1000).tolist() for X in hs]
+                    print(f'r{b}: {len(hs)} openings cut from the band (' + ', '.join(f'{np.ptp(X[:, 0])*1e3:.0f} mm wide' for X in hs) + ')', flush=True)
     # END faces at the arch (left; right = mirror): the sweep stops at its last full station; each band piece's
     # triangles past that station's plane are one fitted face over its own plane, with the sweep's last rows of that
     # piece as extra data (so it meets the band), cut exactly on the plane of the sweep's last row (the hatch header's

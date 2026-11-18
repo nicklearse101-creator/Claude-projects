@@ -62,6 +62,23 @@ for p in res:
             dev = max(face.distToShape(Part.Vertex(App.Vector(*q)))[0] for q in G_.reshape(-1, 3)[::7])
         shapes.append(face); built[p['name']] = face
         ml_ = float(os.environ.get('PF_MAXLEN') or p.get('maxlen') or 6)
+        if p.get('holes'):
+            # openings in a swept band (the front bumper's plate recess and lower intake, bridged by the sweep): each
+            # Kunos inner loop mapped onto the surface's (u, v), a polyline there, cut out of the face; meshed from
+            # the B-rep (the structured mesh cannot end on a hole's edge)
+            try:
+                V2 = App.Base.Vector2d; hw_ = []
+                for H_ in p['holes']:
+                    uv_ = [srf.parameter(App.Vector(*q)) for q in H_]
+                    ed_ = [Part.Geom2d.Line2dSegment(V2(*uv_[i_]), V2(*uv_[(i_ + 1) % len(uv_)])).toShape(srf) for i_ in range(len(uv_))
+                           if (np.subtract(uv_[i_], uv_[(i_ + 1) % len(uv_)]) ** 2).sum() > 1e-14]
+                    hw_.append(Part.Wire(Part.__sortEdges__(ed_)))
+                fx_ = face.copy(); fx_.cutHoles(hw_); fx2_ = fx_.copy(); fx2_.fix(1e-3, 1e-4, 1e-2)
+                if fx2_.isValid(): fx_ = fx2_
+                print(f"{p['name']:24s} holes: {len(hw_)} cut, area {face.Area / 1e6:.4f} -> {fx_.Area / 1e6:.4f} m2, valid {fx_.isValid()}", flush=True)
+                if fx_.isValid() and fx_.Area < face.Area:
+                    face = fx_; shapes[-1] = face; built[p['name']] = face; p = dict(p); p['structured'] = False
+            except Exception as ex: print(p['name'], 'holes failed:', ex, flush=True)
         if p.get('structured'):
             # mesh straight from the grid's own (u, v): rows of quads along the sweep, exact normals by srf.normal
             # (no srf.parameter() projection per point: the hatch U took 5 min that way)
