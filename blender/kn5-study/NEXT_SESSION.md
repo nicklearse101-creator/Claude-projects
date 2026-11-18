@@ -59,7 +59,7 @@ GEO_body 91.8 / 98.8 %, doors L 83.6-93.6 / 97.5-99.3 % (R 89.5 / 94.6: Kunos's 
 bonnet skin 100 %, hood_SUB2 55 % (its underside frame: our underside cap is a simplified stand-in), front bumper
 92.2 / 98.2 %, SUB0 98.7 %, SUB1 91.0 %, rear bumper 98.0 / 100 %. Picture: `images/whole_car_v1_grey.png` (Kunos left,
 ours right; the door window shows because our door build includes the glass).
-v2 (tail clipped to |x| < 0.45, one owner with the quarter): GEO_body 90.9 / 98.6 %, 12 vertices uncovered; pictures
+v3 (sill + tail with exact box clip): GEO_body 91.0 / 98.6 %, pictures images/whole_car_v3_grey.png + joins_v3_grey.png. v2 (tail clipped to |x| < 0.45, one owner with the quarter): GEO_body 90.9 / 98.6 %, 12 vertices uncovered; pictures
 `images/whole_car_v2_grey.png`, `images/joins_v2_grey.png` (rear corner, sill, front corner close-ups).
 Found by the close-ups (ownership view: D:/ClaudeData/tmp/bumper/rail_owner.png):
 - builds that meet at a clip box edge (tail | quarter at x = 0.45) leave a triangle gap: PF_CLIP keeps whole Kunos
