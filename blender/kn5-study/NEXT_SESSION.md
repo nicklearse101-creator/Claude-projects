@@ -52,6 +52,31 @@ NEXT (in order):
 
 Older background: `HANDOVER.md` (kn5 study tools and environment), `REPLICA_PLAN.md` (the full results log).
 
+## Night of 18 Nov: front bumper, sills, tail panel
+- **Front bumper** (`bumper_build.py front`, regress step `frontbumper`): skin GEO_frontbumper_SUB2 **92.2 %** of Kunos
+  vertices within 1 mm (per-piece baseline 87.1), recess panels + badge (SUB0) 99.7 %, slot inserts (SUB1) 91 %.
+  Picture (local): `images/front_bumper_v2_grey.png`. How:
+  - bands [0, 1, 13]; Kunos splits one surface into differently numbered pieces along the bumper and draws SOFT piece
+    edges along big triangles (r1/r14 on the flat top wandered 30-77 mm, r0/r15 8-31 mm) -> `alias` merges them into
+    one band (`pieces()`); bands keep only real creases. The lip r7 is a strip (others), so the sweep reaches the corner.
+  - the face band's columns are spaced by HEIGHT (`ycols`), so horizontal feature lines stay on one column (by arc
+    length they slid: vertical ripples).
+  - section chains are bridged across the plate recess / lower intake (`bridge`, with a direction check and the chord's
+    label) and those openings are cut back out of the band face (`holes`, FreeCAD: cutHoles in (u, v), standard mesher).
+  - stations stop where the face band shrinks below 85 % (`trim_shrink`): the side flare r5 cuts in there.
+  - right-hand pieces that mirror a left one are built as mirrors (all bumpers; r6 was 18 mm off on its own).
+  - LEFT: a seam where the sweep meets the corner end face r0eL (wraps ~90 deg, fit p95 2 mm), the flare r5's arch
+    edge (36 vertices > 1 mm, max 4.5), SUB1 inserts 91 %.
+- **Sills** (regress step `sill`): GEO_body between the quarter clip (z < -0.5) and the wing clip (z > 0.62) under the
+  door opening = 3 flat faces + a 4 mm strip, **98.5 %** of area within 1 mm.
+- **Tail panel** (new, was not on the list; regress step `tail`): GEO_body behind the hatch - rail over the lamp
+  openings, raised plate panel, lower band round the corners. First build per piece: 54.8 % / 86.4 % area within
+  1 / 3 mm; small faces 0.1-0.3 mm but the raised plate panel (r0: walls in one piece, max 12 mm) and the wrapped lower
+  band (r1 w0-w2, 4-10 mm) want a sweep like the bumpers. Picture: `images/tail_panel_v1_grey.png`. (PF_CREASE can't
+  be changed with PF_NOHATCH: the hatch ownership lookup asserts its piece sizes.)
+- Body coverage: with sill + tail, 92.4 % of GEO_body's vertices are within 1 mm of some build, 21 uncovered (was 344).
+- FreeCAD stage: `safe_normal()` everywhere a mesh normal is taken (collapsed strip / sliver tips crashed it twice).
+
 ## Rear bumper arch end (18 Nov, night)
 - Whole mesh **99.2 %** of Kunos vertices within 1 mm (was 97.9), bands 99.8 % (max 1.13 mm). Picture (local):
   `images/rear_bumper_v3_grey.png`. Full regress: every other part unchanged (bonnet 75.7 -> 77.4 % within 0.3 mm).
@@ -81,7 +106,9 @@ model now; later they will come from photos.
 | Bonnet (skin, nose, 13 edge strips, corner rounds, underside, nozzles) | done 11 Nov | | skin 100 % within 1 mm, edges 99.2 % |
 | Hatch (U sweep + header + deck) | skin built 12 Nov, lower corners 13 Nov (hatch_build.py); corner tab, returns, quarter switch left | | skin median 0.16 mm, 97.5 % within 1 mm (tail 96.5 %) |
 | Rear bumper (7-band sweep + end faces + strips/fills) | 18 Nov: arch end closed | | whole 99.2 % within 1 mm, bands 99.8 % |
-| Front bumper, sills | not started | | |
+| Front bumper (3-band sweep, openings cut, SUB0/SUB1 per piece) | 18 Nov night: first full build | | skin 92.2 % within 1 mm, SUB0 99.7 %, SUB1 91 % |
+| Sills | 18 Nov night | 98.5 % / 98.5 % | |
+| Tail panel | 18 Nov night: per-piece first build | 54.8 % / 86.4 % | |
 
 The **vertex** score is the honest one: Kunos uses 100-150 mm flat triangles that cut chords across curves, so the
 area score marks a correct smooth surface as "off" between vertices.

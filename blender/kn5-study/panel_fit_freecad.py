@@ -14,6 +14,15 @@ t0 = time.time()
 shapes, mesh, normals = [], {}, {}
 
 
+def safe_normal(sf_, u_, v_):
+    """surface normal at (u, v); at a collapsed edge (a strip or patch tapering to a point) there is none: step inside"""
+    U0, U1, W0, W1 = sf_.bounds()
+    for st in (0.0, 1e-3, 1e-2, 5e-2):
+        try:
+            return sf_.normal(u_ + st * (U1 - U0) * (1 if u_ < (U0 + U1) / 2 else -1), v_ + st * (W1 - W0) * (1 if v_ < (W0 + W1) / 2 else -1))
+        except Exception: pass
+    return App.Vector(0, 0, 1)
+
 def to_world(fr, s, t, h):
     c, e1, e2, w = [np.array(x) for x in fr]
     return c * 1000 + s * e1 + t * e2 + h * w
@@ -140,7 +149,7 @@ for p in res:
             pts_, nn = [], []
             for u_ in us_:
                 for v_ in (vs_ if vt_ is None else v0_ + (vs_ - v0_) * (float(vt_(u_)) - v0_) / (v1_ - v0_)):
-                    q = srf.value(u_, v_); n_ = srf.normal(u_, v_); pts_.append([q.x, q.y, q.z]); nn.append([n_.x, n_.y, n_.z])
+                    q = srf.value(u_, v_); n_ = safe_normal(srf, u_, v_); pts_.append([q.x, q.y, q.z]); nn.append([n_.x, n_.y, n_.z])
             nu_ = len(us_)
             if vt_ is not None:
                 # B-rep face for the STEP / neighbours: the surface trimmed by the outline in its (u, v) space (one 2D
@@ -183,7 +192,7 @@ for p in res:
         pts, fc = m.Topology
         nn = []
         for q in pts:
-            u_, v_ = srf.parameter(q); n_ = srf.normal(u_, v_); nn.append([n_.x, n_.y, n_.z])
+            u_, v_ = srf.parameter(q); n_ = safe_normal(srf, u_, v_); nn.append([n_.x, n_.y, n_.z])
         nn = np.array(nn); nn *= np.sign((nn @ np.array(p['frame'][3])).mean() or 1.0)
         mesh[p['name'] + '_P'] = np.array([[q.x, q.y, q.z] for q in pts]) / 1000.0; mesh[p['name'] + '_F'] = np.array(fc, int)
         normals[p['name']] = nn
@@ -394,7 +403,7 @@ for p in res:
     # pointing out of the car: same side as the frame's outward axis w
     sf = face.Faces[0].Surface; wout = np.array((p.get('line_frame') or p['frame'])[3]); nn = []
     for q in pts:
-        u_, v_ = sf.parameter(q); n_ = sf.normal(u_, v_); nn.append([n_.x, n_.y, n_.z])
+        u_, v_ = sf.parameter(q); n_ = safe_normal(sf, u_, v_); nn.append([n_.x, n_.y, n_.z])
     nn = np.array(nn); nn *= np.sign((nn @ wout).mean() or 1.0)
     normals[p['name']] = nn
     mesh[p['name'] + '_F'] = np.array(fc, int)
@@ -542,7 +551,7 @@ for p in strips:
         print(p['name'], 'strip mesh failed', flush=True); continue
     sf = face.Surface; nn = []
     for q in pts:
-        u_, v_ = sf.parameter(q); n_ = sf.normal(u_, v_); nn.append([n_.x, n_.y, n_.z])
+        u_, v_ = sf.parameter(q); n_ = safe_normal(sf, u_, v_); nn.append([n_.x, n_.y, n_.z])
     nn = np.array(nn); nn *= np.sign((nn @ np.array(st['frame'][3])).mean() or 1.0)
     mesh[p['name'] + '_P'] = np.array([[q.x, q.y, q.z] for q in pts]) / 1000.0; mesh[p['name'] + '_F'] = np.array(fc, int)
     normals[p['name']] = nn
@@ -803,7 +812,7 @@ if RET > 0 and not ONLY:
             if shared: continue
             fc = sh.Faces[0]; inner = []
             for q in pts:
-                u_, v_ = fc.Surface.parameter(q); nv = fc.Surface.normal(u_, v_)
+                u_, v_ = fc.Surface.parameter(q); nv = safe_normal(fc.Surface, u_, v_)
                 inner.append(q - nv * RET)
             # turn in on the side AWAY from the car's outside: face normals point out (checked below)
             w_out = App.Vector(*(res[names.index(n)].get('line_frame') or res[names.index(n)]['frame'])[3])
@@ -822,7 +831,7 @@ if RET > 0 and not ONLY:
             mesh[rn + '_P'] = np.array([[q.x, q.y, q.z] for q in pts_]) / 1000.0; mesh[rn + '_F'] = np.array(fc_, int)
             sf = rs.Faces[0].Surface; nn = []
             for q in pts_:
-                u_, v_ = sf.parameter(q); n_ = sf.normal(u_, v_); nn.append([n_.x, n_.y, n_.z])
+                u_, v_ = sf.parameter(q); n_ = safe_normal(sf, u_, v_); nn.append([n_.x, n_.y, n_.z])
             nn = np.array(nn); ctr = np.array([sh.CenterOfMass.x, sh.CenterOfMass.y, sh.CenterOfMass.z])
             pm = np.array([[q.x, q.y, q.z] for q in pts_])
             nn *= np.sign(((pm - ctr) * nn).sum(1).mean() or 1.0)       # facing out of the panel, into the gap

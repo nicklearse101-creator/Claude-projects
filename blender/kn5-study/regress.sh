@@ -100,6 +100,16 @@ if [ "$what" = sill ] || [ "$what" = all ]; then
   echo "sill: $(python score_faces.py $C $R/sill GEO_body | tail -1)"
   unset PF_CLIP
 fi
+if [ "$what" = tail ] || [ "$what" = all ]; then
+  # tail panel (GEO_body behind the hatch: rail over the lamp openings, raised plate panel, lower band round the
+  # corners), per piece without the hatch's triangles. First build: the wrapped pieces want a sweep (bumper style)
+  unset PF_NOROOF PF_MASTER PF_HATCH_BUILD
+  export PF_NOHATCH=1 PF_CLIP=-1,1,0.45,0.85,-2.2,-1.95
+  python panel_fit.py $C $R/tail 'GEO_body:rall' > $R/tail.log 2>&1
+  PF_IN="$(cygpath -w $R/tail)" ./fcrun.sh panel_fit_freecad.py >> $R/tail.log 2>&1
+  echo "tail: $(python score_faces.py $C $R/tail GEO_body | tail -1)"
+  unset PF_NOHATCH PF_CLIP
+fi
 if [ "$what" = frontbumper ] || [ "$what" = all ]; then
   # front bumper skin (GEO_frontbumper_SUB2): bands [7, 0, 1, 13] (soft piece edges merged, face columns by height),
   # the plate recess / lower intake bridged by the sweep and cut out as openings (bumper_build.py front)
