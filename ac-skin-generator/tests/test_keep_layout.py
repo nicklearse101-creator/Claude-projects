@@ -209,3 +209,17 @@ def test_2d_logo_stays_when_another_is_added(tmp_path, logos):
     bx = lambda d: (d['u'] - d['w'] / 2, d['v'] - d['h'] / 2, d['u'] + d['w'] / 2, d['v'] + d['h'] / 2)
     x0, y0, x1, y1 = bx(b2[kb]); X0, Y0, X1, Y1 = bx(b2[kg])
     assert max(0, min(x1, X1) - max(x0, X0)) * max(0, min(y1, Y1) - max(y0, Y0)) < 0.02 * b2[kg]['w'] * b2[kg]['h']
+
+
+def test_new_logo_keeps_off_writing_turned_at_an_angle(tmp_path, logos):
+    """Nik's Lacetti: the team name on the bonnet turned by hand, at an angle. A logo added later keeps off the
+    turned words themselves (not just a level box round them)."""
+    import template2d
+    d = dict(team="GIANT MIDGETS", team_places=['bonnet'])
+    turned = {'team name:bonnet': {'rot': 60}}
+    i1, _ = run(CAR, tmp_path, [], turned, **d)
+    i2, log = run(CAR, tmp_path, [lg(logos['green'], 'bonnet')], kept(turned, i1), **d)
+    t, new = boxes(i2, 'team name:bonnet')['top'], boxes(i2, key('bonnet', logos['green']))['top']
+    ob = lambda x: (x['a'], x['b'], x['w'], x['h'], x['rot'])
+    assert abs(t['rot'] - 60) < 1e-6
+    assert not template2d.obb_hit(ob(t), ob(new)) or any('covers' in l for l in log)

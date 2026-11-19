@@ -1542,14 +1542,6 @@ def place_decals(car, tm, paint, design, prof, base, acc, acc2, txt, log, missin
     return arrange_decals(decals, design, log, {'left': (sill, belt), 'right': (sill, belt)}, tm=tm)
 
 
-def _rect(dc):
-    """A decal's box in its surface group (roof numbers are turned into the top view's axes): group, a, b, w, h."""
-    h = dc.height; w = dc.width or h * dc.img.width / dc.img.height
-    if dc.rot % 180 == 90: w, h = h, w
-    if dc.view == 'roof_l': return 'top', -dc.b, dc.a, h, w
-    return dc.view, dc.a, dc.b, w, h
-
-
 def _set_centre(dc, a, b):
     if dc.view == 'roof_l': dc.a, dc.b = b, -a
     else: dc.a, dc.b = a, b
@@ -1651,16 +1643,15 @@ def fit_new(decals, adj, limits, log, tm=None):
     moves = sorted(((da, db) for da in steps(0.04, 15) for db in steps(0.03, 15)), key=lambda m: m[0] ** 2 + m[1] ** 2)
 
     def box(dc, da, db, s):
-        sgn = -1 if dc.view == 'right' else 1
-        h = dc.height * s; w = (dc.width or dc.height * dc.img.width / dc.img.height) * s
-        if dc.rot % 180 == 90: w, h = h, w
-        a, b = dc.a + sgn * da, dc.b + db
-        if dc.view == 'roof_l': return 'top', -b, a, h, w
-        return dc.view, a, b, w, h
+        """Its turned box moved / sized, and the level box round it: (group, a, b, w, h, turn), (w, h)."""
+        ob = _obb(dc, -da if dc.view == 'right' else da, db, s)
+        return ob, template2d.extent(ob[3], ob[4], ob[5])
 
     def fits(dc, da, db, s):
-        g, a, b, w, h = box(dc, da, db, s)
-        _, a_, b_, w_, h_ = box(dc, 0.0, 0.0, 1.0)         # where it was put: never held to more than that
+        ob, (w, h) = box(dc, da, db, s)
+        _, a, b = ob[:3]
+        o0, (w_, h_) = box(dc, 0.0, 0.0, 1.0)              # where it was put: never held to more than that
+        a_, b_ = o0[1], o0[2]
         lim, a0 = getattr(dc, 'lim', None), getattr(dc, 'a0', None)
         if lim and a0 is not None and dc.view != 'roof_l':   # along its panel, not off it
             if abs(a - a0) + w / 2 > max(lim / 2, abs(a_ - a0) + w_ / 2) + 1e-6: return False
@@ -1670,7 +1661,7 @@ def fit_new(decals, adj, limits, log, tm=None):
             lo, hi = span
             if b - h / 2 < min(lo, b_ - h_ / 2) - 1e-6 or b + h / 2 > max(hi, b_ + h_ / 2) + 1e-6: return False
         elif abs(db) > max(0.25, h_): return False
-        return _clear(g, a, b, w, h, fixed)
+        return _clear(ob, fixed)
 
     def cover(dc, da, db, s):
         """How much of it lands on the car there (as the placement check measures it)."""
@@ -1721,14 +1712,20 @@ def fit_new(decals, adj, limits, log, tm=None):
         fixed.extend(mine)
 
 
-def _clear(g, a, b, w, h, others):
-    """A box (surface group g, centre a, b, size w, h) is clear of the other decals (FIT_GAP round it)."""
+def _obb(dc, da=0.0, db=0.0, s=1.0):
+    """A decal's turned box in its surface group (roof numbers in the top view's axes), moved by (da, db) in its own
+    view and sized by s: group, a, b, w, h, turn (degrees) - as the preview draws it."""
+    h = dc.height * s; w = (dc.width or dc.height * dc.img.width / dc.img.height) * s
+    a, b = dc.a + da, dc.b + db
+    if dc.view == 'roof_l': return 'top', -b, a, w, h, dc.rot + 90
+    return dc.view, a, b, w, h, dc.rot
+
+
+def _clear(ob, others):
+    """A turned box (from _obb) is clear of the other decals, FIT_GAP round it - turned writing included."""
     for o in others:
-        g2, a2, b2, w2, h2 = _rect(o)
-        if g2 != g: continue
-        ia = min(a + w / 2 + FIT_GAP, a2 + w2 / 2) - max(a - w / 2 - FIT_GAP, a2 - w2 / 2)
-        ib = min(b + h / 2 + FIT_GAP, b2 + h2 / 2) - max(b - h / 2 - FIT_GAP, b2 - h2 / 2)
-        if ia > 0 and ib > 0: return False
+        o2 = _obb(o)
+        if o2[0] == ob[0] and template2d.obb_hit(ob[1:], o2[1:], FIT_GAP): return False
     return True
 
 
@@ -1916,13 +1913,11 @@ def place_hits(tm, dc, hm, wm, log, inside=False, allow_move=True, no_shared=Fal
         cov = coverage(img, a, b, wm, hm, tm.last_sharp)
         if cov < 0.985:
             best = (cov, 0.0, 0.0, idx, a, b)
-            g, ra, rb, rw, rh = _rect(dc)
 
             def free(da, db):                           # other decals may overlap it: moved on the preview if wanted -
                 avoid = getattr(dc, 'avoid', None)      # but one new since the last preview keeps clear of those kept (1.15)
                 if not avoid: return True
-                if dc.view == 'roof_l': return _clear(g, ra - db, rb + da, rw, rh, avoid)
-                return _clear(g, ra + da, rb + db, rw, rh, avoid)
+                return _clear(_obb(dc, da, db), avoid)
             far = ((0, .2), (0, -.2), (0, .25), (0, -.25), (.15, 0), (-.15, 0), (0, .3), (0, -.3), (.25, 0), (-.25, 0))
             for k_, (da, db) in enumerate(((0, .02), (0, -.02), (0, .04), (0, -.04), (0, .06), (0, -.06), (0, .1), (0, -.1), (.05, 0),
                                            (-.05, 0), (.1, 0), (-.1, 0), (.05, -.04), (-.05, -.04), (0, .15)) + far):
