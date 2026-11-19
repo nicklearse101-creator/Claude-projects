@@ -64,6 +64,17 @@ check('advice list filled (WHAT TO CHANGE header)', all:find('WHAT TO CHANGE', 1
 check('fine / measuring summary drawn', all:find('Fine: ', 1, true) ~= nil or all:find('Still measuring: ', 1, true) ~= nil, true)
 check('live tyre table drawn', all:find('Temp in / mid / out', 1, true) ~= nil, true)
 check('balance summary drawn', all:find('Low speed: push', 1, true) ~= nil, true)
+-- v3.2.0: the setup-screen window (manifest FLAGS = SETUP).
+out = {}
+local os2, e2 = pcall(script.windowSetup, 0.016)
+check('windowSetup draws', os2, true)
+if not os2 then print('    ' .. tostring(e2)) end
+local sAll = table.concat(out, '\n')
+check('setup window: tyre table', sAll:find('In/mid/out', 1, true) ~= nil, true)
+check('setup window: what to change', sAll:find('WHAT TO CHANGE', 1, true) ~= nil, true)
+check('setup window: balance summary', sAll:find('Low speed: push', 1, true) ~= nil, true)
+local mf = assert(io.open((appPath:gsub('[^/\\]+$', 'manifest.ini')), 'rb')); local man = mf:read('a'); mf:close()
+check('manifest declares the SETUP window', man:find('FUNCTION_MAIN = windowSetup', 1, true) ~= nil and man:find('FLAGS = SETUP', 1, true) ~= nil, true)
 local adv = src:match('\nfunction engine:buildAdvice%(.-\nend\n')
 local _, nDefs = adv:gsub('local function slowDamperAdvice%(', '')
 check('one slowDamperAdvice in buildAdvice', nDefs, 1)

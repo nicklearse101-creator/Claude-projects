@@ -9,7 +9,7 @@
   Version history: changelog.txt next to this file.
 ]]
 
-local VERSION = '3.1.1'
+local VERSION = '3.2.0'
 local G = 9.80665
 
 -- Speed (km/h) above which a handling balance issue is treated as
@@ -9208,10 +9208,10 @@ end
 -- Live tyre table: pressure against the hot target, inside/middle/outside
 -- and core temperature against the tyre's optimum - read straight from the
 -- car every frame.
-local function drawLiveTyres(car)
+local function drawLiveTyres(car, narrow)
   if not (car and car.wheels) then return end
   local x0 = ui.getCursorX()
-  local colX = {x0, x0 + 150, x0 + 280, x0 + 410, x0 + 540}
+  local colX = narrow and {x0, x0 + 78, x0 + 150, x0 + 222, x0 + 294} or {x0, x0 + 150, x0 + 280, x0 + 410, x0 + 540}
   local function row(label, vals, colors)
     ui.setCursorX(colX[1])
     ui.text(label)
@@ -9233,17 +9233,27 @@ local function drawLiveTyres(car)
     end
     tv[i] = string.format('%.0f / %.0f / %.0f', n(w and w.tyreInsideTemperature), n(w and w.tyreMiddleTemperature), n(w and w.tyreOutsideTemperature))
     local core, opt = n(w and w.tyreCoreTemperature), n(w and w.tyreOptimumTemperature)
-    cv[i] = opt > 0 and string.format('%.0f° (opt %.0f°)', core, opt) or string.format('%.0f°', core)
+    cv[i] = (opt > 0 and not narrow) and string.format('%.0f° (opt %.0f°)', core, opt) or string.format('%.0f°', core)
     if opt > 0 then
       local d = math.abs(core - opt)
       cc[i] = d <= 5 and PANEL_COLORS.ok or (d <= 12 and PANEL_COLORS.warn or PANEL_COLORS.act)
     end
   end
   ui.pushFont(ui.Font.Small)
+  local tF = n(engine.targetF, 0) > 0 and psiStr(engine.targetF) or '-'
+  local tR = n(engine.targetR, 0) > 0 and psiStr(engine.targetR) or '-'
   row('', {'FL', 'FR', 'RL', 'RR'})
-  row(string.format('Pressure (hot %s / %s)', n(engine.targetF, 0) > 0 and psiStr(engine.targetF) or '-', n(engine.targetR, 0) > 0 and psiStr(engine.targetR) or '-'), pv, pc)
-  row('Temp in / mid / out', tv)
-  row('Core', cv, cc)
+  if narrow then
+    row('Pressure', pv, pc)
+    row('In/mid/out', tv)
+    local opt = n(car.wheels[1] and car.wheels[1].tyreOptimumTemperature)
+    row('Core', cv, cc)
+    ui.text(string.format('Hot target F %s / R %s%s', tF, tR, opt > 0 and string.format(' · core optimum %.0f°', opt) or ''))
+  else
+    row(string.format('Pressure (hot %s / %s)', tF, tR), pv, pc)
+    row('Temp in / mid / out', tv)
+    row('Core', cv, cc)
+  end
   ui.popFont()
 end
 
@@ -9253,7 +9263,7 @@ local function drawWindowSummary()
   local passes, clean, _, _, _, minLaps, corners = engine:buildEvidence()
   local mode = balanceMode()
   ui.pushFont(ui.Font.Small)
-  ui.text(string.format('%d clean %s · %d corners since %s · %s', clean, unitWord(clean), corners,
+  ui.textWrapped(string.format('%d clean %s · %d corners since %s · %s', clean, unitWord(clean), corners,
     tostring(engine.windowLabel or 'session start'),
     passes and 'ready to Build' or string.format('Build needs %d clean %s and %d corners', minLaps, unitWord(minLaps), BUILD_MIN_CORNERS)))
   local per = corners > 0 and 100 / corners or 0
@@ -9269,7 +9279,7 @@ local function drawWindowSummary()
     ui.sameLine(0, 6)
     ui.textColored(word, col)
   end
-  ui.text(string.format('Balance target: %s · turn-in push %.0f%% of corners · lockups F %d / R %d',
+  ui.textWrapped(string.format('Balance target: %s · turn-in push %.0f%% of corners · lockups F %d / R %d',
     mode.label, (engine.turninPush or 0) * per, engine.lockF or 0, engine.lockR or 0))
   local function damp(e)
     local h = engine:damperHistVerdict(e)
@@ -9278,7 +9288,7 @@ local function drawWindowSummary()
     if h.verdict == 'bumpSoft' then return s .. ' (bump soft)' elseif h.verdict == 'rebSoft' then return s .. ' (rebound soft)' end
     return s .. ' (even)'
   end
-  ui.text(string.format('Travel used F %.0f%% / R %.0f%% · max-travel hits F %d / R %d · dampers F %s · R %s',
+  ui.textWrapped(string.format('Travel used F %.0f%% / R %.0f%% · max-travel hits F %d / R %d · dampers F %s · R %s',
     (engine.travelUsePeakF or 0) * 100, (engine.travelUsePeakR or 0) * 100,
     engine.springsHitsF or 0, engine.springsHitsR or 0, damp('F'), damp('R')))
   ui.popFont()
@@ -9302,13 +9312,13 @@ local function drawBiasRearm()
   end
 end
 
-local function drawBalanceModePicker()
-  ui.text('Balance target:')
+local function drawBalanceModePicker(narrow)
+  ui.text(narrow and 'Target:' or 'Balance target:')
   for _, key in ipairs(BALANCE_MODE_ORDER) do
     ui.sameLine(0, 6)
     local active = (balanceMode() == BALANCE_MODES[key])
     local label = active and ('[' .. BALANCE_MODES[key].label .. ']') or BALANCE_MODES[key].label
-    if ui.button(label .. '##balmode' .. key, vec2(96, 22)) then
+    if ui.button(label .. '##balmode' .. key, vec2(narrow and 98 or 96, 22)) then
       settings.balanceMode = key
     end
   end
@@ -9432,6 +9442,40 @@ function script.windowMain(dt)
   else
     ui.textWrapped('No baseline saved for this car/track yet.')
   end
+end
+
+-- Setup-screen window (manifest FLAGS = SETUP, beside Setup Exchange): the
+-- live numbers, what to change and Build, in a narrow column.
+function script.windowSetup(dt)
+  local car = ac.getCar(0)
+  ui.pushFont(ui.Font.Title)
+  ui.textAligned('Setup Coach', vec2(0.5, 0.5), vec2(ui.availableSpaceX(), 34))
+  ui.popFont()
+  drawLiveTyres(car, true)
+  ui.offsetCursorY(4)
+  ui.separator()
+  ui.offsetCursorY(4)
+  drawWindowSummary()
+  ui.offsetCursorY(4)
+  ui.separator()
+  ui.offsetCursorY(4)
+  ui.text('WHAT TO CHANGE - top first')
+  ui.offsetCursorY(2)
+  drawAdviceList(settings.compact)
+  ui.offsetCursorY(6)
+  ui.separator()
+  ui.offsetCursorY(4)
+  drawBalanceModePicker(true)
+  if ui.button('BUILD OPTIMAL SETUP##setupwin', vec2(ui.availableSpaceX(), 28)) then
+    engine:buildOptimalSetup()
+  end
+  ui.offsetCursorY(4)
+  ui.pushFont(ui.Font.Small)
+  ui.textWrapped(engine.setupMsg or '')
+  if engine.setupChanges and #engine.setupChanges > 0 then
+    for i = 1, #engine.setupChanges do ui.textWrapped('- ' .. engine.setupChanges[i]) end
+  end
+  ui.popFont()
 end
 
 function script.windowHud(dt)

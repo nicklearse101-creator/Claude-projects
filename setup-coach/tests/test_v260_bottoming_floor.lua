@@ -452,7 +452,7 @@ check('panel: no promise to raise ride height for bottoming',
 check('panel: no "stiffen both" slow dampers for bottoming', src:find('with bottoming → stiffen both (try 1 click)', 1, true), nil)
 check('panel: fast dampers no longer stiffened for bottoming', src:find("'bottoming too, so support the travel'", 1, true), nil)
 check('panel: springs are the chain\'s 4th fix, +10% at most', src:find('springs are the 4th fix of its bottoming chain', 1, true) ~= nil, true)
-check('VERSION 3.1.1', src:find("local VERSION = '3.1.1'", 1, true) ~= nil, true)
+check('VERSION 3.2.0', src:find("local VERSION = '3.2.0'", 1, true) ~= nil, true)
 -- A top-level local is only visible BELOW its declaration: the panel
 -- (buildAdvice) would read these as nil globals and error in game.
 local adviceAt = src:find('\nfunction engine:buildAdvice(', 1, true) or 0
