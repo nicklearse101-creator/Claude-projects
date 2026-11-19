@@ -1849,6 +1849,49 @@ def not_paint(name):
     return bool(NOT_PAINT_RE.search(name)) and not PAINTED_RE.search(name)
 
 
+LAMP_RE = re.compile(r'(?<!high)light(?!weight)|lamp|lens|faro|fari(?![a-z])|farol|fanal|phare|feux|scheinwerfer|koplamp', re.I)
+
+
+def is_lamp(m):
+    """A light / lamp / lens part, by its mesh or its material name (not one whose name says car paint)."""
+    label = f'{m.name} {m.mat.name if m.mat is not None else ""}'
+    return bool(LAMP_RE.search(label)) and not PAINTED_RE.search(label)
+
+
+def _uv_cover(meshes, W, H):
+    im = Image.new('L', (W, H), 0); d = ImageDraw.Draw(im)
+    for m in meshes:
+        if not len(m.idx): continue
+        uv = m.uv[m.idx]; uv = uv - np.floor(uv.min(1, keepdims=True))
+        for t in (uv * [W, H]).tolist():
+            d.polygon([tuple(p) for p in t], fill=255, outline=255)
+    return im
+
+
+def own_texels(mine, others, W, H, grow=5):
+    """(H, W) mask: the texels only `mine` use (none another part also uses), grown by a few texels so their edges
+    keep their look too - never onto another part's texels. None when `mine` is empty."""
+    if not mine: return None
+    a = np.asarray(_uv_cover(mine, W, H))
+    b = np.asarray(_uv_cover(others, W, H)) > 0 if others else np.zeros((H, W), bool)
+    if grow > 1: a = np.asarray(Image.fromarray(a).filter(ImageFilter.MaxFilter(grow)))
+    return (a > 0) & ~b
+
+
+def lamp_texels(meshes, W, H):
+    """Texels of a body texture that only lamps use (Lacetti: the head and tail lights are drawn on the livery
+    texture) - they keep the stock look. None when no lamp is on it."""
+    lamps = [m for m in meshes if is_lamp(m)]
+    return own_texels(lamps, [m for m in meshes if not is_lamp(m)], W, H) if lamps else None
+
+
+def keep_lamps(out_rgb, mem):
+    """The lamps' texels back to the stock texture (no paint, pattern, decal or soft paint edge on them)."""
+    lm = mem.get('lamps')
+    if lm is not None: out_rgb[lm] = mem['stock'][0][lm]
+    return out_rgb
+
+
 def stock_analysis(car, tex, W, H, tm, log=print):
     """Compare the stock skins one at a time (memory stays small even with many 4K skins).
     The comparison runs at up to 2048 px; the masks are then scaled to the texture size."""
@@ -2235,6 +2278,7 @@ def paint_materials(car):
     body = {t.lower() for t in car.body_textures}
     not_paint = re.compile(r'carbon|plast|chrome|rubber|trim|grill|black|matt?e(?![a-z])|glass|tyre|tire', re.I)
     return [n for n, mt in have.items() if (mt.samplers.get('txDiffuse') or '').lower() in body and not not_paint.search(n)
+            and not (LAMP_RE.search(n) and not PAINTED_RE.search(n))                # lamps on the livery texture
             and (mt.props.get('isAdditive', 0) == 2 or mt.props.get('fresnelMaxLevel', 0) >= 0.3)]
 
 
@@ -2920,6 +2964,10 @@ def tint_windows(car, design, made, copy_from=None, log=print):
             cov = np.zeros((H, W), np.uint8); cov[tmw.yy, tmw.xx] = 255
             cov = np.asarray(rank_filter(Image.fromarray(cov), 13, 'max')) > 0
             mask &= ~cov
+        if others:
+            # texels only lamps (or other non-glass parts) use stay clear in the texture itself, so the lamps are
+            # never tinted, with or without CSP
+            mask &= ~own_texels(others, gl, W, H)
         tmr = texel_map(rest, W, H)
         a_glass = arr[tmr.yy, tmr.xx, 3] / 255 if len(tmr.yy) else arr[..., 3].ravel() / 255
         px = arr[mask].astype(np.float32)
@@ -3313,7 +3361,8 @@ def _paint_texture(car, tm, mem, base, paint, shade, design, said, info, ctx, lo
     if 'prof' in ctx: _MEMO['prof'] = ctx['prof']
     # a decal is never broken: texels inside it that the paint mask left out (a stock logo, a
     # separate trim panel) are painted too - but not lights, grilles or glass
-    ok_mesh = np.array([not not_paint(nm) for nm in tm.mesh_of_tri])
+    lamp_names = {m.name for m in car.meshes_for(tm.tex) if is_lamp(m)} if hasattr(tm, 'tex') else set()
+    ok_mesh = np.array([not not_paint(nm) and nm not in lamp_names for nm in tm.mesh_of_tri])
     extra = forced & ~paint[tm.yy, tm.xx] & ok_mesh[tm.tri]
     if extra.any():
         paint = paint.copy(); paint[tm.yy[extra], tm.xx[extra]] = True
@@ -3321,6 +3370,7 @@ def _paint_texture(car, tm, mem, base, paint, shade, design, said, info, ctx, lo
         log(f'decals also cover {extra.sum()} texels outside the paint area ({", ".join(names)[:90]})')
     out_rgb = _paint_canvas(tm, cols, base, paint, shade)
     filled = spot_parts(tm, out_rgb, rgb(design['base']), log)
+    keep_lamps(out_rgb, mem)
     rgb_img = Image.fromarray(np.clip(out_rgb, 0, 255).astype(np.uint8))
     return rgb_img, filled
 
@@ -3361,6 +3411,7 @@ def clean_views(serial, width=1600, alpha=True, which=('left', 'right', 'front',
             base = mem.get('skin_base', base)
             out_rgb = _paint_canvas(tm, np.clip(mem['pattern'], 0, 255), base, paint, shade)
             spot_parts(tm, out_rgb, lp['base'], lambda m_: None)
+            keep_lamps(out_rgb, mem)
             img = Image.fromarray(np.clip(out_rgb, 0, 255).astype(np.uint8)); img.putalpha(Image.fromarray(alpha_))
             tex[t] = img
         return preview_views(lp['car'], tex, lp['tms'], width, layers=lp['layers'], alpha=alpha, keys=which)
@@ -3466,6 +3517,13 @@ def _generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pr
             mem.clear()
             mem['tm'] = tm
             mem['stock'] = stock_analysis(car, tex, W, H, tm, log)
+            lm = lamp_texels(car.meshes_for(tex), W, H)
+            if lm is not None and lm.any():
+                b_, a_, p_, s_ = mem['stock']
+                if (p_ & lm).sum() <= 0.15 * max(1, p_.sum()):      # (a body named like a lamp: not this)
+                    mem['stock'] = (b_, a_, p_ & ~lm, s_); mem['lamps'] = lm
+                    log(f'lights on this texture keep their own look: '
+                        f'{", ".join(sorted({m.name for m in car.meshes_for(tex) if is_lamp(m)}))[:90]}')
         tm = mem['tm']
         base, alpha, paint, shade = mem['stock']
         step(0.1 + 0.55 * (k_ + 0.6 / len(car.body_textures)), 'Painting the livery')

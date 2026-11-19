@@ -18,6 +18,14 @@ or in a `data` folder next to the installed app when "Keep my logos and settings
 (v1.9.0; copied from AppData, the old copy is left). Updates, moves and the uninstaller never delete it.
 
 ## Use
+**Fixed in 1.14.1 (18 Nov 2026):** lights kept as they are (Nik, Lacetti in game: paint over the head and tail lights, and
+the window tint on the headlights). Lamps drawn on the body texture (`is_lamp`: mesh OR material name - the Lacetti's
+INT_LIGHT housing is only named by its material) are left out of the paint area and put back from the stock texture after
+painting (`lamp_texels`, `keep_lamps`; skipped if 'lamps' would be over 15 % of the paint). Window tint: texels only lamp
+glass (or other non-glass parts) use stay clear in the glass texture itself (`own_texels`), so no CSP is needed for that;
+the CSP clear copy stays for texels they share. The paint finish is no longer put on lamp materials. Test:
+`tests/test_lamps.py`. Other cars' output unchanged (same_output_cars).
+
 **New in 1.14.0 (18 Nov 2026):** **Interior tab** (`interior.py`; research `research/Interior colours for AC skins.md`;
 phase-0 hand skin `research/proto_interior_mx5.py` checked in game on the MX-5 Cup: purple seats, "orange as orange"
 cage). Parts by name (AC's COCKPIT_HR/LR nodes, INT_ token, part words; belts before seats; stitches, displays, glass,

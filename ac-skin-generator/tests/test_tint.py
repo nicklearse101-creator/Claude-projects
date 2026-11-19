@@ -43,10 +43,21 @@ def ws_texels(car, tex, img):
     return tm.yy, tm.xx
 
 
+def lamp_glass(car, tex, W, H):
+    """Texels only the non-glass parts on the glass texture use (the Talbot's rally spot lamps)."""
+    ext, inner = skingen.window_meshes(car)
+    glass = {id(m) for m in ext + inner}
+    users = [m for m in car.kn5.meshes if m.mat is not None and len(m.idx) and m.mat.samplers.get('txDiffuse') == tex]
+    return skingen.own_texels([m for m in users if id(m) not in glass], [m for m in users if id(m) in glass], W, H)
+
+
 def test_whole_texture_tinted_to_the_edges(talbot):
     out, _ = run(talbot, windscreen=True)
     up = alpha_up(talbot, 'glass.png', out['glass.png'])
-    assert (up > 20).mean() > 0.97                                   # every texel, not just the mapped ones
+    lamp = lamp_glass(talbot, 'glass.png', up.shape[1], up.shape[0])
+    assert 0 < lamp.mean() < 0.1
+    assert (up[~lamp] > 20).mean() > 0.97                            # every other texel, not just the mapped ones
+    assert (np.abs(up[lamp]) <= 2).all()                             # the spot lamps' glass stays clear (1.14.1, Nik 18 Nov)
 
 
 def test_windscreen_left_clear(corvette):
