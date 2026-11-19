@@ -31,7 +31,7 @@ for root, dirs, files in os.walk(src):
 app = R.App()
 app.geometry('1500x950+20+20')
 for lg in app.library:                      # the Ratty logo on the bonnet (the others stay where they were)
-    if 'ratty' in lg['file'].lower(): lg['place'] = 'bonnet'; break
+    if 'ratty' in lg['file'].lower(): lg['place'] = 'bonnet'; BK = f"logo:bonnet:{lg['file']}"; break
 app.adjust_by_car.pop(CAR, None)
 problems, st = [], {}
 
@@ -62,23 +62,23 @@ def start():
 def first_done():
     miss = [m['key'] for m in app.missing]
     print('not placed after the first preview:', miss, flush=True)
-    if 'logo:bonnet' not in miss or not app.miss_bar.winfo_manager(): problems.append('bonnet logo not reported')
+    if BK not in miss or not app.miss_bar.winfo_manager(): problems.append('bonnet logo not reported')
     app.view_var.set('top'); app.on_view(); app.update()
     shot('pick_1_not_placed.png')
-    app.miss_box.current([m['key'] for m in app.missing].index('logo:bonnet')); app.start_pick()
+    app.miss_box.current([m['key'] for m in app.missing].index(BK)); app.start_pick()
     car = R.skingen.Car(os.path.join(CARS, CAR), log=lambda *a: None)
     b = -(car.hi[2] - 0.45)                 # top view: a spot on the bonnet, 45 cm from the front of the car
     x, y = app.to_screen('top', 0.0, b)
     app.on_press(types.SimpleNamespace(x=x, y=y))
-    print('picked:', app.adj().get('logo:bonnet'), '|', app.sel_label.cget('text'), flush=True)
+    print('picked:', app.adj().get(BK), '|', app.sel_label.cget('text'), flush=True)
     press(second_done)
 
 
 def second_done():
-    on = [d for d in app.info.get('decals', []) if d['key'] == 'logo:bonnet']
+    on = [d for d in app.info.get('decals', []) if d['key'] == BK]
     print('bonnet logo boxes:', [(d['view'], round(d['a'], 2), round(d['b'], 2)) for d in on],
           '| not placed now:', [m['key'] for m in app.missing], flush=True)
-    if not on or any(m['key'] == 'logo:bonnet' for m in app.missing): problems.append('bonnet logo not placed after the pick')
+    if not on or any(m['key'] == BK for m in app.missing): problems.append('bonnet logo not placed after the pick')
     if 'ERROR' in app.log_box.get('1.0', 'end'): problems.append('error in the log')
     app.view_var.set('top'); app.on_view(); app.update()
     shot('pick_2_placed.png')

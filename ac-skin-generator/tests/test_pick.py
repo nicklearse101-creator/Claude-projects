@@ -37,35 +37,35 @@ def boxes(info, key):
 
 def test_placed_logo_not_missing(monkeypatch, tmp_path):
     info, _ = run('doors', monkeypatch=monkeypatch, out=tmp_path)
-    assert info['missing'] == [] and set(boxes(info, 'logo:doors')) == {'left', 'right'}
+    assert info['missing'] == [] and set(boxes(info, 'logo:doors:ratty_racing_logo.jpg')) == {'left', 'right'}
 
 
 def test_no_place_found_is_reported(monkeypatch, tmp_path):
     info, log = run('bonnet', no_bonnet=True, monkeypatch=monkeypatch, out=tmp_path)
-    assert [m['key'] for m in info['missing']] == ['logo:bonnet']
-    assert 'bonnet' in info['missing'][0]['label'] and not boxes(info, 'logo:bonnet')
+    assert [m['key'] for m in info['missing']] == ['logo:bonnet:ratty_racing_logo.jpg']
+    assert 'bonnet' in info['missing'][0]['label'] and not boxes(info, 'logo:bonnet:ratty_racing_logo.jpg')
     assert any('pick it on the car' in l.lower() for l in log)
 
 
 def test_picked_spot_used_when_no_place_found(monkeypatch, tmp_path, car):
     b = -(car.hi[2] - 0.45)                        # top view: b = -z; a spot on the bonnet, near the front
-    info, _ = run('bonnet', adjust={'logo:bonnet': {'pin': {'top': [0.0, b]}}}, no_bonnet=True,
+    info, _ = run('bonnet', adjust={'logo:bonnet:ratty_racing_logo.jpg': {'pin': {'top': [0.0, b]}}}, no_bonnet=True,
                   monkeypatch=monkeypatch, out=tmp_path)
     assert info['missing'] == []
-    box = boxes(info, 'logo:bonnet')['top']
+    box = boxes(info, 'logo:bonnet:ratty_racing_logo.jpg')['top']
     assert abs(box['a']) < 0.01 and abs(box['b'] - b) < 0.01
 
 
 def test_picked_side_spot_goes_on_both_sides(monkeypatch, tmp_path, car):
     a, b = 0.3, 0.6
-    info, _ = run('doors', adjust={'logo:doors': {'pin': {'left': [a, b]}}}, monkeypatch=monkeypatch, out=tmp_path)
-    bx = boxes(info, 'logo:doors')
+    info, _ = run('doors', adjust={'logo:doors:ratty_racing_logo.jpg': {'pin': {'left': [a, b]}}}, monkeypatch=monkeypatch, out=tmp_path)
+    bx = boxes(info, 'logo:doors:ratty_racing_logo.jpg')
     assert info['missing'] == []
     assert (round(bx['left']['a'], 3), round(bx['left']['b'], 3)) == (a, b)
     assert (round(bx['right']['a'], 3), round(bx['right']['b'], 3)) == (-a, b)       # the same spot on the other side
 
 
 def test_logo_landing_nowhere_is_reported(monkeypatch, tmp_path):
-    info, _ = run('doors', adjust={'logo:doors': {'db': 5.0}}, monkeypatch=monkeypatch, out=tmp_path)   # moved off the car
-    assert [m['key'] for m in info['missing']] == ['logo:doors']
-    assert not boxes(info, 'logo:doors')
+    info, _ = run('doors', adjust={'logo:doors:ratty_racing_logo.jpg': {'db': 5.0}}, monkeypatch=monkeypatch, out=tmp_path)   # moved off the car
+    assert [m['key'] for m in info['missing']] == ['logo:doors:ratty_racing_logo.jpg']
+    assert not boxes(info, 'logo:doors:ratty_racing_logo.jpg')

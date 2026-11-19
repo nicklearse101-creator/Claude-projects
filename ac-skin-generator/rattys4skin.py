@@ -16,7 +16,7 @@ import tour
 messagebox = theme.messagebox      # dark dialogs, same calls as tkinter.messagebox (tests replace these)
 
 APP_NAME = skingen.APP_NAME
-VERSION = '1.14.1'
+VERSION = '1.15.0'
 
 
 def find_data_dir(exe_dir, appdata):
@@ -1164,6 +1164,9 @@ class App(tk.Tk):
                          if f'int_{g}' in self.vars and self.vars[f'int_{g}'].get()} or None
         for key in ('font_team', 'font_name', 'font_number'):
             d[key] = list_fonts().get(self.vars[key + '_name'].get())          # None = the default font
+        if self.adjust_by_car.get(self.vars['car'].get()):     # saved before 1.15: logos named by their order on a panel
+            skingen.upgrade_logo_keys(self.adjust_by_car[self.vars['car'].get()], d['logos'])
+            skingen.upgrade_logo_keys(self.adjust_gen, d['logos'])
         d['adjust'] = copy.deepcopy(self.adjust_by_car.get(self.vars['car'].get(), {}))
         d['base_skin'] = self.base_skin
         return d
@@ -1322,6 +1325,7 @@ class App(tk.Tk):
         self.saved = saved
         self.info = info or {}
         self.adjust_gen = copy.deepcopy(self.info.get('adjust') or {})
+        self.keep_placed()
         if not (auto and any(d['key'] == self.sel for d in self.info.get('decals', []))): self.sel = None
         self.show_missing(self.info.get('missing') or [])
         self.clean, self._clean_asked, self._view_cache = {}, set(), None
@@ -1349,6 +1353,16 @@ class App(tk.Tk):
             if self.views_car not in self._told_protected:
                 self._told_protected.add(self.views_car)
                 messagebox.showinfo(APP_NAME, msg)
+
+    def keep_placed(self):
+        """Where this preview put everything is kept (1.15, Nik 19 Nov): the next preview puts them back there, and only
+        new ones are placed round them. Not a change (no second preview); one changed while it was being made is left."""
+        placed = self.info.get('placed') or {}
+        if not placed: return
+        made_with, adj = self.info.get('adjust') or {}, self.adj()
+        skingen.merge_placed(self.adjust_gen, placed)
+        skingen.merge_placed(adj, {k: v for k, v in placed.items() if adj.get(k) == made_with.get(k)})
+        self.save_cfg()
 
     def request_clean(self, view):
         """Work out the car without its decals for one side of the preview on screen, in the background (only the side
@@ -1407,7 +1421,7 @@ class App(tk.Tk):
         self.canvas.configure(cursor='')
         a, b = self.from_screen(view, x, y)
         ad = self.adj().setdefault(key, {})
-        ad.pop('da', None); ad.pop('db', None)             # the picked spot replaces any earlier move
+        ad.pop('da', None); ad.pop('db', None); ad.pop('at', None)    # the picked spot replaces any earlier move
         ad['pin'] = {view: [round(float(a), 4), round(float(b), 4)]}
         lab = next((m['label'] for m in self.missing if m['key'] == key), key)
         self.sel_label.configure(text=f'{lab}: spot picked - the car is redrawn with it there.', foreground=theme.ACC)

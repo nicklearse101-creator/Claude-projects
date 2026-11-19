@@ -18,6 +18,20 @@ or in a `data` folder next to the installed app when "Keep my logos and settings
 (v1.9.0; copied from AppData, the old copy is left). Updates, moves and the uninstaller never delete it.
 
 ## Use
+**New in 1.15.0 (19 Nov 2026):** **what is on the car stays where it is** (Nik: "only new logos/names should be moved to
+fit, not ones already on the car"). After each preview the engine reports where every decal went, without the hand
+moves (`info['placed']` = {key: {view: [a, b, h]}}; 2D: {key: [u, v, h]}); the app keeps it as `adjust[key]['at']`
+(`merge_placed`; not counted as a change, saved with the settings and in r4s_design.json; a key changed while the
+preview was made is left alone). The next preview puts those back (`keep_spots`: same spot and size, never slid again;
+writing that grew is still kept on its panel) and only new decals are placed: `fit_new` slides them along / up / down
+their panel (sides: sill to belt line; bonnet, roof, boot: their length), then shrinks them (80/65/50 %) until they
+cover nothing and at least 90 % lands on the panel (checked on the car); the placement check never slides them back
+over the others (`avoid`). No room: left at the usual spot and the log says so. Logos are keyed by file
+(`logo:doors:sponsor.png`, was `logo:doors` / `logo:doors:2` by order - `upgrade_logo_keys` renames saved ones), so a
+logo added higher in the list never takes another's spot. 'Pick it on the car' and Reset drop the kept spot; Reset all
+lays everything out afresh. A Create straight after a preview still reuses its painting (memo alias for the kept
+spots). First previews are unchanged (same_output_cars). Tests: `tests/test_keep_layout.py`, `tests/test_keep_layout_app.py`.
+
 **Fixed in 1.14.1 (18 Nov 2026):** lights kept as they are (Nik, Lacetti in game: paint over the head and tail lights, and
 the window tint on the headlights). Lamps drawn on the body texture (`is_lamp`: mesh OR material name - the Lacetti's
 INT_LIGHT housing is only named by its material) are left out of the paint area and put back from the stock texture after

@@ -1,5 +1,5 @@
 =====================================================================================
-  RATTY'S4SKIN GENERATOR  v1.14.1          -  the user guide
+  RATTY'S4SKIN GENERATOR  v1.15.0          -  the user guide
   Custom liveries (skins) for Assetto Corsa cars. No AI, no internet, no Photoshop.
 =====================================================================================
 
@@ -191,7 +191,9 @@ CONTENTS
                        a logo there shows backwards on the other half. Tick to avoid it.
 
   Several logos can share one place: they start side by side and you move each one on
-  the preview.
+  the preview. Once the car has been previewed, anything already on it stays where it
+  is: a logo added later is fitted round the others (slid along or up/down its panel,
+  made smaller if it has to be).
 
 
 8. WINDOWS TAB
@@ -257,6 +259,10 @@ CONTENTS
     4. Let go and the car redraws itself after a few seconds - no need to press Preview.
        You can keep moving things while it redraws.
   Moves apply to both sides of the car (left and right match).
+  What is on the car stays put: after a preview every logo, number and name keeps its
+  spot, so adding another logo or a name later only places the new one (round the
+  others). Reset (that one) lets the app place it again; Reset all lays out everything
+  afresh.
 
   "NOT PLACED"
     If the app can't find a spot for something on a car (for example the bonnet of an odd
@@ -314,7 +320,9 @@ CONTENTS
 14. GOOD TO KNOW
 -------------------------------------------------------------------------------------
   - Logos, numbers and names go exactly where you asked: never moved, shrunk or left off
-    because they overlap - move them on the preview if you like.
+    because they overlap - move them on the preview if you like. Only something added
+    after a preview is fitted round what is already on the car; if there is no room the
+    log says so and you move it.
   - The log tells you what the app did, e.g. if a logo hung off its panel and was slid
     onto it.
   - Some cars use one picture for both halves of a panel (for example the Kadett

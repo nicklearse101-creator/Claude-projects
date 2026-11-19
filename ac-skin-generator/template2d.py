@@ -290,12 +290,62 @@ def apply_adjust(decals, adjust):
         ad = (adjust or {}).get(d['key'], {})
         if ad.get('deleted'): continue
         d = dict(d)
+        at = ad.get('at')
+        if isinstance(at, (list, tuple)) and len(at) >= 3:     # where the last preview put it (1.15): it stays there
+            d.update(u=float(at[0]), v=float(at[1]), h=float(at[2]), kept=True)
         if 'u' in ad: d['u'] = ad['u']
         if 'v' in ad: d['v'] = ad['v']
         d['h'] *= ad.get('scale', 1.0)
         d['rot'] = (d['rot'] + ad.get('rot', 0.0)) % 360
         out.append(d)
     return out
+
+
+def fit_new(sheet, items, adj, log):
+    """New ones (no kept spot, not moved or sized by hand) are slid about their panel, then made smaller (down to
+    half), until they cover none of the others - or their mirror copies (1.15, Nik 19 Nov). items: (decal, sprite)."""
+    hand = lambda k: any(x in (adj.get(k) or {}) for x in ('at', 'u', 'v', 'scale', 'rot'))
+
+    def rect(d, sp, du=0.0, dv=0.0, s=1.0):
+        h = d['h'] * s; w = sp.width * h / max(1, sp.height)
+        if round(d['rot'] / 90) % 2: w, h = h, w
+        return d['u'] + du, d['v'] + dv, w, h
+
+    fixed = []
+
+    def add(d, sp):
+        u, v, w, h = rect(d, sp)
+        fixed.append((u, v, w, h))
+        isl = sheet.island_at(u, v)
+        m = sheet.mirror(isl, u, v)
+        if m: fixed.append((m[1], m[2], w, h))
+    for d, sp in items:
+        if d.get('kept') or hand(d['key']): add(d, sp)
+    for n, (d, sp) in enumerate(items):
+        if d.get('kept') or hand(d['key']): continue
+        isl = sheet.island_at(d['u'], d['v']); I = sheet.islands.get(isl)
+        _, _, w0, h0 = rect(d, sp)
+        st = max(6.0, 0.2 * min(w0, h0))
+        steps = [0.0] + [s_ * st * i for i in range(1, 13) for s_ in (1, -1)]
+        moves = sorted(((du, dv) for du in steps for dv in steps), key=lambda m: m[0] ** 2 + m[1] ** 2)
+
+        def ok(du, dv, s):
+            u, v, w, h = rect(d, sp, du, dv, s)
+            if I is not None and (du or dv):
+                if (u - w / 2 < I['x0'] or u + w / 2 > I['x1'] or v - h / 2 < I['y0'] or v + h / 2 > I['y1']
+                        or sheet.island_at(u, v) != isl): return False
+            g = 4
+            return not any(min(u + w / 2 + g, U + W / 2) > max(u - w / 2 - g, U - W / 2) and
+                           min(v + h / 2 + g, V + H / 2) > max(v - h / 2 - g, V - H / 2) for U, V, W, H in fixed)
+        got = next(((du, dv, s) for s in (1.0, 0.8, 0.65, 0.5) for du, dv in moves if ok(du, dv, s)), None)
+        if got is None:
+            log(f'2D mode: {d["key"]}: no free room next to what is already on the sheet - it covers something; move it')
+        elif got != (0.0, 0.0, 1.0):
+            du, dv, s = got
+            d = dict(d, u=d['u'] + du, v=d['v'] + dv, h=d['h'] * s)
+            items[n] = (d, sp)
+            log(f'2D mode: {d["key"]}: placed round what is already on the sheet')
+        add(d, sp)
 
 
 def room(sheet, u, v, rot):
@@ -349,7 +399,7 @@ def paint(car, tex, design, log, pattern_colours, swatch_car, text_image, prep_l
     adj = design.get('adjust') or {}
     front = (adj.get('2d:front') or {}).get('rot', 0)
     decals = apply_adjust(default_decals(sheet, design, front), adj)
-    boxes = []
+    items = []
     for d in decals:
         try: sp = decal_sprite(d, design, text_image, prep_logo, rgb, fonts)
         except Exception as e:
@@ -357,6 +407,10 @@ def paint(car, tex, design, log, pattern_colours, swatch_car, text_image, prep_l
         if 'scale' not in adj.get(d['key'], {}):        # not sized by hand: it fits across its panel
             fit = 0.88 * room(sheet, d['u'], d['v'], d['rot']) / max(1, sp.width / max(1, sp.height))
             if fit < d['h']: d = dict(d, h=fit)
+        items.append((d, sp))
+    if any(d.get('kept') for d, _ in items): fit_new(sheet, items, adj, log)
+    boxes = []
+    for d, sp in items:
         u, v, w, h, rot, isl = place(sheet, col, d, sp)
         mir = sheet.mirror(isl, u, v)
         twin = None
@@ -365,13 +419,15 @@ def paint(car, tex, design, log, pattern_colours, swatch_car, text_image, prep_l
             twin = place(sheet, col, dict(d, u=u2, v=v2, rot=(rot + 180) % 360), sp)
         thumb = sp.copy(); thumb.thumbnail((512, 512))
         boxes.append(dict(key=d['key'], label=d['kind'], u=u, v=v, w=w, h=h, rot=rot, island=isl, sprite=thumb,
-                          twin=list(twin[:5]) if twin else None))
+                          twin=list(twin[:5]) if twin else None,
+                          at=[round(float(u), 2), round(float(v), 2),
+                              round(float(d['h']) / float(adj.get(d['key'], {}).get('scale', 1.0) or 1.0), 3)]))
     out = shade(sheet, col)
     rgba = np.dstack([out, sheet.alpha])
     image = Image.fromarray(rgba, 'RGBA')
     info = dict(mode='2d', source_skin=skin, size=(sheet.W, sheet.H), decals2d=boxes, front=front,
                 islands2d={i: {k: sheet.islands[i][k] for k in ('x0', 'x1', 'y0', 'y1')} for i in sheet.islands},
-                pairs2d=dict(sheet.pairs),
+                pairs2d=dict(sheet.pairs), placed={b['key']: list(b['at']) for b in boxes},
                 sheet=image, sheet_clean=Image.fromarray(np.dstack([clean, sheet.alpha]), 'RGBA'))
     return image, info
 

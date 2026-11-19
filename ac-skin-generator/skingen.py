@@ -1308,13 +1308,18 @@ def render_design(car, tm, paint, design, log=print, info=None, ctx=None, mem=No
     ctx['landed'] = ctx.get('landed', frozenset()) | {(decals[k].key, decals[k].view) for k in got}
     if info is not None:            # where each decal went (after any slide onto its panel), for the preview boxes
         have = {(d_['key'], d_['view']) for d_ in info.setdefault('decals', [])}
+        hand = design.get('adjust') or {}
         for dc in decals:
             if (dc.key, dc.view) not in have:
                 sprite = dc.img.convert('RGBA'); sprite.thumbnail((512, 512))     # drawn live while it is moved
+                ad, sgn = hand.get(dc.key) or {}, (-1 if dc.view == 'right' else 1)
+                # where it went, without the hand moves: kept by the app, so it stays there when more is added (1.15)
+                at = [round(float(dc.a) - sgn * float(ad.get('da', 0)), 5), round(float(dc.b) - float(ad.get('db', 0)), 5),
+                      round(float(dc.height) / float(ad.get('scale', 1) or 1), 5)]
                 info['decals'].append(dict(key=dc.key, label=dc.label, view=dc.view, a=float(dc.a), b=float(dc.b), h=float(dc.height),
                                            w=float(dc.width or dc.height * dc.img.width / dc.img.height), rot=float(dc.rot),
                                            slid=[float(v) for v in getattr(dc, 'slid', (0.0, 0.0))],
-                                           flip=bool(getattr(dc, 'flip', False)), sprite=sprite))
+                                           flip=bool(getattr(dc, 'flip', False)), sprite=sprite, at=at))
     return np.clip(col, 0, 255), forced
 
 
@@ -1425,10 +1430,15 @@ def place_decals(car, tm, paint, design, prof, base, acc, acc2, txt, log, missin
             lim = room.get(place)
             if lim and hh * img.width / img.height > lim / share:   # long writing: shrink it to the panel, never run off it
                 hh = lim / share * img.height / img.width
+            a0 = a
             if a_shift: a = a + (-a_shift if view == 'right' else a_shift)   # along the car, the same way on both sides
-            decals.append(Decal(img, view, a, b + b_shift * h, hh, rot=rot, region=reg, glow=glow, facing=facing,
-                                label=f'{what} on the {PLACES[place].lower()} ({view})',
-                                key=key, kind='logo' if what == 'logo' else 'text'))
+            dc = Decal(img, view, a, b + b_shift * h, hh, rot=rot, region=reg, glow=glow, facing=facing,
+                       label=f'{what} on the {PLACES[place].lower()} ({view})', key=key, kind='logo' if what == 'logo' else 'text')
+            dc.lim, dc.a0 = lim, a0                  # its panel's room and middle: where a new one may be slid (fit_new)
+            if place in ('bonnet', 'roof', 'boot') and place in pan and view == 'top':
+                zc_, ln_, _ = pan[place]               # (top view: b = -z) and how far along the car the panel goes
+                dc.bspan = (-zc_ - ln_ / 2 + 0.03, -zc_ + ln_ / 2 - 0.03)
+            decals.append(dc)
 
     team, name = (design.get('team') or '').strip(), (design.get('name') or '').strip()
     tplaces = design.get('team_places') or ['front_wings', 'boot', 'rear', 'front']
@@ -1440,19 +1450,18 @@ def place_decals(car, tm, paint, design, prof, base, acc, acc2, txt, log, missin
     if design.get('logo'):
         logos += [dict(path=design['logo'], place=p, tint=design.get('tint_logo', True)) for p in ('doors', 'bonnet')]
     taken = set()
-    by_place = {}                                  # every logo asked for goes on: several on one panel sit side by side
-    for lg in logos:
-        p = lg.get('place')
-        if p not in PLACES or not lg.get('path') or not os.path.isfile(lg['path']): continue
+    by_place, keys_at = {}, {}                     # every logo asked for goes on: several on one panel sit side by side
+    for lg, k_ in zip(*_logo_keys(logos)):
+        p = lg['place']
         try:
             img = prep_logo(lg['path'], acc2 if lg.get('tint') else None, lg.get('bg', 'auto'))
         except Exception as e:
             log(f'logo {os.path.basename(lg["path"])}: cannot read it ({e})'); continue
-        by_place.setdefault(p, []).append(img)
+        by_place.setdefault(p, []).append(img); keys_at.setdefault(p, []).append(k_)
     for p, imgs in by_place.items():
         n = len(imgs)
         sc = (0.68 if p in written else 1.0) * (1.0 if n == 1 else max(0.45, 1.0 / n ** 0.5))
-        g0 = geo_for(p, f'logo:{p}') or geo(p)
+        g0 = geo_for(p, keys_at[p][0]) or geo(p)
         h0 = g0[0][3] * sc if g0 else PIN_HEIGHT.get(p, 0.25) * sc
         lim = room.get(p)
         ws = []
@@ -1467,7 +1476,7 @@ def place_decals(car, tm, paint, design, prof, base, acc, acc2, txt, log, missin
             is_pic = bool(img.info.get('picture'))
             # a place with writing as well: the logo is made smaller and moved up, the writing goes under it
             put(p, img, glow=acc2 if p in ('doors', 'bonnet') and not is_pic else None,
-                key=f'logo:{p}' if i == 0 else f'logo:{p}:{i + 1}', share=n, a_shift=x + ws[i] / 2 if n > 1 else 0.0,
+                key=keys_at[p][i], share=n, a_shift=x + ws[i] / 2 if n > 1 else 0.0,
                 scale=sc, **(dict(b_shift=0.16) if p in written else {}))
             x += ws[i] + gap
         if n > 1: log(f'{n} logos on the {PLACES[p].lower()}: side by side - move them on the preview')
@@ -1530,7 +1539,7 @@ def place_decals(car, tm, paint, design, prof, base, acc, acc2, txt, log, missin
             put(p, t_img, scale=sc, what='team name')
         else:
             put(p, n_img, scale=sc * 0.8, what='driver name')
-    return arrange_decals(decals, design, log, {'left': (sill, belt), 'right': (sill, belt)})
+    return arrange_decals(decals, design, log, {'left': (sill, belt), 'right': (sill, belt)}, tm=tm)
 
 
 def _rect(dc):
@@ -1546,7 +1555,7 @@ def _set_centre(dc, a, b):
     else: dc.a, dc.b = a, b
 
 
-def arrange_decals(decals, design, log, limits=None):
+def arrange_decals(decals, design, log, limits=None, tm=None):
     """Decals go where they were asked for - overlapping ones too (Nik, 11 Nov: never moved, shrunk or left off
     because they cover each other; they can be moved on the preview). Deleted ones are left off, then the hand
     adjustments from the preview (move / size / turn / flip) are applied."""
@@ -1555,7 +1564,172 @@ def arrange_decals(decals, design, log, limits=None):
     if gone:
         decals = [d for d in decals if d not in gone]
         log(f'left off (deleted on the preview): {", ".join(sorted({d.label.split(" (")[0] for d in gone}))}')
-    return hand_adjust(decals, adj)
+    kept = keep_spots(decals, adj)
+    decals = hand_adjust(decals, adj)
+    if kept: fit_new(decals, adj, limits or {}, log, tm)  # round the others as they show, hand moves and all
+    return decals
+
+
+# ---- what is on the car stays where it is (1.15, Nik 19 Nov: "only new logos/names should be moved to fit, not ones
+# already on the car"). After a preview the app keeps where each one went (adjust[key]['at'] = {view: [a, b, h]}, before
+# the hand moves); those go back there, and only new ones are placed - round them.
+def logo_key(place, path):
+    """A logo's name for its hand adjustments: its place and its file (before 1.15: its number on the panel)."""
+    return f'logo:{place}:{os.path.basename(path)}'
+
+
+def _logo_keys(logos):
+    """The logos that go on (a place, a file that is there), and each one's key."""
+    out, keys = [], []
+    for lg in logos or []:
+        p, path = lg.get('place'), lg.get('path')
+        if p not in PLACES or not path or not os.path.isfile(path): continue
+        k, n = logo_key(p, path), 2
+        while k in keys: k, n = f'{logo_key(p, path)}#{n}', n + 1      # the same file twice on one panel
+        out.append(lg); keys.append(k)
+    return out, keys
+
+
+def upgrade_logo_keys(adjust, logos):
+    """Adjustments saved before 1.15 named a panel's logos by their order (logo:doors, logo:doors:2): renamed to the
+    logo's file, so they stay with the same logo. Changes and returns `adjust`."""
+    if not adjust: return adjust
+    seen = {}
+    for lg, new in zip(*_logo_keys(logos)):
+        p = lg['place']
+        i = seen[p] = seen.get(p, 0) + 1
+        old = f'logo:{p}' if i == 1 else f'logo:{p}:{i}'
+        if old in adjust and new not in adjust: adjust[new] = adjust.pop(old)
+    return adjust
+
+
+def merge_placed(adjust, placed):
+    """Where the last preview put everything (info['placed']) kept in the adjustments: a spot already kept is never
+    changed. Changes and returns `adjust`."""
+    for k, at in (placed or {}).items():
+        ad = adjust.setdefault(k, {})
+        if isinstance(at, dict): ad['at'] = {**at, **(ad.get('at') or {})}
+        elif 'at' not in ad: ad['at'] = list(at)
+    return adjust
+
+
+def keep_spots(decals, adj):
+    """Decals with a kept spot go back there (same size; long writing that grew still never runs off its panel).
+    Returns those decals."""
+    kept = []
+    for dc in decals:
+        at = ((adj.get(dc.key) or {}).get('at') or {}).get(dc.view)
+        if not at or len(at) < 3: continue
+        h = float(at[2])
+        w = (dc.width or dc.height * dc.img.width / dc.img.height) * h / max(dc.height, 1e-9)
+        lim = getattr(dc, 'lim', None)
+        if lim and w > lim: h, w = h * lim / w, lim
+        if dc.width: dc.width = w
+        dc.a, dc.b, dc.height = float(at[0]), float(at[1]), h
+        dc.kept = True                                    # already where it should be: not slid onto its panel again
+        kept.append(dc)
+    return kept
+
+
+FIT_GAP = 0.015                                         # clear room between a new decal and the others (m)
+
+
+FIT_COVER = 0.9                                         # how much of a new decal must land on its panel where it is slid to
+FIT_TRIES = 30                                          # spots clear of the others tried on the car, per size
+
+
+def fit_new(decals, adj, limits, log, tm=None):
+    """New decals (no kept spot, not placed or moved by hand) are slid along / up / down their panel, then made smaller
+    (down to half), until they cover none of the others and sit on their panel (checked on the car when its texel map
+    tm is given; they are then not slid again); if nothing works they stay where they were put."""
+    hand = lambda k: any(x in (adj.get(k) or {}) for x in ('at', 'pin', 'da', 'db', 'scale', 'rot'))
+    new_keys = []
+    for dc in decals:
+        if not getattr(dc, 'kept', False) and not hand(dc.key) and dc.key not in new_keys: new_keys.append(dc.key)
+    fixed = [dc for dc in decals if dc.key not in new_keys]
+    steps = lambda d, n: [0.0] + [s * d * i for i in range(1, n + 1) for s in (1, -1)]
+    moves = sorted(((da, db) for da in steps(0.04, 15) for db in steps(0.03, 15)), key=lambda m: m[0] ** 2 + m[1] ** 2)
+
+    def box(dc, da, db, s):
+        sgn = -1 if dc.view == 'right' else 1
+        h = dc.height * s; w = (dc.width or dc.height * dc.img.width / dc.img.height) * s
+        if dc.rot % 180 == 90: w, h = h, w
+        a, b = dc.a + sgn * da, dc.b + db
+        if dc.view == 'roof_l': return 'top', -b, a, h, w
+        return dc.view, a, b, w, h
+
+    def fits(dc, da, db, s):
+        g, a, b, w, h = box(dc, da, db, s)
+        _, a_, b_, w_, h_ = box(dc, 0.0, 0.0, 1.0)         # where it was put: never held to more than that
+        lim, a0 = getattr(dc, 'lim', None), getattr(dc, 'a0', None)
+        if lim and a0 is not None and dc.view != 'roof_l':   # along its panel, not off it
+            if abs(a - a0) + w / 2 > max(lim / 2, abs(a_ - a0) + w_ / 2) + 1e-6: return False
+        elif abs(da) > 0.3: return False
+        span = limits.get(dc.view) or getattr(dc, 'bspan', None)   # sides: sill to belt line; bonnet, roof, boot: their length
+        if span and dc.view != 'roof_l':
+            lo, hi = span
+            if b - h / 2 < min(lo, b_ - h_ / 2) - 1e-6 or b + h / 2 > max(hi, b_ + h_ / 2) + 1e-6: return False
+        elif abs(db) > max(0.25, h_): return False
+        return _clear(g, a, b, w, h, fixed)
+
+    def cover(dc, da, db, s):
+        """How much of it lands on the car there (as the placement check measures it)."""
+        was = dc.a, dc.b, dc.height, dc.width
+        dc.a += -da if dc.view == 'right' else da; dc.b += db; dc.height *= s
+        if dc.width: dc.width *= s
+        try:
+            img, hm, wm = decal_size(dc, tm.texel_m)
+            idx, a, b = decal_hits(tm, dc, hm, wm, 0.0, False)
+            return coverage(img, a, b, wm, hm, tm.last_sharp) if len(idx) else 0.0
+        except Exception:
+            return 0.0
+        finally:
+            dc.a, dc.b, dc.height, dc.width = was
+
+    def search(mine):
+        if tm is None or any(dc.coords is not None for dc in mine):
+            return next(((da, db, s) for s in (1.0, 0.8, 0.65, 0.5) for da, db in moves
+                         if all(fits(dc, da, db, s) for dc in mine)), None), False
+        best = None
+        for s in (1.0, 0.8, 0.65, 0.5):
+            tried = 0
+            for da, db in moves:
+                if not all(fits(dc, da, db, s) for dc in mine): continue
+                c = min(cover(dc, da, db, s) for dc in mine)
+                if c >= FIT_COVER: return (da, db, s), True
+                if best is None or c > best[0]: best = (c, (da, db, s))
+                tried += 1
+                if tried >= FIT_TRIES: break
+        if best and best[0] >= 0.75: return best[1], True
+        return None, False
+
+    for k in new_keys:
+        mine = [dc for dc in decals if dc.key == k]
+        got, checked = search(mine)
+        name = mine[0].label.split(' (')[0]
+        if got is None:
+            log(f'{name}: no free room next to what is already on the car there - it covers something; move it on the preview')
+        elif got != (0.0, 0.0, 1.0):
+            da, db, s = got
+            for dc in mine:
+                dc.a += (-da if dc.view == 'right' else da); dc.b += db
+                dc.height *= s
+                if dc.width: dc.width *= s
+            log(f'{name}: placed round what is already on the car (moved {float(np.hypot(da, db)) * 100:.0f} cm'
+                f'{f", {s * 100:.0f}% size" if s < 1 else ""})')
+        for dc in mine: dc.avoid = list(fixed)         # the placement check never slides it back over them
+        fixed.extend(mine)
+
+
+def _clear(g, a, b, w, h, others):
+    """A box (surface group g, centre a, b, size w, h) is clear of the other decals (FIT_GAP round it)."""
+    for o in others:
+        g2, a2, b2, w2, h2 = _rect(o)
+        if g2 != g: continue
+        ia = min(a + w / 2 + FIT_GAP, a2 + w2 / 2) - max(a - w / 2 - FIT_GAP, a2 - w2 / 2)
+        ib = min(b + h / 2 + FIT_GAP, b2 + h2 / 2) - max(b - h / 2 - FIT_GAP, b2 - h2 / 2)
+        if ia > 0 and ib > 0: return False
+    return True
 
 
 def hand_adjust(decals, adj):
@@ -1714,7 +1888,8 @@ def place_hits(tm, dc, hm, wm, log, inside=False, allow_move=True, no_shared=Fal
     idx, a, b = decal_hits(tm, dc, hm, wm, 0.0, inside)
     name = dc.label or dc.view
     if not len(idx):
-        if not (allow_move and img is not None and dc.coords is None and not getattr(dc, 'by_hand', False)): return None
+        if not (allow_move and img is not None and dc.coords is None and not getattr(dc, 'by_hand', False)
+                and not getattr(dc, 'kept', False)): return None
         # nothing to paint where it was asked (an air intake or grille opening at the default spot on the front
         # bumper): the nearest place on the panel above / below it, then to the side
         for da, db in ((0, .05), (0, -.05), (0, .1), (0, -.1), (0, .15), (0, -.15), (0, .2), (0, -.2), (.12, 0), (-.12, 0),
@@ -1735,7 +1910,7 @@ def place_hits(tm, dc, hm, wm, log, inside=False, allow_move=True, no_shared=Fal
         log(f'  {name}: left off - this car uses the same picture for this window and another one, so it would '
             f'also show there{" backwards" if mi_ >= 0.25 else " a second time"} ({sh_ * 100:.0f}% of it)')
         return False
-    if allow_move and img is not None and dc.coords is None and not getattr(dc, 'by_hand', False):
+    if allow_move and img is not None and dc.coords is None and not getattr(dc, 'by_hand', False) and not getattr(dc, 'kept', False):
         # placement check: is the whole picture on the panel? If part of it hangs off (over the sill, a
         # panel edge, an opening) it is slid to where it fits best
         cov = coverage(img, a, b, wm, hm, tm.last_sharp)
@@ -1743,8 +1918,11 @@ def place_hits(tm, dc, hm, wm, log, inside=False, allow_move=True, no_shared=Fal
             best = (cov, 0.0, 0.0, idx, a, b)
             g, ra, rb, rw, rh = _rect(dc)
 
-            def free(da, db):                           # other decals may overlap it: moved on the preview if wanted
-                return True
+            def free(da, db):                           # other decals may overlap it: moved on the preview if wanted -
+                avoid = getattr(dc, 'avoid', None)      # but one new since the last preview keeps clear of those kept (1.15)
+                if not avoid: return True
+                if dc.view == 'roof_l': return _clear(g, ra - db, rb + da, rw, rh, avoid)
+                return _clear(g, ra + da, rb + db, rw, rh, avoid)
             far = ((0, .2), (0, -.2), (0, .25), (0, -.25), (.15, 0), (-.15, 0), (0, .3), (0, -.3), (.25, 0), (-.25, 0))
             for k_, (da, db) in enumerate(((0, .02), (0, -.02), (0, .04), (0, -.04), (0, .06), (0, -.06), (0, .1), (0, -.1), (.05, 0),
                                            (-.05, 0), (.1, 0), (-.1, 0), (.05, -.04), (-.05, -.04), (0, .15)) + far):
@@ -3457,6 +3635,8 @@ def _generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pr
     tex_out, tms, ctx = {}, {}, {}
     main_locked = False
     two_d = None                                     # the 2D mode's result (protected cars with a paint sheet)
+    if design.get('adjust'):                         # saved before 1.15: logos named by their order on the panel
+        design = dict(design, adjust=upgrade_logo_keys(copy.deepcopy(design['adjust']), list(design.get('logos') or [])))
     key = design_key(design, resolution)
     for tex in car.body_textures:
         ref = None
@@ -3530,7 +3710,7 @@ def _generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pr
         # the same design as the last run (a Create straight after its Preview): its painted texture is used again,
         # with what was said and where the decals went - only the write-out below differs
         kept = _MEMO.get('render')
-        if kept and kept['key'] == key and tex in kept['tex']:
+        if kept and key in (kept['key'], kept.get('alias')) and tex in kept['tex']:
             rgb_img, filled, said, ctx_, decals_ = kept['tex'][tex]
             for m_ in said: log(m_)
             ctx.clear(); ctx.update(ctx_)
@@ -3538,7 +3718,7 @@ def _generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pr
             if info is not None and decals_ is not None: info['decals'] = copy.deepcopy(decals_)
         else:
             rgb_img, filled = _paint_texture(car, tm, mem, base, paint, shade, design, said := [], info, ctx, log)
-            if not kept or kept['key'] != key: kept = _MEMO['render'] = dict(key=key, tex={})
+            if not kept or key not in (kept['key'], kept.get('alias')): kept = _MEMO['render'] = dict(key=key, tex={})
             kept['tex'][tex] = (rgb_img, filled, said, dict(ctx),
                                 copy.deepcopy(info.get('decals')) if info is not None else None)
         if write: rgb_img = pad_texture(rgb_img, tm.covered | filled)       # the gaps only matter in the game
@@ -3555,6 +3735,12 @@ def _generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pr
                 info['missing'].append(dict(key=k_, label=lab, views=vs))
                 log(f'{lab} ({", ".join(vs)}): did not land on the car - pick it on the car (button under the preview)')
             info['decals'] = [d_ for d_ in info.get('decals', []) if (d_['key'], d_['view']) in landed]
+            info['placed'] = {}                     # where each one went: the app keeps it there from now on (1.15)
+            for d_ in info['decals']: info['placed'].setdefault(d_['key'], {})[d_['view']] = list(d_['at'])
+            kept = _MEMO.get('render')
+            if kept and kept['key'] == key:         # those kept spots draw the same car: a Create straight after reuses it
+                kept['alias'] = design_key(dict(design, adjust=merge_placed(copy.deepcopy(design.get('adjust') or {}),
+                                                                            info['placed'])), resolution)
     step(0.68, 'Wheels, windows and lights')
     if two_d is not None:
         off = [n for k, n in (('wheel_colour', 'rims'), ('tyre_colour', 'tyres'), ('win_enable', 'window stickers'),

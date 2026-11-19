@@ -37,7 +37,7 @@ def test_cars_get_a_livery(car, tmp_path):
     info, log = {}, []
     skingen.generate(os.path.join(CARS, car), d, 't', out_root=str(tmp_path), log=log.append, info=info, write=False)
     assert not any('only a plain colour' in l for l in log)
-    assert {x['view'] for x in info['decals'] if x['key'] == 'logo:doors'} == {'left', 'right'}
+    assert {x['view'] for x in info['decals'] if x['key'] == 'logo:doors:ratty_racing_logo.jpg'} == {'left', 'right'}
 
 
 def test_overlap_counts_every_triangle():

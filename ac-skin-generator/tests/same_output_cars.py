@@ -7,7 +7,7 @@ Design = Nik's saved settings and logos (read only), window stickers, wheels and
 python tests/same_output_cars.py SRC_DIR OUT_JSON CAR [CAR ...]
   SRC_DIR = the code to test (a copy of the old version, or this folder). Scratch folder: OUT_JSON + '_out'.
 Compare two runs with:  python tests/same_output_cars.py --compare OLD_JSON NEW_JSON"""
-import hashlib, json, os, shutil, sys, time, warnings
+import hashlib, json, os, re, shutil, sys, time, warnings
 warnings.filterwarnings('ignore')
 
 if sys.argv[1] == '--compare':
@@ -96,7 +96,10 @@ for car in cars:
             for k, im in views.items(): sums[f'{step} view {k}'] = img_sum(im)
             fair = dict(info, decals=[{k: v for k, v in x.items() if k not in ('sprite', 'flip')} for x in info.get('decals', [])])
             fair.pop('serial', None)          # (1.11: the live preview's extras - not in older versions)
-            sums[f'{step} info'] = h(json.dumps(fair, sort_keys=True, default=str).encode())
+            fair.pop('placed', None)          # (1.15: the kept spots, and logos named by their file - not in older versions)
+            fair['decals'] = [{k: v for k, v in x.items() if k != 'at'} for x in fair['decals']]
+            fair_s = re.sub(r'"logo:([a-z_]+)(:[^"]*)?"', r'"logo:\1:*"', json.dumps(fair, sort_keys=True, default=str))
+            sums[f'{step} info'] = h(fair_s.encode())
             sums[f'{step} log'] = h(chr(10).join(map(str, lines)).encode())
             open(out_json + f'.{car}.{step}.log.txt', 'w', encoding='utf-8').write(chr(10).join(map(str, lines)))
             if write:

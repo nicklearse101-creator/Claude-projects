@@ -87,4 +87,4 @@ def test_both_painted_on_the_car(tmp_path):
     info = {}
     skingen.generate(CAR, d, 'two', out_root=str(tmp_path), log=lambda *a: None, info=info, write=False)
     keys = {x['key'] for x in info['decals']}
-    assert {'logo:bonnet', 'logo:rear_quarters'} <= keys and info['missing'] == []
+    assert {'logo:bonnet:ratty_racing_logo.jpg', 'logo:rear_quarters:ratty_racing_logo.jpg'} <= keys and info['missing'] == []

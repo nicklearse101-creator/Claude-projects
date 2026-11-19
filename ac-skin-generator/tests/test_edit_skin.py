@@ -82,7 +82,7 @@ def test_app_skin_comes_back_editable(app, monkeypatch, tmp_path):
     assert (d['team'], d['name'], d['number'], d['pattern']) == ('RATTY', 'NIK', '7', 'sweep')
     assert d['base_skin'] is None and app.vars['skin_name'].get() == 'Race Day'
     assert sorted(l['place'] for l in d['logos']) == ['bonnet', 'doors'] and d['logos'][0]['tint'] is True
-    assert d['adjust'] == {'logo:bonnet': {'da': 0.1}}
+    assert d['adjust'] == {'logo:bonnet:rat.png': {'da': 0.1}}           # saved before 1.15: renamed to the logo's file
     assert calls == [False]
 
 

@@ -29,7 +29,7 @@ def talbot_preview():
 
 def test_decals_carry_their_picture(talbot_preview):
     _, info = talbot_preview
-    d = next(x for x in info['decals'] if x['key'] == 'logo:doors' and x['view'] == 'left')
+    d = next(x for x in info['decals'] if x['key'] == 'logo:doors:ratty_racing_logo.jpg' and x['view'] == 'left')
     assert isinstance(d['sprite'], Image.Image) and d['sprite'].mode == 'RGBA' and max(d['sprite'].size) <= 512
     assert d['flip'] in (True, False) and isinstance(info['serial'], int)
 
