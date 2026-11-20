@@ -16,7 +16,7 @@ import tour
 messagebox = theme.messagebox      # dark dialogs, same calls as tkinter.messagebox (tests replace these)
 
 APP_NAME = skingen.APP_NAME
-VERSION = '1.15.0'
+VERSION = '1.16.0'
 
 
 def find_data_dir(exe_dir, appdata):
@@ -230,6 +230,7 @@ class App(tk.Tk):
         self.thumbs = {}
         self.preview_img = None
         self.busy = False
+        self._warm, self._warm_job = None, None          # the car being got ready in the background (1.16)
         self.info = {}                                   # where the last preview put every decal
         self.adjust_by_car = self.cfg.get('adjust_by_car') or {}     # hand adjustments, per car
         self.adjust_gen = {}                             # the adjustments the last preview was made with
@@ -969,6 +970,44 @@ class App(tk.Tk):
         self.update_header()
         self.forget_other_preview()
         self.request_ghost(car)
+        self.schedule_warm()
+
+    # ---------------------------------------------------------------- the car got ready while the livery is set up
+    def schedule_warm(self, wait=800):
+        """A car was picked: get it ready for its first preview in the background (1.16, Nik 20 Nov) - once the
+        picking has settled (scrolling through the car list starts nothing)."""
+        if os.environ.get('R4S_NO_WARM'): return
+        if getattr(self, '_warm_job', None) is not None: self.after_cancel(self._warm_job)
+        self._warm_job = self.after(wait, self.request_warm)
+
+    def request_warm(self):
+        self._warm_job = None
+        if self.busy: return                             # a preview is being made: it gets the car ready itself
+        car = os.path.join(self.vars['cars_dir'].get(), self.vars['car'].get())
+        if not self.vars['car'].get() or not os.path.isdir(car): return
+        if self.views and self.views_car == self.car_key(car): return     # it has a preview: it is ready
+        res = 4096 if self.vars['hires'].get() else None
+        key = (self.car_key(car), res)
+        w = getattr(self, '_warm', None)
+        if w and w['key'] == key and w['thread'].is_alive(): return
+        self.stop_warm()
+        try:
+            design, copy_from = self.design(), self.vars['copy_from'].get() or None     # (tk variables: read here)
+        except Exception:
+            design, copy_from = None, None
+        stop = threading.Event()
+        th = threading.Thread(target=skingen.warm_up, args=(car, design, res, stop.is_set, copy_from), daemon=True)
+        self._warm = dict(key=key, stop=stop, thread=th)
+        th.start()
+
+    def stop_warm(self):
+        """Stop getting the car ready (what is done stays done). True if it was still going."""
+        if getattr(self, '_warm_job', None) is not None:
+            self.after_cancel(self._warm_job); self._warm_job = None
+        w = getattr(self, '_warm', None)
+        if not w: return False
+        w['stop'].set()
+        return w['thread'].is_alive()
 
     def car_key(self, car=None):
         """The picked car's folder (or the one given), written the same way every time, to compare cars."""
@@ -1200,7 +1239,8 @@ class App(tk.Tk):
         self.busy, self._auto_running = True, auto
         for b in (self.btn_prev, self.btn_save): b.state(['disabled'])
         self.log_box.delete('1.0', 'end')
-        self.set_progress(0, 'Starting…')
+        # (getting the car ready in the background stops: the step under way is finished first)
+        self.set_progress(0, 'Finishing getting the car ready…' if self.stop_warm() else 'Starting…')
         opts = dict(design=self.design(), resolution=4096 if self.vars['hires'].get() else None,
                     copy_from=self.vars['copy_from'].get() or None,      # read here: tk variables belong to this thread
                     record=dict(self.design_record(), skin_name=name) if save else None)

@@ -1,5 +1,5 @@
 =====================================================================================
-  RATTY'S4SKIN GENERATOR  v1.15.0          -  the user guide
+  RATTY'S4SKIN GENERATOR  v1.16.0          -  the user guide
   Custom liveries (skins) for Assetto Corsa cars. No AI, no internet, no Photoshop.
 =====================================================================================
 
@@ -242,7 +242,9 @@ CONTENTS
 -------------------------------------------------------------------------------------
   PREVIEW shows your livery on the car from every side WITHOUT saving anything.
   The first preview of a car takes up to about a minute (the app studies the car);
-  after that it is quick.
+  after that it is quick. The app starts studying a car as soon as you pick it, while
+  you set up the livery, so the first preview is quicker if you don't press Preview
+  straight away. Logos, numbers and names you have not moved are not worked out again.
 
   Above the picture
     All sides / Left / Right / Front / Rear / Top   which view to show.

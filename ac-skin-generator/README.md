@@ -18,6 +18,19 @@ or in a `data` folder next to the installed app when "Keep my logos and settings
 (v1.9.0; copied from AppData, the old copy is left). Updates, moves and the uninstaller never delete it.
 
 ## Use
+**New in 1.16.0 (20 Nov 2026):** **faster** (Nik: "see what can be done to speed up the app"); every skin and preview
+byte-identical to 1.15.0 (`tests/same_output_cars.py`, both variants, Nik's 4 cars, also with `R4S_WARM=1`). (1) where
+a decal lands is kept on its texel map (`decal_hits` cache keyed by view, spot, size and the region function's code +
+values; read-only arrays, 192 MB per map, oldest out) - a re-preview only works out what moved; (2) the soft paint edge
+only where it changes anything, its blur kept per paint area (`_paint_canvas(..., mem)`); (3) rims / tyres kept per
+colour (`wheel_colours`); (4) each triangle's extent per view worked out once (`_view_bounds`: decal_hits did it for
+the whole car on every try); (5) `raster_tris` calls Pillow's polygon drawing directly; (6) **the car is got ready
+while the livery is set up**: picking a car (after 0.8 s of no more picking) starts `skingen.warm_up` in the
+background - model, texel maps, stock-skin comparison, the window layers and the five views' geometry, one step at a
+time under the generator's lock; Preview / Create stop it (the step under way finishes; what it would have said is
+said by the preview); `R4S_NO_WARM=1` turns it off (the tests); (7) textures written side by side (`write_textures`),
+gap filling with running sums (`pad_texture`). Tests `tests/test_speed_1160.py`, `tests/test_warm_app.py`.
+
 **New in 1.15.0 (19 Nov 2026):** **what is on the car stays where it is** (Nik: "only new logos/names should be moved to
 fit, not ones already on the car"). After each preview the engine reports where every decal went, without the hand
 moves (`info['placed']` = {key: {view: [a, b, h]}}; 2D: {key: [u, v, h]}); the app keeps it as `adjust[key]['at']`

@@ -1,5 +1,6 @@
 """Old code vs new code on several cars: the same three steps a user does, every output fingerprinted and timed.
   1. Preview (design A)   2. Preview after changing the colours (design B)   3. Create skin in car (design B)
+R4S_WARM=1: the car got ready first with skingen.warm_up (1.16), as the app does when a car is picked.
 R4S_VARIANT=2: a second design with the other features (tint, tyres, picture pattern, carbon, compressed, not 4K,
 hand edits on the preview, copy from a stock skin).
 Fingerprints: every view, the decal positions, the log text and (Create) every file written.
@@ -77,6 +78,8 @@ for car in cars:
     try:
         skins = sorted(e for e in os.listdir(os.path.join(ROOT, car, 'skins')) if os.path.isdir(os.path.join(ROOT, car, 'skins', e)))
         copy_from = skins[0] if VARIANT == '2' and skins else None
+        if os.environ.get('R4S_WARM') and hasattr(skingen, 'warm_up'):     # (1.16: the car got ready in the background first)
+            print('warm-up', skingen.warm_up(os.path.join(ROOT, car), dict(d), RES, copy_other_from=copy_from), flush=True)
         for step, design, write in (('preview_A', d, False), ('preview_B', d2, False), ('create_B', d2, True)):
             if VARIANT == '2' and step == 'preview_B':    # move / size / turn one box, delete another, edit the team text
                 keys = [x['key'] for x in info.get('decals', [])]

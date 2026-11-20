@@ -12,7 +12,7 @@ Pipeline
 
 AC axes: +X = car's left, +Y = up, +Z = forward (right-handed).
 """
-import types, copy, glob, io, json, os, re, shutil, struct, threading
+import types, copy, glob, hashlib, io, json, os, re, shutil, struct, threading, weakref
 from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont, ImageColor, ImageOps
@@ -102,6 +102,17 @@ def write_texture(img, path, compress=False):
     if ext in ('.jpg', '.jpeg'): return img.convert('RGB').save(path, 'JPEG', quality=95)
     if ext == '.tga': return img.convert('RGBA').save(path, 'TGA')
     return img.convert('RGBA').save(path, 'PNG')
+
+
+def write_textures(jobs, compress=False):
+    """write_texture for every (picture, path) at the same time on several cores (1.16; each file exactly as one after
+    another would make it). Two jobs for the same file: one after another, in order, so the last one wins as before."""
+    jobs = list(jobs)
+    if len({os.path.normcase(os.path.abspath(p)) for _, p in jobs}) < len(jobs) or len(jobs) < 2:
+        for img, p in jobs: write_texture(img, p, compress=compress)
+        return
+    with ThreadPoolExecutor(min(len(jobs), max(1, os.cpu_count() or 1), 6)) as ex:
+        list(ex.map(lambda j: write_texture(j[0], j[1], compress=compress), jobs))
 
 
 def fast_dds(data):
@@ -335,13 +346,14 @@ def raster_tris(px, order, W, H, crop=False):
         q = px[order].reshape(-1, 2)
         x0, y0 = max(0, int(q[:, 0].min()) - 2), max(0, int(q[:, 1].min()) - 2)
         w, h = min(W, int(q[:, 0].max()) + 3) - x0, min(H, int(q[:, 1].max()) + 3) - y0
-    im = Image.new('I', (max(w, 1), max(h, 1)), -1); d = ImageDraw.Draw(im)
-    ed = Image.new('I', (max(w, 1), max(h, 1)), -1); de = ImageDraw.Draw(ed)
-    pts = (px[order] - (x0, y0)).tolist()
+    im = Image.new('I', (max(w, 1), max(h, 1)), -1)
+    ed = Image.new('I', (max(w, 1), max(h, 1)), -1)
+    # Pillow's own polygon calls (what ImageDraw.polygon(fill=i) / polygon(outline=i) do, without their per-call checks)
+    fill, line = ImageDraw.Draw(im).draw.draw_polygon, ImageDraw.Draw(ed).draw.draw_polygon
+    pts = (px[order] - (x0, y0)).reshape(-1, 6).tolist()
     for i, t in zip(order.tolist(), pts):
-        q = [tuple(t[0]), tuple(t[1]), tuple(t[2])]
-        d.polygon(q, fill=i)
-        de.polygon(q, outline=i)
+        fill(t, i, 1)
+        line(t, i, 0, 1)
     a = np.asarray(im, dtype=np.int64).copy(); e = np.asarray(ed, dtype=np.int64)
     a[a < 0] = e[a < 0]
     return a, x0, y0
@@ -1784,12 +1796,120 @@ def decal_size(dc, texel_m):
     return img, hm, wm
 
 
+# where a decal landed, kept with its texel map for the next preview: a logo that has not moved lands on the same
+# texels (1.16 - most of a re-preview went on working these out again). Keyed by everything the answer depends on.
+HIT_CACHE_BYTES = 192 << 20         # per texel map; the oldest go first
+_HIT_LOCK = threading.Lock()
+_NOKEY = object()
+_UNSET = object()
+_HIT_TMS = weakref.WeakSet()             # texel maps holding some
+
+
+def _value_key(v, refs, depth=0):
+    """A value a decal's region function works with, as part of a cache key (_NOKEY: not safely comparable).
+    A car counts by identity: it is kept alive with the entry, so its identity can't be taken by another one."""
+    if v is None or isinstance(v, (bool, int, float, str)): return (type(v).__name__, v)
+    if isinstance(v, np.generic): return ('np', v.dtype.str, v.item())
+    if depth > 4: return _NOKEY
+    if isinstance(v, tuple):
+        parts = tuple(_value_key(x, refs, depth + 1) for x in v)
+        return _NOKEY if any(p is _NOKEY for p in parts) else ('tuple',) + parts
+    if isinstance(v, np.ndarray) and v.size <= 64: return ('arr', v.dtype.str, v.shape, v.tobytes())
+    if isinstance(v, types.FunctionType): return _fn_key(v, refs, depth + 1)
+    if isinstance(v, Car):
+        refs.append(v); return ('car', id(v))
+    return _NOKEY
+
+
+def _fn_key(f, refs, depth=0):
+    """A function as a cache key: its code and every value it holds (defaults and closure)."""
+    if not isinstance(f, types.FunctionType): return _NOKEY
+    try: held = [c.cell_contents for c in (f.__closure__ or ())]
+    except ValueError: return _NOKEY
+    parts = tuple(_value_key(v, refs, depth + 1) for v in (*(f.__defaults__ or ()), *held))
+    if f.__kwdefaults__ or any(p is _NOKEY for p in parts): return _NOKEY
+    return ('fn', f.__code__) + parts
+
+
+def _hits_of(tm):
+    c = tm.__dict__.get('_hits')
+    if c is None:
+        c = tm._hits = {}
+        _HIT_TMS.add(tm)
+    return c
+
+
+def hit_cache_bytes(tm):
+    return sum(e[4] for e in _hits_of(tm).values())
+
+
+def clear_hit_cache(tm=None):
+    """Forget where decals landed (on one texel map, or on every one)."""
+    with _HIT_LOCK:
+        for t in ([tm] if tm is not None else list(_HIT_TMS)):
+            t.__dict__.pop('_hits', None)
+            _HIT_TMS.discard(t)
+
+
+def _view_bounds(tm, view):
+    """For one view: each triangle's (and each occluder's) smallest / largest a and b, and how much it faces the
+    viewer. Worked out once per texel map (decal_hits needed them for every decal and every spot it tried)."""
+    vb = tm.__dict__.get('_vbounds')
+    if vb is None: vb = tm._vbounds = {}
+    occ = getattr(tm, 'occluders', None)
+    got = vb.get(view)
+    if got is not None and got[0] is occ: return got[1], got[2]
+    vdir, fa, fb = VIEWS[view]
+    T = tm.t_pos.reshape(-1, 3)
+    A, B = fa(T).reshape(-1, 3), fb(T).reshape(-1, 3)
+    tb = (A.min(1), A.max(1), B.min(1), B.max(1), tm.t_nrm.mean(1) @ vdir)
+    ob = None
+    if occ is not None and len(occ):
+        OA, OB = fa(occ.reshape(-1, 3)).reshape(-1, 3), fb(occ.reshape(-1, 3)).reshape(-1, 3)
+        ob = (OA.min(1), OA.max(1), OB.min(1), OB.max(1))
+    for x in (*tb, *(ob or ())): x.flags.writeable = False
+    vb[view] = (occ, tb, ob)
+    return tb, ob
+
+
 def decal_hits(tm, dc, hm, wm, a_shift=0.0, inside=False, b_shift=0.0):
     """Texels the decal lands on: the outer surface inside its footprint, however steeply it is angled.
     Hidden surfaces behind the outer skin (arch liners, doubled panels, damage meshes) get nothing.
     The decal is painted through the triangles that are really visible there, nearest last - so where
     the car's UVs fold over themselves the visible surface still gets the whole picture.
-    Returns texel indices and their (a, b) position in the decal (metres from its centre)."""
+    Returns texel indices and their (a, b) position in the decal (metres from its centre).
+    The same spot asked again (the next preview, a logo that did not move) is answered from a cache on tm."""
+    key, refs = None, []
+    if dc.coords is None:
+        rk = _fn_key(dc.region, refs) if dc.region is not None else None
+        if rk is not _NOKEY:
+            occ = getattr(tm, 'occluders', None)
+            nums = tuple(_value_key(v, refs) for v in (dc.a, dc.b, a_shift, b_shift, hm, wm))   # (with their types)
+            key = (None if any(n_ is _NOKEY for n_ in nums) else
+                   (id(occ), dc.view, nums, bool(inside), rk, MIN_FACING, DEPTH_CELL))
+            refs.append(occ)
+            with _HIT_LOCK:
+                cache = _hits_of(tm)
+                got = cache.pop(key, None) if key is not None else None
+                if got is not None:
+                    cache[key] = got                        # now the newest
+                    if got[3] is not _UNSET: tm.last_sharp = got[3]
+                    return got[0], got[1], got[2]
+    res = _decal_hits(tm, dc, hm, wm, a_shift, inside, b_shift)
+    if key is not None:
+        sharp = tm.last_sharp if len(res[0]) else _UNSET     # (nothing found: last_sharp is left as it was)
+        for x in (*res, *([sharp] if isinstance(sharp, np.ndarray) else [])): x.flags.writeable = False
+        size = sum(x.nbytes for x in res) + (sharp.nbytes if isinstance(sharp, np.ndarray) else 0) + 200
+        with _HIT_LOCK:
+            cache = _hits_of(tm)
+            cache[key] = (res[0], res[1], res[2], sharp, size, refs)
+            total = sum(e[4] for e in cache.values())
+            while total > HIT_CACHE_BYTES and len(cache) > 1:
+                total -= cache.pop(next(iter(cache)))[4]
+    return res
+
+
+def _decal_hits(tm, dc, hm, wm, a_shift=0.0, inside=False, b_shift=0.0):
     vdir, fa, fb = VIEWS[dc.view]
     none = (np.zeros(0, np.int64), np.zeros(0), np.zeros(0))
 
@@ -1798,10 +1918,19 @@ def decal_hits(tm, dc, hm, wm, a_shift=0.0, inside=False, b_shift=0.0):
         return a - (dc.a + a_shift), b - (dc.b + b_shift)
     # 1. triangles that reach into the footprint and face the viewer
     T, TN = tm.t_pos, tm.t_nrm
-    a, b = ab(T.reshape(-1, 3)); a, b = a.reshape(-1, 3), b.reshape(-1, 3)
-    f = TN.mean(1) @ vdir
-    if inside: f = -f
-    ok = (a.min(1) < wm / 2) & (a.max(1) > -wm / 2) & (b.min(1) < hm / 2) & (b.max(1) > -hm / 2) & (f > MIN_FACING)
+    bounds = None
+    if dc.coords is None:
+        # (the triangles' extents in this view worked out once: min / max of (x - c) is (min x) - c, exactly)
+        bounds = _view_bounds(tm, dc.view)
+        Amin, Amax, Bmin, Bmax, f = bounds[0]
+        ca, cb = dc.a + a_shift, dc.b + b_shift
+        if inside: f = -f
+        ok = ((Amin - ca) < wm / 2) & ((Amax - ca) > -wm / 2) & ((Bmin - cb) < hm / 2) & ((Bmax - cb) > -hm / 2) & (f > MIN_FACING)
+    else:
+        a, b = ab(T.reshape(-1, 3)); a, b = a.reshape(-1, 3), b.reshape(-1, 3)
+        f = TN.mean(1) @ vdir
+        if inside: f = -f
+        ok = (a.min(1) < wm / 2) & (a.max(1) > -wm / 2) & (b.min(1) < hm / 2) & (b.max(1) > -hm / 2) & (f > MIN_FACING)
     if dc.region is not None: ok &= dc.region(T.mean(1))
     thin = np.nonzero(ok & ~tm.t_good)[0]        # mouldings / strips with next to no room in the texture
     C = np.nonzero(ok & tm.t_good)[0]
@@ -1829,8 +1958,12 @@ def decal_hits(tm, dc, hm, wm, a_shift=0.0, inside=False, b_shift=0.0):
     # other solid parts of the car lying over the panel (sill trims, bumpers, strips) hide the paint under them
     occ = getattr(tm, 'occluders', None)
     if occ is not None and len(occ) and not inside:
-        oa, ob = ab(occ.reshape(-1, 3)); oa, ob = oa.reshape(-1, 3), ob.reshape(-1, 3)
-        o_in = (oa.min(1) < wm / 2) & (oa.max(1) > -wm / 2) & (ob.min(1) < hm / 2) & (ob.max(1) > -hm / 2)
+        if bounds is not None and bounds[1] is not None:
+            OAmin, OAmax, OBmin, OBmax = bounds[1]
+            o_in = ((OAmin - ca) < wm / 2) & ((OAmax - ca) > -wm / 2) & ((OBmin - cb) < hm / 2) & ((OBmax - cb) > -hm / 2)
+        else:
+            oa, ob = ab(occ.reshape(-1, 3)); oa, ob = oa.reshape(-1, 3), ob.reshape(-1, 3)
+            o_in = (oa.min(1) < wm / 2) & (oa.max(1) > -wm / 2) & (ob.min(1) < hm / 2) & (ob.max(1) > -hm / 2)
         if dc.region is not None and o_in.any(): o_in[o_in] = dc.region(occ[o_in].mean(1))
         if o_in.any():
             O = sample_tris(occ[o_in], 0.004)
@@ -2183,6 +2316,35 @@ def recolour_wheels(car, tex, colour, log=print, only=None, start=None, what='wh
     out = (base if keep is None else keep) * (1 - mm) + new * mm
     log(f'{what} {tex}: recoloured {mask.mean() * 100:.0f}% of the texture')
     return Image.fromarray(np.dstack([out.astype(np.uint8), np.asarray(imgs[0].getchannel('A'))]), 'RGBA')
+
+
+def wheel_colours(car, design, log=print):
+    """Rims and tyres in their new colours: {texture: picture}. Kept for the same car and colours (1.16: they were
+    recoloured again on every preview, 0.5-2 s) - what was said is said again, and the pictures handed out are copies."""
+    key = ('wheels', design.get('wheel_colour'), design.get('tyre_colour'))
+    kept = _MEMO.get(key) if _MEMO.get('car') is car else None
+    if kept is None:
+        said = []
+
+        def wlog(m_):
+            said.append(m_); log(m_)
+        wheel_out = {}
+        if design.get('wheel_colour'):
+            for tex in car.wheel_textures:
+                both = tex in car.tyre_meshes
+                wheel_out[tex] = recolour_wheels(car, tex, design['wheel_colour'], wlog,
+                                                 only=car.rim_meshes[tex] if both else None, what='rims')
+        if design.get('tyre_colour'):
+            for tex in car.tyre_textures:
+                both = tex in car.rim_meshes
+                wheel_out[tex] = recolour_wheels(car, tex, design['tyre_colour'], wlog,
+                                                 only=car.tyre_meshes[tex] if both else None, start=wheel_out.get(tex),
+                                                 what='tyres')
+        kept = (wheel_out, said)
+        if _MEMO.get('car') is car: _MEMO[key] = kept
+    else:
+        for m_ in kept[1]: log(m_)
+    return {t: im.copy() for t, im in kept[0].items()}
 
 
 # ------------------------------------------------------------------ headlights
@@ -3234,26 +3396,15 @@ def render_view(car, view, tex_imgs, tms=None, width=1000, bg=(235, 236, 240), l
     them: far triangles first, near ones over them. Meshes on a texture in tex_imgs show that texture,
     window stickers (layers: [(texel map, rgba array)]) show on the glass, everything else is grey.
     alpha=True: RGBA, the same RGB plus the car's coverage as alpha (for a cut-out on any background)."""
-    vdir, fa, fb = VIEWS[view]
     ss = 2 if width <= 1700 else 1                         # drawn double size and scaled down: smooth edges
-    a0, a1, b0, b1 = view_frame(car, view)
-    Wp = width * ss; sc = Wp / (a1 - a0); Hp = int((b1 - b0) * sc)
-    light = np.array([0.4, 0.8, 0.45]); light /= np.linalg.norm(light)
     texs = [np.asarray(im.convert('RGB')) for im in tex_imgs.values()]
-    tex_id = {t.lower(): i for i, t in enumerate(tex_imgs)}
     alphas = [None] * len(texs)
-    layer_of = {}
     for tm, arr in layers:
         texs.append(arr[..., :3]); alphas.append(arr[..., 3])
-        for nm in set(tm.mesh_of_tri.tolist()): layer_of[nm] = len(texs) - 1
-    # which triangle shows at every pixel depends only on the car and the view: kept for the next preview
-    gkey = ('view', view, width, tuple(t.lower() for t in tex_imgs), tuple(sorted(layer_of.items())))
-    geo_ = _MEMO.get(gkey) if _MEMO.get('car') is car else None
-    if geo_ is None:
-        geo_ = _view_geometry(car, view, width, tex_id, layer_of, len(tex_imgs), vdir, fa, fb, ss, a0, a1, b0, b1, light)
-        if _MEMO.get('car') is car: _MEMO[gkey] = geo_
-    Hp, Wp, ys, xs, Gt, tx, uv, tix, St = geo_
-    out = np.empty((Hp, Wp, 3), np.float32); out[:] = bg
+    Hp, Wp, ys, xs, Gt, tx, uv, tix, St = _geometry(car, view, width, list(tex_imgs), _layer_map(len(tex_imgs), layers))
+    # (1.16) straight into bytes: the same picture as a float frame clipped and cut to bytes (the background is whole
+    # numbers already), without the float frame - 300 MB and 3 s for the top view, which is 7800 px long drawn
+    out = np.empty((Hp, Wp, 3), np.uint8); out[:] = bg
     col = np.repeat(Gt[:, None].astype(np.float32), 3, 1)
     if len(tx):
         for k, tex in enumerate(texs):
@@ -3266,8 +3417,8 @@ def render_view(car, view, tex_imgs, tms=None, width=1000, bg=(235, 236, 240), l
                 al = alphas[k][v, u].astype(np.float32)[:, None] / 255
                 c = col[tx[sel]] * (1 - al) + c * al
             col[tx[sel]] = c
-    out[ys, xs] = col
-    img = Image.fromarray(np.clip(out, 0, 255).astype(np.uint8))
+    out[ys, xs] = np.clip(col, 0, 255).astype(np.uint8)
+    img = Image.fromarray(out)
     if ss > 1: img = img.resize((width, Hp // ss), Image.LANCZOS)
     if alpha:          # coverage scaled down on its own: the RGB stays exactly as without alpha
         cov = np.zeros((Hp, Wp), np.uint8); cov[ys, xs] = 255
@@ -3275,6 +3426,30 @@ def render_view(car, view, tex_imgs, tms=None, width=1000, bg=(235, 236, 240), l
         if ss > 1: a = a.resize(img.size, Image.LANCZOS)
         img = Image.merge('RGBA', (*img.split(), a))
     return img
+
+
+def _layer_map(n_tex, layers):
+    """Glass mesh -> the picture it shows in render_view (after the n_tex body textures, one per sticker layer)."""
+    layer_of = {}
+    for k, (tm, _) in enumerate(layers):
+        for nm in set(tm.mesh_of_tri.tolist()): layer_of[nm] = n_tex + k
+    return layer_of
+
+
+def _geometry(car, view, width, tex_names, layer_of):
+    """Which triangle shows at every pixel of a view: depends only on the car and the view, so kept for the next
+    preview (and worked out ahead by warm_up)."""
+    vdir, fa, fb = VIEWS[view]
+    ss = 2 if width <= 1700 else 1
+    a0, a1, b0, b1 = view_frame(car, view)
+    light = np.array([0.4, 0.8, 0.45]); light /= np.linalg.norm(light)
+    tex_id = {t.lower(): i for i, t in enumerate(tex_names)}
+    gkey = ('view', view, width, tuple(t.lower() for t in tex_names), tuple(sorted(layer_of.items())))
+    geo_ = _MEMO.get(gkey) if _MEMO.get('car') is car else None
+    if geo_ is None:
+        geo_ = _view_geometry(car, view, width, tex_id, layer_of, len(tex_names), vdir, fa, fb, ss, a0, a1, b0, b1, light)
+        if _MEMO.get('car') is car: _MEMO[gkey] = geo_
+    return geo_
 
 
 def ghost_view(car, width=1200):
@@ -3385,9 +3560,18 @@ def pad_texture(img, covered, reach=12):
     have = np.asarray(covered, bool).ravel().copy()
     near = np.asarray(covered, bool)
     for ax in (1, 0):                                  # texels within reach (a box, wrapping like the texture)
-        g = near.copy()
-        for k in range(1, reach + 1): g |= np.roll(near, k, ax) | np.roll(near, -k, ax)
-        near = g
+        n = near.shape[ax]
+        if n > 2 * reach + 1:
+            # (1.16) counted with a running sum over the texture wrapped round: the same texels as shifting it
+            # 2 x reach times, without 48 copies of a 4K picture
+            c = np.concatenate([np.zeros_like(np.take(near, [0], ax), np.int32), np.take(near, range(n - reach, n), ax),
+                                near, np.take(near, range(reach), ax)], ax).astype(np.int32)
+            np.cumsum(c, ax, out=c)
+            near = (np.take(c, range(2 * reach + 1, n + 2 * reach + 1), ax) - np.take(c, range(n), ax)) > 0
+        else:
+            g = near.copy()
+            for k in range(1, reach + 1): g |= np.roll(near, k, ax) | np.roll(near, -k, ax)
+            near = g
     todo = np.flatnonzero(near.ravel() & ~have)
     for _ in range(reach):
         for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
@@ -3541,26 +3725,46 @@ def _paint_texture(car, tm, mem, base, paint, shade, design, said, info, ctx, lo
         paint = paint.copy(); paint[tm.yy[extra], tm.xx[extra]] = True
         names = sorted(set(tm.mesh_of_tri[np.unique(tm.tri[extra])]))
         log(f'decals also cover {extra.sum()} texels outside the paint area ({", ".join(names)[:90]})')
-    out_rgb = _paint_canvas(tm, cols, base, paint, shade)
+    out_rgb = _paint_canvas(tm, cols, base, paint, shade, mem)
     filled = spot_parts(tm, out_rgb, rgb(design['base']), log)
     keep_lamps(out_rgb, mem)
     rgb_img = Image.fromarray(np.clip(out_rgb, 0, 255).astype(np.uint8))
     return rgb_img, filled
 
 
-def _paint_canvas(tm, cols, base, paint, shade):
+def _paint_canvas(tm, cols, base, paint, shade, mem=None):
     """The texel colours laid on the stock texture inside the paint area (shaded like the stock skins, the edge
-    softened by one texel)."""
-    canvas = base.copy()
+    softened by one texel).
+    Worked out only where it changes anything (1.16: it was done over the whole 4K texture, 1-3 s a preview): outside
+    the softened edge the result is the stock texture, inside the paint area the paint - exactly what
+    base * (1 - mm) + painted * mm gave there. The softened edge is kept in `mem` for the same paint area."""
     sel = paint[tm.yy, tm.xx]
     yy, xx = tm.yy[sel], tm.xx[sel]
-    canvas[yy, xx] = cols[sel] * shade[yy, xx, None]
-    # soften the mask edge by one texel
-    m = Image.fromarray((paint * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(0.8))
-    mm = np.asarray(m).astype(np.float32)[..., None] / 255
-    painted = np.clip(canvas, 0, 255)
-    out_rgb = base * (1 - mm) + painted * mm
-    out_rgb[paint] = painted[paint]
+    # the paint, as it was put into the float32 canvas, clipped
+    v = np.empty((len(yy), base.shape[2]), base.dtype)
+    v[:] = cols[sel] * shade[yy, xx, None]
+    v = np.clip(v, 0, 255)
+    # soften the mask edge by one texel: the texels outside the paint area the blur reaches, and how much
+    edge = None
+    if mem is not None:                     # (two kept: the paint area with and without what decals added to it)
+        key = (paint.shape, hashlib.blake2b(np.packbits(paint).tobytes(), digest_size=16).digest())
+        edges = mem.setdefault('edges', {})
+        edge = edges.pop(key, None)
+    if edge is None:
+        m = Image.fromarray((paint * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(0.8))
+        mm = np.asarray(m).astype(np.float32) / 255
+        ey, ex = np.nonzero((mm > 0) & ~paint)
+        edge = (ey, ex, mm[ey, ex][:, None])
+    if mem is not None:
+        edges[key] = edge
+        while len(edges) > 2: edges.pop(next(iter(edges)))
+    ey, ex, w = edge
+    out_rgb = base.copy()
+    b_ = base[ey, ex]
+    out_rgb[ey, ex] = b_ * (1 - w) + np.clip(b_, 0, 255) * w
+    lone = paint & ~tm.covered                              # paint texels the texel map has none for (none in practice)
+    if lone.any(): out_rgb[lone] = np.clip(base[lone], 0, 255)
+    out_rgb[yy, xx] = v
     return out_rgb
 
 
@@ -3582,12 +3786,129 @@ def clean_views(serial, width=1600, alpha=True, which=('left', 'right', 'front',
             if not mem or 'pattern' not in mem or mem.get('tm') is not tm: continue
             base, alpha_, paint, shade = mem['stock']
             base = mem.get('skin_base', base)
-            out_rgb = _paint_canvas(tm, np.clip(mem['pattern'], 0, 255), base, paint, shade)
+            out_rgb = _paint_canvas(tm, np.clip(mem['pattern'], 0, 255), base, paint, shade, mem)
             spot_parts(tm, out_rgb, lp['base'], lambda m_: None)
             keep_lamps(out_rgb, mem)
             img = Image.fromarray(np.clip(out_rgb, 0, 255).astype(np.uint8)); img.putalpha(Image.fromarray(alpha_))
             tex[t] = img
         return preview_views(lp['car'], tex, lp['tms'], width, layers=lp['layers'], alpha=alpha, keys=which)
+
+
+def _load_car(car_dir, resolution, log):
+    """The car into _MEMO (everything kept for it goes when another car - or texture size - comes). True if loaded now."""
+    kn5_ = find_main_kn5(car_dir)
+    car_key = (os.path.normpath(car_dir), os.path.getmtime(kn5_), os.path.getsize(kn5_), resolution)
+    if _MEMO.get('car_key') == car_key: return False
+    _MEMO.clear()
+    _MEMO['car_key'] = car_key
+    _MEMO['car'] = Car(car_dir, log)
+    _MEMO['tex'] = {}
+    return True
+
+
+def _texture_size(car, tex, resolution, log):
+    """The stock picture of a body texture and the size the new one is made at."""
+    ref = None
+    for s in car.skins:
+        ref = car.stock_texture(tex, s)
+        if ref is not None: break
+    if ref is None: ref = load_image(car.kn5.textures[tex])
+    W, H = ref.size
+    if max(W, H) < 1024:
+        log(f'{tex} is only {W}x{H}; making the new texture 2048 wide')
+        k = 2048 / max(W, H); W, H = int(W * k), int(H * k)
+    if resolution and max(W, H) < resolution:
+        k = resolution / max(W, H); W, H = int(W * k), int(H * k)
+        log(f'making {tex} {W}x{H} for sharper writing and logos')
+    return ref, W, H
+
+
+def _map_texture(car, tex, W, H, mem, log, half_way=None):
+    """A body texture mapped onto the car (its texel map) and compared with the stock skins, into mem."""
+    # parts spread over the texture that made the car look 'plain colour only' go under the panels
+    hogs = uv_overlap(car.meshes_for(tex), skip_hogs=False) > 3.0
+    tm = TexelMap(car.meshes_for(tex), W, H, log, hogs_under=hogs, skip_stretched=True); tm.tex = tex
+    occ = [m.pos[m.idx] for m in car.kn5.meshes if m.mat is not None and len(m.idx) and not see_through(m.mat)
+           and m.mat.samplers.get('txDiffuse') != tex and 'shadow' not in m.name.lower()]
+    tm.occluders = np.concatenate(occ) if occ else None
+    if half_way: half_way()
+    new = dict(tm=tm, stock=stock_analysis(car, tex, W, H, tm, log))
+    lm = lamp_texels(car.meshes_for(tex), W, H)
+    if lm is not None and lm.any():
+        b_, a_, p_, s_ = new['stock']
+        if (p_ & lm).sum() <= 0.15 * max(1, p_.sum()):      # (a body named like a lamp: not this)
+            new['stock'] = (b_, a_, p_ & ~lm, s_); new['lamps'] = lm
+            log(f'lights on this texture keep their own look: '
+                f'{", ".join(sorted({m.name for m in car.meshes_for(tex) if is_lamp(m)}))[:90]}')
+    mem.clear(); mem.update(new)                # all at once: a step cut short (warm_up) leaves nothing half done
+
+
+PREVIEW_KEYS = ('left', 'right', 'front', 'rear', 'top')
+
+
+def warm_up(car_dir, design=None, resolution=None, stop=lambda: False, copy_other_from=None):
+    """Get a car ready for its first preview while the user sets up the livery (1.16, Nik 20 Nov): the model, every
+    body texture mapped onto the car and compared with the stock skins, and the five preview views worked out - the
+    same work, with the same results, the Preview then finds done (what it would have said is kept and said by it).
+    One step at a time, each under the generator's lock; stop() is asked before every step, so a Preview or Create
+    started meanwhile waits at most for the step under way. Returns True when everything was got ready.
+    Never raises (a car it can't read is left for the Preview to report)."""
+    quiet = lambda *a: None
+    state = {}
+
+    def do(fn):
+        if stop(): return False
+        with _LOCK:
+            if stop(): return False
+            if state and _MEMO.get('car') is not state['car']: return False      # another car came in meanwhile
+            fn()
+        return True
+
+    def s_car():
+        said = []
+        if _load_car(car_dir, resolution, said.append): _MEMO['warm_said'] = said
+        state['car'] = _MEMO['car']
+    try:
+        if not do(s_car): return False
+        car = state['car']
+        main_locked, tex_names = False, []
+        for i, tex in enumerate(car.body_textures):
+            def s_tex(tex=tex, i=i):
+                nonlocal main_locked
+                _, W, H = _texture_size(car, tex, resolution, quiet)
+                ov = uv_overlap(car.meshes_for(tex))
+                locked = scrambled_uv(car.meshes_for(tex)) > 0.5
+                if i == 0: main_locked = locked
+                elif main_locked: locked = True
+                if locked or ov > 3.0: return            # protected / one shared paint texture: nothing to map
+                mem = _MEMO['tex'].setdefault(tex, {})
+                if 'tm' not in mem or mem['tm'].W != W:
+                    said = []
+                    _map_texture(car, tex, W, H, mem, said.append)
+                    mem['warm_said'] = said
+            if not do(s_tex): return False
+            tex_names.append(tex)
+        if main_locked: return True                     # a protected car: its paint sheet, no 3D views
+        layers = []
+
+        def s_glass():                                  # which windows will carry stickers / tint (the views need it)
+            made, jobs, clear = {}, [], []              # (as _generate does it, with the stock pictures)
+            if design.get('win_enable'):
+                win, gl = make_window_stickers(car, design, made, copy_other_from, quiet, resolution, None, jobs)
+                made.update(win); layers.extend(gl)
+            if design.get('win_tint'):
+                tinted, tl, clear = tint_windows(car, design, made, copy_other_from, quiet)
+                made.update(tinted)
+                names = {nm for tm_, _ in tl for nm in tm_.mesh_of_tri.tolist()}
+                layers[:] = [l for l in layers if not set(l[0].mesh_of_tri.tolist()) & names] + tl
+            csp_stickers(jobs, made, layers, quiet, clear=clear)
+        if design is not None and not do(s_glass): return False
+        layer_of = _layer_map(len(tex_names), layers)
+        for view in PREVIEW_KEYS:
+            if not do(lambda view=view: _geometry(car, view, 1600, tex_names, layer_of)): return False
+        return True
+    except Exception:
+        return False
 
 
 def generate(*a, **k):
@@ -3609,15 +3930,13 @@ def _generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pr
             f'tint and stickers along); the car\'s own files are used')
         copy_other_from = None
     step(0.02, 'Reading the car model')
-    kn5_ = find_main_kn5(car_dir)
-    car_key = (os.path.normpath(car_dir), os.path.getmtime(kn5_), os.path.getsize(kn5_), resolution)
-    if _MEMO.get('car_key') != car_key:
-        _MEMO.clear()
-        _MEMO['car_key'] = car_key
-        _MEMO['car'] = Car(car_dir, log)
-        _MEMO['tex'] = {}
-    else:
-        log('same car as last time: model, texture maps and stock skins reused')
+    if not _load_car(car_dir, resolution, log):
+        said = _MEMO.pop('warm_said', None)
+        if said is not None:                        # got ready in the background (warm_up): said now, as if loaded now
+            for m_ in said: log(m_)
+            _MEMO['car'].log = log
+        else:
+            log('same car as last time: model, texture maps and stock skins reused')
     car = _MEMO['car']
     pat_key = tuple(str(design.get(k)) for k in PATTERN_KEYS)
     if _MEMO.get('pat_key') != pat_key:
@@ -3634,18 +3953,7 @@ def _generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pr
         design = dict(design, adjust=upgrade_logo_keys(copy.deepcopy(design['adjust']), list(design.get('logos') or [])))
     key = design_key(design, resolution)
     for tex in car.body_textures:
-        ref = None
-        for s in car.skins:
-            ref = car.stock_texture(tex, s)
-            if ref is not None: break
-        if ref is None: ref = load_image(car.kn5.textures[tex])
-        W, H = ref.size
-        if max(W, H) < 1024:
-            log(f'{tex} is only {W}x{H}; making the new texture 2048 wide')
-            k = 2048 / max(W, H); W, H = int(W * k), int(H * k)
-        if resolution and max(W, H) < resolution:
-            k = resolution / max(W, H); W, H = int(W * k), int(H * k)
-            log(f'making {tex} {W}x{H} for sharper writing and logos')
+        ref, W, H = _texture_size(car, tex, resolution, log)
         log(f'--- {tex}')
         ov = uv_overlap(car.meshes_for(tex))
         locked = scrambled_uv(car.meshes_for(tex)) > 0.5
@@ -3682,23 +3990,10 @@ def _generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pr
         step(0.1 + 0.55 * k_, f'Mapping {tex} onto the car')
         mem = _MEMO['tex'].setdefault(tex, {})
         if 'tm' not in mem or mem['tm'].W != W:
-            # parts spread over the texture that made the car look 'plain colour only' go under the panels
-            hogs = uv_overlap(car.meshes_for(tex), skip_hogs=False) > 3.0
-            tm = TexelMap(car.meshes_for(tex), W, H, log, hogs_under=hogs, skip_stretched=True); tm.tex = tex
-            occ = [m.pos[m.idx] for m in car.kn5.meshes if m.mat is not None and len(m.idx) and not see_through(m.mat)
-                   and m.mat.samplers.get('txDiffuse') != tex and 'shadow' not in m.name.lower()]
-            tm.occluders = np.concatenate(occ) if occ else None
-            step(0.1 + 0.55 * (k_ + 0.3 / len(car.body_textures)), 'Comparing the stock skins')
-            mem.clear()
-            mem['tm'] = tm
-            mem['stock'] = stock_analysis(car, tex, W, H, tm, log)
-            lm = lamp_texels(car.meshes_for(tex), W, H)
-            if lm is not None and lm.any():
-                b_, a_, p_, s_ = mem['stock']
-                if (p_ & lm).sum() <= 0.15 * max(1, p_.sum()):      # (a body named like a lamp: not this)
-                    mem['stock'] = (b_, a_, p_ & ~lm, s_); mem['lamps'] = lm
-                    log(f'lights on this texture keep their own look: '
-                        f'{", ".join(sorted({m.name for m in car.meshes_for(tex) if is_lamp(m)}))[:90]}')
+            _map_texture(car, tex, W, H, mem, log,
+                         lambda: step(0.1 + 0.55 * (k_ + 0.3 / len(car.body_textures)), 'Comparing the stock skins'))
+        elif 'warm_said' in mem:                    # mapped in the background (warm_up): what it said, said now
+            for m_ in mem.pop('warm_said'): log(m_)
         tm = mem['tm']
         base, alpha, paint, shade = mem['stock']
         step(0.1 + 0.55 * (k_ + 0.6 / len(car.body_textures)), 'Painting the livery')
@@ -3744,17 +4039,7 @@ def _generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pr
         design = dict(design, wheel_colour=None, tyre_colour=None, win_enable=False, win_tint=None, lens_colour=None,
                       beam_colour=None)
         if not copy_other_from: copy_other_from = two_d['source_skin']
-    wheel_out = {}
-    if design.get('wheel_colour'):
-        for tex in car.wheel_textures:
-            both = tex in car.tyre_meshes
-            wheel_out[tex] = recolour_wheels(car, tex, design['wheel_colour'], log, only=car.rim_meshes[tex] if both else None,
-                                             what='rims')
-    if design.get('tyre_colour'):
-        for tex in car.tyre_textures:
-            both = tex in car.rim_meshes
-            wheel_out[tex] = recolour_wheels(car, tex, design['tyre_colour'], log, only=car.tyre_meshes[tex] if both else None,
-                                             start=wheel_out.get(tex), what='tyres')
+    wheel_out = wheel_colours(car, design, log)
     made = dict(tex_out); made.update(wheel_out)
     if design.get('interior') and two_d is None and not main_locked:
         # seats, cage, carpet ... recoloured in the textures that hold their colour (never one the outside uses)
@@ -3808,10 +4093,10 @@ def _generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pr
             merge_ini(os.path.join(out, 'ext_config.ini'), csp_ini)
             log(f'wrote ext_config.ini (CSP window stickers: {", ".join(csp_tex)})')
         step(0.8, 'Writing the textures')
-        for tex, img in made.items():
-            name = skin_file_name(car, car_dir, tex)     # exactly the name the model asks for (or its skins use)
-            write_texture(img, os.path.join(out, name), compress=design.get('compress', True))
-            log(f'wrote {name}')
+        # exactly the name the model asks for (or its skins use); written side by side on several cores
+        jobs = [(img, os.path.join(out, skin_file_name(car, car_dir, tex))) for tex, img in made.items()]
+        write_textures(jobs, compress=design.get('compress', True))
+        for _, pth in jobs: log(f'wrote {os.path.basename(pth)}')
         # Kunos-style paint: the colour lives in the body material's detail texture (e.g. metal_detail.dds),
         # multiplied over the diffuse. Give the new skin a plain white one so the livery shows its own colours.
         for tex in car.body_textures:
