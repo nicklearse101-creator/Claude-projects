@@ -146,3 +146,12 @@ NOT verified in game: mirror reflections, V8 under AC lighting, door ends/handle
 * install.py is now physics-only by default (`--with-model` copies export/); backup() no longer doubles CRs. Installed as plain data/ - Nik packs.
 * NOT verified in game (AC not run): stance/arch gaps, splitter+floor clearance, steering weight, the DWB-looking rear on the model vs axle physics
   (DWB rear with Mk1 rates = small change in build_suspensions via dtm_build.REAR_DWB). Old setups don't fit - start from Default.
+
+## 2026-11-22 ~19:50 - v37 installed: Kadett S2 kit replaces the NICK3 kit (Nik: "put this bodykit from the kadett onto the Escort")
+Docs: escort_mk2_dtm/docs/V37_KADETT_KIT.md; scripts kk_load/kk_addkadett/kk_build/kk_finish/qrender.py (headless Blender, Blender MCP was not
+connected); blends "escort_v37 kadett kit 0..3"; live backup live_backup_before_v37_kadett_kit_20261122_1950. Kit = Kadett Plane.017 (arches+bumper
+corners+sills), splitter, 3 fins behind each rear wheel, wing (on hood_trunk); arches scaled 0.865 about wheel centres, sill top 4 mm under the door
+edge (z ~0.05). Escort diffuser kept, inner fins deepened. Rear lights/bumper missing = NICK3 work set 44 rear nodes kn5 active=0 (re-activated);
+rear unpainted = body_a_SUB1 on STOCK_Material #25DQW (STOCK_metal_detail.dds, skins colour via metal_detail.dds) -> Material #25DQW. Red-only tail
+lights (indicator/reverse lenses -> BRAKE_GLASS material, ext_config rear turn/reverse emissive names emptied). NOT checked in AC yet.
+Live kn5 before this was a CM re-save (Nov 6, .kn5.backup) of v33-era NICK3 model, not the v36f blend. Committed Claude- 24c23b1.

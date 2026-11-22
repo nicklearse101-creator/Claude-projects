@@ -39,3 +39,15 @@ ext_config.ini + MD5SUMS). Staging: `export_staging_v37_kadett_kit\`.
 - ext_config has an older "WIDER TARMAC EXTENSION" (MESH_ADJUSTMENT SCALE 1,1.06,1 on fenders_a_SUB2 / body_a_SUB1) -
   not ours, left alone; if CSP applies it, the shell is 6 % taller in game than in Blender.
 - Reverse/indicator sections are red but unlit; brake lighting still from lights.ini BRAKE_0 = BRAKE_GLASS only.
+
+# v38 (22 Nov ~20:30) - Nik: holes, floating grille, no splitter supports, see-through arches, front bumpers missing, rough join, mesh in the sill holes, wider track
+Script `tools\blender\kk_v38.py` (on "kit 2 built" blend) -> `escort_v38 kadett kit blended.blend`, export_staging_v38_kadett_kit. Backup of v37: live_backup_before_v38_kadett_blend_*.
+- Holes: NICK3 had cut the wheel openings out of fenders_a_SUB2 (8776->6104 tris) and body_a_SUB1 (20547->19281) - whole panels restored from BACKUP v25.
+- Front bumper, side markers, front indicators (Object016/017) were deleted meshes - restored from v25 (LOD B/C: under the LOD root).
+- Join: kit boundary verts that sat on the Kadett body (<10 mm, 192) pulled onto the Escort body (+1.5 mm), shift faded over 70 mm; arch<->sill transitions Laplacian-smoothed.
+- Kit given 2.5 mm thickness with rims (solid from behind). Even-offset made 2 runaway verts at -14 m - off, clamp 1.0.
+- Vents (6 loops) filled: steel mesh (Material #41dda ptn_grillsquare, alpha tested, 120 repeats/m) 6 mm in + black backing 30 mm in.
+- Splitter rods: Kadett Plane.009 thin islands, front-arch transform, Material #503ds. NICK3 alloy grille at the nose (y < -1.6) removed.
+- Track: data.acd suspensions.ini TRACK F 1.3345 -> 1.570, R 1.3735 -> 1.580 (tools/acd_patch.py, only that file re-encrypted, round-trip checked;
+  data.acd.BACKUP_20261122_2005 in the car folder); data/ mirrored. AC puts the wheel centre at TRACK/2 (Kadett: 1.50/2 = its 0.749 pivot).
+  Tyre outer ~0.945/0.955 vs arch lip 0.988. Handling WILL change (wider track) - old setups / Setup Coach baseline.
