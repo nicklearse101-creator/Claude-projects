@@ -51,3 +51,13 @@ Script `tools\blender\kk_v38.py` (on "kit 2 built" blend) -> `escort_v38 kadett 
 - Track: data.acd suspensions.ini TRACK F 1.3345 -> 1.570, R 1.3735 -> 1.580 (tools/acd_patch.py, only that file re-encrypted, round-trip checked;
   data.acd.BACKUP_20261122_2005 in the car folder); data/ mirrored. AC puts the wheel centre at TRACK/2 (Kadett: 1.50/2 = its 0.749 pivot).
   Tyre outer ~0.945/0.955 vs arch lip 0.988. Handling WILL change (wider track) - old setups / Setup Coach baseline.
+
+# v39 (22 Nov ~20:45) - Nik: track too wide (put back), mesh in only 1 of 4 sill vents, step between arches and body, plate RS 4000
+- Track: data.acd restored from data.acd.BACKUP_20261122_2005 (TRACK 1.3345 / 1.3735), data/ from its backup; the wide acd kept as data.acd.BACKUP_v38_wide_track_*. Nik sets track himself.
+- `kk_v39.py` (on "kit 2 built"): near the joins the kit is draped onto the body (within 25 mm of the join, eased out by 85 mm, 1.2 mm off the body);
+  back skin is its own part KK_kit_inner, thickness tapering to 0 at the joins, cast shadow OFF (the v38 2.5 mm double skin gave
+  shadow acne - the fine diagonal pattern in Nik's shots). Exporter: new mesh nodes now take cast/visible/transparent/renderable from kn5_flags.
+- Sill vents: one steel-mesh sheet + black backing per sill just inside the straight outer face (all 4 vents); loop fills only for the arch vents.
+- Plate: tools/plate_rs4000.py - "RS" kept, "0" = the plate's own last 0 mirrored, "4" drawn with the plate's line/stroke weights;
+  normal map rebuilt with the gradient->normal fit from the original pair. Originals kept as kn5_textures_v37/PLATE_2*.dds.ORIGINAL_RS1800.
+- Known: small notch at the front arch's top-rear corner; faint dashed shut line along the door bottom where the sill top meets the body.

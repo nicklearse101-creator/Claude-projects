@@ -249,7 +249,7 @@ def export_kn5(path, top_objects, shader="ksPerPixel", collider=False, share_tex
                 for verts, idx in chunks:
                     part = name if n_parts == 1 else f"{name}_SUB{k}"
                     node["children"].append({"cls": 2, "name": part, "verts": verts, "idx": idx,
-                                             "mat": material_id(mat), "flags": {}, "children": []})
+                                             "mat": material_id(mat), "flags": {k: v for k, v in flags(obj).items() if k in ("cast", "visible", "transparent", "renderable")}, "children": []})
                     k += 1
         for child in ordered(obj.children):
             built = build(child, obj.matrix_world)
