@@ -180,3 +180,15 @@ tools/blender/kk_v49.py (+ kk_v49_export.py) on the v48 blend -> escort_v49.blen
 # 23 Nov ~13:25 - brakes (Nik: car "wants to keep going" under braking): data.acd brakes.ini MAX_TORQUE 1680 -> 2000, electronics.ini [ABS] SLIP_RATIO_LIMIT 0.12 -> 0.18 (acd_patch.py; backups data.acd.BACKUP_20261123_1322 / _1323). data/ folder has no brakes.ini/electronics.ini.
 - v49d: the v49 exact-boolean arch cut left sliver triangles that poked out behind the rear arches as spikes in game (confirmed in a render of the installed kn5). kk_v49d.py deletes slivers (L > 4 cm, area/L^2 < 0.02) of fenders_a_SUB2/body_a_SUB1 in the arch zones (240 + 573). Re-rendered: gone.
 - v49d (2nd): sliver clean-up moved into kk_v49.py right after the cut, deleting only slivers with a vertex not in the pre-cut panel (30 + 74); the 1st v49d deleted original swage strips (white lines in game). Library-loaded objects have stale matrix_world - do not compare against them. Flames: ext_config discharge water-temp threshold 70 -> 0, rpm min 5500 -> 3500, probability 1.0, flat-shift rpm 3000 (untested in game).
+
+# v50 (23 Nov ~14:20) - 1980s VFD cluster (Nik picked concept C)
+tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.py -> export_staging_v50. Backup live_backup_before_v50_*.
+- Off (kn5 active 0): needles/hubs Object001-006, dashstructure_a_SUB29, lamp strip Object011(+__lr), odometer Object012, trip knob gaugecluster_a_SUB0/1.
+- Object010 / DASH_NIGTH / gaugecluster_a_SUB2 also hold the centre-console gauges: only their cluster islands (x > 0.10) deleted.
+- Old face-panel bezels of dashstructure_a_SUB28(+__lr) that sat in front of the screen deleted (islands >60 % inside the screen area).
+- VFD_SCREEN: cluster-glass outline shrunk 4 mm, 3 mm behind the glass (346 x 116 mm), UV 0..1 (u = driver's left->right, v up),
+  material = copy of the RaceLogic ksPerPixel material named VFD_SCREEN.
+- extension/vfd_display.lua (1200x400): rev bar graph 34 segments green/amber/red, mph, gear (red near the limiter), fuel bar + litres,
+  lap time, indicator arrows, main-beam lamp; ksEmissive 1.4 = backlit. ext_config: [SCRIPTABLE_DISPLAY_...] VFD_SCREEN; odometer
+  sections (Object012) and ARROW_TEMP/_2 blanked; cluster needle lights removed from the dash EMISSIVE_LIGHT (console needle kept).
+- NOT verified in AC: script drawing, text orientation (u/v), glow level.
