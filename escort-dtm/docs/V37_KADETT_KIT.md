@@ -120,3 +120,8 @@ Known: faint lighter shading where the kit lies on the rear quarters at the very
 # 23 Nov ~08:12 - REVERTED to v41 (Nik: v43 "ruined the shape of the arch")
 Live = export_staging_v41 again (v43 kept in live_backup_before_revert_to_v41_*). NOTE: tools/blender/kk_v40.py now contains the
 v42/v43 arch-top passes - rebuilding from it does NOT give v41; v41 = git version of kk_v40.py at commit 39cf9b7 (Claude-).
+
+# v44 (23 Nov ~08:20) - Nik: "remove the part that creates a step to the body ... keeping the exact original bodykit arch shape"
+= v41 shape + trim only: faces lying within 3 mm of the body around the arches removed, spike-only edge fix, nothing under the wing;
+NO surface blend / smoothing (RESHAPE = False in kk_v40.py). Edge gap after trim: median 1.3 mm, p95 5.7 mm.
+Arch cut-out keeps the multi-direction cover test (no gaps). Known: a small sliver at the rear-left arch's top-front edge.

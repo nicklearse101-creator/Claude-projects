@@ -21,8 +21,8 @@ sys.path.insert(0, r"D:\Claude\escort_mk2_dtm\tools\blender")
 import kk_build as kb       # noqa: E402
 import kk_finish as kf      # noqa: E402
 
-OUT = "D:/Claude/escort_mk2_dtm/blender/escort_v43 kadett kit arches clean.blend"
-kf.STAGE = "D:/Claude/escort_mk2_dtm/export_staging_v43"
+OUT = "D:/Claude/escort_mk2_dtm/blender/escort_v44 kadett kit trim only.blend"
+kf.STAGE = "D:/Claude/escort_mk2_dtm/export_staging_v44"
 kf.OUT_BLEND = OUT
 ATTACH_TOL = 0.010          # kit boundary vertex within this of the Kadett body = an attachment edge
 BLEND_R = 0.070             # fade the attachment shift over this geodesic distance
@@ -34,6 +34,7 @@ DRAPE_OFF = 0.0012                  # draped band sits this far off the body
 DRAPE_MAX = 0.06
 PRESS_IN, PRESS_OUT = 0.012, 0.025  # v42: horizontal press onto the body near the arch tops
 EDGE_ON, BLEND_G = 0.010, 0.07       # v43: blend the kit's rise off the wings over 7 cm from its edge
+RESHAPE = False                     # v44: Nik - keep the Kadett arch shape exactly (v43 blend/smooth reshaped it)
 SPIKE = 0.003                       # v43: edge vertex this far off its neighbours' line = spike
 TRIM_ON = 0.0030                    # v42: kit within this of the body around the arches = lying on it -> trimmed
 SILL_KEEP = (-0.80, 0.60)           # Escort y: sill top under the doors keeps the v37 tuck (no pull/drape)                    # never drape a vertex further than this from the body
@@ -276,9 +277,10 @@ def build_kit(main, ks):
         t = r / BLEND_G; sm = t * t * (3 - 2 * t)
         n = (v.co - loc).normalized() if d > 1e-6 else nrm
         moves[i] = loc + n * (DRAPE_OFF + max(0.0, d - DRAPE_OFF) * sm)
-    for i, c in moves.items():
-        bm.verts[i].co = c
-    eased = len(moves)
+    if RESHAPE:
+        for i, c in moves.items():
+            bm.verts[i].co = c
+    eased = len(moves) if RESHAPE else 0
     on_body = {}
     for v in bm.verts:
         p = v.co
@@ -307,6 +309,10 @@ def build_kit(main, ks):
     bm.verts.ensure_lookup_table(); bm.edges.ensure_lookup_table()
     taper = np.array([v[tl] for v in bm.verts])
     trimmed = len(trim)
+    eg = [et.find_nearest(v.co)[3] for e in bm.edges if e.is_boundary for v in e.verts if zone(v.co)]
+    eg = [g for g in eg if g < 0.05]
+    print("EDGEGAP after trim: n", len(eg), "median mm", round(1000 * float(np.median(eg)), 2),
+          "p95 mm", round(1000 * float(np.percentile(eg, 95)), 2), "max mm", round(1000 * max(eg), 2))
     # edge relax (v43): after the trim the kit's edge on the wings can keep a lone vertex standing up (a blade at the
     # front arches' top-rear corner) - smooth the edge line along itself and re-seat it on the body
     for _ in range(10):
@@ -335,7 +341,7 @@ def build_kit(main, ks):
     # light surface smooth in the arch zones (faint creases on the rear arch tops); edges and on-body verts fixed
     bnd_set = {v for e in bm.edges if e.is_boundary for v in e.verts}
     mv = [v for v in bm.verts if zone(v.co) and v not in bnd_set and taper[v.index] < 0.95]
-    for _ in range(6):
+    for _ in range(6 if RESHAPE else 0):
         nw = {v: v.co + (sum((e.other_vert(v).co for e in v.link_edges), Vector()) / len(v.link_edges) - v.co) * 0.4
               for v in mv}
         for v, c in nw.items():
