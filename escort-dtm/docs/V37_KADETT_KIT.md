@@ -152,3 +152,5 @@ KK_fog_bezel (#503ds), KK_fog_lens (own mesh + own yellow material KK_fog_lens);
 data.acd patched, backup data.acd.BACKUP_20261123_0905; data/ mirrored); [EMISSIVE_BRAKE_1] NAME=all rear lens sections, INPUT=BRAKE,
 INPUT_THRESHOLD 0.95 -> 0.05; rear fog glow (EMISSIVE_EXTRA_B_2 FOG_GLASS) removed; indicators/reverse already off (v37).
 Not verified in AC: fog lamp light on high beam, rear lenses off with headlights on.
+
+# v48b (23 Nov ~09:10) - Nik: rear lights only must not show orange/white; normal tail lights with headlights stay. Reverted the v48 rear changes: data.acd from data.acd.BACKUP_20261123_0905 (lights.ini OFF_COLOR 12/25 again), data/lights.ini from its backup, ext_config from BACKUP_before_v48 + the fog-lamp section re-added. Orange/white stay off as since v37 (red lens material on indicator/reverse sections, their CSP emissives emptied).
