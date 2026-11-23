@@ -116,3 +116,7 @@ up-out and down-out (horizontal-only removed wing faces visible from above past 
 Dead ends tried (in git history of kk_v40.py): nearest-point flush (folds on the swage line), subdivide+press (crumpled),
 edge-line relax on the subdivided mesh (sawtooth), "above the wing seen from above" cut (ate the arch tops).
 Known: faint lighter shading where the kit lies on the rear quarters at the very edge; small original Kadett ridges on the rear-left arch top.
+
+# 23 Nov ~08:12 - REVERTED to v41 (Nik: v43 "ruined the shape of the arch")
+Live = export_staging_v41 again (v43 kept in live_backup_before_revert_to_v41_*). NOTE: tools/blender/kk_v40.py now contains the
+v42/v43 arch-top passes - rebuilding from it does NOT give v41; v41 = git version of kk_v40.py at commit 39cf9b7 (Claude-).
