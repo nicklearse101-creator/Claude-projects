@@ -154,3 +154,23 @@ INPUT_THRESHOLD 0.95 -> 0.05; rear fog glow (EMISSIVE_EXTRA_B_2 FOG_GLASS) remov
 Not verified in AC: fog lamp light on high beam, rear lenses off with headlights on.
 
 # v48b (23 Nov ~09:10) - Nik: rear lights only must not show orange/white; normal tail lights with headlights stay. Reverted the v48 rear changes: data.acd from data.acd.BACKUP_20261123_0905 (lights.ini OFF_COLOR 12/25 again), data/lights.ini from its backup, ext_config from BACKUP_before_v48 + the fog-lamp section re-added. Orange/white stay off as since v37 (red lens material on indicator/reverse sections, their CSP emissives emptied).
+
+# TODO next (Nik 23 Nov 09:11, "fix that after usage reset"): old arch lips still visible under the kit's arches as jagged teeth
+Cause: kk_v40_extras.cut_hidden_arches deletes whole faces of fenders_a_SUB2 / body_a_SUB1 -> sawtooth edge; since v44 the cover
+test only removes faces hidden from 3 ray directions, so the original lip band under the kit's lip stays and shows through the gap.
+Plan: cut the wing/quarter panels along a SMOOTH arc (bmesh.ops.bisect_plane per angle step / boolean with a cylinder-like cutter)
+a few mm inside the kit's lip radius per angle (kit lip profile already measured in cut_hidden_arches as prof[(wheel, side)]),
+delete everything inside that arc, all four arches; arch liners (kk_v47) then close the view. Check in side + low close views
+before installing. Live = v48b; v47/v48 blends build from the v46 blend.
+
+# v49 (23 Nov ~12:45) - Nik: red goes white in sun; paintable wing/mirrors/splitter/diffuser; belts black in game; LODs old; old arch lips
+tools/blender/kk_v49.py (+ kk_v49_export.py) on the v48 blend -> escort_v49.blend, export_staging_v49.
+- Paint: Material #25DQW had txMaps = AO_BODY (the skin livery) -> red channel = full specular -> red flashed white. Now txMaps =
+  ESCORT_BODY_MAPS.dds (4x4 solid 170,230,190 = spec .67 gloss .9 refl .75), added to the kn5 texture list.
+- KK_wing, KK_splitter, NICK3 carbon (diffuser), AERO_mirror_L/R -> Material #25DQW, planar UVs stacked in a free AO_BODY strip
+  u 0.91-0.995, v 0.06-0.79 (occupancy checked). Default skin: that strip is dark, so they look as before until a skin paints it.
+- Belts: CINTURE_ON (shown in game) had Material #101III/AO_98 vs CINTURE_OFF (#100TT34/AO_97, the yellow ones in CM): ON meshes now
+  copies of the OFF meshes (SUB1, SUB0, SUB1__lr).
+- Arches: exact-boolean cut of fenders_a_SUB2/body_a_SUB1 along a smooth curve 10 mm outside the kit's lip (kit profile per 3 deg,
+  5-pt smoothed), x 0.5..1.2 per side, all four arches.
+- LODs B/C/D regenerated from the main model (decimate 0.30/0.12/0.04, LOD files without textures) - old LODs had the NICK3 spoiler.
