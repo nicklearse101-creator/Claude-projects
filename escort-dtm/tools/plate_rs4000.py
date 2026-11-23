@@ -80,21 +80,18 @@ def main(col_png, nrm_png, out_dir):
     bg = C[5, 5, :3].mean(); fg = 241.0
     I = intensity(C, bg, fg)
     h, w = I.shape
-    # layout (boundary x): RS block 123..298 kept; digits 4 / 0 / 0 / 0 at 104.5 px pitch like the original 0s
+    # layout: exactly the RS 1800 layout - "RS" untouched in place, "4000" fills the space "1800" used
+    # (line-centre x 330 .. 640.25), digits overlapping/interlocking by the same amount each
     zr, cx = zero_ring(I)
-    rs = I.copy(); rs[:, 318:] = 0
-    pitch, gap = 104.5, 11.0
-    z_centres = [cx - 2 * pitch, cx - pitch, cx]
-    four_right = z_centres[0] - 46.75 - gap
-    four_left = four_right - 92.0
-    left_edge, right_edge = 123 - 3, cx + 46.75 + 3
-    # S right edge 298: keep the original S->digit gap (29 px) by sliding RS left, then centre the lot
-    rs_dx = int(round(four_left - 29 - 298))
-    total_l, total_r = left_edge + rs_dx, right_edge
-    centre_dx = int(round((w - (total_r - total_l)) / 2 - total_l))
-    new = shift(rs, rs_dx + centre_dx)
-    for c in z_centres:
-        new = np.maximum(new, shift(zr, int(round(c - cx)) + centre_dx))
+    new = I.copy(); new[:, 318:] = 0
+    w4, w0, x_l, x_r = 92.0, 93.5, 330.0, cx + 46.75
+    ov = (w4 + 3 * w0 - (x_r - x_l)) / 3
+    four_left = x_l
+    z_lefts = [x_l + w4 - ov, x_l + w4 - ov + (w0 - ov), x_l + w4 - ov + 2 * (w0 - ov)]
+    centre_dx = 0
+    for zl in z_lefts:
+        new = np.maximum(new, shift(zr, int(round(zl + 46.75 - cx))))
+    print(f"digit overlap {ov:.1f} px")
     y0 = 28.75
     new = np.maximum(new, four_ring(h, w, four_left + centre_dx, y0))
     # colour: background + white lines, alpha as the original

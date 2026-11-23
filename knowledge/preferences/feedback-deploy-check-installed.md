@@ -17,3 +17,7 @@ clearly named BACKUP outside `content/cars` and list files that differ from the 
 **How to apply:** the Nova's tools/deploy.py now does this automatically (export/deploy_backups/); for other
 projects check mtimes / diff first. Follow [[feedback-backup-naming]] for the backup name. If something was lost,
 say so plainly and own it.
+
+22 Nov 2026 (Escort v39): 2 min after install, CM (still holding v38 open) saved over the kn5 with Nik's wheel-node move.
+After installing a model, re-check the installed md5 a few minutes later / when Nik says "nothing changed", and diff the
+CM save against what was installed (kn5_compare) to keep his edits.

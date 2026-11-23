@@ -18,6 +18,20 @@ or in a `data` folder next to the installed app when "Keep my logos and settings
 (v1.9.0; copied from AppData, the old copy is left). Updates, moves and the uninstaller never delete it.
 
 ## Use
+**New in 1.17.0 (22 Nov 2026):** Nik + a friend's Accord WTCC: the old skin showed along the panel edges in game (lime
+green as yellow lines) and Nik asked for a white base with AO instead of the stock skin under the livery. (A)
+`fill_gaps`: every gap between the panels in the texture is filled (pad_texture's 12 texels as before, then pull-push
+from the panels round it) - the game's smaller texture levels no longer blend in the old skin. (B) `ao_bake.py`: the
+paint's shading is ambient occlusion baked from the model, the way Content Manager's "Baked shadows" does it (research:
+`reports/Car AO baking on CPU.md`): 128 suns at 0-60 deg, an orthographic depth map of the car per sun (surface points
+splatted with np.maximum.at, cast-shadow parts only, no glass / blur / shadow / damage copies), each texel lit by the
+suns it sees; occlusion only (divided by what it would get with nothing round it - the game lights the car itself),
+^0.6, shade = 0.2 + 0.8 x AO. Baked on a 1024 texture and scaled up; texels whose neighbours are another part (3D
+distance > 2 cm / 3 texels) baked at full size; texels several surfaces share take the lightest of three drawing orders
+(the visible one - a hidden jamb gave black streaks on the Talbot doors). Cached per car in the data folder
+(`ao/`, `skingen.AO_CACHE_DIR`), ~10-30 s per 4K texture the first time, in the background warm-up.
+`skingen.AO_SHADING = False` brings back the stock-skin shading. Tests `tests/test_gap_fill.py`, `tests/test_ao.py`.
+
 **New in 1.16.0 (20 Nov 2026):** **faster** (Nik: "see what can be done to speed up the app"); every skin and preview
 byte-identical to 1.15.0 (`tests/same_output_cars.py`, both variants, Nik's 4 cars, also with `R4S_WARM=1`). (1) where
 a decal lands is kept on its texel map (`decal_hits` cache keyed by view, spot, size and the region function's code +

@@ -95,5 +95,30 @@ def main(car, fname, changes):
     return check[fname]
 
 
+def put_file(car, fname, text):
+    """Add (or replace) a whole file inside the acd; every other entry copied byte for byte."""
+    car = Path(car)
+    key = acd_decoder.get_key(car.name)
+    acd = car / "data.acd"
+    head, ents = entries(acd.read_bytes())
+    new = encrypt(text.encode("utf-8"), key)
+    nb = fname.encode("ascii")
+    blob = struct.pack("<i", len(nb)) + nb + struct.pack("<I", len(new) // 4) + new
+    out = bytearray(head); done = False
+    for name, b, raw in ents:
+        if name == fname:
+            out += blob; done = True
+        else:
+            out += b
+    if not done:
+        out += blob
+    bk = car / f"data.acd.BACKUP_{time.strftime('%Y%m%d_%H%M')}"
+    shutil.copy2(acd, bk)
+    acd.write_bytes(bytes(out))
+    check = acd_decoder.decrypt_acd(acd, car.name); old = acd_decoder.decrypt_acd(bk, car.name)
+    assert check[fname] == text and all(check[n] == old[n] for n in old if n != fname)
+    print("written", fname, "; backup", bk.name)
+
+
 if __name__ == "__main__":
     main(sys.argv[1], sys.argv[2], sys.argv[3:])

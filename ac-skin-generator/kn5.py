@@ -17,7 +17,7 @@ import numpy as np
 
 
 class Mesh:
-    __slots__ = ('name', 'pos', 'nrm', 'uv', 'idx', 'mat', 'parents')
+    __slots__ = ('name', 'pos', 'nrm', 'uv', 'idx', 'mat', 'parents', 'cast', 'shown')    # cast: casts shadows; shown: visible
 
     def __init__(self, **k):
         for a, v in k.items(): setattr(self, a, v)
@@ -82,7 +82,7 @@ class KN5:
             local = np.array(self.r('<16f'), dtype=np.float64).reshape(4, 4)
             world = local @ parent
         else:
-            self.r('<bbb')
+            cast, shown, _ = self.r('<bbb')            # casts shadows, visible, transparent
             if cls == 3:
                 for _ in range(self.r('<i')[0]): self.s(); self.r('<16f')
             vc, = self.r('<i'); st = 44 if cls == 2 else 76
@@ -100,7 +100,7 @@ class KN5:
             ln = np.linalg.norm(nrm, axis=1, keepdims=True); ln[ln == 0] = 1
             self.meshes.append(Mesh(name=name, pos=pos, nrm=nrm / ln, uv=raw[:, 6:8].astype(np.float64).copy(),
                                     idx=idx.reshape(-1, 3), mat=self.materials[mid] if mid < len(self.materials) else None,
-                                    parents=parents))
+                                    parents=parents, cast=bool(cast), shown=bool(shown)))
         for _ in range(nc): self._node(world, parents + (name,))
 
 

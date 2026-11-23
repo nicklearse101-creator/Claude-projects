@@ -16,7 +16,7 @@ import tour
 messagebox = theme.messagebox      # dark dialogs, same calls as tkinter.messagebox (tests replace these)
 
 APP_NAME = skingen.APP_NAME
-VERSION = '1.16.0'
+VERSION = '1.17.0'
 
 
 def find_data_dir(exe_dir, appdata):
@@ -231,6 +231,7 @@ class App(tk.Tk):
         self.preview_img = None
         self.busy = False
         self._warm, self._warm_job = None, None          # the car being got ready in the background (1.16)
+        skingen.AO_CACHE_DIR = os.path.join(DATA_DIR, 'ao')  # each car's light and shade, baked once (1.17)
         self.info = {}                                   # where the last preview put every decal
         self.adjust_by_car = self.cfg.get('adjust_by_car') or {}     # hand adjustments, per car
         self.adjust_gen = {}                             # the adjustments the last preview was made with

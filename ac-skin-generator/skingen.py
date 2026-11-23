@@ -18,6 +18,7 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont, ImageColor, ImageOps
 
 from kn5 import KN5, Mesh
+import ao_bake
 
 Image.MAX_IMAGE_PIXELS = None
 FONT_DIR = r"C:\Windows\Fonts"
@@ -3547,7 +3548,7 @@ def preview_sheet(car, tex_imgs, tms, width=900, layers=()):
 
 
 # ------------------------------------------------------------------ the whole job
-def pad_texture(img, covered, reach=12):
+def pad_texture(img, covered, reach=12, out_have=None):
     """Spread the painted colours out over the texels no triangle owns (the gaps between panels in the
     texture and thin seam triangles). The game blends neighbouring texels, so without this the old
     skin's colour shows as a line along door seams, lamp surrounds and panel edges.
@@ -3583,7 +3584,145 @@ def pad_texture(img, covered, reach=12):
                 flat[todo[got]] = flat[src[got]]
                 have[todo[got]] = True
                 todo = todo[~got]
+    if out_have is not None: out_have.append(have.reshape(H, W))
     return Image.fromarray(a)
+
+
+def fill_gaps(img, covered, reach=12):
+    """pad_texture, then EVERY gap left between the panels filled from the panels around it (Nik 22 Nov: the old
+    skin's colours further out than `reach` - the Accord's lime green - showed in the game as yellow lines along the
+    panel edges, blended in by its smaller texture levels). The far gaps are filled pull-push: the colours averaged
+    2x2 down to one texel, then each empty texel takes the average of its block at the first level that has any."""
+    have_ = []
+    out = pad_texture(img, covered, reach, have_)
+    have = have_[0]
+    if have.all() or not have.any(): return out
+    a = np.array(out)
+    H, W = have.shape
+    up = pull_push(a[..., :3].astype(np.float32), have)
+    gap = ~have
+    a[..., :3][gap] = np.clip(np.rint(up[gap]), 0, 255).astype(np.uint8)
+    return Image.fromarray(a)
+
+
+def pull_push(arr, have):
+    """(H, W, C) values where `have`; every other texel the average of the first block around it, at the levels
+    halved 2x2 down to one texel, that has any (Gortler et al. 1996). Where `have`, the values are those given."""
+    c, w = arr * have[..., None], have.astype(np.float32)
+    levels = []
+    while True:
+        levels.append((c, w))
+        H, W = w.shape
+        if H == 1 and W == 1: break
+        if H % 2 or W % 2:                              # (odd sizes: an empty row / column added)
+            c = np.pad(c, ((0, H % 2), (0, W % 2), (0, 0))); w = np.pad(w, ((0, H % 2), (0, W % 2)))
+        c = c[0::2, 0::2] + c[1::2, 0::2] + c[0::2, 1::2] + c[1::2, 1::2]
+        w = w[0::2, 0::2] + w[1::2, 0::2] + w[0::2, 1::2] + w[1::2, 1::2]
+    col = levels[-1][0] / np.maximum(levels[-1][1], 1e-12)[..., None]
+    for c, w in reversed(levels[1:-1]):
+        H, W = w.shape
+        up = np.repeat(np.repeat(col, 2, 0), 2, 1)[:H, :W]
+        col = np.where((w > 0)[..., None], c / np.maximum(w, 1e-12)[..., None], up)
+    H, W = have.shape
+    up = np.repeat(np.repeat(col, 2, 0), 2, 1)[:H, :W]
+    return np.where(have[..., None], arr, up)
+
+
+# ------------------------------------------------------------------ light and shade from the car's shape
+AO_CACHE_DIR = None              # set by the app (its data folder): a car's AO is baked once
+AO_FLOOR = 0.2                   # the darkest a crease gets (x the paint colour)
+AO_TEXELS = 1024                 # AO worked out on a texture this wide, then scaled up (it changes slowly)
+
+
+def _ao_two_owners(tm, W, H):
+    """Texels of tm that other surfaces use too (a door's edge, and the jamb or sill behind it, on the same spot of the
+    texture): their index in tm and the other surface's point and normal there - for each of two other orders the
+    triangles can be drawn in: reversed, and outermost last (the surface furthest out from the car's middle wins)."""
+    good = np.nonzero(tm.t_good)[0]
+    c = tm.t_pos[good].mean(1)
+    lo, hi = tm.t_pos.reshape(-1, 3).min(0), tm.t_pos.reshape(-1, 3).max(0)
+    mid, half = (lo + hi) / 2, np.maximum((hi - lo) / 2, 1e-6)
+    out_ = np.linalg.norm((c - mid) / half, axis=1)
+    idx, Ps, Ns = [], [], []
+    for order in (good[::-1], good[np.argsort(out_, kind='stable')]):
+        ids, _, _ = raster_tris(tm.t_px, order, W, H)
+        t2 = ids[tm.yy, tm.xx]
+        two = np.nonzero((t2 >= 0) & (t2 != tm.tri))[0]
+        P2, N2 = locate_texels(tm.t_px, tm.t_pos, tm.t_nrm, t2[two], tm.xx[two], tm.yy[two])
+        idx.append(two); Ps.append(P2); Ns.append(N2)
+    return np.concatenate(idx), np.concatenate(Ps), np.concatenate(Ns)
+
+
+def _ao_points(occ, P, N, two, P2, N2):
+    """AO at the points; where other surfaces share a texel, the lightest counts - the one you see (else a hidden jamb's
+    dark showed as black streaks along the door)."""
+    ao = ao_bake.bake(occ, np.concatenate([P, P2]), np.concatenate([N, N2]))
+    ao, ao2 = ao[:len(P)], ao[len(P):]
+    np.maximum.at(ao, two, ao2)
+    return ao
+
+
+def ao_shade(car, tex, W, H, log=print, hogs=False, tm_full=None):
+    """The paint's light and shade at W x H from the shape of the car itself - ambient occlusion, baked the way
+    Content Manager's "Baked shadows" does (ao_bake) - in place of the shading read from the stock skins (Nik 22 Nov:
+    "make AO map ... and have a white base": nothing of the old skin's picture under the new paint).
+    Baked on a texture AO_TEXELS wide and scaled up; with the full texel map (tm_full), the texels where that would mix
+    two parts (part borders, texels two surfaces share) are baked at full size.
+    AO_FLOOR (deep in a crease) .. 1 (open panel). Kept in AO_CACHE_DIR per car model, texture and size."""
+    k = min(1.0, AO_TEXELS / max(W, H)); w, h = max(2, round(W * k)), max(2, round(H * k))
+    st = os.stat(car.kn5_path)
+    tag = re.sub(r'[^A-Za-z0-9_.-]+', '_', f'{os.path.basename(os.path.dirname(car.kn5_path))}_{tex}_{W}x{H}_'
+                                              f'{"f" if tm_full is not None else "l"}_{st.st_size}_{int(st.st_mtime)}_'
+                                              f'{ao_bake.VERSION}')
+    path = os.path.join(AO_CACHE_DIR, tag + '.npz') if AO_CACHE_DIR else None
+    got = None
+    if path and os.path.isfile(path):
+        try:
+            with np.load(path) as z: got = (z['lo'].astype(np.float32), z['idx'], z['val'].astype(np.float32))
+            if got[0].shape != (h, w): got = None
+        except Exception: got = None
+    if got is None:
+        occ = ao_bake.occluders(car.kn5.meshes, see_through)
+        tm = TexelMap(car.meshes_for(tex), w, h, lambda s_: None, hogs_under=hogs, skip_stretched=True)
+        lo = np.zeros((h, w), np.float32)
+        lo[tm.yy, tm.xx] = _ao_points(occ, tm.P, tm.N, *_ao_two_owners(tm, w, h))
+        lo = pull_push(lo[..., None], tm.covered)[..., 0]
+        idx, val = np.zeros(0, np.int64), np.zeros(0, np.float32)
+        if tm_full is not None and (w, h) != (W, H):
+            # scaled up, a texel next to another part (or on a spot two surfaces share) would mix the two: baked itself
+            names = {n_: i for i, n_ in enumerate(sorted(set(tm.mesh_of_tri.tolist()) | set(tm_full.mesh_of_tri.tolist())))}
+            m_lo = np.full((h, w), -1, np.int32)
+            m_lo[tm.yy, tm.xx] = np.array([names[n_] for n_ in tm.mesh_of_tri], np.int32)[tm.tri]
+            m_full = np.array([names[n_] for n_ in tm_full.mesh_of_tri], np.int32)[tm_full.tri]
+            fx = (tm_full.xx + 0.5) * w / W - 0.5; fy = (tm_full.yy + 0.5) * h / H - 0.5
+            x0 = np.clip(np.floor(fx).astype(np.int64), 0, w - 1); x1 = np.clip(x0 + 1, 0, w - 1)
+            y0 = np.clip(np.floor(fy).astype(np.int64), 0, h - 1); y1 = np.clip(y0 + 1, 0, h - 1)
+            # (a neighbour that is the same surface - near it on the car: 2 cm, or 3 of the small texture's texels -
+            #  mixes nothing)
+            r = max(0.02, 3 * tm.texel_m)
+            P_lo = np.full((h, w, 3), np.inf, np.float32); P_lo[tm.yy, tm.xx] = tm.P
+            Pf = tm_full.P.astype(np.float32)
+            odd = np.zeros(len(Pf), bool)               # (shared texels: their low-res value is already the lightest)
+            for yy_, xx_ in ((y0, x0), (y0, x1), (y1, x0), (y1, x1)):
+                far = np.einsum('ij,ij->i', P_lo[yy_, xx_] - Pf, P_lo[yy_, xx_] - Pf) > r * r
+                odd |= far | ~np.isfinite(P_lo[yy_, xx_, 0])
+            sel = np.nonzero(odd)[0]
+            two, P2, N2 = _ao_two_owners(tm_full, W, H)
+            keep = np.isin(two, sel)
+            pos = np.searchsorted(sel, two[keep])
+            val = _ao_points(occ, tm_full.P[sel], tm_full.N[sel], pos, P2[keep], N2[keep]).astype(np.float32)
+            idx = (tm_full.yy[sel].astype(np.int64) * W + tm_full.xx[sel])
+        log(f'light and shade baked from the shape of the car ({ao_bake.DIRS} suns, like Content Manager)')
+        got = (lo, idx, val)
+        if path:
+            try:
+                os.makedirs(AO_CACHE_DIR, exist_ok=True)
+                np.savez(path, lo=lo.astype(np.float16), idx=idx, val=val.astype(np.float16))
+            except OSError: pass
+    lo, idx, val = got
+    full = np.array(Image.fromarray(lo, 'F').resize((W, H), Image.BILINEAR), np.float32)
+    if len(idx): full.reshape(-1)[idx] = val
+    return AO_FLOOR + (1 - AO_FLOOR) * np.clip(full, 0, 1)
 
 
 def spot_parts(tm, out_rgb, colour, log=print):
@@ -3823,6 +3962,9 @@ def _texture_size(car, tex, resolution, log):
     return ref, W, H
 
 
+AO_SHADING = True                # False: the paint's shading read from the stock skins (as before 1.17)
+
+
 def _map_texture(car, tex, W, H, mem, log, half_way=None):
     """A body texture mapped onto the car (its texel map) and compared with the stock skins, into mem."""
     # parts spread over the texture that made the car look 'plain colour only' go under the panels
@@ -3833,6 +3975,12 @@ def _map_texture(car, tex, W, H, mem, log, half_way=None):
     tm.occluders = np.concatenate(occ) if occ else None
     if half_way: half_way()
     new = dict(tm=tm, stock=stock_analysis(car, tex, W, H, tm, log))
+    if AO_SHADING:
+        try:                                    # the light and shade from the car's shape, not the old skins (1.17)
+            b_, a_, p_, _ = new['stock']
+            new['stock'] = (b_, a_, p_, ao_shade(car, tex, W, H, log, hogs, tm))
+        except Exception as e:
+            log(f'light and shade from the car\'s shape: not possible on this car ({e}) - taken from its skins')
     lm = lamp_texels(car.meshes_for(tex), W, H)
     if lm is not None and lm.any():
         b_, a_, p_, s_ = new['stock']
@@ -4011,7 +4159,7 @@ def _generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pr
             if not kept or key not in (kept['key'], kept.get('alias')): kept = _MEMO['render'] = dict(key=key, tex={})
             kept['tex'][tex] = (rgb_img, filled, said, dict(ctx),
                                 copy.deepcopy(info.get('decals')) if info is not None else None)
-        if write: rgb_img = pad_texture(rgb_img, tm.covered | filled)       # the gaps only matter in the game
+        if write: rgb_img = fill_gaps(rgb_img, tm.covered | filled)         # the gaps only matter in the game
         img = rgb_img.copy(); img.putalpha(Image.fromarray(alpha))
         tex_out[tex] = img; tms[tex] = tm
     if info is not None:            # what could not be placed: the app asks the user to pick a spot on the preview
