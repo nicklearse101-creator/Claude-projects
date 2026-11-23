@@ -223,3 +223,13 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
   Expected readings ~36 F / ~80 R mm at the same setup; 0 = sills on the ground.
 - Front wing uses height_front_CL/CD.lut (ground-height multipliers) - both shifted by -0.114 so aero is unchanged.
 - Backup: data.acd.BACKUP_before_rideheight_zero. Not checked in game.
+
+## Aero v2 (23 Nov 18:25) - Kadett kit aero
+- Old aero = Kunos Mercedes 190 Evo2 wings (CL*A ~0.37, 37% front) + Kunos Escort Mk1 body Cd 0.45 x 1.83.
+- Measured (model, physics = model + GRAPHICS_OFFSET): splitter 1.92 m wide at z 1.64 / y -0.47; rear wing 2.14 x 0.35 m at
+  z -2.44 / y 0.46; diffuser 1.68 m wide, ~z -1.85 / y -0.50; frontal area ~1.9 m2.
+- New: BODY Cd 0.44 x 1.90; FRONT (splitter) CL 0.13-0.19 (setup 0-3) x 1.92 with GH LUT peaking ~18 mm sill height, 1.0 at ~38 mm,
+  stall below ~8 mm; REAR wing CL 0.26-0.44 (setup 0-4) x 0.749, CD 0.08-0.125; new WING_3 DIFFUSER CL 0.06 x 1.68 with rear GH LUT
+  (peak ~40 mm, 1.0 at ~80 mm).
+- Default (3/3): CL*A 0.77 (~1440 N at 200 km/h, was ~690 N), 38% front (was 37%); range 0.55-0.80. CdA 0.94 (was 0.91).
+- Backup: data.acd.BACKUP_before_aero_v2. Not driven yet.
