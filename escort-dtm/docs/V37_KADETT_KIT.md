@@ -242,3 +242,11 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
   them and flickers one length per side on lift-off / upshift / limiter; handbrake >0.5 + >2000 rpm = test flicker.
 - Both [EXHAUST_FLAMES] blocks renamed [EXHAUST_FLAMES_OFF_TEST]; VFD still has the temp S/E/F/H readout.
 - Live backup: D:/ClaudeData/tmp/kadett/live_backup_before_v51_1910. Not seen in game yet.
+
+## v51b (23 Nov 19:20) - flames confirmed, VFD tyres
+- Mesh flames were black: kk_v51_flames.py wrote ksEmissive into the float+vec2 slots (props = name, f, v2, v3, v4); script
+  now sets ksEmissive 8 at load, build script fixed (p[4:7]). Nik: "woohoo flames!!". Handbrake test + VFD S/E/F/H readout removed.
+- VFD: tyre block between gear and indicators, front row on top: I/M/O surface strip + core temp + pressure, ProTyres-style
+  colours (blue cold -> green in window -> yellow/orange -> red). Windows from the tyre curves: S 65-80, M 70-90, H 75-95 C;
+  29 psi ideal (+-1 psi green); Vintage GT70 uses optimum +-10 C, 37 psi. Speed/gear shifted left; fuel litres moved off the
+  right arrow. Preview: docs/vfd_tyres_preview.png (not yet seen in game).

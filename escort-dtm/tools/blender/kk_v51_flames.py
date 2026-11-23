@@ -41,7 +41,7 @@ for p in dd["props"]:
     if p[0] in ("ksAmbient", "ksDiffuse", "ksSpecular"):
         p[1] = 0.0
     if p[0] == "ksEmissive":
-        p[1:4] = [6.0, 6.0, 6.0]
+        p[4:7] = [6.0, 6.0, 6.0]                # vec3 slot (name, float, vec2, vec3, vec4)
 dd["samplers"] = [["txDiffuse", 0, TEX]]
 mat["kn5_def"] = json.dumps(dd)
 mats = json.loads(main["kn5_materials"])
