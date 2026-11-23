@@ -417,3 +417,83 @@ def nik_wheels(main):
     bpy.data.scenes.remove(tmp)
     bpy.context.window.scene = main
     return len(names)
+
+
+# ---------------------------------------------------------------- paint match (v41)
+def transfer_uvs(main, names=("KK_kit", "KK_kit_inner")):
+    """Kit texture coordinates from the body panel straight inboard of each vertex (ray along -x towards the car,
+    nearest point as fallback), so the kit samples the same AO_BODY / skin livery texels as the body beside it -
+    one fixed texel was brighter than the panels (238 vs ~176 on a door) and could not follow a livery.
+    Run before cut_hidden_arches (needs the whole panels)."""
+    tris, uvs = [], []
+    verts = []
+    for o in main.objects:
+        if o.type != "MESH" or o.get("kn5_name") not in ("body_a_SUB1", "fenders_a_SUB2"):
+            continue
+        me = o.data; me.calc_loop_triangles()
+        co = kb.world_co(o)
+        uvd = me.uv_layers.active.data
+        for t in me.loop_triangles:
+            base = len(verts)
+            verts += [Vector(co[v]) for v in t.vertices]
+            tris.append((base, base + 1, base + 2))
+            uvs.append([Vector(uvd[l].uv) for l in t.loops])
+    tree = BVHTree.FromPolygons(verts, tris)
+    from mathutils.geometry import barycentric_transform
+    rep = {}
+    for o in main.objects:
+        if o.type != "MESH" or not o.name.startswith(names) or o.get("aero_lod"):
+            continue
+        me = o.data
+        co = kb.world_co(o)
+        uvl = me.uv_layers.active.data
+        per_vert = {}
+        for i, c in enumerate(co):
+            p = Vector(c); side = 1 if c[0] >= 0 else -1
+            hit = tree.ray_cast(p + Vector((side * 0.002, 0, 0)), Vector((-side, 0, 0)), 0.45)
+            if hit[0] is None:
+                hit = tree.find_nearest(p)
+            loc, _, ti, _ = hit
+            a, b, cc = (verts[k] for k in tris[ti])
+            ua, ub, uc = (u.to_3d() for u in uvs[ti])
+            per_vert[i] = barycentric_transform(loc, a, b, cc, ua, ub, uc).to_2d()
+        for lp, d in zip(me.loops, uvl):
+            d.uv = per_vert[lp.vertex_index]
+        rep[o.name] = len(co)
+    return rep
+
+
+def column_uvs(main, names=("KK_kit", "KK_kit_inner"), y=1.8, side=1):
+    """Paint match without seams: kit texture coordinates follow ONE vertical strip of the body's own rear quarter
+    (behind the rear wheel, y 1.8 - plain on the liveried skin too), picked by the vertex height. The body's side
+    panels shade 139 (z 0.12) .. 211 (z 0.5) in AO_BODY; the old single texel was 238, so the kit looked lighter."""
+    o = kb.obk(main, "body_a_SUB1")
+    me = o.data; me.calc_loop_triangles()
+    co = kb.world_co(o); uvd = me.uv_layers.active.data
+    verts, tris, uvs = [], [], []
+    for t in me.loop_triangles:
+        base = len(verts)
+        verts += [Vector(co[v]) for v in t.vertices]; tris.append((base, base + 1, base + 2))
+        uvs.append([Vector(uvd[l].uv).to_3d() for l in t.loops])
+    tree = BVHTree.FromPolygons(verts, tris)
+    from mathutils.geometry import barycentric_transform
+    zs = np.arange(0.10, 0.531, 0.01)
+    col = []
+    for z in zs:
+        loc, _, ti, _ = tree.ray_cast(Vector((side * 1.3, y, z)), Vector((-side, 0, 0)), 1.0)
+        a, b, c = (verts[k] for k in tris[ti])
+        col.append(np.array(barycentric_transform(loc, a, b, c, *uvs[ti]).to_2d()))
+    col = np.array(col)
+    step = np.linalg.norm(np.diff(col, axis=0), axis=1)
+    assert step.max() < 0.02, f"strip crosses a UV seam ({step.max():.3f})"
+    rep = {"uv_strip": [col[0].round(4).tolist(), col[-1].round(4).tolist()], "max_step": round(float(step.max()), 4)}
+    for ob in main.objects:
+        if ob.type != "MESH" or not ob.name.startswith(names):
+            continue
+        z = kb.world_co(ob)[:, 2]
+        u = np.interp(z, zs, col[:, 0]); v = np.interp(z, zs, col[:, 1])
+        uvl = ob.data.uv_layers.active.data
+        for lp, d in zip(ob.data.loops, uvl):
+            d.uv = (u[lp.vertex_index], v[lp.vertex_index])
+        rep[ob.name] = len(z)
+    return rep

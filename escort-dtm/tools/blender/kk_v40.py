@@ -21,8 +21,8 @@ sys.path.insert(0, r"D:\Claude\escort_mk2_dtm\tools\blender")
 import kk_build as kb       # noqa: E402
 import kk_finish as kf      # noqa: E402
 
-OUT = "D:/Claude/escort_mk2_dtm/blender/escort_v40 kadett kit.blend"
-kf.STAGE = "D:/Claude/escort_mk2_dtm/export_staging_v40"
+OUT = "D:/Claude/escort_mk2_dtm/blender/escort_v41 kadett kit paint.blend"
+kf.STAGE = "D:/Claude/escort_mk2_dtm/export_staging_v41"
 kf.OUT_BLEND = OUT
 ATTACH_TOL = 0.010          # kit boundary vertex within this of the Kadett body = an attachment edge
 BLEND_R = 0.070             # fade the attachment shift over this geodesic distance
@@ -466,6 +466,7 @@ if __name__ == "__main__":
     mats = kf.mats_of(main)
     xm = dict(steel=mats["Material #503ds"], black=mats["Material #166GG45"])
     rep["nik_wheels"] = kx.nik_wheels(main)
+    rep["paint_uv"] = kx.column_uvs(main)
     rep["arch_cut"] = kx.cut_hidden_arches(main)
     rep["exhaust"] = kx.exhaust(main, xm)
     rep["knob"] = kx.remove_knob()

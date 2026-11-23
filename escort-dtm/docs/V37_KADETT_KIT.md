@@ -89,3 +89,10 @@ Build: `tools\blender\kk_v40.py` (+ `kk_v40_extras.py`) on "kit 2 built" -> `esc
 - Plate: RS 4000 in the RS 1800 layout (RS untouched, 4000 in the 1800 space, digits interlocking 20.8 px).
 - Nik's WHEEL_/SUSP_ node positions (CM save 22 Nov 20:32) re-applied.
 - Not verified in AC: flames/particles frame (model coords assumed from the M4), RaceLogic script, LOD look.
+
+# v41 (23 Nov ~08:00) - kit paint matches the body
+Kit (KK_kit + KK_kit_inner) still uses the body's Material #25DQW, but its texture coordinates now follow one vertical strip of the
+body's own rear quarter (body_a_SUB1, y 1.8, behind the rear wheel) chosen by vertex height (kx.column_uvs). AO_BODY on the side panels
+shades 139 (z 0.12) .. 211 (z 0.5); the old single texel (0.857, 0.398) was 238, so the kit read lighter than the body. The strip is plain
+on the hillclimb livery skin too. Tried first: per-vertex UVs from the panel inboard of each vertex - dragged UV seams/other islands onto
+the flares (scribbles), dropped. Backup of v40: live_backup_before_v41_*.
