@@ -21,8 +21,8 @@ sys.path.insert(0, r"D:\Claude\escort_mk2_dtm\tools\blender")
 import kk_build as kb       # noqa: E402
 import kk_finish as kf      # noqa: E402
 
-OUT = "D:/Claude/escort_mk2_dtm/blender/escort_v41 kadett kit paint.blend"
-kf.STAGE = "D:/Claude/escort_mk2_dtm/export_staging_v41"
+OUT = "D:/Claude/escort_mk2_dtm/blender/escort_v42 kadett kit flush arches.blend"
+kf.STAGE = "D:/Claude/escort_mk2_dtm/export_staging_v42"
 kf.OUT_BLEND = OUT
 ATTACH_TOL = 0.010          # kit boundary vertex within this of the Kadett body = an attachment edge
 BLEND_R = 0.070             # fade the attachment shift over this geodesic distance
@@ -32,6 +32,8 @@ THICK = 0.0025
 DRAPE_IN, DRAPE_OUT = 0.025, 0.085   # kit lies on the body this far from the join, eases out by DRAPE_OUT
 DRAPE_OFF = 0.0012                  # draped band sits this far off the body
 DRAPE_MAX = 0.06
+PRESS_IN, PRESS_OUT = 0.012, 0.025  # v42: horizontal press onto the body near the arch tops
+TRIM_ON = 0.0070                    # v42: kit within this of the body around the arches = lying on it -> trimmed
 SILL_KEEP = (-0.80, 0.60)           # Escort y: sill top under the doors keeps the v37 tuck (no pull/drape)                    # never drape a vertex further than this from the body
 SILL = dict(y=(-0.85, 0.75), z_max=0.06, x_min=0.92)   # straight sill side (Escort coords)
 MESH_IN, BACK_IN = 0.006, 0.030
@@ -231,6 +233,71 @@ def build_kit(main, ks):
         adj = sum((lf.normal for v in vs for lf in v.link_faces if lf is not f), Vector())
         if f.normal.dot(adj) < 0:
             f.normal_flip()
+    # v42: trim the band of kit that already lies on the body around the arches - its upturned top edge
+    # stood a few mm proud of the wings. The kit's edge then starts where it lifts off the body (tangent, zero thickness).
+    tl = bm.verts.layers.float.new("taper")
+    for v in bm.verts:
+        v[tl] = taper[v.index]
+    # finer mesh around the arch tops first: the Kadett mesh is coarse there and trim/press left folds and tips
+    zone = lambda co: co.z > 0.28 and any(abs(co.y - wy) < 0.62 for wy in (kb.E_F[0], kb.E_R[0]))
+    sub_e = [e for e in bm.edges if zone(e.verts[0].co) and zone(e.verts[1].co)]
+    bmesh.ops.subdivide_edges(bm, edges=sub_e, cuts=2, use_grid_fill=True)
+    bm.verts.ensure_lookup_table()
+    on_body = {}
+    for v in bm.verts:
+        p = v.co
+        if p.z < 0.25 or not any(abs(p.y - wy) < 0.62 for wy in (kb.E_F[0], kb.E_R[0])):
+            continue
+        loc, _, _, dd = et.find_nearest(p)
+        on_body[v.index] = loc is not None and dd < TRIM_ON
+    trim = [f for f in bm.faces if all(on_body.get(v.index, False) for v in f.verts)]
+    bmesh.ops.delete(bm, geom=trim, context="FACES")
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+    # crumbs left by the trim: tiny face islands near the arch tops
+    seen = set()
+    for f0 in list(bm.faces):
+        if f0 in seen:
+            continue
+        comp, st = [], [f0]; seen.add(f0)
+        while st:
+            f = st.pop(); comp.append(f)
+            for e in f.edges:
+                for g in e.link_faces:
+                    if g not in seen:
+                        seen.add(g); st.append(g)
+        if len(comp) < 30:
+            bmesh.ops.delete(bm, geom=comp, context="FACES")
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+    bm.verts.ensure_lookup_table(); bm.edges.ensure_lookup_table()
+    taper = np.array([v[tl] for v in bm.verts])
+    trimmed = len(trim)
+    # press: what still stands a little off the wings around the arch tops (the sharp top-rear tip by the swage
+    # line) is pushed straight in (along x) onto the body - nearest-point snapping folds on the swage line
+    pressed = 0
+    for v in bm.verts:
+        p = v.co
+        if p.z < 0.25 or not any(abs(p.y - wy) < 0.62 for wy in (kb.E_F[0], kb.E_R[0])):
+            continue
+        side = 1 if p.x > 0 else -1
+        loc, nrm, _, dd = et.ray_cast(p + Vector((side * 0.001, 0, 0)), Vector((-side, 0, 0)), PRESS_OUT)
+        if loc is None:
+            continue
+        gap = dd - 0.001
+        t = 1.0 if gap <= PRESS_IN else (PRESS_OUT - gap) / (PRESS_OUT - PRESS_IN)
+        w = t * t * (3 - 2 * t)
+        v.co = p.lerp(loc + Vector((side * DRAPE_OFF, 0, 0)), w)
+        taper[v.index] = max(taper[v.index], w)
+        pressed += 1
+    # smooth the subdivided arch-top zone (trim/press left a crumpled look); edges and on-body verts stay put
+    bnd_v = {v for e in bm.edges if e.is_boundary for v in e.verts}
+    movable = [v for v in bm.verts if zone(v.co) and v not in bnd_v and taper[v.index] < 0.95]
+    for _ in range(12):
+        new = {}
+        for v in movable:
+            nb = [e.other_vert(v).co for e in v.link_edges]
+            new[v] = v.co + (sum(nb, Vector()) / len(nb) - v.co) * 0.5
+        for v, c in new.items():
+            v.co = c
     bm.to_mesh(me); bm.free()
     kb.set_material(kit, kb_mats["paint"]); kb.const_uv(kit, kb.PAINT_UV)
     for p in kit.data.polygons:
@@ -238,7 +305,7 @@ def build_kit(main, ks):
     kit.data.set_sharp_from_angle(angle=np.radians(40))
     kit.data.update()
     inner = inner_shell(kit, taper)
-    return (kit, inner), {"attach_verts": len(attach), "pulled": len(disp), "faded": len(dist), "draped": len(targets),
+    return (kit, inner), {"attach_verts": len(attach), "pulled": len(disp), "faded": len(dist), "draped": len(targets), "trimmed": trimmed, "pressed": pressed,
                           "vents": len(vents)}, vents
 
 

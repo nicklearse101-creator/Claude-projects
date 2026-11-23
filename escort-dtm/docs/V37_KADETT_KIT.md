@@ -96,3 +96,10 @@ body's own rear quarter (body_a_SUB1, y 1.8, behind the rear wheel) chosen by ve
 shades 139 (z 0.12) .. 211 (z 0.5); the old single texel (0.857, 0.398) was 238, so the kit read lighter than the body. The strip is plain
 on the hillclimb livery skin too. Tried first: per-vertex UVs from the panel inboard of each vertex - dragged UV seams/other islands onto
 the flares (scribbles), dropped. Backup of v40: live_backup_before_v41_*.
+
+# v42 (23 Nov ~07:50) - Nik: "a piece of the kit slightly proud of the bodywork" at the top of the front arches
+Cause: the Kadett flare's upturned top edge, draped onto the wing, stood a few mm proud as a band, with a fin at the top-rear tip.
+kk_v40.build_kit now, around the arches (z > 0.28, within 0.62 m of a wheel): subdivides the kit (2 cuts - the Kadett mesh is coarse),
+trims every face lying within 7 mm of the body (the kit edge then starts where it lifts off, zero thickness), presses what stands
+<= 12 mm off the wing straight in along x (fade to 25 mm; nearest-point snapping folded on the swage line), then 12 smoothing passes.
+Known: small tip left at the RIGHT front arch's top-rear corner, faint creases at the very edge. Backup of v41: live_backup_before_v42_*.
