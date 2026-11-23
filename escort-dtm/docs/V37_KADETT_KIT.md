@@ -125,3 +125,5 @@ v42/v43 arch-top passes - rebuilding from it does NOT give v41; v41 = git versio
 = v41 shape + trim only: faces lying within 3 mm of the body around the arches removed, spike-only edge fix, nothing under the wing;
 NO surface blend / smoothing (RESHAPE = False in kk_v40.py). Edge gap after trim: median 1.3 mm, p95 5.7 mm.
 Arch cut-out keeps the multi-direction cover test (no gaps). Known: a small sliver at the rear-left arch's top-front edge.
+
+# 23 Nov ~08:25 - REVERTED to v41 again (Nik: v44 "looks like utter crap"). Live = export_staging_v41.
