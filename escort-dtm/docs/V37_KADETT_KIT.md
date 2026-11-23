@@ -127,3 +127,8 @@ NO surface blend / smoothing (RESHAPE = False in kk_v40.py). Edge gap after trim
 Arch cut-out keeps the multi-direction cover test (no gaps). Known: a small sliver at the rear-left arch's top-front edge.
 
 # 23 Nov ~08:25 - REVERTED to v41 again (Nik: v44 "looks like utter crap"). Live = export_staging_v41.
+
+# v45 (23 Nov ~08:40) - Nik: kit 5 mm in towards the body all round; sill vents black carbon (or bonnet mesh)
+tools/blender/kk_v45.py on the v41 blend: KK_kit, KK_kit_inner, KK_fins, vent/sill fills + backings, exhaust trim rings moved
+5 mm towards the centreline (x), all LODs; vent fills (KK_sill_mesh, KK_vent_mesh) -> NICK3_carbon, planar UV 1/m like the diffuser.
+Arch shape otherwise = v41. Backup: v41 is export_staging_v41.

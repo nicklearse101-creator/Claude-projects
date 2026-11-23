@@ -16,7 +16,7 @@ import tour
 messagebox = theme.messagebox      # dark dialogs, same calls as tkinter.messagebox (tests replace these)
 
 APP_NAME = skingen.APP_NAME
-VERSION = '1.17.0'
+VERSION = '1.17.1'
 
 
 def find_data_dir(exe_dir, appdata):

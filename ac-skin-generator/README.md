@@ -18,6 +18,13 @@ or in a `data` folder next to the installed app when "Keep my logos and settings
 (v1.9.0; copied from AppData, the old copy is left). Updates, moves and the uninstaller never delete it.
 
 ## Use
+**New in 1.17.1 (23 Nov 2026):** Nik, Lacetti: "yes" to painting what all 11 stock skins keep black (A-pillar edges,
+sills, arch flares, mirrors). `paint_trims` (after the stock comparison in `_map_texture`, `PAINT_TRIMS`): of the texels
+left out of the paint on body meshes (not lamps / not_paint names / inside the car), as pieces of the texture
+(template2d.label): a piece next to the paint thinner than 2 x 5 cm (the paint's own edge), a piece facing the side or
+up/down (|mean normal z| < 0.5) whose stock picture is plain (local sd < 8), and mirrors by name - but never a mirror
+face turned back (its glass). Grilles / intakes face forward or back and stay. Tests `tests/test_trims.py` (Lacetti).
+
 **New in 1.17.0 (22 Nov 2026):** Nik + a friend's Accord WTCC: the old skin showed along the panel edges in game (lime
 green as yellow lines) and Nik asked for a white base with AO instead of the stock skin under the livery. (A)
 `fill_gaps`: every gap between the panels in the texture is filled (pad_texture's 12 texels as before, then pull-push

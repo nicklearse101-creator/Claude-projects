@@ -1,5 +1,5 @@
 =====================================================================================
-  RATTY'S4SKIN GENERATOR  v1.17.0          -  the user guide
+  RATTY'S4SKIN GENERATOR  v1.17.1          -  the user guide
   Custom liveries (skins) for Assetto Corsa cars. No AI, no internet, no Photoshop.
 =====================================================================================
 
@@ -247,7 +247,9 @@ CONTENTS
   straight away. Logos, numbers and names you have not moved are not worked out again.
   The light and shade on your paint comes from the shape of the car itself (like the
   ambient-occlusion maps Content Manager bakes), worked out once per car - nothing of the
-  car's old skins shows under your livery, not even between the panels.
+  car's old skins shows under your livery, not even between the panels. Trim that every
+  stock skin keeps the same (arch flares, sills, pillar edges, mirrors) takes your livery
+  too; grilles, intakes, lights and mirror glass stay as they are.
 
   Above the picture
     All sides / Left / Right / Front / Rear / Top   which view to show.

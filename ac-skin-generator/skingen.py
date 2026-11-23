@@ -3963,6 +3963,60 @@ def _texture_size(car, tex, resolution, log):
 
 
 AO_SHADING = True                # False: the paint's shading read from the stock skins (as before 1.17)
+PAINT_TRIMS = True               # False: parts every stock skin keeps the same stay as they are (as before 1.17)
+TRIM_BAND = 0.05                 # a piece thinner than 2 x this (m) next to the paint is the paint's own edge
+MIRROR_RE = re.compile(r'mirror|specchi|retrovis|spiegel|retro_', re.I)
+INSIDE_RE = re.compile(r'cockpit|cabin|interior|dash|seat|cage|roll_?bar|steer|pedal|(?<![a-z])int_|_int(?![a-z])', re.I)
+
+
+def paint_trims(tm, paint, base, lamps=None, log=print):
+    """The parts every stock skin keeps the same that should take the livery too (Nik 23 Nov, Lacetti: the paint did
+    not reach the edges - the A-pillar edges, sills, arch flares and mirrors stayed black). Of the texels left out of
+    the paint (not lamps, glass, badges, grilles by name, nothing inside the car), as pieces of the texture:
+      - a piece next to the paint, thinner than 2 x TRIM_BAND - the paint's own edge (pillar edges, bumper lips);
+      - a piece facing the side or up/down (|mean normal z| < 0.5) whose stock picture is plain - arch flares, sills;
+      - a mirror (by name), except what faces back (its glass).
+    Grilles, intakes and other openings face forward or back and stay as they are, so do parts with detail in their
+    picture (carbon, mesh, badges). Returns the texels to paint as well."""
+    import template2d
+    H, W = paint.shape
+    names = tm.mesh_of_tri
+    ok_mesh = np.array([not not_paint(n_) and not INSIDE_RE.search(n_) and not LAMP_RE.search(n_) for n_ in names])
+    mir_mesh = np.array([bool(MIRROR_RE.search(n_)) for n_ in names])
+    okt = np.zeros((H, W), bool); okt[tm.yy, tm.xx] = ok_mesh[tm.tri]
+    cand = tm.covered & ~paint & okt
+    if lamps is not None: cand &= ~lamps
+    if not cand.any(): return cand
+    lab, n = template2d.label(cand)
+    li = lab[tm.yy, tm.xx]
+    cnt = np.maximum(np.bincount(li, None, n + 1), 1)
+    nz = np.bincount(li, tm.N[:, 2], n + 1) / cnt
+    mir = np.bincount(li, mir_mesh[tm.tri], n + 1) / cnt > 0.5
+    # how plain the stock picture is: its brightness hardly varies within ~5 texels
+    lum = np.clip(base.mean(-1), 0, 255)
+    m1 = np.asarray(Image.fromarray(lum.astype(np.uint8)).filter(ImageFilter.BoxBlur(2)), np.float32)
+    m2 = np.asarray(Image.fromarray((lum ** 2 / 255).astype(np.uint8)).filter(ImageFilter.BoxBlur(2)), np.float32) * 255
+    sd = np.sqrt(np.clip(m2 - m1 ** 2, 0, None))
+    det = np.bincount(lab.ravel(), sd.ravel(), n + 1) / np.maximum(np.bincount(lab.ravel(), None, n + 1), 1)
+    # thin, next to the paint
+    D = max(1, int(round(TRIM_BAND / max(tm.texel_m, 1e-6))))
+    core = np.asarray(rank_filter(Image.fromarray((cand * 255).astype(np.uint8)), 2 * D + 1, 'min')) > 0
+    near = np.asarray(rank_filter(Image.fromarray((paint * 255).astype(np.uint8)), 3, 'max')) > 0
+    has_core = np.zeros(n + 1, bool); has_core[np.unique(lab[core])] = True
+    touch = np.zeros(n + 1, bool); touch[np.unique(lab[cand & near])] = True
+    take = (touch & ~has_core) | ((np.abs(nz) < 0.5) & (det < 8)) | mir
+    take[0] = False
+    extra = take[lab] & cand
+    glass = np.zeros((H, W), bool)                       # a mirror's face turned back: its glass - never
+    g = mir_mesh[tm.tri] & (tm.N[:, 2] < -0.5)
+    glass[tm.yy[g], tm.xx[g]] = True
+    extra &= ~glass
+    if extra.any():
+        log(f'parts every stock skin keeps the same (arch flares, sills, pillar edges, mirrors) take the livery too: '
+            f'{extra.sum() * tm.texel_m ** 2:.2f} m2')
+    return extra
+
+
 
 
 def _map_texture(car, tex, W, H, mem, log, half_way=None):
@@ -3988,6 +4042,10 @@ def _map_texture(car, tex, W, H, mem, log, half_way=None):
             new['stock'] = (b_, a_, p_ & ~lm, s_); new['lamps'] = lm
             log(f'lights on this texture keep their own look: '
                 f'{", ".join(sorted({m.name for m in car.meshes_for(tex) if is_lamp(m)}))[:90]}')
+    if PAINT_TRIMS:
+        b_, a_, p_, s_ = new['stock']
+        extra = paint_trims(tm, p_, b_, new.get('lamps'), log)
+        if extra.any(): new['stock'] = (b_, a_, p_ | extra, s_)
     mem.clear(); mem.update(new)                # all at once: a step cut short (warm_up) leaves nothing half done
 
 
