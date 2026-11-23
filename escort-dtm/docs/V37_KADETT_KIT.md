@@ -208,3 +208,10 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
   direction ~27 deg rearward so they show from the chase cam; ext_config intensities 3.0, discharge 3000-9500 rpm
   (old max 8500 = the limiter), limiter flames from 8000. Backups: data.acd.BACKUP_20261123_1431, ext_config.ini.BACKUP_before_flames2_*.
 - Not verified in game. If still nothing: CSP Settings > Particles FX > Flames > Debug mode shows which trigger fires.
+
+## Flames v3 (23 Nov 15:10) - own Lua flames
+- Nik: v2 still "no flames whatsoever". CSP's [EXHAUST_FLAMES] never fires for this car (offline session, no CSP log
+  errors, Particles FX flames enabled) - cause not found.
+- New car script extension/exhaust_flames.lua ([SCRIPT_...] in ext_config, all LODs): ac.Particles.Flame emitted at the
+  pipe tips via car.bodyTransform - pops on throttle lift >4000 rpm, upshifts with gas, limiter bounce; crackle flicker.
+- Backup: ext_config.ini.BACKUP_before_lua_flames_*. Not verified in game.
