@@ -103,3 +103,16 @@ kk_v40.build_kit now, around the arches (z > 0.28, within 0.62 m of a wheel): su
 trims every face lying within 7 mm of the body (the kit edge then starts where it lifts off, zero thickness), presses what stands
 <= 12 mm off the wing straight in along x (fade to 25 mm; nearest-point snapping folded on the swage line), then 12 smoothing passes.
 Known: small tip left at the RIGHT front arch's top-rear corner, faint creases at the very edge. Backup of v41: live_backup_before_v42_*.
+
+# v43 (23 Nov ~08:10) - Nik: fix the right front arch tip; "make sure the arch isn't crumpled anywhere"
+kk_v40.build_kit around the arches (z > 0.28, within 0.62 m of a wheel), replacing v42's subdivide/press:
+1. blend along the surface: from the kit edge on the wing (boundary verts < 10 mm off) every vertex within 7 cm across the
+   surface has its gap to the body scaled by smoothstep(r/7cm) (the crest stood 1-3 cm proud ~1 cm in from the edge);
+2. trim faces lying within 3 mm of the body; 3. spike relax: edge verts > 3 mm off their neighbours' line moved 70 % to it and
+   re-seated (that was the blade at the top-rear corner, both sides identical); 4. 6 light smoothing passes (edge/on-body fixed);
+5. nothing under the wing's surface (re-seated 1.2 mm out).
+kk_v40_extras.cut_hidden_arches: a wing face only counts as hidden if the kit is > 8 mm in front on a horizontal ray AND rays angled
+up-out and down-out (horizontal-only removed wing faces visible from above past the kit's edge = dark gaps).
+Dead ends tried (in git history of kk_v40.py): nearest-point flush (folds on the swage line), subdivide+press (crumpled),
+edge-line relax on the subdivided mesh (sawtooth), "above the wing seen from above" cut (ate the arch tops).
+Known: faint lighter shading where the kit lies on the rear quarters at the very edge; small original Kadett ridges on the rear-left arch top.

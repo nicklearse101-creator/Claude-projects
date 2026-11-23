@@ -99,7 +99,14 @@ def cut_hidden_arches(main):
             k = (i, side)
             if k not in hit_cache:
                 c = Vector(co[i])
-                hit_cache[k] = tree.ray_cast(c + Vector((side * 0.002, 0, 0)), Vector((side, 0, 0)), 0.35)[0] is not None
+                ok = True
+                # covered only where the kit is clearly in front (> 8 mm) both seen from the side and from above-out
+                # (horizontal-only let the arch tops' edge zone go: visible from above as dark gaps)
+                for d in (Vector((side, 0, 0)), Vector((side, 0, 0.8)).normalized(), Vector((side, 0, -0.5)).normalized()):
+                    h = tree.ray_cast(c + d * 0.002, d, 0.45)
+                    if h[0] is None or h[3] < 0.008:
+                        ok = False; break
+                hit_cache[k] = ok
             return hit_cache[k]
         dele = []
         for f in o.data.polygons:
