@@ -132,3 +132,5 @@ Arch cut-out keeps the multi-direction cover test (no gaps). Known: a small sliv
 tools/blender/kk_v45.py on the v41 blend: KK_kit, KK_kit_inner, KK_fins, vent/sill fills + backings, exhaust trim rings moved
 5 mm towards the centreline (x), all LODs; vent fills (KK_sill_mesh, KK_vent_mesh) -> NICK3_carbon, planar UV 1/m like the diffuser.
 Arch shape otherwise = v41. Backup: v41 is export_staging_v41.
+
+# v46 (23 Nov ~08:40) - Nik: "big improvement, move it in another 5 mm": kk_v46.py = kk_v45.py run on the v45 blend (kit 10 mm in in total). export_staging_v46. v45 kept in export_staging_v45.
