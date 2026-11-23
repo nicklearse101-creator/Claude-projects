@@ -13,3 +13,6 @@ metadata:
 **Why:** each guess cost a 1-2 min rebuild plus renders, and several made it worse; the real causes (one spike vertex on the trimmed edge; arch cut-out removing wing faces visible from above) were found only by printing vertex gaps and toggling parts.
 
 **How to apply:** for a local defect, first measure it (print the vertices/gaps in that small box, toggle candidate parts in one render), then make one targeted change. What finally worked for kit edges on a body: surface-distance blend (gap x smoothstep over ~7 cm from the edge), 3 mm trim, spike-only edge relax, light smooth, no-penetration pass; body cut-out only where hidden from several ray directions. See escort-dtm docs/V37_KADETT_KIT.md v43. Related: [[escort-mk2-dtm-project]], [[feedback-judge-by-eye]].
+
+23 Nov: v49 boolean arch cut left sliver "spikes" behind the rear arches; I only checked side-on views and called it clean.
+After any boolean/cut on panels: run a sliver check (long edge, tiny area) and render from the front-low and rear-low angles too.

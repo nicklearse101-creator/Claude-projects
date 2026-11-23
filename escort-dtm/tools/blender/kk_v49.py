@@ -134,6 +134,12 @@ cut_rep = {}
 for name in ("fenders_a_SUB2", "body_a_SUB1"):
     o = obk(name)
     before = len(o.data.polygons)
+    from mathutils import kdtree
+    pre = world(o)
+    kd = kdtree.KDTree(len(pre))
+    for i, p_ in enumerate(pre):
+        kd.insert(Vector(p_), i)
+    kd.balance()
     for c in cutters:
         mod = o.modifiers.new("CUT", "BOOLEAN"); mod.operation = "DIFFERENCE"; mod.object = c
         mod.solver = "EXACT"; mod.use_hole_tolerant = True
@@ -146,7 +152,20 @@ for name in ("fenders_a_SUB2", "body_a_SUB1"):
         if i < len(o.material_slots):
             o.material_slots[i].material = s
     unpristine(o)
-    cut_rep[name] = (before, len(newme.polygons))
+    # slivers made by the cut (a vertex not in the panel before the cut) poked out as spikes - delete only those
+    mw = o.matrix_world
+    bm = bmesh.new(); bm.from_mesh(o.data)
+    newv = {v for v in bm.verts if kd.find(mw @ v.co)[2] > 1e-4}
+    bad = []
+    for f in bm.faces:
+        if any(v in newv for v in f.verts):
+            L = max(((mw @ e.verts[0].co) - (mw @ e.verts[1].co)).length for e in f.edges)
+            if L > 0.04 and f.calc_area() / (L * L) < 0.02:
+                bad.append(f)
+    bmesh.ops.delete(bm, geom=bad, context="FACES")
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+    bm.to_mesh(o.data); bm.free()
+    cut_rep[name] = (before, len(newme.polygons), "new verts", len(newv), "slivers removed", len(bad))
 for c in cutters:
     bpy.data.objects.remove(c)
 rep["arch_cut"] = cut_rep
