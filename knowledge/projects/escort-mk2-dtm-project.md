@@ -155,3 +155,10 @@ edge (z ~0.05). Escort diffuser kept, inner fins deepened. Rear lights/bumper mi
 rear unpainted = body_a_SUB1 on STOCK_Material #25DQW (STOCK_metal_detail.dds, skins colour via metal_detail.dds) -> Material #25DQW. Red-only tail
 lights (indicator/reverse lenses -> BRAKE_GLASS material, ext_config rear turn/reverse emissive names emptied). NOT checked in AC yet.
 Live kn5 before this was a CM re-save (Nov 6, .kn5.backup) of v33-era NICK3 model, not the v36f blend. Committed Claude- 24c23b1.
+
+23 Nov 2026 (live = v51b, Nik confirmed): 1980s VFD cluster (vfd_display.lua, tyre temps/pressures in ProTyres colours),
+ride height reads 0 at the sills (car.ini pickups -0.484/-0.490, front height LUTs shifted), aero v2 (~1440 N @200 km/h, 38% front).
+FLAMES: CSP particle flames (built-in AND ac.Particles.Flame from a running car script) never draw on this car, though the Supra's
+do - cause unknown. Working fix = mesh flames KK_flame_L/R1..3 (inactive dummies in kn5, emissive alpha texture) flickered by
+extension/exhaust_flames.lua via findNodes():setVisible. kn5_def prop layout = [name, float, vec2(2), vec3(3), vec4(4)] -
+ksEmissive colour goes in p[4:7], not p[1:4]. Both [EXHAUST_FLAMES] blocks renamed _OFF_TEST. History: docs/V37_KADETT_KIT.md.
