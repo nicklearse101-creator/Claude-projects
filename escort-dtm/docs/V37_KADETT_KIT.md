@@ -250,3 +250,6 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
   colours (blue cold -> green in window -> yellow/orange -> red). Windows from the tyre curves: S 65-80, M 70-90, H 75-95 C;
   29 psi ideal (+-1 psi green); Vintage GT70 uses optimum +-10 C, 37 psi. Speed/gear shifted left; fuel litres moved off the
   right arrow. Preview: docs/vfd_tyres_preview.png (not yet seen in game).
+- 20:36 v51b: CM showroom (no scripts) showed all 6 flame meshes black. Rebuilt: flame dummies active 0 in the kn5 (exporter wraps
+  new meshes in a dummy), ksEmissive 6 in the correct vec3 slot; script switches the dummy nodes (findNodes) and keeps setting
+  emissive 8 on the meshes. Backup live_backup_before_v51b_2036. In-game show/hide of an inactive kn5 node not yet confirmed.

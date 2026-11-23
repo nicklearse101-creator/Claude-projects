@@ -6,8 +6,9 @@ local root = ac.findNodes("carRoot:" .. car.index)
 local F = { L = {}, R = {} }
 for _, s in ipairs({ "L", "R" }) do
   for k = 1, 3 do
-    F[s][k] = root:findMeshes("KK_flame_" .. s .. k)
-    F[s][k]:setMaterialProperty("ksEmissive", rgb(8, 8, 8))     -- glow (the kn5 value landed in the wrong slot)
+    -- the flame dummies are inactive in the kn5 (hidden in CM's showroom, which runs no scripts); switch the dummy node
+    F[s][k] = root:findNodes("KK_flame_" .. s .. k)
+    root:findMeshes("KK_flame_" .. s .. k):setMaterialProperty("ksEmissive", rgb(8, 8, 8))
   end
 end
 local function hideAll()

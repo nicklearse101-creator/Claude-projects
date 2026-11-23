@@ -75,7 +75,7 @@ for side, tag in ((1, "L"), (-1, "R")):
         me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
         ob = bpy.data.objects.new(name, me); kb.set_material(ob, mat)
         kb.link(ob, main, root, col)
-        ob["kn5_flags"] = json.dumps({"active": 1, "cast": 0, "visible": 1, "transparent": 1, "renderable": 1})
+        ob["kn5_flags"] = json.dumps({"active": 0, "cast": 0, "visible": 1, "transparent": 1, "renderable": 1})   # hidden unless the script shows it (CM showroom runs no scripts)
         made.append(name)
 bpy.ops.wm.save_as_mainfile(filepath=OUT)
 print("REPORT", json.dumps({"made": made, "tex": os.path.join(tex_dir, TEX)}))
