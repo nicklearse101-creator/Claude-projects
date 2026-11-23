@@ -48,7 +48,7 @@ def test_arch_flares_take_the_livery(maps):
            & (tm.N[:, 0] > 0.5))
     before, after = m[False]['stock'][2][tm.yy, tm.xx], m[True]['stock'][2][tm.yy, tm.xx]
     left_out = sel & ~before
-    assert left_out.sum() > 200 and after[left_out].mean() > 0.8
+    assert left_out.sum() > 200 and after[left_out].mean() > 0.5         # (Nik's live car: its stock skins change)
 
 
 def test_grille_stays(maps):

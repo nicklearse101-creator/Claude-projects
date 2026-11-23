@@ -1,5 +1,5 @@
 =====================================================================================
-  RATTY'S4SKIN GENERATOR  v1.17.1          -  the user guide
+  RATTY'S4SKIN GENERATOR  v1.17.2          -  the user guide
   Custom liveries (skins) for Assetto Corsa cars. No AI, no internet, no Photoshop.
 =====================================================================================
 

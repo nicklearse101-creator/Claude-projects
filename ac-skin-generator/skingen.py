@@ -2618,6 +2618,37 @@ def paint_materials(car):
             and (mt.props.get('isAdditive', 0) == 2 or mt.props.get('fresnelMaxLevel', 0) >= 0.3)]
 
 
+def shine_maps_painted(car, made):
+    """Materials whose shine map (txMaps) is the very picture the skin paints (Nik 23 Nov, Escort Mk2: its paint takes
+    AO_BODY.dds as colour AND as shine map - the livery's red read as 'full specular, no gloss' and glared white in the
+    sun). {texture as the skin writes it: [material names]}."""
+    painted = {t.lower(): t for t, im in made.items() if im is not None}
+    out = {}
+    for m in car.kn5.meshes:
+        mt = m.mat
+        if mt is None or not len(m.idx): continue
+        d, mp = (mt.samplers.get('txDiffuse') or '').lower(), (mt.samplers.get('txMaps') or '').lower()
+        if mp and mp == d and mp in painted and mt.name not in out.setdefault(painted[mp], []):
+            out[painted[mp]].append(mt.name)
+    return {t: n_ for t, n_ in out.items() if n_}
+
+
+def write_shine_maps(car, shine, out, original, log=print):
+    """For those materials, the shine map as the car's maker made it - original(texture): the car's own picture - as a
+    file of the skin, given to them through CSP (ext_config.ini; without CSP the game shows what it did before).
+    Returns the ext_config.ini text."""
+    ini = []
+    for tex, names in shine.items():
+        fname = 'r4s_' + re.sub(r'[^a-z0-9]+', '_', os.path.splitext(os.path.basename(tex))[0].lower()).strip('_') + '_shine.dds'
+        write_dds(original(tex).convert('RGBA'), os.path.join(out, fname), compress=True)
+        ini += ['[SHADER_REPLACEMENT_...]', "; Ratty's4Skin: the paint's shine map as the car's maker made it (this car's",
+                '; paint takes its picture as the shine map too: the livery colours would change how it shines)',
+                f'MATERIALS = {", ".join(names)}', 'RESOURCE_0 = txMaps', f'RESOURCE_FILE_0 = {fname}', '']
+        log(f'{", ".join(names)}: the paint uses {tex} as its shine map too - the car\'s own one kept for that '
+            f'({fname}, needs Custom Shaders Patch)')
+    return '\n'.join(ini)
+
+
 def paint_finish_ini(car, finish, log=print):
     """ext_config.ini text giving the paint the finish asked for (gloss, metallic, pearl, matte) - shown in game with
     Custom Shaders Patch; no car file changes. '' for the car's own finish."""
@@ -4312,6 +4343,12 @@ def _generate(car_dir, design, skin_name, out_root=None, resolution=None, log=pr
                     write_dds(Image.new('RGBA', (64, 64), (255, 255, 255, 255)), os.path.join(out, os.path.splitext(det)[0] + '.dds'))
                     made[det] = None
                     log(f'wrote a plain white {det} (this car takes its paint colour from it)')
+        shine = shine_maps_painted(car, made)
+        if shine:
+            def original(t_):                       # the car's own picture (what its stock skins show), else a stock skin's
+                if t_ in car.kn5.textures: return load_image(car.kn5.textures[t_])
+                return _texture_size(car, t_, None, lambda m_: None)[0]
+            merge_ini(os.path.join(out, 'ext_config.ini'), write_shine_maps(car, shine, out, original, log))
         fin = paint_finish_ini(car, design.get('paint_finish'), log)
         if fin: merge_ini(os.path.join(out, 'ext_config.ini'), fin)
         if design.get('beam_colour'):

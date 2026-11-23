@@ -18,6 +18,14 @@ or in a `data` folder next to the installed app when "Keep my logos and settings
 (v1.9.0; copied from AppData, the old copy is left). Updates, moves and the uninstaller never delete it.
 
 ## Use
+**New in 1.17.2 (23 Nov 2026):** Nik's Escort Mk2: red parts of the livery glared white in the sun. Its paint material
+(and its rims) take the painted picture as the shine map too (ksPerPixelMultiMap txMaps = txDiffuse = AO_BODY.dds; red =
+full specular, zero gloss). `shine_maps_painted` / `write_shine_maps`: the car's own picture (the grey AO the stock skins
+show) is written as r4s_<tex>_shine.dds and given to those materials as txMaps through CSP
+(`[SHADER_REPLACEMENT_...] MATERIALS / RESOURCE_0 = txMaps`). Only the Escort among Nik's cars does this. Window
+stickers on the Escort: not possible from the app - its glass is a 64x64 picture tiled over every window (no room).
+Tests `tests/test_shine_map.py`.
+
 **New in 1.17.1 (23 Nov 2026):** Nik, Lacetti: "yes" to painting what all 11 stock skins keep black (A-pillar edges,
 sills, arch flares, mirrors). `paint_trims` (after the stock comparison in `_map_texture`, `PAINT_TRIMS`): of the texels
 left out of the paint on body meshes (not lamps / not_paint names / inside the car), as pieces of the texture
