@@ -200,3 +200,11 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
 - Render check (vfdchk2.py, red = see-through): driver/high/side/left views clean; a thin red sliver only from a
   very low eye under the hood lip. Bay view: nothing pokes through the dash top. In-game look not yet confirmed.
 - Live backup: D:/ClaudeData/tmp/kadett/live_backup_before_v50b_1418
+
+## Flames v2 (23 Nov 14:31) - still no flames in game (smoke fine)
+- Checked: CSP Particles FX flames ENABLED=1; CSP log has no errors for the car; flame position = pipe tips in model space
+  (same as the smoke, root transform identity); [EXHAUST_FLAMES] keys match the 123 installed cars that use it.
+- Changed: flames.ini EDIT_BIG=1 (all Kunos cars), INTENSITY 60, flames bigger (VSIZE 0.08-0.35, LSIZE 0.6, SIZE_MULT 1.8),
+  direction ~27 deg rearward so they show from the chase cam; ext_config intensities 3.0, discharge 3000-9500 rpm
+  (old max 8500 = the limiter), limiter flames from 8000. Backups: data.acd.BACKUP_20261123_1431, ext_config.ini.BACKUP_before_flames2_*.
+- Not verified in game. If still nothing: CSP Settings > Particles FX > Flames > Debug mode shows which trigger fires.
