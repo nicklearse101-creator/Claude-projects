@@ -233,3 +233,12 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
   (peak ~40 mm, 1.0 at ~80 mm).
 - Default (3/3): CL*A 0.77 (~1440 N at 200 km/h, was ~690 N), 38% front (was 37%); range 0.55-0.80. CdA 0.94 (was 0.91).
 - Backup: data.acd.BACKUP_before_aero_v2. Not driven yet.
+
+## v51 flames as meshes (23 Nov 19:10)
+- Diagnosis (VFD readout S/E/F/H): the car script runs and emits thousands of ac.Particles.Flame particles, CSP's own flames
+  never fire (F0, even with [EXHAUST_FLAMES] removed), nothing draws - yet the Kunos Supra's flames work. Cause not found.
+- Now: kk_v51_flames.py adds KK_flame_L1..3 / R1..3 (3 crossed double-sided planes, lengths 0.22/0.34/0.48 m) at the side-exit
+  tips, material KK_flame (ksPerPixel, blend 1, emissive 6, KK_FLAME.png generated flame texture). exhaust_flames.lua hides
+  them and flickers one length per side on lift-off / upshift / limiter; handbrake >0.5 + >2000 rpm = test flicker.
+- Both [EXHAUST_FLAMES] blocks renamed [EXHAUST_FLAMES_OFF_TEST]; VFD still has the temp S/E/F/H readout.
+- Live backup: D:/ClaudeData/tmp/kadett/live_backup_before_v51_1910. Not seen in game yet.

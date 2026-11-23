@@ -55,5 +55,7 @@ function update(dt)
   txt("<", 60, 680, 170, (car.turningLeftLights and on) and ON or DIM)
   txt(">", 60, 1110, 170, (car.turningRightLights and on) and ON or DIM)
   txt("MAIN", 26, 680, 255, (car.headlightsActive and not car.lowBeams) and BLUE or DIM)
+  -- TEMP flame diagnostics: S = flame script frames, E = flames emitted, F = CSP says flames showing, H = handbrake
+  txt(string.format("S%d E%d F%d H%.1f", tonumber(ac.load("escFlS")) or -1, tonumber(ac.load("escFlE")) or -1, car.anyFlamesActive and 1 or 0, car.handbrake), 22, 700, 360, AMB)
   ui.popDWriteFont()
 end
