@@ -144,3 +144,11 @@ islands on the shelf) moved to the floor anchors. Arches: KK_arch_liners = black
 Known: stair-stepped edge of the cut wing panel visible on the inside of the front pods (from the v40 arch cut, per-face).
 
 # v47b (23 Nov ~09:00) - liners stuck out past the kit in game (x 0.975 > kit outer after the 10 mm move): liners now x_in..0.86, arc -10..190 deg. Reinstalled.
+
+# v48 (23 Nov ~09:05) - Nik: working yellow rectangular fog lamps under the indicators on high beam; rear lights brake only
+tools/blender/kk_v48.py on the v47 blend: KK_fog_housing (black) on the valance (x +-0.475..0.605, z 0.108..0.163, y -1.77..-1.838),
+KK_fog_bezel (#503ds), KK_fog_lens (own mesh + own yellow material KK_fog_lens); LOD B/C too. ext_config: new
+[EMISSIVE_HIGHBEAM_...] NAME=KK_fog_lens COLOR=255,170,20,8 CAST_LIGHT=1. Rear: lights.ini BRAKE_0/1 OFF_COLOR 0,0,0 (no tail glow,
+data.acd patched, backup data.acd.BACKUP_20261123_0905; data/ mirrored); [EMISSIVE_BRAKE_1] NAME=all rear lens sections, INPUT=BRAKE,
+INPUT_THRESHOLD 0.95 -> 0.05; rear fog glow (EMISSIVE_EXTRA_B_2 FOG_GLASS) removed; indicators/reverse already off (v37).
+Not verified in AC: fog lamp light on high beam, rear lenses off with headlights on.
