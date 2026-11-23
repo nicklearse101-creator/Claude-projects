@@ -192,3 +192,11 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
   lap time, indicator arrows, main-beam lamp; ksEmissive 1.4 = backlit. ext_config: [SCRIPTABLE_DISPLAY_...] VFD_SCREEN; odometer
   sections (Object012) and ARROW_TEMP/_2 blanked; cluster needle lights removed from the dash EMISSIVE_LIGHT (console needle kept).
 - NOT verified in AC: script drawing, text orientation (u/v), glow level.
+
+## v50b (23 Nov) - VFD mirror + surround fix (kk_v50b.py on "escort_v50 vfd.blend", export kk_v50_export.py)
+- VFD_SCREEN UVs: u = 0 at the driver's left (was mirrored in game).
+- VFD_BACK: black backing (Material #166GG45) in the screen plane, 45 mm wider each side, 12 mm above the screen,
+  plus a 9 mm ceiling strip under the binnacle hood - no view through to the engine bay from the driver's eye.
+- Render check (vfdchk2.py, red = see-through): driver/high/side/left views clean; a thin red sliver only from a
+  very low eye under the hood lip. Bay view: nothing pokes through the dash top. In-game look not yet confirmed.
+- Live backup: D:/ClaudeData/tmp/kadett/live_backup_before_v50b_1418
