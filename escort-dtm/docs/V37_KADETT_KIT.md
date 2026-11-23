@@ -142,3 +142,5 @@ CINTURE_ON (driving belts, switched off by NICK3) active again and re-routed; an
 islands on the shelf) moved to the floor anchors. Arches: KK_arch_liners = black (#166GG45) curved roof R 0.335 over each wheel
 (-25..205 deg) from x 0.50 (front, wheels steer) / 0.60 (rear) out to 0.975, plus an inner wall; both faces drawn; LOD B/C too.
 Known: stair-stepped edge of the cut wing panel visible on the inside of the front pods (from the v40 arch cut, per-face).
+
+# v47b (23 Nov ~09:00) - liners stuck out past the kit in game (x 0.975 > kit outer after the 10 mm move): liners now x_in..0.86, arc -10..190 deg. Reinstalled.

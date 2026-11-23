@@ -112,10 +112,10 @@ def quad(a, b, c, d):
 
 for tag, (wy, wz) in (("F", kb.E_F), ("R", kb.E_R)):
     R, x_in = LINER[tag]["R"], LINER[tag]["x_in"]
-    th = np.radians(np.linspace(-25, 205, 47))
+    th = np.radians(np.linspace(-10, 190, 41))
     arc = [(wy + R * math.cos(a), wz + R * math.sin(a)) for a in th]
     for side in (1, -1):
-        x0, x1 = side * x_in, side * 0.975
+        x0, x1 = side * x_in, side * 0.86      # stays inside the kit (0.975 stuck out past it in game)
         for (y1, z1), (y2, z2) in zip(arc[:-1], arc[1:]):
             quad(Vector((x0, y1, z1)), Vector((x1, y1, z1)), Vector((x1, y2, z2)), Vector((x0, y2, z2)))
         # inner wall: fan from below the wheel centre to the arc
