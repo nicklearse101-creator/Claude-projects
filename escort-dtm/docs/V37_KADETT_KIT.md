@@ -134,3 +134,11 @@ tools/blender/kk_v45.py on the v41 blend: KK_kit, KK_kit_inner, KK_fins, vent/si
 Arch shape otherwise = v41. Backup: v41 is export_staging_v41.
 
 # v46 (23 Nov ~08:40) - Nik: "big improvement, move it in another 5 mm": kk_v46.py = kk_v45.py run on the v45 blend (kit 10 mm in in total). export_staging_v46. v45 kept in export_staging_v45.
+
+# v47 (23 Nov ~08:55) - Nik: see-through arches; belts gone, anchors still on the shelf
+tools/blender/kk_v47.py on the v46 blend. Belts: v40's belts_to_floor produced NaN vertices (straps vanished in game) - original strap
+meshes re-taken from the kit-0 live import and re-routed (centreline binned, y 0.55 -> floor anchor y 0.95, floor z 0.13 + 15 mm);
+CINTURE_ON (driving belts, switched off by NICK3) active again and re-routed; anchor eyes (Object001csaas/001, CINTURE_OFF_SUB1__lr
+islands on the shelf) moved to the floor anchors. Arches: KK_arch_liners = black (#166GG45) curved roof R 0.335 over each wheel
+(-25..205 deg) from x 0.50 (front, wheels steer) / 0.60 (rear) out to 0.975, plus an inner wall; both faces drawn; LOD B/C too.
+Known: stair-stepped edge of the cut wing panel visible on the inside of the front pods (from the v40 arch cut, per-face).
