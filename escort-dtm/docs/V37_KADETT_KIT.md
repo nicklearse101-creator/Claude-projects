@@ -215,3 +215,11 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
 - New car script extension/exhaust_flames.lua ([SCRIPT_...] in ext_config, all LODs): ac.Particles.Flame emitted at the
   pipe tips via car.bodyTransform - pops on throttle lift >4000 rpm, upshifts with gas, limiter bounce; crackle flicker.
 - Backup: ext_config.ini.BACKUP_before_lua_flames_*. Not verified in game.
+
+## Ride height zero = floor (23 Nov 18:19)
+- Setup screen showed ~150 F / 200 R mm: car.ini [RIDE] pickups were -0.37 (Kunos Mk1 value, CG-relative), far above the floor.
+- Measured lowest body (model space): sills/kit -0.084 at the front axle, kit -0.090 at the rear (diffuser -0.127 sits 0.3 m behind
+  the rear axle). Physics y = model y + GRAPHICS_OFFSET y (-0.40) -> PICKUP_FRONT_HEIGHT=-0.484, PICKUP_REAR_HEIGHT=-0.490.
+  Expected readings ~36 F / ~80 R mm at the same setup; 0 = sills on the ground.
+- Front wing uses height_front_CL/CD.lut (ground-height multipliers) - both shifted by -0.114 so aero is unchanged.
+- Backup: data.acd.BACKUP_before_rideheight_zero. Not checked in game.
