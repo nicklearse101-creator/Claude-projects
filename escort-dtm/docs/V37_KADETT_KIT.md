@@ -176,3 +176,5 @@ tools/blender/kk_v49.py (+ kk_v49_export.py) on the v48 blend -> escort_v49.blen
 - LODs B/C/D regenerated from the main model (decimate 0.30/0.12/0.04, LOD files without textures) - old LODs had the NICK3 spoiler.
 - v49b: headlight lens glassrhl_a (lights.ini LIGHT_0) had kn5 active 0 since the NICK3 work (v25 had it on) -> on, all LODs. Re-exported export_staging_v49.
 - v49c: belts - v49 copy of OFF into ON undone (driver not wearing them, still not yellow in game): CINTURE_ON meshes back from the v48 blend; all CINTURE meshes on own yellow material copies (KK_belt_*, textures BELT_Y_97/98/STRAP from the belts own AO, alpha 255, isAdditive 0). Anchor eyes keep #100TT34. Why CM showed yellow is not found.
+
+# 23 Nov ~13:25 - brakes (Nik: car "wants to keep going" under braking): data.acd brakes.ini MAX_TORQUE 1680 -> 2000, electronics.ini [ABS] SLIP_RATIO_LIMIT 0.12 -> 0.18 (acd_patch.py; backups data.acd.BACKUP_20261123_1322 / _1323). data/ folder has no brakes.ini/electronics.ini.
