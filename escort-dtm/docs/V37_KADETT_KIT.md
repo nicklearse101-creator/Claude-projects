@@ -174,3 +174,4 @@ tools/blender/kk_v49.py (+ kk_v49_export.py) on the v48 blend -> escort_v49.blen
 - Arches: exact-boolean cut of fenders_a_SUB2/body_a_SUB1 along a smooth curve 10 mm outside the kit's lip (kit profile per 3 deg,
   5-pt smoothed), x 0.5..1.2 per side, all four arches.
 - LODs B/C/D regenerated from the main model (decimate 0.30/0.12/0.04, LOD files without textures) - old LODs had the NICK3 spoiler.
+- v49b: headlight lens glassrhl_a (lights.ini LIGHT_0) had kn5 active 0 since the NICK3 work (v25 had it on) -> on, all LODs. Re-exported export_staging_v49.
