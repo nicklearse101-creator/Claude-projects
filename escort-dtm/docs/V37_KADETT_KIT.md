@@ -335,3 +335,11 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
   tangents -> black. kk15e now gives each part real cylindrical/planar UVs squeezed into a 4 mm atlas patch around the cage
   tube's (and bumper's) median UV -> valid tangents (checked: 0 bad of 20160 loops), same colour. Lesson: new meshes on
   normal-mapped materials need non-degenerate UVs. Installed. Not seen in game.
+
+## 24 Nov 21:00 - 15" car: backfires + doorless
+- exhaust_flames.lua: backfire pops with the flames - car's own bank events cars/:own/backfire_ext (vol 1.8, exterior) and
+  backfire_int (vol 1.2, cockpit), pool of 4, at the stacks, ~70% of flame flicks, >= 70 ms apart, pitch 0.9-1.15.
+- kk15f_doorless.py -> escort15_v8.blend: DOOR_L/DOOR_R active 0 (not deleted); KK_door_bars = X of 42 mm tube per side from
+  the A-pillar cage leg (z 0.20 / 0.62) to the main-hoop leg (z 0.62 / 0.15), ends sunk 15 mm, cage material + atlas-patch UVs.
+- BACKUP of the whole installed 15" car before this: D:/ClaudeData/tmp/kadett/BACKUP_15in_before_doorless_20261124_2054
+  (kn5s, data.acd, extension, ui_car.json) - copy back to restore; blend before = escort15_v7. Not seen in game.

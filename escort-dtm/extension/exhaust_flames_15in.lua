@@ -23,6 +23,24 @@ local function setColour(c)
     colour = c
   end
 end
+-- loud backfire pops with the flames: the car's own soundbank events, a small pool so pops can overlap
+local BF_POS = vec3(0, 0.75, 1.15)                       -- between the bonnet stacks (car space)
+local bfExt, bfInt, bfi, lastPop = {}, {}, 1, 0
+for i = 1, 4 do
+  bfExt[i] = ac.AudioEvent("cars/:own/backfire_ext", true)
+  bfExt[i].volume = 1.8; bfExt[i].cameraInteriorMultiplier = 0; bfExt[i]:setPosition(BF_POS)
+  bfInt[i] = ac.AudioEvent("cars/:own/backfire_int", true)
+  bfInt[i].volume = 1.2; bfInt[i].cameraExteriorMultiplier = 0; bfInt[i].cameraTrackMultiplier = 0
+  bfInt[i].cameraInteriorMultiplier = 1; bfInt[i]:setPosition(BF_POS)
+end
+local clock = 0
+local function pop()
+  if clock - lastPop < 0.07 then return end
+  lastPop = clock
+  bfExt[bfi].pitch = 0.9 + math.random() * 0.25; bfExt[bfi]:start(); bfInt[bfi]:start()
+  bfi = bfi % 4 + 1
+end
+
 local function hideAll()
   for _, s in ipairs({ "L", "R" }) do for k = 1, 3 do F[s][k]:setVisible(false) end end
 end
@@ -45,10 +63,12 @@ local function flick(big)
       F[s][k]:setVisible(true); shown = shown + 1
     end
   end
+  if math.random() < 0.7 then pop() end
 end
 
 function script.update(dt)
   frames = frames + 1
+  clock = clock + dt
   local lim = car.rpmLimiter > 0 and car.rpmLimiter or 8500
   gasPeak = math.max(car.gas, gasPeak - dt * 2.5)
   if gasPeak > 0.6 and car.gas < 0.2 and car.rpm > 4000 then burst(0.25 + math.random() * 0.45); gasPeak = 0 end
