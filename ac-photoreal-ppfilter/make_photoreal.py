@@ -36,12 +36,12 @@ INI_SET = {
 # ---------------------------------------------------------------- lua tweaks
 # (exact text in pure.lua, replacement). Each must match exactly once.
 LUA_REPLACE = [
-    # photo-realistic slider defaults to full (Pure ships 0.5)
+    # photo-realistic default 0.75 (Pure ships 0.5; 1.0 crushed shade to black in-game)
     ('pure.script.ui.addSliderFloat("photo-realistic", 0.5, 0.0, 1.0)',
-     'pure.script.ui.addSliderFloat("photo-realistic", 1.0, 0.0, 1.0)\n'
+     'pure.script.ui.addSliderFloat("photo-realistic", 0.75, 0.0, 1.0)\n'
      '    pure.script.ui.addSliderFloat("photo saturation", 0.92, 0.5, 1.2)\n'
      '    pure.script.ui.addSliderFloat("photo warmth", 1.00, 0.9, 1.1)\n'
-     '    pure.script.ui.addSliderFloat("shadow depth", 0.2, 0.0, 0.6)'),
+     '    pure.script.ui.addSliderFloat("shadow depth", 0.0, 0.0, 0.6)'),
     # v2: deeper shadows in sunshine = less ambient fill relative to the sun
     ('pure.config.set("light.ambient.level",          (1-0.25*cam_sun_face) * (1 - 0.5 * photo_realistic^3), true)',
      'pure.config.set("light.ambient.level",          (1-0.25*cam_sun_face) * (1 - 0.5 * photo_realistic^3) * _shadow_k, true)'),
