@@ -352,3 +352,7 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
 - 21:12 cockpit engine a touch quieter (backfires unchanged): open-exhaust layer 0.45 -> 0.35, [AUDIO_VOLUME] ENGINE_INT 0.9.
   "Window frame still there": object-coloured render of escort15_v8 shows only the body aperture seal + drip rail in the
   opening - likely the door animation (fixed 21:08); asked Nik for a screenshot if it persists.
+- 21:25 doorless "frame from inside": the cockpit-only mesh dashstructure_a_SUB0 (COCKPIT_HR, + __lr) holds the door
+  quarter-light frame (vertical post y~-0.16 + diagonal). kk15g_quarterlight.py -> escort15_v9: islands wholly inside
+  |x| 0.5-0.70, y -0.52..-0.12, z 0.64..1.04 deleted (34 + 24 islands, both sides); A-pillar trim and aperture seal kept.
+  Checked from the driver's eye. Installed (backup live15_backup_before_quarterlight_*). Not seen in game.
