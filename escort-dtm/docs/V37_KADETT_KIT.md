@@ -331,3 +331,7 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
 - 20:50 Nik: chrome stacks still looked wrong (mirror chrome reflected dark -> black). kk15e_stack_cage_mat.py -> escort15_v7:
   stacks use the roll cage's Material #26DDDSA (AO_1 atlas) with all UVs at the cage tube's median UV (0.308, 0.4226);
   KK_chrome dropped. Installed. Not seen in game.
+- 20:58 Still black in game. Cause: normal-mapped shaders + constant UVs (v7a) / no UVs (v5) -> calc_tangents gives zero
+  tangents -> black. kk15e now gives each part real cylindrical/planar UVs squeezed into a 4 mm atlas patch around the cage
+  tube's (and bumper's) median UV -> valid tangents (checked: 0 bad of 20160 loops), same colour. Lesson: new meshes on
+  normal-mapped materials need non-degenerate UVs. Installed. Not seen in game.
