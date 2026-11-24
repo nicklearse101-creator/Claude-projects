@@ -310,3 +310,11 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
   358 Nm @6000; 61% of peak at 3000 rpm (was 84%), 46% at 2000; small dip at 4300; sharper fall-off 8100-8600.
   ui_car.json curves/specs = physics (was +15%: 409 Nm / 400 bhp). Backups data.acd.BACKUP_before_torque_curve,
   D:/ClaudeData/tmp/kadett/ui_car_15.BACKUP_before_torque.json. No Rover V8 sound on Nik's PC. Not driven.
+
+## 24 Nov 20:13 - 15" car: bonnet exhausts replace the side exits (kk15c_bonnet_exhaust.py -> escort15_v5.blend)
+- KK_exhaust_pipes/tips/dark rebuilt (same names): per bank a 70 mm pipe from the header turn-down (x 0.31, y -1.00, z 0.27)
+  up/outward through the bonnet at x 0.525, y -1.02 (just outboard of the bonnet vents), 100 mm tip pointing up + 17 deg out
+  + 12 deg back, rolled lip, soot disc, black collar on the bonnet. Side exits gone.
+- Flame meshes rebuilt at the tips (kk_v51_flames fixed: plane axes now square to the flame dir - vertical flames were slivers).
+- ext_config PARTICLES_FX_EXHAUST_0/1 + flames.ini: tips (AC) +-0.5551, 0.7532, 0.9999; dir +-0.3008, 0.9324, -0.2005.
+- Installed (AC was running - restart). Backup D:/ClaudeData/tmp/kadett/live15_backup_before_bonnet_exh_*. Not seen in game.

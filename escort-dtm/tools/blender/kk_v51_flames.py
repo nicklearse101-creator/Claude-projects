@@ -57,7 +57,8 @@ made = []
 for side, tag in ((1, "L"), (-1, "R")):
     dirv = Vector((side * DIR.x, DIR.y, DIR.z)).normalized()
     tip = Vector((side * TIP[0], TIP[1], TIP[2]))
-    a1 = Vector((0, 0, 1)); a2 = dirv.cross(a1).normalized()
+    up = Vector((0, 0, 1)) if abs(dirv.z) < 0.7 else Vector((0, 1, 0))      # any axis not along the flame
+    a1 = (up - dirv * up.dot(dirv)).normalized(); a2 = dirv.cross(a1).normalized()
     for k, L in enumerate(LENGTHS, 1):
         bm = bmesh.new(); uvl = bm.loops.layers.uv.new("UVMap")
         wid = 0.075 + 0.05 * k
