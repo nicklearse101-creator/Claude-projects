@@ -33,6 +33,14 @@ for i = 1, 4 do
   bfInt[i].volume = 1.2; bfInt[i].cameraExteriorMultiplier = 0; bfInt[i].cameraTrackMultiplier = 0
   bfInt[i].cameraInteriorMultiplier = 1; bfInt[i]:setPosition(BF_POS)
 end
+-- doorless cockpit (24 Nov): the exterior engine sound also plays quietly in the cockpit, from the bonnet stacks,
+-- so you hear the open exhaust directly as well as the soundbank's interior (closed-car) recording
+local OPEN_VOL = 0.45
+local openExh = ac.AudioEvent("cars/:own/engine_ext", true)
+openExh.cameraInteriorMultiplier = 1; openExh.cameraExteriorMultiplier = 0; openExh.cameraTrackMultiplier = 0
+openExh.volume = OPEN_VOL
+openExh:setPosition(BF_POS)
+
 local clock = 0
 local function pop()
   if clock - lastPop < 0.07 then return end
@@ -69,6 +77,8 @@ end
 function script.update(dt)
   frames = frames + 1
   clock = clock + dt
+  openExh:setParam("rpms", car.rpm); openExh:setParam("throttle", car.gas)
+  openExh:resumeIf(car.rpm > 100)
   local lim = car.rpmLimiter > 0 and car.rpmLimiter or 8500
   gasPeak = math.max(car.gas, gasPeak - dt * 2.5)
   if gasPeak > 0.6 and car.gas < 0.2 and car.rpm > 4000 then burst(0.25 + math.random() * 0.45); gasPeak = 0 end

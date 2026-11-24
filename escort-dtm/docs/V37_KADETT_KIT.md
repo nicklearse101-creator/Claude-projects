@@ -343,3 +343,6 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
   the A-pillar cage leg (z 0.20 / 0.62) to the main-hoop leg (z 0.62 / 0.15), ends sunk 15 mm, cage material + atlas-patch UVs.
 - BACKUP of the whole installed 15" car before this: D:/ClaudeData/tmp/kadett/BACKUP_15in_before_doorless_20261124_2054
   (kn5s, data.acd, extension, ui_car.json) - copy back to restore; blend before = escort15_v7. Not seen in game.
+- 21:03 doorless sound (Nik chose option 2): exhaust_flames.lua plays the car's engine_ext event in the cockpit only
+  (interior mult 1, exterior/track 0), volume 0.45, at the stacks, params rpms/throttle each frame. Backup of the script:
+  D:/ClaudeData/tmp/kadett/exhaust_flames_15.BACKUP_before_open_cockpit.lua. Not heard in game.
