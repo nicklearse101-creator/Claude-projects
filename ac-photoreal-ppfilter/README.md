@@ -36,9 +36,6 @@ Run `python make_photoreal.py` again after every Pure update.
 - v2.2: user-tuned defaults: photo-realistic 0.75, shadow depth 0. Looked right in-game on rt_macau (2026-11-24).
 - Distance blur was considered and left out: no depth buffer in Pure's ppfilter script hook, and real cameras keep distance sharp anyway.
 
-## CSP / AC settings that went with it (Ryzen 5 4650G + RX 6700 XT, 4K, FSR Balanced)
+## CSP / AC settings
 
-Held 60+ fps in rain (2026-11-24):
-- Extra FX on, **Replays only**, at high quality (Hi-Z SSLR at full scale, ASSAO High, SS lighting at full scale); it costs nothing while racing. With Extra FX on while racing, rain ran at 40-53 fps.
-- MSAA off (SMAA Ultra in CSP still on), mirror HQ off, cubemap 1 face/frame at 500 m with reprojection, PP quality 4, glare 4.
-- Shadow map 2048, main cubemap 512, trees lighting off.
+Tried with Extra FX (SSLR, ASSAO, SS lighting), a bigger shadow map and bigger cubemaps, then cheaper variants. Rain at 4K dropped to 40-53 fps. On 2026-11-24 the user chose to restore their original CSP/video settings and use only the ppfilter. The filter needs no special CSP settings beyond Pure as the Weather FX.
