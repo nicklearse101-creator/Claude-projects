@@ -274,3 +274,12 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
   across the car about the hub (tyre meshes 0.246 / 0.259 wide again, radius 0.310). tyres.ini WIDTH back to 0.28 / 0.29,
   ANGULAR_INERTIA = 14in x1.31 (was x1.5). Backup D:/ClaudeData/tmp/kadett/live16_backup_before_v2_*. Front tyres no longer
   stick out past the flares. Not driven.
+
+## ESCORT 15" - separate car ford_escort_mk2_tuned_15 (24 Nov 17:50); Nik: the 16" ruined the handling (car ~80-105 mm higher)
+- Nik: "15 wheels, same size tyres, besides the obvious" = garden swap. The model rims are really 13" (rim lip radius 0.182 =
+  13" rim + flange; CM shows R13) although tyres.ini said RIM_RADIUS 0.1778 (14").
+- kk15_wheels.py on "escort_v51 flames.blend" -> escort15_v1.blend: rims (not discs) x15/13 radially, width unchanged; tyres
+  unchanged in shape, moved out radially by the rim-lip growth (+28 mm: 0.175-0.272 -> 0.203-0.300). kk15_export.py.
+- escort15_data.py: RIM_RADIUS 0.1905, RADIUS 0.268 -> 0.296, ANGULAR_INERTIA x1.15; suspension, widths, aero untouched ->
+  car 28 mm higher, gearing ~10% taller. Tyre tops now ~28 mm into the arch lips/liners (the arches are for later).
+- Folder built like the 16" one (sfx bank/GUIDs renamed, ui "... 15in"). The 16" car is still installed. Not driven.
