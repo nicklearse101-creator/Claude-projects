@@ -23,6 +23,7 @@
 # Hatch lower corners (faired spine, local-frame row smoothing, corner zone smoothing + vertex offset, 13 Nov): median 0.159, p95 0.77, within 0.3 / 1 mm 71.9 / 97.5 %.
 # Hatch corner tab (U extended past the outline + trimmed on the knee-aware fair outline, 13 Nov midday): median 0.154, p95 0.64, max 1.14, within 0.3 / 1 mm 73.6 / 99.4 % (tail 100 %).
 # Hatch returns (ring + wall fold flanges, bottom return, tab corner fills; left halves mirrored; 13 Nov pm): skin 75.7 / 99.7 %; ring 89.9 / 100, wall 91.3 / 100, bottom 90.3 / 96.8, corners 100 / 100 %. Others unchanged.
+# Knee rows (24 Nov late): the three real Kunos knee rows ranked by height per station (no 2B-A guess): one soft knee line by eye; sweep+end 93.3 % within 1 mm (was 95.9: a few arch-lip vertices at s end).
 # Rear lower band (rearband_build.py, 24 Nov; quarter + tail with PF_NOBAND): band left 98.4 % (sweep 100 %, centre 92.5 %); quarter area 78.4 / 97.9 (its own Kunos vertices 92.6 % within 1 mm, was 92.0); tail 94.7 % (was 93.6 on the same vertices); others unchanged.
 set -e
 cd "$(dirname "$0")"

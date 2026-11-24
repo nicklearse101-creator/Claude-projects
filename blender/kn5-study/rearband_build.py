@@ -452,6 +452,16 @@ def class_loft(Fb, Vb, Sp, arc, s0, s1, verbose=True):
         # run the whole stretch are always its lower and MIDDLE rows -> the middle row is the apex line; the round =
         # the profile spline through points ROUND along each face from it (constant width, no row wobble)
         kn = sorted(kn, key=lambda Q: np.median(Q[:, 1]))                  # [lower row A, middle row B]
+        # 24 Nov: the topology rows CROSS-LINK at Kunos's mesh gap (s 381 -> 438): rear rows 582 / 584 / 587, side rows
+        # 579 / 581 / 584 - mutual linking joined rear 582 to side 581 (a 0.6 mm RISE where the knee drops 1.6 mm) and
+        # the upper rear row / lower side row were left as stubs (C was guessed as 2B - A, ~1 mm off). Every station
+        # has exactly THREE knee vertices: rank them by height per station -> the three real rows lower / middle / upper
+        Kv = np.concatenate([Q for Q in rows if 0.555 < np.median(Q[:, 1]) < 0.600])
+        Kv = Kv[np.argsort(Kv[:, 0])]
+        cl = np.split(Kv, np.where(np.diff(Kv[:, 0]) > 0.003)[0] + 1)
+        cl = [c[np.argsort(c[:, 1])] for c in cl if len(c) == 3]
+        if len(cl) >= 6 and os.environ.get("RB_KNEE3", "1") == "1":
+            kn = [np.array([c[j] for c in cl]) for j in range(3)]
     kf = [fair(Q, n=int(os.environ.get('RB_KNEE_N', 14))) for Q in kn]
     if verbose: print(f'knee: {"apex row" if ROUND > 0 else "mid-line of the 2 longest rows"} (' + ', '.join(f'{np.median(Q[:, 1]) * 1e3:.0f} s {Q[0, 0] * 1e3:.0f}..{Q[-1, 0] * 1e3:.0f}' for Q in kn) + ')' + (f', round +-{ROUND * 1e3:.1f} mm' if ROUND > 0 else ''), flush=True)
     ev = lambda c, s: np.array([PF.eval_func(c[0], [s])[0], PF.eval_func(c[1], [s])[0]])
@@ -470,7 +480,8 @@ def class_loft(Fb, Vb, Sp, arc, s0, s1, verbose=True):
         if ROUND > 0:
             # the knee LAND: Kunos's three knee rows 2.5 mm apart at one depth (a narrow, nearly vertical land between
             # the slanted faces); A, B = the two long rows (fair curves), the upper edge C = B + (B - A)
-            A_ = pt(ev(kf[0], s_)); B_ = pt(ev(kf[1], s_)); C_ = 2 * B_ - A_
+            A_ = pt(ev(kf[0], s_)); B_ = pt(ev(kf[1], s_)); C_ = pt(ev(kf[2], s_)) if len(kf) > 2 else 2 * B_ - A_
+            if verbose and os.environ.get('RB_KDBG') and (i % 8 == 0 or i == len(ss) - 1): print(f'  s {s_ * 1e3:.0f}: knee y/d ' + ' '.join(f'{ev(c, s_)[0] * 1e3:.1f}/{ev(c, s_)[1] * 1e3:.1f}' for c in kf), flush=True)
             Pa, Pb = C_, A_
             pts_ = np.array(upr[:-1] + [C_, B_, A_] + low[1:])
             C = rounded_polyline(pts_, a=float(os.environ.get('RB_FILLET', 4.0)) * 1e-3) if os.environ.get('RB_PROFILE', 'spline') == 'polyline' else catmull_rom(pts_, 20)
