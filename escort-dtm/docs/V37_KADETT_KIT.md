@@ -294,3 +294,9 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
   kk15b_brakes -> escort15_v4, export_staging_15, installed). 16" rebuilt (escort16_v4) but Nik had deleted that car - not installed.
   Note: the 13" car's tyres.ini still says RIM_RADIUS 0.1778 (14") though the model rims are 13" - left as is.
 - Backups: D:/ClaudeData/tmp/kadett/live_backup_<car>_before_wheelfix_<time>. Not seen in game.
+
+## 24 Nov 18:29 - 15" SetupCoach-equivalent setups (tools/escort15_setups.py)
+- All 9 SetupCoach_Optimized*.ini of the 13" car -> setups/ford_escort_mk2_tuned_15/generic/SetupCoach_<track>[_1].ini:
+  rods -28 clicks (body/aero back to the 13" heights), final drive x0.296/0.268 (15" final.rto now 2.77 2.91 3.09 3.25
+  3.41 3.49 3.68 3.85 - added 3.41 and 3.85), brake power x0.956 (100 -> 96); everything else identical.
+- Nurburgring rear rods 25 -> 0 (3 mm short of equivalent). AC was running while final.rto was written (applies next load).
