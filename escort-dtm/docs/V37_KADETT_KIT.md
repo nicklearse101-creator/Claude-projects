@@ -265,3 +265,8 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
   ~104 mm R; gearing effectively 14% taller; front splitter now higher (less downforce from the height LUT).
 - Folder: copied animations/sfx/skins/texture/ui/extension/collider/shadows (no backups); sfx bank renamed
   ford_escort_mk2_tuned_16.bank + GUIDs.txt paths/bank name rewritten; ui name "... 16in". Not driven yet.
+- 17:16 16in aero: same tables (the height LUTs already cut splitter/diffuser at the new heights: readings ~115 F / ~184 R mm
+  -> front GH 0.70, diffuser GH 0.63); BODY span 1.90 -> 2.05 (taller tyres, gap under the car), Cd 0.44 -> 0.45, CL -0.04
+  (underbody lift); rear wing default ANGLE 3 -> 1. Result at default (front 3, rear 1): ~900 N @200 km/h, ~32% front
+  (37% if lowered to ~85/150 mm). Same tables at wing 3 would be 23% front = big high-speed understeer.
+  Backup data.acd.BACKUP_before_aero16 (in the 16in folder). Not driven.
