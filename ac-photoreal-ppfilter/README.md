@@ -20,13 +20,17 @@ Run `python make_photoreal.py` again after every Pure update.
 | Afterimage at full photo-realism | 3.00 | 1.00 |
 | Chromatic aberration | off | subtle (0.0015 lateral) |
 | Vignette | 0.001 | 0.15, FOV dependent |
+| Haze (v2, new slider) | clear-sky fog starts ~60 km out | 0.5: fog distance pulled in (log scale toward 2.5 km), so distance gets aerial perspective; never thinner than Pure's own fog |
+| Shadow depth (v2, new slider) | none | 0.2: less ambient fill in direct sun only, so shadows are deeper vs sunlit areas |
 
 ## Using it
 
 1. Content Manager > Settings > Assetto Corsa > Video > Post-processing: set the filter to **PhotoReal**. Weather FX must be **Pure**.
-2. In-game, open the **Pure Config** app > PP tab to fine-tune the sliders live ("photo-realistic", "photo saturation", "photo warmth", tonemapping).
+2. In-game, open the **Pure Config** app > PP tab to fine-tune the sliders live ("photo-realistic", "photo saturation", "photo warmth", "haze", "shadow depth", tonemapping).
 3. Tune against real reference photos of the same track, time of day and weather.
 
 ## Status
 
-Version 1: generated and Lua syntax-checked; not yet checked in-game.
+- v1: car looked good in-game on rt_macau; scenery still looked game-like (mostly track assets and midday light).
+- v2: adds haze and shadow depth. Generated and Lua syntax-checked; not yet checked in-game.
+- Distance blur was considered and left out: no depth buffer in Pure's ppfilter script hook, and real cameras keep distance sharp anyway.

@@ -40,7 +40,14 @@ LUA_REPLACE = [
     ('pure.script.ui.addSliderFloat("photo-realistic", 0.5, 0.0, 1.0)',
      'pure.script.ui.addSliderFloat("photo-realistic", 1.0, 0.0, 1.0)\n'
      '    pure.script.ui.addSliderFloat("photo saturation", 0.92, 0.5, 1.2)\n'
-     '    pure.script.ui.addSliderFloat("photo warmth", 1.00, 0.9, 1.1)'),
+     '    pure.script.ui.addSliderFloat("photo warmth", 1.00, 0.9, 1.1)\n'
+     '    pure.script.ui.addSliderFloat("haze", 0.5, 0.0, 1.0)\n'
+     '    pure.script.ui.addSliderFloat("shadow depth", 0.2, 0.0, 0.6)'),
+    # v2: deeper shadows in sunshine = less ambient fill relative to the sun
+    ('pure.config.set("light.ambient.level",          (1-0.25*cam_sun_face) * (1 - 0.5 * photo_realistic^3), true)',
+     'pure.config.set("light.ambient.level",          (1-0.25*cam_sun_face) * (1 - 0.5 * photo_realistic^3) * _shadow_k, true)'),
+    ('pure.config.set("light.advanced_ambient_light", (1.0-0.90*cam_sun_face) * (1 - 0.5 * photo_realistic^2), true)',
+     'pure.config.set("light.advanced_ambient_light", (1.0-0.90*cam_sun_face) * (1 - 0.5 * photo_realistic^2) * _shadow_k, true)'),
     # lens ghosts / afterimage: Pure goes very strong at photo-realistic=1
     ('pure.yebis.set("glareShapeGhostLuminance", 0.0 + 1.00*camera_effects)',
      'pure.yebis.set("glareShapeGhostLuminance", 0.0 + 0.35*camera_effects)'),
@@ -53,7 +60,19 @@ LUA_REPLACE = [
      'photo_realistic = pure.script.ui.getValue("photo-realistic")\n'
      '    _photo_hsb.saturation = pure.script.ui.getValue("photo saturation")\n'
      '    local w = pure.script.ui.getValue("photo warmth")\n'
-     '    _photo_rgb.color = rgb(w, 1.0, 2.0 - w)'),
+     '    _photo_rgb.color = rgb(w, 1.0, 2.0 - w)\n'
+     # shadow depth only applies in direct sunshine, not overcast
+     '    local sunny = pure.mod.sun(0) * (1 - pure.world.getCloudShadow())\n'
+     '    _shadow_k = 1 - pure.script.ui.getValue("shadow depth") * sunny\n'
+     # v2 haze: Pure's clear-sky fog starts ~60 km out, so track-scale
+     # distances get no aerial perspective. Pull the fog distance in
+     # (log-scale towards 2.5 km); never thinner than Pure's own fog.
+     '    local pfog = pure.world.getPureGammaFogTable()\n'
+     '    local haze = pure.script.ui.getValue("haze")\n'
+     '    if haze > 0 and pfog and pfog.distance then\n'
+     '        local d = math.exp(math.lerp(math.log(math.max(1, pfog.distance)), math.log(2500), haze))\n'
+     '        if d < pfog.distance then ac.setFogDistance(d) end\n'
+     '    end'),
 ]
 
 # Real photos are less saturated than AC's raw output; luminance is kept.
@@ -62,6 +81,7 @@ local _photo_hsb = ac.ColorCorrectionHsb { hue = 0, saturation = 0.92, brightnes
 ac.weatherColorCorrections[#ac.weatherColorCorrections + 1] = _photo_hsb
 local _photo_rgb = ac.ColorCorrectionModulationRgb { color = rgb(1, 1, 1) }
 ac.weatherColorCorrections[#ac.weatherColorCorrections + 1] = _photo_rgb
+local _shadow_k = 1
 
 """
 
