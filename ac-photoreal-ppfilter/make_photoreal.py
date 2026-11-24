@@ -6,6 +6,7 @@ your AC install and writes the modified copies next to them, so re-run it after
 a Pure update.
 
 Writes:
+  extension/textures/color_grading/PhotoReal.png  (camera-look LUT, see make_lut.py)
   system/cfg/ppfilters/PhotoReal.ini
   system/cfg/ppfilters/pure_scripts/PhotoReal.lua
 
@@ -31,6 +32,11 @@ INI_SET = {
         "SAMPLES": "5",
     },
     "VIGNETTING": {"STRENGTH": "0.15", "FOV_DEPENDENCE": "0.5"},
+    # v2.3 camera-look LUT (make_lut.py); strength set live by the
+    # "camera look" slider via ac.setPpColorGradingIntensity
+    "EXT_COLOR_GRADING": {"ENABLED": "1", "STRENGTH": "1",
+                          "FILE": "'" + str(AC_ROOT / "extension" / "textures"
+                                            / "color_grading" / "PhotoReal.png") + "'"},
 }
 
 # ---------------------------------------------------------------- lua tweaks
@@ -41,7 +47,8 @@ LUA_REPLACE = [
      'pure.script.ui.addSliderFloat("photo-realistic", 0.75, 0.0, 1.0)\n'
      '    pure.script.ui.addSliderFloat("photo saturation", 0.92, 0.5, 1.2)\n'
      '    pure.script.ui.addSliderFloat("photo warmth", 1.00, 0.9, 1.1)\n'
-     '    pure.script.ui.addSliderFloat("shadow depth", 0.0, 0.0, 0.6)'),
+     '    pure.script.ui.addSliderFloat("shadow depth", 0.0, 0.0, 0.6)\n'
+     '    pure.script.ui.addSliderFloat("camera look", 0.8, 0.0, 1.0)'),
     # v2: deeper shadows in sunshine = less ambient fill relative to the sun
     ('pure.config.set("light.ambient.level",          (1-0.25*cam_sun_face) * (1 - 0.5 * photo_realistic^3), true)',
      'pure.config.set("light.ambient.level",          (1-0.25*cam_sun_face) * (1 - 0.5 * photo_realistic^3) * _shadow_k, true)'),
@@ -62,7 +69,8 @@ LUA_REPLACE = [
      '    _photo_rgb.color = rgb(w, 1.0, 2.0 - w)\n'
      # shadow depth only applies in direct sunshine, not overcast
      '    local sunny = pure.mod.sun(0) * (1 - pure.world.getCloudShadow())\n'
-     '    _shadow_k = 1 - pure.script.ui.getValue("shadow depth") * sunny'),
+     '    _shadow_k = 1 - pure.script.ui.getValue("shadow depth") * sunny\n'
+     '    ac.setPpColorGradingIntensity(pure.script.ui.getValue("camera look"))'),
     # v2.0 also overrode ac.setFogDistance for haze: in-game that put a blue
     # veil over everything, cockpit included. Removed in v2.1; don't override
     # Pure's fog from the ppfilter script.
@@ -126,6 +134,8 @@ def main():
     for p in (src_ini, src_lua):
         if not p.exists():
             sys.exit(f"Missing {p} - is Pure installed?")
+    from make_lut import make_lut
+    print(f"Wrote {make_lut(AC_ROOT / 'extension' / 'textures' / 'color_grading' / (NAME + '.png'))}")
     for src, dst, patch in ((src_ini, PPF / f"{NAME}.ini", patch_ini),
                             (src_lua, PPF / "pure_scripts" / f"{NAME}.lua", patch_lua)):
         eol = "\r\n" if b"\r\n" in src.read_bytes() else "\n"  # keep Pure's line endings
