@@ -306,3 +306,7 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
   12500-17500, front 40000 -> 35000; brake bias 70 -> 66-67; less rear toe-in.
 - 19:38 15" car, Nik: other way round - rear back to TRACK 1.5735 / offsets 0.03; FRONT TRACK 1.5345 -> 1.5735 (= rear),
   front WHEEL/SUSP offsets 0.05 -> 0.0305 so the visual front wheels stay put. Backup data.acd.BACKUP_before_front_track. Not driven.
+- 20:06 15" car engine: power_dtm.lut reshaped like a race-cammed 4.0 V8 (Rover-style): same ~349 bhp (now @7800), peak
+  358 Nm @6000; 61% of peak at 3000 rpm (was 84%), 46% at 2000; small dip at 4300; sharper fall-off 8100-8600.
+  ui_car.json curves/specs = physics (was +15%: 409 Nm / 400 bhp). Backups data.acd.BACKUP_before_torque_curve,
+  D:/ClaudeData/tmp/kadett/ui_car_15.BACKUP_before_torque.json. No Rover V8 sound on Nik's PC. Not driven.
