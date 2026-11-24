@@ -35,7 +35,7 @@ def catmull(pts, n=8):
     out.append(pts[-1]); return out
 
 
-def tube(bm, uvl, path, r, seg=18):
+def tube(bm, uvl, path, r, seg=18, inward=False):
     prev = None; rings = []; L = 0.0; lens = [0.0]
     for a, b in zip(path[:-1], path[1:]):
         L += (b - a).length; lens.append(L)
@@ -50,6 +50,10 @@ def tube(bm, uvl, path, r, seg=18):
     for j, (a, b) in enumerate(zip(rings[:-1], rings[1:])):
         for k in range(seg):
             f = bm.faces.new((a[k], a[(k + 1) % seg], b[(k + 1) % seg], b[k]))
+            f.normal_update()                                  # face outward (inner lip: inward) - AC culls back faces
+            out = f.calc_center_median() - (path[j] + path[j + 1]) / 2
+            if (f.normal.dot(out) < 0) != inward:
+                f.normal_flip()
             for lp, (u, v) in zip(f.loops, ((k / seg, lens[j]), ((k + 1) / seg, lens[j]), ((k + 1) / seg, lens[j + 1]), (k / seg, lens[j + 1]))):
                 lp[uvl].uv = (u, v * 4)
 
@@ -86,14 +90,14 @@ chrome = bpy.data.materials.get("KK_chrome") or base.copy(); chrome.name = "KK_c
 dd = json.loads(base["kn5_def"]); dd["name"] = "KK_chrome"
 for p in dd["props"]:
     k = p[0]
-    if k == "ksAmbient": p[1] = 0.25
-    if k == "ksDiffuse": p[1] = 0.08
+    if k == "ksAmbient": p[1] = 0.3
+    if k == "ksDiffuse": p[1] = 0.2
     if k == "ksSpecular": p[1] = 2.0
     if k == "ksSpecularEXP": p[1] = 400.0
-    if k == "fresnelC": p[1] = 0.85
+    if k == "fresnelC": p[1] = 0.92                          # mirror chrome: reflection replaces most of the diffuse
     if k == "fresnelMaxLevel": p[1] = 1.0
     if k == "fresnelEXP": p[1] = 2.0
-    if k == "isAdditive": p[1] = 1.0
+    if k == "isAdditive": p[1] = 0.0
     if k == "useDetail": p[1] = 0.0                       # the detail slot holds the skin colour on this car
     if k == "ksEmissive": p[1:11] = [0.0] * 10
 dd["samplers"] = [[s[0], s[1], {"txDiffuse": "rgbab6b6b6ff.dds", "txNormal": "flat_nm.dds", "txMaps": "rgbaffffffff.dds"}.get(s[0], s[2])] for s in dd["samplers"]]
@@ -115,7 +119,7 @@ for s in (1, -1):
         tube(bms["KK_exhaust_pipes"], uvs["KK_exhaust_pipes"], catmull(pts), PIPE_R)
         end = ex + d * TIP_LEN
         tube(bms["KK_exhaust_tips"], uvs["KK_exhaust_tips"], [ex - d * 0.03, ex + d * (TIP_LEN / 2), end], TIP_R)
-        tube(bms["KK_exhaust_tips"], uvs["KK_exhaust_tips"], [end, end - d * 0.004], TIP_R - 0.003)
+        tube(bms["KK_exhaust_tips"], uvs["KK_exhaust_tips"], [end, end - d * 0.012], TIP_R - 0.003, inward=True)
         disc(bms["KK_exhaust_dark"], uvs["KK_exhaust_dark"], end - d * 0.010, d, 0, TIP_R - 0.002)
         disc(bms["KK_exhaust_dark"], uvs["KK_exhaust_dark"], ex + Vector((0, 0, 0.003)), Vector((0, 0, 1)), TIP_R + 0.001, TIP_R + 0.015)
         tips_bl.append((end.copy(), d.copy(), s))
@@ -134,6 +138,10 @@ for n, ob in old.items():
 # flames: one mesh per (side, length), a flame on each of that side's 4 stacks
 fl = [o for o in main.objects if o.name.startswith("KK_flame_") and o.type == "MESH"]
 fmat = fl[0].material_slots[0].material
+if fmat.name != "KK_flame":                              # an unused "KK_flame" may still hold the name
+    if "KK_flame" in bpy.data.materials:
+        bpy.data.materials["KK_flame"].name = "KK_flame_unused"
+    fmat.name = "KK_flame"
 flags = {o.name: o.get("kn5_flags") for o in fl}
 for o in [o for o in main.objects if o.name.startswith("KK_flame_")]:
     bpy.data.objects.remove(o)
@@ -161,6 +169,11 @@ for tag, s in (("L", 1), ("R", -1)):
         ob = bpy.data.objects.new(name, me); kb.set_material(ob, fmat); kb.link(ob, main, root, col)
         ob["kn5_flags"] = json.dumps({"active": 0, "cast": 0, "visible": 1, "transparent": 1, "renderable": 1})
         made.append(name)
+names = [n for n in json.loads(main["kn5_materials"]) if n in bpy.data.materials]
+for n in ("KK_flame", "KK_chrome"):
+    if n not in names:
+        names.append(n)
+main["kn5_materials"] = json.dumps(names)
 bpy.ops.wm.save_as_mainfile(filepath=OUT)
 print("REPORT", made)
 print("TIPS_AC", json.dumps(tips_ac))

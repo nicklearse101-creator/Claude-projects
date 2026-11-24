@@ -323,3 +323,8 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
   fresnel 0.85/1.0, useDetail 0 - detail slot = skin colour) + cylindrical UVs (old pipes had no UVs -> black). Flames: one
   per stack in KK_flame_L/R1..3 (lengths 0.15/0.24/0.34). ext_config: 8 PARTICLES_FX_EXHAUST_0..7; flames.ini 8 flames.
   Material-name fix: KK_flame.001 -> KK_flame in blend + kn5_materials list. Backup live15_backup_before_zoomies_*. Not seen in game.
+- 20:45 15" stacks "ghosted": tube faces pointed inward (AC culls back faces -> see-through walls, torn tops). kk15d_zoomies
+  tube() now orients faces outward (inner lip inward, 12 mm deep); chrome isAdditive 0, fresnelC 0.92, diffuse 0.2;
+  flame material name clash fixed in the script. Checked with backface-culling render. Installed.
+- 15" exhaust_flames.lua (repo copy extension/exhaust_flames_15in.lua): limiter flames GREEN (ksEmissive 0.15,9,1.2 x flame
+  texture) when revs rise within 200 rpm of the limiter with gas > 0.5; lift-off/upshift flames orange. Not seen in game.
