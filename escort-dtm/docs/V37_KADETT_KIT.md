@@ -270,3 +270,7 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
   (underbody lift); rear wing default ANGLE 3 -> 1. Result at default (front 3, rear 1): ~900 N @200 km/h, ~32% front
   (37% if lowered to ~85/150 mm). Same tables at wing 3 would be 23% front = big high-speed understeer.
   Backup data.acd.BACKUP_before_aero16 (in the 16in folder). Not driven.
+- 17:26 16in v2 (Nik): tyres back to the 14in widths. kk16b_width.py on escort16_v1 -> escort16_v2.blend: wheel meshes x14/16
+  across the car about the hub (tyre meshes 0.246 / 0.259 wide again, radius 0.310). tyres.ini WIDTH back to 0.28 / 0.29,
+  ANGULAR_INERTIA = 14in x1.31 (was x1.5). Backup D:/ClaudeData/tmp/kadett/live16_backup_before_v2_*. Front tyres no longer
+  stick out past the flares. Not driven.
