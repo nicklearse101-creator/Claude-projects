@@ -371,3 +371,9 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
   V8_exhaust (old headers/downpipes) hidden. kk15e (cage material + UVs) -> v12. Smoke/flames.ini/backfire point moved.
 - Mishap: path edits failed once - escort15_v6 overwritten (superseded), v7 overwritten then restored from .blend1.
 - Installed; backup D:/ClaudeData/tmp/kadett/live15_backup_before_race_engine_*. Not seen in game.
+- 22:10 Nik: engine showed the BMW/RaceLogic atlas in game although every kn5 reference was right (checked node -> material
+  -> texture in the file). The 6 generated textures were PNG; converted to uncompressed DDS (kk15i_tex_dds.py) like every
+  other car texture. Stacks moved forward + equal 100 mm spacing: exits y -1.46/-1.36/-1.26/-1.16 (rear clear of the vent).
+  Rear panel strip (rear-facing lower part of trunk_a_SUB0, body paint) -> UVs into a plain lid spot (0.8744, 0.4688)
+  (kk15j_rearstrip.py) so it takes the lid colour on every skin. Chain v10 -> v11 (stacks) -> v12 (cage mat) -> v13 (DDS)
+  -> v14 (strip). Smoke / flames.ini / backfire point moved. Installed (backup live15_backup_before_v14_*). Not seen in game.

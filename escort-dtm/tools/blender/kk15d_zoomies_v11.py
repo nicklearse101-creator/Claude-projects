@@ -15,7 +15,7 @@ import kk_build as kb
 OUT = sys.argv[-1]
 PIPE_R, TIP_R = 0.0225, 0.025
 X_EXIT = 0.355                                       # v11: between head and inner wing (was 0.525 over the strut towers)
-YS = (-1.40, -1.30, -1.20, -1.13)                     # exits, front to back (last one clear of the bonnet vents)
+YS = (-1.46, -1.36, -1.26, -1.16)                     # exits, front to back, 100 mm apart, rear one clear of the bonnet vents (vent from y -1.115)
 PORTS = {1: (-1.385, -1.28, -1.175, -1.07), -1: (-1.365, -1.26, -1.155, -1.05)}   # exhaust port centres (x +-0.257, z 0.30)
 D = Vector((0.15, 0.0, 0.99)).normalized()           # straight up, a little outward
 TIP_LEN = 0.09
