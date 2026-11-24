@@ -5,7 +5,7 @@ UVs: the stacks kept rendering black because a normal-mapped shader needs non-de
 (v7a) or none (v5) give NaN tangents = black. So every part gets its own cylindrical/planar UVs squeezed into a tiny patch
 (~4 mm of atlas) around a sample of its material's own mesh (cage tube / front bumper), i.e. that mesh's colour, with
 valid tangents. Run on "escort15_v6.blend"; saves "escort15_v7.blend"."""
-import json
+import json, sys
 import bpy, numpy as np
 sc = bpy.data.scenes["Scene"]
 PATCH = 0.004
@@ -42,4 +42,5 @@ for n, mat, med in (("KK_exhaust_pipes", cage.material_slots[0].material, cmed),
 names = [n for n in json.loads(sc["kn5_materials"]) if n != "KK_chrome"]   # chrome no longer used (purged on save)
 sc["kn5_materials"] = json.dumps(names)
 print("REPORT cage", cmed.round(4).tolist(), "bumper", bmed.round(4).tolist())
-bpy.ops.wm.save_as_mainfile(filepath=r"D:\Claude\escort_mk2_dtm\blender\escort15_v7.blend")
+OUT = sys.argv[-1] if "--" in sys.argv and sys.argv[-1].endswith(".blend") else r"D:\Claude\escort_mk2_dtm\blender\escort15_v7.blend"
+bpy.ops.wm.save_as_mainfile(filepath=OUT)

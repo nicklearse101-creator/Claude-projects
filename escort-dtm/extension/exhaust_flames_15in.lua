@@ -24,7 +24,7 @@ local function setColour(c)
   end
 end
 -- loud backfire pops with the flames: the car's own soundbank events, a small pool so pops can overlap
-local BF_POS = vec3(0, 0.75, 1.15)                       -- between the bonnet stacks (car space)
+local BF_POS = vec3(0, 0.74, 1.26)                       -- between the bonnet stacks (car space)
 local bfExt, bfInt, bfi, lastPop = {}, {}, 1, 0
 for i = 1, 4 do
   bfExt[i] = ac.AudioEvent("cars/:own/backfire_ext", true)

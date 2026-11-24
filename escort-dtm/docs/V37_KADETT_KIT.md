@@ -356,3 +356,18 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
   quarter-light frame (vertical post y~-0.16 + diagonal). kk15g_quarterlight.py -> escort15_v9: islands wholly inside
   |x| 0.5-0.70, y -0.52..-0.12, z 0.64..1.04 deleted (34 + 24 islands, both sides); A-pillar trim and aperture seal kept.
   Checked from the driver's eye. Installed (backup live15_backup_before_quarterlight_*). Not seen in game.
+
+## 24 Nov 21:55 - 15" car: race engine + primaries from the real ports (escort15_v10 -> v12; v9 = backup)
+- Nik: stacks' pipe routing odd (pipes started beside the engine, through inner wings/strut towers) + "engine needs to look
+  better and more racey"; chose all four: ITBs/velocity stacks, red crinkle cam covers, race dress-up, black & alloy.
+- kk15h_engine.py (v9 -> v10): road plenum + front throttle body/filter deleted; 8 ITBs (machined bodies, polished flared
+  trumpets to z 0.595, dark plates) at x +-0.135 over the intake ports; cam covers KK_redcrinkle (red tint of v8_crinkle_d,
+  same NM); V8_alloy split -> KK_V8_block satin black (islands z<0.30, |x|<0.25) + heads etc machined alloy; distributor at
+  the front + 8 yellow HT leads; braided fuel lines (rails -> bulkhead, front crossover) with red/blue anodised fittings.
+  kk15h2_engine_fix.py: old injectors poking into the trumpets deleted, leads re-routed along the cover tops, bigger
+  "V8 4.0" on the cover outer faces. Textures generated (copies in textures_src/).
+- kk15d_zoomies_v11.py (v10 -> v11): primaries from the real exhaust ports (x +-0.257, z 0.30; y +x -1.385/-1.28/-1.175/
+  -1.07, -x +0.02) up between head and inner wing, exits x +-0.355, y -1.40/-1.30/-1.20/-1.13, tips up + 9 deg out;
+  V8_exhaust (old headers/downpipes) hidden. kk15e (cage material + UVs) -> v12. Smoke/flames.ini/backfire point moved.
+- Mishap: path edits failed once - escort15_v6 overwritten (superseded), v7 overwritten then restored from .blend1.
+- Installed; backup D:/ClaudeData/tmp/kadett/live15_backup_before_race_engine_*. Not seen in game.
