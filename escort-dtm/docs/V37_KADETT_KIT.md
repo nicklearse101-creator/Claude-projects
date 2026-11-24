@@ -318,3 +318,8 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
 - Flame meshes rebuilt at the tips (kk_v51_flames fixed: plane axes now square to the flame dir - vertical flames were slivers).
 - ext_config PARTICLES_FX_EXHAUST_0/1 + flames.ini: tips (AC) +-0.5551, 0.7532, 0.9999; dir +-0.3008, 0.9324, -0.2005.
 - Installed (AC was running - restart). Backup D:/ClaudeData/tmp/kadett/live15_backup_before_bonnet_exh_*. Not seen in game.
+- 20:27 15" car v6 (Nik: chrome, 8 of them): kk15d_zoomies.py -> escort15_v6.blend: 8 stacks (4 per bank, y -1.35/-1.22/-1.09/
+  -0.97, x +-0.525), 45 mm primaries from the ports, 90 mm tips, collars; own KK_chrome (ksPerPixelMultiMap, white maps,
+  fresnel 0.85/1.0, useDetail 0 - detail slot = skin colour) + cylindrical UVs (old pipes had no UVs -> black). Flames: one
+  per stack in KK_flame_L/R1..3 (lengths 0.15/0.24/0.34). ext_config: 8 PARTICLES_FX_EXHAUST_0..7; flames.ini 8 flames.
+  Material-name fix: KK_flame.001 -> KK_flame in blend + kn5_materials list. Backup live15_backup_before_zoomies_*. Not seen in game.
