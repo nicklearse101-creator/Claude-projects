@@ -377,3 +377,9 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
   Rear panel strip (rear-facing lower part of trunk_a_SUB0, body paint) -> UVs into a plain lid spot (0.8744, 0.4688)
   (kk15j_rearstrip.py) so it takes the lid colour on every skin. Chain v10 -> v11 (stacks) -> v12 (cage mat) -> v13 (DDS)
   -> v14 (strip). Smoke / flames.ini / backfire point moved. Installed (backup live15_backup_before_v14_*). Not seen in game.
+- 22:30 Still the M4 decal atlas on the engine (and untouched parts, e.g. coolant tank) after DDS. Adding textures to this
+  kn5 shifts the donor M4/RaceLogic textures (were 187-194) and the game mixes them up - format irrelevant. Nik: "use
+  textures like the old engine". kk15k_existing_tex.py -> escort15_v15: no new textures (list identical to v9's 196, same
+  order); red crinkle = v8_red_d + v8_crinkle_nm, block = v8_crinkle_black, heads = v8_cast_alu, trumpets/lettering =
+  NICK3_alloy, leads = KK_fog_lens_col (yellow), braid = v8_alu_d. LESSON: don't add textures to this kn5 - reuse existing.
+  Installed. Not seen in game.
