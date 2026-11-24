@@ -300,3 +300,7 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
   rods -28 clicks (body/aero back to the 13" heights), final drive x0.296/0.268 (15" final.rto now 2.77 2.91 3.09 3.25
   3.41 3.49 3.68 3.85 - added 3.41 and 3.85), brake power x0.956 (100 -> 96); everything else identical.
 - Nurburgring rear rods 25 -> 0 (3 mm short of equivalent). AC was running while final.rto was written (applies next load).
+- 19:16 15" car: rear physics TRACK 1.5735 -> 1.5345 (= front) for rotation (wider rear = rear grip = push); rear
+  [GRAPHICS_OFFSETS] WHEEL/SUSP_LR/RR 0.03 -> 0.0495 so the visual wheels stay put. Backup data.acd.BACKUP_before_rear_track.
+  Not driven. Setup ideas given to Nik (not applied): diff preload 80 -> 30-40, coast 35 -> 20-25; rear ARB 5000 ->
+  12500-17500, front 40000 -> 35000; brake bias 70 -> 66-67; less rear toe-in.
