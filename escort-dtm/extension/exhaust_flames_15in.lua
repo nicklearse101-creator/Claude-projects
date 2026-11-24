@@ -49,6 +49,11 @@ local function pop()
   bfi = bfi % 4 + 1
 end
 
+-- doorless car: keep the door nodes hidden (their animations would otherwise bring them back in game)
+local doors = root:findNodes("DOOR_L"):append(root:findNodes("DOOR_R"))
+local function hideDoors() doors:setVisible(false) end
+hideDoors()
+
 local function hideAll()
   for _, s in ipairs({ "L", "R" }) do for k = 1, 3 do F[s][k]:setVisible(false) end end
 end
@@ -77,6 +82,7 @@ end
 function script.update(dt)
   frames = frames + 1
   clock = clock + dt
+  if frames % 30 == 1 then hideDoors() end
   openExh:setParam("rpms", car.rpm); openExh:setParam("throttle", car.gas)
   openExh:resumeIf(car.rpm > 100)
   local lim = car.rpmLimiter > 0 and car.rpmLimiter or 8500

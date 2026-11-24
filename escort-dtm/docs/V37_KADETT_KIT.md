@@ -346,3 +346,6 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
 - 21:03 doorless sound (Nik chose option 2): exhaust_flames.lua plays the car's engine_ext event in the cockpit only
   (interior mult 1, exterior/track 0), volume 0.45, at the stacks, params rpms/throttle each frame. Backup of the script:
   D:/ClaudeData/tmp/kadett/exhaust_flames_15.BACKUP_before_open_cockpit.lua. Not heard in game.
+- 21:08 Nik: doors gone in the showroom but back in game - the CSP door animations ([ANIMATION_2/3] car_door_L/R.ksanim on
+  Extra C) bring the door nodes back. Both renamed [ANIMATION_n_OFF_DOORLESS]; exhaust_flames.lua also hides DOOR_L/DOOR_R
+  every 30 frames. Backup ext_config_15.BACKUP_before_door_anim_off.ini. Not checked in game.
