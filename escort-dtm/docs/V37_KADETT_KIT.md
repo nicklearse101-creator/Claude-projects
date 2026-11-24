@@ -328,3 +328,6 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
   flame material name clash fixed in the script. Checked with backface-culling render. Installed.
 - 15" exhaust_flames.lua (repo copy extension/exhaust_flames_15in.lua): limiter flames GREEN (ksEmissive 0.15,9,1.2 x flame
   texture) when revs rise within 200 rpm of the limiter with gas > 0.5; lift-off/upshift flames orange. Not seen in game.
+- 20:50 Nik: chrome stacks still looked wrong (mirror chrome reflected dark -> black). kk15e_stack_cage_mat.py -> escort15_v7:
+  stacks use the roll cage's Material #26DDDSA (AO_1 atlas) with all UVs at the cage tube's median UV (0.308, 0.4226);
+  KK_chrome dropped. Installed. Not seen in game.
