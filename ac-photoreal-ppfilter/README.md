@@ -35,3 +35,10 @@ Run `python make_photoreal.py` again after every Pure update.
 - v2.1: haze removed, shadow depth kept. In-game: shade too dark.
 - v2.2: user-tuned defaults: photo-realistic 0.75, shadow depth 0. Looked right in-game on rt_macau (2026-11-24).
 - Distance blur was considered and left out: no depth buffer in Pure's ppfilter script hook, and real cameras keep distance sharp anyway.
+
+## CSP / AC settings that went with it (Ryzen 5 4650G + RX 6700 XT, 4K, FSR Balanced)
+
+Held 60+ fps in rain (2026-11-24):
+- Extra FX on, **Replays only**: Simple SSLR at 0.5 scale, ASSAO Low, SS lighting at 0.5 scale. With Extra FX on while racing, rain ran at 40-53 fps.
+- MSAA off (SMAA Ultra in CSP still on), mirror HQ off, cubemap 1 face/frame at 500 m with reprojection, PP quality 4, glare 4.
+- Shadow map 2048, main cubemap 512, trees lighting off.
