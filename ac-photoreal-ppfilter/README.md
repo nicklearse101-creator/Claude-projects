@@ -9,6 +9,10 @@ Pure's files are **not** stored here. `make_photoreal.py` reads `pure.ini` and
 
 Run `python make_photoreal.py` again after every Pure update.
 
+Two filters are generated:
+- **PhotoReal**: with the camera-look colour LUT ("camera look" 0.8).
+- **PhotoReal Grain**: the same filter with camera sensor grain instead ("camera look" 0, "grain" 1.0, "grain size" 0.35). It uses Pure's Spice sensor noise, driven from the script's `update_SPICE(ctrl, dt)` hook, so the grain is strongest in dark areas like a real sensor. Raise "camera look" to combine both techniques.
+
 ## What it changes from `pure`
 
 | Area | Pure | PhotoReal |
@@ -35,6 +39,7 @@ Run `python make_photoreal.py` again after every Pure update.
 - v2.0: haze + shadow depth. Haze overrode `ac.setFogDistance` from the script; in-game it put a blue veil over everything (cockpit included). Don't override Pure's fog from the ppfilter script.
 - v2.1: haze removed, shadow depth kept. In-game: shade too dark.
 - v2.2: user-tuned defaults: photo-realistic 0.75, shadow depth 0. Looked right in-game on rt_macau (2026-11-24).
+- v2.4: added the PhotoReal Grain variant. Not yet checked in-game.
 - v2.3: camera-look colour LUT (`lut_preview.jpg`: top is before, bottom is after, applied to a v2.2 screenshot). Not yet checked in-game.
 - Distance blur was considered and left out: no depth buffer in Pure's ppfilter script hook, and real cameras keep distance sharp anyway.
 

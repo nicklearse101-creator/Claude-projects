@@ -119,13 +119,41 @@ def patch_ini(text: str) -> str:
     return "\n".join(out) + "\n"
 
 
-def patch_lua(text: str) -> str:
-    for old, new in LUA_REPLACE:
+def apply_replacements(text: str, replacements) -> str:
+    for old, new in replacements:
         n = text.count(old)
         if n != 1:
             sys.exit(f"pure.lua changed: expected 1 match, found {n}: {old!r}")
         text = text.replace(old, new)
-    return LUA_HEADER + text
+    return text
+
+
+# ------------------------------------------------------------- variants
+# "PhotoReal Grain": PhotoReal with Pure's Spice sensor noise (camera grain,
+# strongest in dark areas like a real sensor) instead of the colour LUT.
+# Spice calls a global update_SPICE(ctrl, dt) from the ppfilter script every
+# frame; values put in ctrl override the Spice settings.
+GRAIN_REPLACE = [
+    ('addSliderFloat("camera look", 0.8, 0.0, 1.0)',
+     'addSliderFloat("camera look", 0.0, 0.0, 1.0)\n'
+     '    pure.script.ui.addSliderFloat("grain", 1.0, 0.0, 3.0)\n'
+     '    pure.script.ui.addSliderFloat("grain size", 0.35, 0.1, 1.0)'),
+]
+GRAIN_FOOTER = """
+
+-- PhotoReal Grain: camera sensor noise via Pure's Spice HDR pass
+function update_SPICE(ctrl, dt)
+    local g = pure.script.ui.getValue("grain")
+    ctrl.SensorNoise.active = g ~= nil and g > 0
+    ctrl.SensorNoise.strength = g
+    ctrl.SensorNoise.scale = pure.script.ui.getValue("grain size")
+end
+"""
+
+VARIANTS = {
+    NAME: {"replace": [], "footer": ""},
+    NAME + " Grain": {"replace": GRAIN_REPLACE, "footer": GRAIN_FOOTER},
+}
 
 
 def main():
@@ -136,12 +164,19 @@ def main():
             sys.exit(f"Missing {p} - is Pure installed?")
     from make_lut import make_lut
     print(f"Wrote {make_lut(AC_ROOT / 'extension' / 'textures' / 'color_grading' / (NAME + '.png'))}")
-    for src, dst, patch in ((src_ini, PPF / f"{NAME}.ini", patch_ini),
-                            (src_lua, PPF / "pure_scripts" / f"{NAME}.lua", patch_lua)):
+
+    def read(src):
         eol = "\r\n" if b"\r\n" in src.read_bytes() else "\n"  # keep Pure's line endings
-        dst.write_text(patch(src.read_text(encoding="utf-8")), encoding="utf-8", newline=eol)
-    print(f"Wrote {PPF / (NAME + '.ini')}")
-    print(f"Wrote {PPF / 'pure_scripts' / (NAME + '.lua')}")
+        return src.read_text(encoding="utf-8"), eol
+
+    ini_text, ini_eol = read(src_ini)
+    lua_text, lua_eol = read(src_lua)
+    base_lua = LUA_HEADER + apply_replacements(lua_text, LUA_REPLACE)
+    for name, v in VARIANTS.items():
+        lua = apply_replacements(base_lua, v["replace"]) + v["footer"]
+        (PPF / f"{name}.ini").write_text(patch_ini(ini_text), encoding="utf-8", newline=ini_eol)
+        (PPF / "pure_scripts" / f"{name}.lua").write_text(lua, encoding="utf-8", newline=lua_eol)
+        print(f"Wrote {PPF / (name + '.ini')} + pure_scripts/{name}.lua")
 
 
 if __name__ == "__main__":
