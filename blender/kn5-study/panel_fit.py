@@ -366,10 +366,15 @@ def master_snap(loops3, step=0.002, tol=0.0025, path=None, only=None):
     path = path or os.environ.get('PF_MASTER')
     if not path: return None
     if path not in _MASTER:
-        d = np.load(path); Pm, Fm = d['P'], d['F']
-        E = np.sort(np.r_[Fm[:, [0, 1]], Fm[:, [1, 2]], Fm[:, [2, 0]]], 1)
-        u, c = np.unique(E, axis=0, return_counts=True); B = u[c == 1]
-        _MASTER[path] = (Pm[B[:, 0]], Pm[B[:, 1]])
+        # several master builds: 'a.npz;b.npz' (the quarter: the roof AND the rear band, 24 Nov) - their open edges together
+        As, Bs = [], []
+        for pth in [x for x in path.split(';') if x]:
+            d = np.load(pth); Pm, Fm = d['P'], d['F']
+            Pm = Pm / (1000 if np.abs(Pm).max() > 10 else 1)
+            E = np.sort(np.r_[Fm[:, [0, 1]], Fm[:, [1, 2]], Fm[:, [2, 0]]], 1)
+            u, c = np.unique(E, axis=0, return_counts=True); B = u[c == 1]
+            As.append(Pm[B[:, 0]]); Bs.append(Pm[B[:, 1]])
+        _MASTER[path] = (np.concatenate(As), np.concatenate(Bs))
     A, Bq = _MASTER[path]; D = Bq - A; L2 = np.maximum((D * D).sum(1), 1e-18)
     out, moved = [], []
     for L in loops3:
@@ -393,7 +398,7 @@ def master_band(moved, width, nrm, path=None, max_deg=20.0):
     on the master's tangent (G1 across a cross-build seam: the tail's lower band against the quarter's, 2-3 deg
     shading step at x 0.45 with both sides fitted freely up to the clip plane)"""
     path = path or os.environ.get('PF_MASTER')
-    if not path or not os.path.isfile(path): return np.zeros((0, 3))     # (bb:trim = an in-memory master, no surface)
+    if not path or not os.path.isfile(path.split(';')[0]): return np.zeros((0, 3))     # (bb:trim = an in-memory master, no surface)
     key = path + ':band'
     if key not in _MASTER:
         d = np.load(path); Pm = d['P'] / (1000 if np.abs(d['P']).max() > 10 else 1)

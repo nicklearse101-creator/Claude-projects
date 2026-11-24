@@ -77,6 +77,7 @@ if [ "$what" = quarter ] || [ "$what" = all ]; then
   export PF_CLIP_EXACT=1    # triangles cut ON the box planes: the tail (x < 0.45) and the sill (z > -0.5) are cut there too (seam gap 2.3 -> 0.3 mm, 19 Nov)
   export PF_NOROOF=1                                 # the roof build owns the roof + its strips (one owner per surface)
   [ -f $R/roof/build.npz ] && export PF_MASTER=$R/roof/build.npz   # faces along the roof are trimmed on its edges
+  [ -f $R/rearband/build.npz ] && export PF_MASTER="$PF_MASTER;$R/rearband/build.npz"   # ... and along the rear band (24 Nov)
   # the hatch build owns the hatch skin + returns (its side band = the old 'C-pillar' r1 here, the ring flange = old r6):
   # PF_NOHATCH leaves those triangles out; quarter faces next to the hatch take its real edges: wide faces snap the
   # outline points Kunos shares with the hatch onto the hatch build (PF_HATCH_BUILD), strips take the hatch's faces
@@ -119,10 +120,11 @@ if [ "$what" = tail ] || [ "$what" = all ]; then
   unset PF_NOROOF PF_MASTER PF_HATCH_BUILD
   export PF_CLIP_EXACT=1 PF_NOHATCH=1 PF_CLIP=-0.45,0.45,0.45,0.85,-2.2,-1.95   # x within the quarter clip (x > 0.45 is the quarter build: one owner)
   export PF_NOBAND=1         # the lower band under the plate panel / lamps is rearband's (24 Nov); the plate panel's spine = its own bottom edge
+  # (PF_MASTER = the rear band tried 24 Nov: the strip under the lamp r15/r16 shrank 150 -> 20 mm, not used)
   python bumper_build.py $C $R/tail tail > $R/tail.log 2>&1
   PF_SAVE_FACES=0 PF_IN="$(cygpath -w $R/tail)" ./fcrun.sh panel_fit_freecad.py >> $R/tail.log 2>&1 && python pack_build.py $R/tail $R/tail/build.npz >> $R/tail.log
   echo "tail: $(python bumper_score.py $C $R/tail/build.npz tail | grep -E '^whole')"
-  unset PF_NOHATCH PF_CLIP PF_CLIP_EXACT PF_NOBAND
+  unset PF_NOHATCH PF_CLIP PF_CLIP_EXACT PF_NOBAND PF_MASTER
 fi
 if [ "$what" = frontbumper ] || [ "$what" = all ]; then
   # front bumper skin (GEO_frontbumper_SUB2): bands [7, 0, 1, 13] (soft piece edges merged, face columns by height),
