@@ -45,7 +45,7 @@ SPEC = dict(rear=dict(mesh='GEO_rearbumper', bands=[1, 12, 0, 21, 20, 0, 3], spi
 
 # tail panel: GEO_body behind the hatch (run with PF_NOHATCH=1 PF_CLIP=-0.45,0.45,0.45,0.85,-2.2,-1.95): the raised plate
 # panel r0 + the band under it r1 swept along x (straight); the rest per piece
-SPEC['tail'] = dict(mesh='GEO_body', bands=[0], spine_pair=(1, 0), anchor_band=0, name='tail', centre_z=-1.5,
+SPEC['tail'] = dict(mesh='GEO_body', bands=[0], spine_pair=(1, 0), spine_bottom=0, anchor_band=0, name='tail', centre_z=-1.5,
                     mm_per_col=5.0, ycols=(0,), trim_shrink=0.85)
 
 
@@ -250,7 +250,7 @@ def pn_sample(V, F, N, n=5):
     return np.unique(np.round(np.vstack([pn_eval(V[f], Nn[f], uvw) for f in F]), 7), axis=0)
 
 
-def pn_lift(V, F, N, X, tol=2e-4):
+def pn_lift(V, F, N, X, tol=2e-4, Nc=None):
     """points X lying on Kunos's flat triangles moved onto the curved PN triangle (Vlachos 2001: the cubic patch the
     triangle's vertex normals describe, i.e. the surface Kunos's smooth shading shows). A section through big facets
     sits up to the facet's sagitta inside the shaded surface, by a different amount at every column: across the
@@ -266,14 +266,14 @@ def pn_lift(V, F, N, X, tol=2e-4):
         x = X[i]; kk = tc.query(x, 12)[1]
         d = [point_to_tris(x[None], T[k][None])[0] for k in kk]; j = int(np.argmin(d))
         if d[j] > tol: continue
-        f = F[kk[j]]; P1, P2, P3 = V[f]; N1, N2, N3 = Nn[f]
+        f = F[kk[j]]; P1, P2, P3 = V[f]; Nf = Nn[f] if Nc is None else Nc[kk[j]]   # Nc: per-corner normals (crease-aware)
         # barycentrics of x's projection on the flat triangle
         e1, e2 = P2 - P1, P3 - P1; r = x - P1
         a11, a12, a22 = e1 @ e1, e1 @ e2, e2 @ e2; b1, b2 = r @ e1, r @ e2; det = a11 * a22 - a12 ** 2
         if det < 1e-18: continue
         v = (a22 * b1 - a12 * b2) / det; w = (a11 * b2 - a12 * b1) / det; u = 1 - v - w
         u, v, w = np.clip([u, v, w], 0, 1); s_ = u + v + w; u, v, w = u / s_, v / s_, w / s_
-        flat = u * P1 + v * P2 + w * P3; pn = pn_eval(V[f], Nn[f], np.array([[u, v, w]]))[0]
+        flat = u * P1 + v * P2 + w * P3; pn = pn_eval(V[f], Nf, np.array([[u, v, w]]))[0]
         out[i] = x + (pn - flat); moved.append(np.linalg.norm(pn - flat))
     if moved: print(f'PN lift: {len(moved)} of {ok.sum()} row points moved, median {np.median(moved)*1e3:.2f} max {np.max(moved)*1e3:.2f} mm', flush=True)
     return out.reshape(sh)
@@ -535,7 +535,17 @@ def build(car, out, which='rear'):
     if not bands:
         res = others(V, F, N, pcs, [], sp['name'])
         os.makedirs(out, exist_ok=True); json.dump(res, open(os.path.join(out, 'panels_fit.json'), 'w')); return
-    Sp, arc, err = spine(V, PF.crease_pieces(V, F, N), sp['spine_pair'], sp['centre_z'], zdir=sp.get('zdir', -1))   # raw pieces: the pair's edge
+    if sp.get('spine_bottom') is not None and os.environ.get('PF_NOBAND') == '1':
+        # the tail's plate panel without the rear lower band (rearband_build.py owns it, 24 Nov): the pair's edge was
+        # the band's; the spine = plan line of the panel's own bottom edge (its lowest boundary points)
+        import rearband_build as RBB
+        Fp = pcs[sp['spine_bottom']]; _, wid_ = PF.components(V, Fp); pos_ = {}
+        for i_, w_ in enumerate(wid_): pos_.setdefault(int(w_), V[i_])
+        Xb = np.array([pos_[int(w_)] for L_ in PF.boundary_loops(Fp, wid_) for w_ in L_])
+        Xb = Xb[Xb[:, 1] < Xb[:, 1].min() + 0.012]
+        Sp, arc, err = RBB.spine(Xb, centre_z=sp['centre_z'])
+    else:
+        Sp, arc, err = spine(V, PF.crease_pieces(V, F, N), sp['spine_pair'], sp['centre_z'], zdir=sp.get('zdir', -1))   # raw pieces: the pair's edge
     print(f'spine: {arc[-1]*1e3:.0f} mm (left half), fit max {err*1e3:.2f} mm', flush=True)
     # columns per band: from the band's typical width
     R0, _ = station_rows(V, pcs, bands, Sp, arc, 0.1, [3] * len(bands), verbose=False)

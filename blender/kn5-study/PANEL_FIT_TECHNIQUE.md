@@ -260,3 +260,25 @@ not a station polyline; give the neighbour face the sweep's flat band as tangent
   vertices with the owned triangles, not by distance (a 1.5 mm shut-line gap is a gap, not a join: snap only outline
   points that lie on the other owner's triangles). Check with a cross-build overlap count (faces lying on the other
   build) and the gaps on the shared sides.
+
+### Rear lower band (24 Nov, `rearband_build.py`)
+- A seam that shades as a step is usually an OWNERSHIP problem: one Kunos piece (piece 0 = the whole side skin) built by
+  two builds that each fit their side freely. Find the surface's real extent (sections + dihedral lines) and give it
+  ONE owner; carve it out of the big piece with an exact plane cut on a natural line (just above the body line's row),
+  the other builds keep the straddlers' far parts on the same plane (`PF_NOBAND` in load_mesh).
+- Tangent data from the neighbouring build (`PF_MASTER_BAND`) and cut-point-free seam data (`PF_SEAM_DATA`) did not
+  fix it: the neighbour's own fit was the weak part.
+- Sweep rows must put the profile's dominant line on a column: the knee drifts 576-589 mm in height along the band;
+  height-spaced columns let it fall between columns (rounded, a dark crescent). `knee_rows`: per station the largest
+  turn in a height window, top -> knee -> bottom resampled separately.
+- PN lift bows flat facets next to a crease (Kunos's vertex normals average across it): 1-2 mm. Crease-aware corner
+  normals stop the bow but the face then follows the facets (streaks). Neither is the answer for big-facet faces:
+  an analytic profile per station is the next try.
+- Kunos's AE86 rear band is NOT mirror-symmetric (97 right vertices without a left partner, up to 37 mm): score the
+  side we build.
+- Never run two numpy builds at once on Nik's PC (BLAS threads: a 1-minute fit took 30+ minutes).
+- LOW-POLY source (Kunos's rear band: a few vertex rows with long flat triangles between, smooth only by its normals):
+  do not sample it with SECTIONS (facet chords -> blotchy) and do not fit one surface to its few vertices (misses). Loft
+  through its ROWS: rows from the mesh topology (mutual flattest-edge neighbours), each kind of row one fair curve,
+  per station a centripetal Catmull-Rom through them. Model a multi-row feature by its design intent (the knee: a 5 mm
+  land of three rows -> two fair rows + a derived edge), never by every noisy row.

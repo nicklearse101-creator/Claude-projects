@@ -23,6 +23,7 @@
 # Hatch lower corners (faired spine, local-frame row smoothing, corner zone smoothing + vertex offset, 13 Nov): median 0.159, p95 0.77, within 0.3 / 1 mm 71.9 / 97.5 %.
 # Hatch corner tab (U extended past the outline + trimmed on the knee-aware fair outline, 13 Nov midday): median 0.154, p95 0.64, max 1.14, within 0.3 / 1 mm 73.6 / 99.4 % (tail 100 %).
 # Hatch returns (ring + wall fold flanges, bottom return, tab corner fills; left halves mirrored; 13 Nov pm): skin 75.7 / 99.7 %; ring 89.9 / 100, wall 91.3 / 100, bottom 90.3 / 96.8, corners 100 / 100 %. Others unchanged.
+# Rear lower band (rearband_build.py, 24 Nov; quarter + tail with PF_NOBAND): band left 98.4 % (sweep 100 %, centre 92.5 %); quarter area 78.4 / 97.9 (its own Kunos vertices 92.6 % within 1 mm, was 92.0); tail 94.7 % (was 93.6 on the same vertices); others unchanged.
 set -e
 cd "$(dirname "$0")"
 C=D:/SteamLibrary/steamapps/common/assettocorsa/content/cars/ks_toyota_ae86
@@ -62,6 +63,15 @@ if [ "$what" = hatch ] || [ "$what" = all ]; then
   HT_RETURNS=1 python hatch_score.py $C $R/hatch/build.npz | grep -E "^skin|^ring|^wall|^bottom|^corner" | sed 's/^/hatch: /'
   unset PF_MASTER
 fi
+if [ "$what" = rearband ] || [ "$what" = all ]; then
+  # rear lower band (24 Nov): the side skin's band below the body line from the tail centre round the corner to the
+  # rear arch, ONE build (rearband_build.py: sweep x 0.33 -> arch, centre strip + transition faces, arch end face);
+  # the quarter and the tail leave it out (PF_NOBAND)
+  unset PF_CLIP PF_CLIP_EXACT PF_NOROOF PF_MASTER PF_NOHATCH PF_HATCH_BUILD
+  python rearband_build.py $C $R/rearband > $R/rearband.log 2>&1
+  PF_SAVE_FACES=0 PF_IN="$(cygpath -w $R/rearband)" ./fcrun.sh panel_fit_freecad.py >> $R/rearband.log 2>&1 && python pack_build.py $R/rearband $R/rearband/build.npz >> $R/rearband.log
+  python rearband_score.py $C $R/rearband/build.npz | grep -E "^left|sweep|centre" | sed 's/^/rearband: /'
+fi
 if [ "$what" = quarter ] || [ "$what" = all ]; then
   export PF_CLIP=0.45,1,0,1.3,-2.2,-0.5          # y up to the roof: the roof triangles are left out by PF_NOROOF
   export PF_CLIP_EXACT=1    # triangles cut ON the box planes: the tail (x < 0.45) and the sill (z > -0.5) are cut there too (seam gap 2.3 -> 0.3 mm, 19 Nov)
@@ -72,6 +82,7 @@ if [ "$what" = quarter ] || [ "$what" = all ]; then
   # outline points Kunos shares with the hatch onto the hatch build (PF_HATCH_BUILD), strips take the hatch's faces
   # as the neighbour of their free sides (PF_FOREIGN loads them in the FreeCAD stage)
   export PF_NOHATCH=1
+  export PF_NOBAND=1 PF_LINE_SPAN=0.2   # the rear lower band is rearband's; the side's lower lines then run arch -> door only
   FH=""; [ -f $R/hatch/build.npz ] && export PF_HATCH_BUILD=$R/hatch/build.npz && FH="hatch=$(cygpath -w $R/hatch/faces)"
   python panel_fit.py $C $R/quarter GEO_body:w0 'GEO_body:rall!0' > $R/quarter.log 2>&1
   PF_FOREIGN="$FH" PF_IN="$(cygpath -w $R/quarter)" ./fcrun.sh panel_fit_freecad.py >> $R/quarter.log 2>&1
@@ -79,7 +90,7 @@ if [ "$what" = quarter ] || [ "$what" = all ]; then
   PF_IN="$(cygpath -w $R/quarter/fill)" ./fcrun.sh panel_fit_freecad.py >> $R/quarter.log 2>&1 && python merge.py $R/quarter >> $R/quarter.log
   python pack_build.py $R/quarter $R/quarter/build.npz >> $R/quarter.log 2>&1   # assemble.py reads build.npz (it was a stale 17 Nov pack)
   echo "quarter: $(python score_faces.py $C $R/quarter GEO_body | tail -1)"
-  unset PF_CLIP PF_CLIP_EXACT PF_NOROOF PF_MASTER PF_NOHATCH PF_HATCH_BUILD
+  unset PF_CLIP PF_CLIP_EXACT PF_NOROOF PF_MASTER PF_NOHATCH PF_HATCH_BUILD PF_NOBAND PF_LINE_SPAN
 fi
 if [ "$what" = bonnet ] || [ "$what" = all ]; then
   unset PF_CLIP PF_NOROOF PF_MASTER PF_NOHATCH PF_HATCH_BUILD
@@ -107,10 +118,11 @@ if [ "$what" = tail ] || [ "$what" = all ]; then
   # corners), without the hatch's triangles: the plate panel swept along x (bumper_build.py tail), the rest per piece
   unset PF_NOROOF PF_MASTER PF_HATCH_BUILD
   export PF_CLIP_EXACT=1 PF_NOHATCH=1 PF_CLIP=-0.45,0.45,0.45,0.85,-2.2,-1.95   # x within the quarter clip (x > 0.45 is the quarter build: one owner)
+  export PF_NOBAND=1         # the lower band under the plate panel / lamps is rearband's (24 Nov); the plate panel's spine = its own bottom edge
   python bumper_build.py $C $R/tail tail > $R/tail.log 2>&1
   PF_SAVE_FACES=0 PF_IN="$(cygpath -w $R/tail)" ./fcrun.sh panel_fit_freecad.py >> $R/tail.log 2>&1 && python pack_build.py $R/tail $R/tail/build.npz >> $R/tail.log
   echo "tail: $(python bumper_score.py $C $R/tail/build.npz tail | grep -E '^whole')"
-  unset PF_NOHATCH PF_CLIP PF_CLIP_EXACT
+  unset PF_NOHATCH PF_CLIP PF_CLIP_EXACT PF_NOBAND
 fi
 if [ "$what" = frontbumper ] || [ "$what" = all ]; then
   # front bumper skin (GEO_frontbumper_SUB2): bands [7, 0, 1, 13] (soft piece edges merged, face columns by height),

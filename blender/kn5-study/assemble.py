@@ -17,6 +17,7 @@ PARTS = {
     'bonnet': ['bonnet/build_full.npz', 'bonnet/build.npz'],
     'sill': ['sill/panels_fit_mesh.npz'],
     'tail': ['tail/build.npz'],
+    'rearband': ['rearband/build.npz'],
     'frontbumper': ['frontbumper/build.npz'],
     'rearbumper': ['rearbumper/build.npz'],
 }

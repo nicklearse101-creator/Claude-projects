@@ -1,5 +1,46 @@
-# Next session: Blender Work / AE86 replica (handover, 2026-11-17)
+# Next session: Blender Work / AE86 replica (handover, 2026-11-24)
 
+**Start here (24 Nov): REAR LOWER BAND built as one part** (`rearband_build.py`, `rearband_score.py`, `./regress.sh rearband`).
+The tail | quarter seam under the lamps (x 0.45) was the symptom; the cause: Kunos's piece 0 (the whole side skin) carries
+ONE profile below the body line from the tail centre round the rear corner to the rear arch (foot from the bumper edge
+y 509, soft line ~518, KNEE 576-589, body line 604/609), and we built it in three separately fitted pieces (tail r1,
+quarter r0w1 + the w0 corner bands): a 2-3 deg shading step at x 0.45, gaps and a hole-fill patch at the corner (quarter
+band fits p95 2-4.6 mm, max 5-8). Now:
+- ownership: piece-0 triangles below y 0.6097 (exact cut just above the body line's top row) behind z -1.475 =
+  rearband; quarter and tail run with `PF_NOBAND=1` (load_mesh cuts the straddlers on the same plane); the tail's plate
+  panel spine is now its own bottom edge (`spine_bottom`), the quarter runs with `PF_LINE_SPAN=0.2` (its lower lines now
+  run arch -> door only: the 35 % span rule dropped them).
+- sweep x 0.33 -> arch (left, right = mirror): station planes square to the band's bottom-edge plan line, rows top ->
+  KNEE -> bottom by height (knee on a fixed column: `knee_rows`), PN-lifted, smoothed in local frames; centre strip
+  |x| < 0.285 + transition faces (the band's top climbs 534 -> 608 at the plate panel's end) with 15 mm overlap data;
+  arch end face.
+- Scores (LEFT side: Kunos's band is not symmetric, right 304 vs left 251 vertices): sweep + end 100 % within 1 mm
+  (median 0.1), centre 89 %; rear-corner box (tail + quarter + band) 90.3 % (was 83.5); tail own 94.7 % (was 93.6).
+- **24 Nov later - rebuilt the DOOR way (curves first, `RB_METHOD=rows`, default):** Nik: "the sections are rougher than
+  our initial door". Cause: Kunos's band is LOW-POLY (vertex rows 2.5-30 mm apart, long flat triangles, shaded smooth
+  by its normals): sections through it sample facet chords (or PN bulges) -> blotchy. Now `class_loft`: Kunos's vertex
+  ROWS from the strip mesh's topology (`vertex_rows_mutual`: each vertex's flattest edge ahead / behind, linked only when
+  mutual - continuity tracking and per-triangle row edges swapped the close knee rows across the corner, where Kunos's
+  mesh changes topology), grouped by kind (bottom 509, foot 519, mid ~550, body 604, top) and each kind ONE fair curve;
+  the KNEE = a 5 mm LAND (three rows 2.5 mm apart at one depth): the two full-length rows (lower, middle) as fair curves,
+  the upper edge = middle + (middle - lower); per station one centripetal Catmull-Rom through top, body, knee land, mid,
+  foot, bottom; columns by height. Grey: smooth faces, one crisp knee line like Kunos (`images/rear_band_v1_grey.png`:
+  Kunos / before / now). Scores: sweep + end 95.9 % within 1 mm (sections were 100 % but rough), left 93.1 %; whole car
+  v5 GEO_body 92.5 / 98.6 % (v4 92.8 / 98.5). Tried: one smooth height field per band in (s, y, d) (vertices too
+  sparse: 7 mm misses), crisp knee crease (double line), round through the apex (knee is a land, not a round),
+  rounded polyline between rows (91.8 %), chordal Catmull-Rom (94.3 %).
+- LEFT: (1) a darker patch low on the face round the corner: Kunos's real facet there slants down (its normals light it
+  kinder); (2) small dark slivers where the band's top meets the lamp surround at the lamp's lower outer corner (a
+  cross-build join: check with mesh_holes / build_joins); (3) the centre transition (x 0.29-0.33, 1-2 mm); (4) the
+  quarter just ahead of the arch: body line / knee rows 1.3-2.3 mm worse (line detection); then the AUDIT: rear and
+  front bumper faces, tail plate panel, hatch - every section-built face checked against the door standard, rebuilt
+  curves-first where rougher (worst first).
+- Also added (off by default, kept): `PF_SEAM_DATA` (fit Kunos vertices across an exact clip plane, not the cut chord
+  points; tail +2 %), `PF_MASTER_BAND` / `PF_MASTER_ONLY` (master surface as tangent data across a cross-build seam:
+  made the tail worse), `mirror_build.py`.
+Pictures (local): `D:/ClaudeData/tmp/tailseam/corner_new.png` (vs `corner_old.png`), `band_var*.png`, `secov*.png`.
+
+## Earlier handover (17 Nov)
 **Start here.** HATCH in progress (report `blender/research/reports/Hatch surfacing.md`). The hatch is NOT a separate Kunos
 mesh: it is GEO_body crease piece 2 + returns (pieces 4, 14, 22, 116/117), and the quarter's old "C-pillar" sweep (r1p,
 r1x00, r1d0) WAS its side band. Built 12 Nov (`hatch_build.py` + `hatch_score.py`, `./regress.sh hatch` ~4 min): ONE U-shaped

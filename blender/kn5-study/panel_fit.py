@@ -79,6 +79,16 @@ def load_mesh(car_dir, name, raw=False):
         import hatch_build as HB_
         own = {tuple(sorted(t)) for t in HB_.hatch_owned(car_dir)}
         F = F[np.array([tuple(sorted(t)) not in own for t in F], bool)]
+    if name == 'GEO_body' and os.environ.get('PF_NOBAND') == '1':
+        # leave out the rear lower band (rearband_build.py owns it: the side skin below the body line, centre round the
+        # corner to the arch); its candidate triangles straddling the cut plane y = Y_TOP keep their part ABOVE it here,
+        # so this build and the band end on the same exact cut
+        import rearband_build as RBB_, bumper_build as BB_
+        own = {tuple(sorted(t)) for t in RBB_.band_owned(car_dir)}
+        m_ = np.array([tuple(sorted(t)) in own for t in F], bool)
+        if m_.any():
+            Vu, Fu, Nu = BB_.clip_tris(V, F[m_], N, np.array([0.0, RBB_.Y_TOP, 0.0]), np.array([0.0, -1.0, 0.0]), 0.0)
+            F = np.r_[F[~m_], Fu.reshape(-1, 3) + len(V)]; V = np.r_[V, Vu.reshape(-1, 3)]; N = np.r_[N, Nu.reshape(-1, 3)]
     clip = os.environ.get('PF_CLIP')            # 'xmin,xmax,ymin,ymax,zmin,zmax' (AC metres): one panel of a shell
     if clip:
         b = np.array([float(x) for x in clip.split(',')]).reshape(3, 2); c = V[F].mean(1)
@@ -91,9 +101,14 @@ def load_mesh(car_dir, name, raw=False):
     return V, F, N
 
 
+_CLIP = {}     # last exact clip: n = original vertex count (cut vertices come after), src = cut vertex -> source triangle
+
+
 def clip_box(V, F, N, b):
-    """(V, F, N) with every triangle clipped to the box b (3 x 2: min, max per axis); cut vertices keyed by position"""
+    """(V, F, N) with every triangle clipped to the box b (3 x 2: min, max per axis); cut vertices keyed by position.
+    Records in _CLIP which original triangle(s) each cut vertex came from (PF_SEAM_DATA)."""
     Vo, No, F2, key = list(V), list(N), [], {}
+    _CLIP.clear(); _CLIP['n'] = len(V); _CLIP['b'] = b; src = _CLIP.setdefault('src', {})
     def vid(p, n):
         k = tuple(np.round(p, 7))
         if k not in key: key[k] = len(Vo); Vo.append(p); No.append(n / max(np.linalg.norm(n), 1e-12))
@@ -115,8 +130,11 @@ def clip_box(V, F, N, b):
                 P = out
         if len(P) < 3: continue
         ids = [p[2] if p[2] is not None else vid(p[0], p[1]) for p in P]
+        for i_ in ids:
+            if i_ >= len(V): src.setdefault(i_, set()).update(int(x) for x in f)
         for k in range(1, len(ids) - 1):
             if len({ids[0], ids[k], ids[k + 1]}) == 3: F2.append([ids[0], ids[k], ids[k + 1]])
+    _CLIP['nV'] = len(Vo)
     return np.array(Vo), np.array(F2, int).reshape(-1, 3), np.array(No)
 
 
@@ -369,11 +387,43 @@ def master_snap(loops3, step=0.002, tol=0.0025, path=None, only=None):
     return out, np.array(moved).reshape(-1, 3)
 
 
+def master_band(moved, width, nrm, path=None, max_deg=20.0):
+    """points of the MASTER build's surface within `width` of the snapped edge points `moved` whose normal is within
+    max_deg of `nrm` (the slave piece's own facing): fit data that carries the slave surface on across the shared edge
+    on the master's tangent (G1 across a cross-build seam: the tail's lower band against the quarter's, 2-3 deg
+    shading step at x 0.45 with both sides fitted freely up to the clip plane)"""
+    path = path or os.environ.get('PF_MASTER')
+    if not path or not os.path.isfile(path): return np.zeros((0, 3))     # (bb:trim = an in-memory master, no surface)
+    key = path + ':band'
+    if key not in _MASTER:
+        d = np.load(path); Pm = d['P'] / (1000 if np.abs(d['P']).max() > 10 else 1)
+        Nm = d['N'] if 'N' in d.files else np.zeros_like(Pm)
+        _MASTER[key] = (Pm, Nm / np.maximum(np.linalg.norm(Nm, axis=1), 1e-12)[:, None])
+    Pm, Nm = _MASTER[key]
+    if not len(moved): return np.zeros((0, 3))
+    from scipy.spatial import cKDTree
+    dist, _ = cKDTree(moved).query(Pm, distance_upper_bound=width)
+    m = np.isfinite(dist) & (np.abs(Nm @ nrm) > np.cos(np.radians(max_deg)))
+    return Pm[m]
+
+
 def fit_panel(name, V, F, Nv, verbose=True, fr=None, outline_only=False, extra=None, data_F=None, extra_rep=1):
     """one trimmed surface for a piece; fr = a given frame (default: the piece's own best-fit plane);
     outline_only = just the frame and outline wires (for a band patch that brings its own surface);
     data_F = the triangles whose vertices are the fit data (default F; the outline always comes from F)"""
     T = V[F]; Fd = F if data_F is None else data_F; P = V[np.unique(Fd)]
+    if os.environ.get('PF_SEAM_DATA') == '1' and _CLIP and len(V) == _CLIP.get('nV') and len(V) > _CLIP['n']:
+        # at an exact clip plane the cut vertices are points on Kunos's flat facets (chords, up to ~1 mm inside a curved
+        # surface on its 100-150 mm triangles): both builds fitted them and left the seam on different tangents (tail
+        # | quarter lower band, 2-3 deg). Fit the real Kunos vertices instead: the far corners of the cut triangles
+        # (across the plane, within 80 mm, facing the same way), and leave the cut points to the outline only.
+        u_ = np.unique(Fd); cut_ = u_[u_ >= _CLIP['n']]
+        if len(cut_):
+            far_ = sorted(set().union(*[_CLIP['src'].get(int(c), set()) for c in cut_]) - set(u_.tolist()))
+            nv_ = Nv[u_].mean(0); nv_ /= np.linalg.norm(nv_)
+            far_ = [i for i in far_ if np.linalg.norm(V[cut_] - V[i], axis=1).min() < 0.08 and Nv[i] @ nv_ / max(np.linalg.norm(Nv[i]), 1e-12) > np.cos(np.radians(25))]
+            P = np.r_[V[u_[u_ < _CLIP['n']]], V[far_]] if far_ or (u_ < _CLIP['n']).sum() >= 4 else P
+            if verbose: print(f'{name:28s} seam data: {len(cut_)} cut points -> {len(far_)} Kunos vertices across the clip plane', flush=True)
     if fr is None: fr = frame_of(P, Nv[np.unique(Fd)])
     S = to_plane(P, fr)                      # vertices only
     if extra is not None and len(extra):     # extra data (metres): e.g. a neighbouring surface's end rows to join
@@ -382,7 +432,9 @@ def fit_panel(name, V, F, Nv, verbose=True, fr=None, outline_only=False, extra=N
     # outline runs along the master's boundary, the outline IS that boundary (exact edge points) and those points
     # are fit data too, so the face passes through the master's edge and is trimmed on it - one edge, no gap
     _, wid_ = components(V, F); rep_ = {w: i for i, w in enumerate(wid_)}
-    snap = master_snap([V[[rep_[w] for w in L]] for L in boundary_loops(F, wid_)], tol=float(os.environ.get('PF_MASTER_TOL', 0.0025)))
+    only_ = [x for x in os.environ.get('PF_MASTER_ONLY', '').split(',') if x]   # master snap for these faces only
+    snap = (master_snap([V[[rep_[w] for w in L]] for L in boundary_loops(F, wid_)], tol=float(os.environ.get('PF_MASTER_TOL', 0.0025)))
+            if (not only_ or name in only_) else None)
     hb_ = os.environ.get('PF_HATCH_BUILD')
     if hb_ and os.path.exists(hb_):
         # the hatch build owns the panel next door (PF_NOHATCH): outline points Kunos SHARES with the hatch (on a
@@ -397,6 +449,13 @@ def fit_panel(name, V, F, Nv, verbose=True, fr=None, outline_only=False, extra=N
             snap = (sh_[0], np.r_[snap[1], sh_[1]] if snap is not None else sh_[1])
     if snap is not None and len(snap[1]):
         S = np.r_[S, np.repeat(to_plane(snap[1], fr), 3, axis=0)]
+        bw = float(os.environ.get('PF_MASTER_BAND', 0)) * 1e-3          # mm of the master's surface past the edge
+        if bw > 0:
+            nv_ = Nv[np.unique(Fd)].mean(0); nv_ /= np.linalg.norm(nv_)
+            Pb = master_band(snap[1], bw, nv_)
+            if len(Pb):
+                S = np.r_[S, np.repeat(to_plane(Pb, fr), 3, axis=0)]
+                print(f'{name:28s} master band: {len(Pb)} points of the master surface within {bw * 1e3:.0f} mm past the shared edge', flush=True)
         if os.environ.get('PF_MASTER') == 'bb:trim': print(f'{name}: {len(snap[1])} outline points snapped onto a band face end', flush=True)
     pad = 0.02
     dom = [S[:, 0].min() - pad, S[:, 0].max() + pad, S[:, 1].min() - pad, S[:, 1].max() + pad]
@@ -653,7 +712,8 @@ def feature_lines(V, Fr, fr, ds=0.02, thr=10.0, arm=None, span=0.35):
     dom = [s0 - 0.1, s1 + 0.1]
     for ch in chains:
         ss = secs[[c[0] for c in ch]]
-        if ss.max() - ss.min() < span * (s1 - s0) or len(ch) < 6: continue
+        sp_ = float(os.environ.get('PF_LINE_SPAN', span))   # the quarter without the rear band (24 Nov): its lower lines
+        if ss.max() - ss.min() < sp_ * (s1 - s0) or len(ch) < 6: continue   # run only arch -> door (~0.4 of 1.7 m)
         # one control per ~12 sections at most: more lets the line chase facet-corner jumps and swing past
         # its last hit (AE86 beltline: n=10 put the rear end 10 mm off)
         # controls by cross-validation on the line's own hits (every 3rd held out): a curved line (arch lip)
