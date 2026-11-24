@@ -35,7 +35,7 @@ for i = 1, 4 do
 end
 -- doorless cockpit (24 Nov): the exterior engine sound also plays quietly in the cockpit, from the bonnet stacks,
 -- so you hear the open exhaust directly as well as the soundbank's interior (closed-car) recording
-local OPEN_VOL = 0.45
+local OPEN_VOL = 0.35                                  -- was 0.45 (Nik: cockpit engine a touch quieter)
 local openExh = ac.AudioEvent("cars/:own/engine_ext", true)
 openExh.cameraInteriorMultiplier = 1; openExh.cameraExteriorMultiplier = 0; openExh.cameraTrackMultiplier = 0
 openExh.volume = OPEN_VOL

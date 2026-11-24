@@ -349,3 +349,6 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
 - 21:08 Nik: doors gone in the showroom but back in game - the CSP door animations ([ANIMATION_2/3] car_door_L/R.ksanim on
   Extra C) bring the door nodes back. Both renamed [ANIMATION_n_OFF_DOORLESS]; exhaust_flames.lua also hides DOOR_L/DOOR_R
   every 30 frames. Backup ext_config_15.BACKUP_before_door_anim_off.ini. Not checked in game.
+- 21:12 cockpit engine a touch quieter (backfires unchanged): open-exhaust layer 0.45 -> 0.35, [AUDIO_VOLUME] ENGINE_INT 0.9.
+  "Window frame still there": object-coloured render of escort15_v8 shows only the body aperture seal + drip rail in the
+  opening - likely the door animation (fixed 21:08); asked Nik for a screenshot if it persists.
