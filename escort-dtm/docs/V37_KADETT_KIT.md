@@ -253,3 +253,15 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
 - 20:36 v51b: CM showroom (no scripts) showed all 6 flame meshes black. Rebuilt: flame dummies active 0 in the kn5 (exporter wraps
   new meshes in a dummy), ksEmissive 6 in the correct vec3 slot; script switches the dummy nodes (findNodes) and keeps setting
   emissive 8 on the meshes. Backup live_backup_before_v51b_2036. In-game show/hide of an inactive kn5 node not yet confirmed.
+
+## ESCORT 16" - separate car ford_escort_mk2_tuned_16 (24 Nov 17:15), the 14" car untouched
+- Nik chose "exact scale, car rides higher": arches already touch the 14" tyres (~0-1 mm), so a 16/14 scale needs the wheels
+  lower against the body (measured need: front 40 mm, rear 56-65 mm at the kit lip / fins / quarter).
+- Model: kk16_wheels.py on "escort_v51 flames.blend" -> escort16_v1.blend: every mesh under WHEEL_LF/RF/LR/RR (rim, tyre,
+  disc) scaled 16/14 about the hub (tyre R 0.272 -> 0.308). Export kk16_export.py -> export_staging_16, files ford_escort_mk2_tuned_16*.kn5.
+- Data: escort16_data.py re-keys data.acd for the new folder; tyres.ini all compounds RADIUS 0.268->0.3063, RIM_RADIUS
+  0.1778->0.2032, WIDTH x16/14 (0.320 / 0.3314), ANGULAR_INERTIA x1.5; suspensions BASEY F -0.250->-0.290, R -0.280->-0.345
+  (wheel centre y rel. CG; checked vs model: 0.144-0.40=-0.256, 0.127-0.40=-0.273); lods.ini names. Body ~79 mm higher F,
+  ~104 mm R; gearing effectively 14% taller; front splitter now higher (less downforce from the height LUT).
+- Folder: copied animations/sfx/skins/texture/ui/extension/collider/shadows (no backups); sfx bank renamed
+  ford_escort_mk2_tuned_16.bank + GUIDs.txt paths/bank name rewritten; ui name "... 16in". Not driven yet.
