@@ -283,3 +283,14 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
 - escort15_data.py: RIM_RADIUS 0.1905, RADIUS 0.268 -> 0.296, ANGULAR_INERTIA x1.15; suspension, widths, aero untouched ->
   car 28 mm higher, gearing ~10% taller. Tyre tops now ~28 mm into the arch lips/liners (the arches are for later).
 - Folder built like the 16" one (sfx bank/GUIDs renamed, ui "... 15in"). The 16" car is still installed. Not driven.
+
+## 24 Nov 18:05 - 15" brakes + rear-wheel wobble fix (all cars)
+- 15" brakes: kk15b_brakes.py - discs (for_rotorxx) and calipers (for_caliperxx, under SUSP_xx) x15/13 in the wheel plane
+  (disc R 0.133 -> 0.153), same thickness; brakes.ini MAX_TORQUE 2000 -> 2310 (bigger effective disc radius).
+- Wobble: the original wheel model's rims were off the spin axis (tyres true to 0.1 mm): rear lip/barrel +1.8..+2.6 mm,
+  rear spoke face +2.9 mm, front lip +1.4 mm, front face +1.1 mm -> rims bobbed against the tyres. kk_wheel_centre.py centres
+  each rim part (ring parts on their outer circle, spoke faces on the hub/nut circle 0.03-0.06 m) -> all within 0.3 mm.
+  13" car: "escort_v52 wheels true.blend" -> export_staging_v52 (installed). 15": rebuilt from v52 (kk15_wheels -> escort15_v1,
+  kk15b_brakes -> escort15_v4, export_staging_15, installed). 16" rebuilt (escort16_v4) but Nik had deleted that car - not installed.
+  Note: the 13" car's tyres.ini still says RIM_RADIUS 0.1778 (14") though the model rims are 13" - left as is.
+- Backups: D:/ClaudeData/tmp/kadett/live_backup_<car>_before_wheelfix_<time>. Not seen in game.
