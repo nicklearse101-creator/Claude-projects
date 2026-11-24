@@ -304,3 +304,5 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
   [GRAPHICS_OFFSETS] WHEEL/SUSP_LR/RR 0.03 -> 0.0495 so the visual wheels stay put. Backup data.acd.BACKUP_before_rear_track.
   Not driven. Setup ideas given to Nik (not applied): diff preload 80 -> 30-40, coast 35 -> 20-25; rear ARB 5000 ->
   12500-17500, front 40000 -> 35000; brake bias 70 -> 66-67; less rear toe-in.
+- 19:38 15" car, Nik: other way round - rear back to TRACK 1.5735 / offsets 0.03; FRONT TRACK 1.5345 -> 1.5735 (= rear),
+  front WHEEL/SUSP offsets 0.05 -> 0.0305 so the visual front wheels stay put. Backup data.acd.BACKUP_before_front_track. Not driven.
