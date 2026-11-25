@@ -426,3 +426,10 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
   right bank) every 20-70 ms; each cylinder pops with 45 % chance (60 % on the limiter) for 40-120 ms, random length.
   Checked with a stubbed Lua run: single stacks light in sequence. Installed (backup
   D:/ClaudeData/tmp/kadett/live15_backup_before_per_cyl_*). Not seen in game.
+
+## 25 Nov 22:00 - original car gets the 15" torque curve
+- Nik asked why the 15" shows 50 bhp less: label only - both power_dtm.lut curves peak at ~349 bhp (the original's ui says
+  400 bhp / 409 Nm, x1.15 crank-style; the 15" ui shows the curve's own 349 / 358). Nik: leave the labels.
+- Then: original ford_escort_mk2_tuned gets the same realistic curve - power_dtm.lut copied from the 15" acd
+  (acd_patch.put_file; backup data.acd.BACKUP_20261125_2159; copy in export/power_dtm_realistic.lut). Original's ui_car.json
+  untouched. Not driven yet.
