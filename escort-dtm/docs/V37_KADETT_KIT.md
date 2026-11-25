@@ -399,3 +399,9 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
   the rig DOES have finger joints (HAND_Index/Middle/Ring/Pinkie1..6, thumbs HAND_L/R_Thumb): the left hand's middle joints
   get identity rotation (straight) when the arm is > 50 % up, others keep the curled grip; restored on release. KK_finger
   kept hidden (unused). Not seen in game.
+- 19:55 Nik: wrong angle ("looks like he broke his arm"), fingers not clenched, still flickers; wants arm straight out to the
+  car alongside (or forwards). Installed Gravy Garage cars have no gesture files; CSP has no gesture feature. Found
+  ac.updateDriverModel() ("use it before moving driver nodes manually ... next model update overwriting your custom
+  positioning will be skipped") - the flicker cause. horn_gesture.lua v3: call it every frame, aim from the fresh pose
+  (upper arm out 0.95 / up 0.12 / fwd 0.1, forearm up), wrist (ForeArm_END + HAND) straightened (identity rotation),
+  middle joints straight, index/ring/pinkie grip rotation squared (tight fist). Not seen in game.
