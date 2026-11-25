@@ -32,13 +32,13 @@ local function setColour(c)
 end
 local BF_POS = vec3(0, 0.73, 1.31)                       -- between the bonnet stacks (car space)
 -- backfire pops with the flames: the car's own soundbank events, a small pool so pops can overlap.
--- 25 Nov 22:10 (Nik): back in at HALF the old volume (was ext 1.8 / int 1.2)
+-- 25 Nov 22:10 (Nik): outside at HALF the old volume (was 1.8); 22:15 cockpit back to the normal level (1.2)
 local bfExt, bfInt, bfi, lastPop = {}, {}, 1, 0
 for i = 1, 4 do
   bfExt[i] = ac.AudioEvent("cars/:own/backfire_ext", true)
   bfExt[i].volume = 0.9; bfExt[i].cameraInteriorMultiplier = 0; bfExt[i]:setPosition(BF_POS)
   bfInt[i] = ac.AudioEvent("cars/:own/backfire_int", true)
-  bfInt[i].volume = 0.6; bfInt[i].cameraExteriorMultiplier = 0; bfInt[i].cameraTrackMultiplier = 0
+  bfInt[i].volume = 1.2; bfInt[i].cameraExteriorMultiplier = 0; bfInt[i].cameraTrackMultiplier = 0
   bfInt[i].cameraInteriorMultiplier = 1; bfInt[i]:setPosition(BF_POS)
 end
 -- doorless cockpit (24 Nov): the exterior engine sound also plays quietly in the cockpit, from the bonnet stacks,
@@ -85,7 +85,7 @@ function script.update(dt)
   clock = clock + dt
   if frames % 30 == 1 then hideDoors() end
   openExh:setParam("rpms", car.rpm); openExh:setParam("throttle", car.gas)
-  openExh:resumeIf(car.rpm > 100)
+  openExh:resumeIf(false)                    -- 25 Nov 22:15 Nik: cockpit back to stock - open-exhaust layer off
   local lim = car.rpmLimiter > 0 and car.rpmLimiter or 8500
   gasPeak = math.max(car.gas, gasPeak - dt * 2.5)
   if gasPeak > 0.6 and car.gas < 0.2 and car.rpm > 4000 then burst(0.25 + math.random() * 0.45); gasPeak = 0 end

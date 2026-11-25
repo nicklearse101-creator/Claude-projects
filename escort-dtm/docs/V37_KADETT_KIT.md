@@ -435,3 +435,6 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
   untouched. Not driven yet.
 - 22:10 Nik: backfire sound back at half the old volume - pool restored (ext 1.8 -> 0.9, int 1.2 -> 0.6), a pop with 70 %
   of the cylinder flames (min 70 ms apart). Backup D:/ClaudeData/tmp/kadett/exhaust_flames.lua.BACKUP_before_backfire_half_*.
+- 22:15 Nik: cockpit sounds back to normal (chose "all stock"): [AUDIO_VOLUME] ENGINE_INT 0.9 -> 1.0 (= original car),
+  open-exhaust cockpit layer off (resumeIf(false); code kept), backfire_int back to 1.2; outside backfire stays at half (0.9).
+  Backups ext_config.ini.BACKUP_before_cockpit_stock_* (car folder), exhaust_flames.lua in D:/ClaudeData/tmp/kadett.
