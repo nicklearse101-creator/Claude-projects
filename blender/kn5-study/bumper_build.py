@@ -46,7 +46,7 @@ SPEC = dict(rear=dict(mesh='GEO_rearbumper', bands=[1, 12, 0, 21, 20, 0, 3], spi
 # tail panel: GEO_body behind the hatch (run with PF_NOHATCH=1 PF_CLIP=-0.45,0.45,0.45,0.85,-2.2,-1.95): the raised plate
 # panel r0 + the band under it r1 swept along x (straight); the rest per piece
 SPEC['tail'] = dict(mesh='GEO_body', bands=[0], spine_pair=(1, 0), spine_bottom=0, anchor_band=0, name='tail', centre_z=-1.5,
-                    mm_per_col=5.0, ycols=(0,), trim_shrink=0.85)
+                    mm_per_col=5.0, trim_shrink=0.85, lam=1e-5, ncmax=80)   # 25 Nov: arc-length columns, up to 80, lam 1e-5 (lower round 3.0 -> 1.6 mm, plate panel 89.1 -> 93.6 %)
 
 
 def pieces(V, F, N, sp):
@@ -776,7 +776,7 @@ def build(car, out, which='rear'):
     # columns per band: from the band's typical width
     R0, _ = station_rows(V, pcs, bands, Sp, arc, 0.1, [3] * len(bands), verbose=False)
     w = [np.median([np.linalg.norm(np.diff(r[2 * k:2 * k + 3], axis=0), axis=1).sum() for r in R0]) for k in range(len(bands))]
-    ncol = [int(np.clip(round(x * 1e3 / sp['mm_per_col']) + 1, 3, 40)) for x in w]
+    ncol = [int(np.clip(round(x * 1e3 / sp['mm_per_col']) + 1, 3, int(os.environ.get('BB_NCMAX', sp.get('ncmax', 40))))) for x in w]
     print('bands', bands, 'widths', [round(x * 1e3, 1) for x in w], 'columns', ncol, flush=True)
     R, A = station_rows(V, pcs, bands, Sp, arc, STEP, ncol, anchor_band=sp['anchor_band'])
     ROWS = os.environ.get('BB_ROWS', '1' if sp.get('rows') else '0') == '1'
