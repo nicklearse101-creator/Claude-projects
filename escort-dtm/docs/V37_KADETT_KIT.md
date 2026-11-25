@@ -405,3 +405,6 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
   positioning will be skipped") - the flicker cause. horn_gesture.lua v3: call it every frame, aim from the fresh pose
   (upper arm out 0.95 / up 0.12 / fwd 0.1, forearm up), wrist (ForeArm_END + HAND) straightened (identity rotation),
   middle joints straight, index/ring/pinkie grip rotation squared (tight fist). Not seen in game.
+- 20:20 Nik (watched in game): TWO arms at once, both flickering - one posed, one the old grip. The game has more than one
+  driver copy (detailed + distance) with the same bone names; v1-v3 only posed the first match. horn_gesture.lua v4 poses
+  every copy (arms:at(i), each with its own forearm/hand/finger joints found under it). Not seen in game yet.
