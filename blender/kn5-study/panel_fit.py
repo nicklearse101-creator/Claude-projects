@@ -744,6 +744,29 @@ def feature_lines(V, Fr, fr, ds=0.02, thr=10.0, arm=None, span=0.35):
     for f in lines:
         if all(np.median(np.abs(eval_func(f, sg) - eval_func(g, sg))) > 0.006 for g in out): out.append(f)
     out.sort(key=lambda f: np.mean(eval_func(f, sg)))
+    # 25 Nov: a PARTIAL line (shorter than the default span: kept by PF_LINE_SPAN, e.g. the quarter's lower line that
+    # runs arch -> door only once the rear band is its own build) was extrapolated by its spline over the whole region:
+    # it swung 370 mm and crossed the lines around it, so the bands it bounds overlapped (the side face lay 13 mm
+    # outside the car over the rear corner). Beyond its ends it now MERGES into its nearest full line (the gap tapers to
+    # 0 over PF_LINE_TAPER m) and the band between the two stops there (merge_s -> band_s)
+    full = [f for f in out if f['s_hi'] - f['s_lo'] >= span * (s1 - s0)]
+    T_ = float(os.environ.get('PF_LINE_TAPER', 0.12))
+    if full and os.environ.get('PF_LINE_MERGE', '1') == '1':
+        for i_, f in enumerate(out):
+            if any(f is g for g in full): continue
+            ends = np.array([f['s_lo'], f['s_hi']])
+            g = min(full, key=lambda g_: np.mean(np.abs(eval_func(f, ends) - eval_func(g_, ends))))
+            sd = np.linspace(dom[0], dom[1], 400); tf = eval_func(f, sd); tg = eval_func(g, sd)
+            gap_lo = float(eval_func(f, [f['s_lo']])[0] - eval_func(g, [f['s_lo']])[0])
+            gap_hi = float(eval_func(f, [f['s_hi']])[0] - eval_func(g, [f['s_hi']])[0])
+            sm = lambda x: np.clip(x, 0, 1) ** 2 * (3 - 2 * np.clip(x, 0, 1))
+            tt = np.where(sd < f['s_lo'], tg + gap_lo * sm(1 - (f['s_lo'] - sd) / T_),
+                          np.where(sd > f['s_hi'], tg + gap_hi * sm(1 - (sd - f['s_hi']) / T_), tf))
+            nf = fit_func(sd, tt, dom, nmax=int(np.clip((dom[1] - dom[0]) / 0.05, 8, 40)), tol=0.0)
+            nf.update({k: f[k] for k in ('s_lo', 's_hi', 'turn', 'hits', 'ext_lo', 'ext_hi')})
+            nf['merge_s'] = [float(f['s_lo'] - T_), float(f['s_hi'] + T_)]
+            out[i_] = nf
+            print(f"   partial line (turn {f['turn']:+.0f} deg, s {f['s_lo'] * 1e3:.0f}..{f['s_hi'] * 1e3:.0f}) merges into the line at t {np.median(tg) * 1e3:.0f} beyond its ends")
     return out
 
 
@@ -936,6 +959,16 @@ def fit_bands(name, V, Fr, Nv, overlap=0.002, keep=None, Fr_lines=None, cut_poly
                     if all(rng_[i][1] < rng_[i + 1][0] for i in range(len(rng_) - 1)):      # apart along the car
                         cuts = [-10.0] + [(rng_[i][1] + rng_[i + 1][0]) / 2 for i in range(len(rng_) - 1)] + [10.0]
                         pieces = [(f'p{i}', m & (P[:, 0] > cuts[i]) & (P[:, 0] <= cuts[i + 1]), fr, [cuts[i], cuts[i + 1]]) for i in range(len(big))]
+        ms_ = [L['merge_s'] for L in (lo, hi) if L is not None and L.get('merge_s')]
+        if len(ms_) == 1 and pieces[0][3] is None:
+            # a band bounded by a partial line on one side and the full line it merges into on the other: it exists
+            # only over the partial line's stretch (beyond it the two lines coincide). The band on the partial line's
+            # OTHER side keeps the whole length (it runs down to the full line there).
+            other = hi if lo is not None and lo.get('merge_s') else lo
+            sg2 = np.linspace(*ms_[0], 30); L_ = lo if lo is not None and lo.get('merge_s') else hi
+            beyond = np.r_[np.linspace(ms_[0][0] - 0.3, ms_[0][0], 10), np.linspace(ms_[0][1], ms_[0][1] + 0.3, 10)]
+            if other is not None and np.median(np.abs(eval_func(L_, beyond) - eval_func(other, beyond))) < 1e-3:
+                pieces = [('', m & (P[:, 0] >= ms_[0][0]) & (P[:, 0] <= ms_[0][1]), fr, list(ms_[0]))]
         cosw = (lambda nn: nn @ fr[3] / np.linalg.norm(nn))(Nv[u[m]].mean(0)) if m.any() else 1.0
         if cosw < np.cos(np.radians(35)) and pieces[0][3] is None:
             pieces = [('', m, None, None)]
