@@ -1,4 +1,28 @@
-# Next session: Blender Work / AE86 replica (handover, 2026-11-24)
+# Next session: Blender Work / AE86 replica (handover, 2026-11-25)
+
+**Start here (25 Nov):**
+- Rear band knee: the three REAL Kunos knee rows (ranked by height per station; the topology rows cross-linked at a mesh
+  gap s 381-438) replace the 2B - A guess: one soft knee line by eye (12aab47).
+- Quarter: a PARTIAL character line (kept by PF_LINE_SPAN) now merges into its nearest full line beyond its ends
+  (`feature_lines`, merge_s -> band_s): it was extrapolated 370 mm and the side face b1 overhung the rear corner by up
+  to 13 mm (64f9ded). The "8 mm corner face" in the audit was this.
+- FRONT BAND (`frontband_build.py`, `frontband_score.py`, `./regress.sh frontband`, before quarter): the lower quarter
+  ahead of the rear arch (piece 0 below Y_TOP, arch -> door, clip z -0.5) = the rear band's profile carried forward;
+  its vertex rows run straight along the car. Rows -> centripetal Catmull-Rom THROUGH their vertices (a fair spline's
+  outlier rejection dropped the cove's turn into the arch edge: 6 mm) -> per-station profile through all rows,
+  resampled per segment by arc length -> one grid run past the region and trimmed on Kunos's outline (`trim`,
+  `trim_any`). Ownership via rearband_build.band_owned (PF_NOBAND); quarter strips with a free side on a band take the
+  band's real edge (PF_BAND_FOREIGN=1, PF_FOREIGN band=faces dirs; rearband/frontband now save faces). FreeCAD: a
+  trimmed face fixed into a 2-face compound fell back to averaged normals (crinkle): the largest face is meshed.
+  Results: Kunos vertices ahead of the arch 94.0 % within 1 mm (was 90.2), blotches and both hole-fill patches gone;
+  quarter 83.4 / 100.0 % (was 80.6 / 97.9). Picture `D:/ClaudeData/tmp/tailseam/front5.png` (`front0.png` = before).
+- LEFT here: the ledge's rear end (Kunos's skin climbs 5 mm up the ledge's end ramp; our band does not: white slivers in
+  close-up, 3-4 mm); the band's arch-top tip (1 mm2 sliver dropped from the mesh); the quarter now has ONE line (b0 /
+  b1): check b1 above the body line by eye.
+- AUDIT next (worst first): tail lamp-top edge (Kunos 7 mm from ours at y 778, x 416-629), rear / front bumper faces,
+  tail plate panel, hatch; then whole-car assembly.
+
+## Handover 2026-11-24
 
 **Start here (24 Nov): REAR LOWER BAND built as one part** (`rearband_build.py`, `rearband_score.py`, `./regress.sh rearband`).
 The tail | quarter seam under the lamps (x 0.45) was the symptom; the cause: Kunos's piece 0 (the whole side skin) carries

@@ -1586,7 +1586,17 @@ def main():
             # a side whose neighbour another build owns (PF_NOHATCH: the hatch) has no neighbour piece here; with
             # PF_HATCH_BUILD (the hatch's packed npz) it takes the hatch build's real edge instead of the Kunos vertex rail: its
             # nb_name is the foreign prefix 'hatch/' (the FreeCAD stage loads those faces with PF_FOREIGN=hatch=DIR)
-            fside_ = None
+            fside_ = None; bside_ = None
+            if os.environ.get('PF_BAND_FOREIGN') == '1' and name == 'GEO_body':
+                # 25 Nov: likewise a free side on the rear / front lower band (PF_NOBAND: rearband_build, frontband_build
+                # own those triangles) takes that build's real edge: nb_name 'band/' (PF_FOREIGN=band=DIR in the FreeCAD
+                # stage). The arch-edge strips ahead of the arch ended 'free' on Kunos's rail: a white crescent gap.
+                import rearband_build as RBB_
+                from exact_dist import point_to_tris as p2t_
+                Vr_ = RBB_.candidates(car)[0]; Tb_ = Vr_[RBB_.band_owned(car)]
+                def bside_(pts):
+                    X_ = np.asarray(pts)
+                    return len(X_) >= 3 and np.mean(p2t_(X_, Tb_) < 3e-4) > 0.6
             if os.environ.get('PF_HATCH_BUILD') and name == 'GEO_body':
                 import hatch_build as HB_
                 from exact_dist import point_to_tris as p2t_
@@ -1606,12 +1616,16 @@ def main():
                         sd_['nb_strip'] = sd_['nb'] in strips_
                         if sd_['nb'] is None and not sd_.get('chain') and fside_ is not None and fside_(sd_['pts']):
                             sd_['nb_name'] = 'hatch/'; print(f'{name}:r{ri}: side on the hatch build (foreign edge)')
+                        elif sd_['nb'] is None and not sd_.get('chain') and bside_ is not None and bside_(sd_['pts']):
+                            sd_['nb_name'] = 'band/'; print(f'{name}:r{ri}: side on a lower-band build (foreign edge)')
                         sd_['key'] = f'{name}:' + '|'.join(sd_['key'])
                         for r_ in sd_.get('runs', []):                 # chain side: one run per neighbour
                             r_['nb_name'] = None if r_['nb'] is None else f'{name}:r{r_["nb"]}'
                             r_['nb_strip'] = r_['nb'] in strips_
                             if r_['nb'] is None and fside_ is not None and fside_(r_['pts']):
                                 r_['nb_name'] = 'hatch/'; print(f'{name}:r{ri}: chain run on the hatch build (foreign edge)')
+                            elif r_['nb'] is None and bside_ is not None and bside_(r_['pts']):
+                                r_['nb_name'] = 'band/'; print(f'{name}:r{ri}: chain run on a lower-band build (foreign edge)')
                             r_['key'] = f'{name}:' + '|'.join(r_['key'])
                     if 'subs' in st_:                                  # flange with a fold row: two strips
                         for k_, sub_ in enumerate(st_['subs']):

@@ -23,6 +23,7 @@
 # Hatch lower corners (faired spine, local-frame row smoothing, corner zone smoothing + vertex offset, 13 Nov): median 0.159, p95 0.77, within 0.3 / 1 mm 71.9 / 97.5 %.
 # Hatch corner tab (U extended past the outline + trimmed on the knee-aware fair outline, 13 Nov midday): median 0.154, p95 0.64, max 1.14, within 0.3 / 1 mm 73.6 / 99.4 % (tail 100 %).
 # Hatch returns (ring + wall fold flanges, bottom return, tab corner fills; left halves mirrored; 13 Nov pm): skin 75.7 / 99.7 %; ring 89.9 / 100, wall 91.3 / 100, bottom 90.3 / 96.8, corners 100 / 100 %. Others unchanged.
+# Front band (25 Nov): the lower quarter ahead of the rear arch built curves first (frontband_build.py: Kunos's straight vertex rows -> Catmull-Rom through their vertices -> per-station profiles -> one grid trimmed on Kunos's outline); the quarter leaves it out (PF_NOBAND) and its strips there take the band's real edges (PF_BAND_FOREIGN). Kunos vertices ahead of the arch 94.0 % within 1 mm (was 90.2), no hole-fill patches; quarter 83.4 / 100.0 % (was 80.6 / 97.9).
 # Partial lines (25 Nov): a short line (PF_LINE_SPAN) merges into its nearest full line beyond its ends instead of being extrapolated (it swung 370 mm: the quarter's side face b1 lay up to 13 mm OUTSIDE the car over the rear corner, a third of it > 3 mm off); quarter area 80.6 / 97.9 (was 78.4 / 97.9), b1 now 0 points > 3 mm.
 # Knee rows (24 Nov late): the three real Kunos knee rows ranked by height per station (no 2B-A guess): one soft knee line by eye; sweep+end 93.3 % within 1 mm (was 95.9: a few arch-lip vertices at s end).
 # Rear lower band (rearband_build.py, 24 Nov; quarter + tail with PF_NOBAND): band left 98.4 % (sweep 100 %, centre 92.5 %); quarter area 78.4 / 97.9 (its own Kunos vertices 92.6 % within 1 mm, was 92.0); tail 94.7 % (was 93.6 on the same vertices); others unchanged.
@@ -71,8 +72,16 @@ if [ "$what" = rearband ] || [ "$what" = all ]; then
   # the quarter and the tail leave it out (PF_NOBAND)
   unset PF_CLIP PF_CLIP_EXACT PF_NOROOF PF_MASTER PF_NOHATCH PF_HATCH_BUILD
   python rearband_build.py $C $R/rearband > $R/rearband.log 2>&1
-  PF_SAVE_FACES=0 PF_IN="$(cygpath -w $R/rearband)" ./fcrun.sh panel_fit_freecad.py >> $R/rearband.log 2>&1 && python pack_build.py $R/rearband $R/rearband/build.npz >> $R/rearband.log
+  PF_IN="$(cygpath -w $R/rearband)" ./fcrun.sh panel_fit_freecad.py >> $R/rearband.log 2>&1 && python pack_build.py $R/rearband $R/rearband/build.npz >> $R/rearband.log
   python rearband_score.py $C $R/rearband/build.npz | grep -E "^left|sweep|centre" | sed 's/^/rearband: /'
+fi
+if [ "$what" = frontband ] || [ "$what" = all ]; then
+  # the lower quarter AHEAD of the rear arch (frontband_build.py, 25 Nov): Kunos's vertex rows (straight along the car)
+  # -> per-station Catmull-Rom profiles -> one grid, trimmed on Kunos's outline; the quarter leaves these out (PF_NOBAND)
+  unset PF_CLIP PF_CLIP_EXACT PF_NOHATCH PF_NOBAND PF_NOROOF PF_MASTER
+  python frontband_build.py $C $R/frontband > $R/frontband.log 2>&1
+  PF_IN="$(cygpath -w $R/frontband)" ./fcrun.sh panel_fit_freecad.py >> $R/frontband.log 2>&1 && python pack_build.py $R/frontband $R/frontband/build.npz >> $R/frontband.log
+  echo "frontband: $(python frontband_score.py $C $R/frontband/build.npz | head -1)"
 fi
 if [ "$what" = quarter ] || [ "$what" = all ]; then
   export PF_CLIP=0.45,1,0,1.3,-2.2,-0.5          # y up to the roof: the roof triangles are left out by PF_NOROOF
@@ -80,6 +89,7 @@ if [ "$what" = quarter ] || [ "$what" = all ]; then
   export PF_NOROOF=1                                 # the roof build owns the roof + its strips (one owner per surface)
   [ -f $R/roof/build.npz ] && export PF_MASTER=$R/roof/build.npz   # faces along the roof are trimmed on its edges
   [ -f $R/rearband/build.npz ] && export PF_MASTER="$PF_MASTER;$R/rearband/build.npz"   # ... and along the rear band (24 Nov)
+  [ -f $R/frontband/build.npz ] && export PF_MASTER="$PF_MASTER;$R/frontband/build.npz"   # ... and ahead of the arch (25 Nov)
   # the hatch build owns the hatch skin + returns (its side band = the old 'C-pillar' r1 here, the ring flange = old r6):
   # PF_NOHATCH leaves those triangles out; quarter faces next to the hatch take its real edges: wide faces snap the
   # outline points Kunos shares with the hatch onto the hatch build (PF_HATCH_BUILD), strips take the hatch's faces
@@ -87,13 +97,15 @@ if [ "$what" = quarter ] || [ "$what" = all ]; then
   export PF_NOHATCH=1
   export PF_NOBAND=1 PF_LINE_SPAN=0.2   # the rear lower band is rearband's; the side's lower lines then run arch -> door only
   FH=""; [ -f $R/hatch/build.npz ] && export PF_HATCH_BUILD=$R/hatch/build.npz && FH="hatch=$(cygpath -w $R/hatch/faces)"
+  # strips ending on the rear / front lower band take those builds' real edges (25 Nov)
+  export PF_BAND_FOREIGN=1; for bb in rearband frontband; do [ -d $R/$bb/faces ] && FH="$FH;band=$(cygpath -w $R/$bb/faces)"; done
   python panel_fit.py $C $R/quarter GEO_body:w0 'GEO_body:rall!0' > $R/quarter.log 2>&1
   PF_FOREIGN="$FH" PF_IN="$(cygpath -w $R/quarter)" ./fcrun.sh panel_fit_freecad.py >> $R/quarter.log 2>&1
   python fill_holes.py $C $R/quarter GEO_body >> $R/quarter.log 2>&1
   PF_IN="$(cygpath -w $R/quarter/fill)" ./fcrun.sh panel_fit_freecad.py >> $R/quarter.log 2>&1 && python merge.py $R/quarter >> $R/quarter.log
   python pack_build.py $R/quarter $R/quarter/build.npz >> $R/quarter.log 2>&1   # assemble.py reads build.npz (it was a stale 17 Nov pack)
   echo "quarter: $(python score_faces.py $C $R/quarter GEO_body | tail -1)"
-  unset PF_CLIP PF_CLIP_EXACT PF_NOROOF PF_MASTER PF_NOHATCH PF_HATCH_BUILD PF_NOBAND PF_LINE_SPAN
+  unset PF_CLIP PF_CLIP_EXACT PF_NOROOF PF_MASTER PF_NOHATCH PF_HATCH_BUILD PF_NOBAND PF_LINE_SPAN PF_BAND_FOREIGN
 fi
 if [ "$what" = bonnet ] || [ "$what" = all ]; then
   unset PF_CLIP PF_NOROOF PF_MASTER PF_NOHATCH PF_HATCH_BUILD

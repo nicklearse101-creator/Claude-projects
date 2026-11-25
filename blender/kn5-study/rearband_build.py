@@ -58,7 +58,12 @@ def candidates(car):
 def band_owned(car):
     """the band's candidate triangles (raw GEO_body vertex index triples): other builds leave them out and keep only
     their parts above Y_TOP (PF_NOBAND in panel_fit.load_mesh)"""
-    return candidates(car)[3]
+    B = candidates(car)[3]
+    if os.environ.get('PF_NOFBAND', '1') == '1':
+        # ... and the lower quarter AHEAD of the arch (frontband_build.py, 25 Nov): same mesh, same cut on Y_TOP
+        import frontband_build as FB
+        B = np.r_[B, FB.owned(car)]
+    return B
 
 
 def spine_points(V, Fb, x_min=-1.0):
