@@ -408,3 +408,10 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
 - 20:20 Nik (watched in game): TWO arms at once, both flickering - one posed, one the old grip. The game has more than one
   driver copy (detailed + distance) with the same bone names; v1-v3 only posed the first match. horn_gesture.lua v4 poses
   every copy (arms:at(i), each with its own forearm/hand/finger joints found under it). Not seen in game yet.
+- 20:40 Nik: still two blurry arms - "just make an animation file like the steering and shifting". Lua bone posing dropped.
+  tools/make_horn_ksanim.py -> animations/horn_gesture.ksanim (v2, 19 bones, 21 frames): the left arm chain
+  (Arm/ForeArm/ForeArm_END/HAND_L) + left-hand thumb and fingers 1-3. Frame 0 = our steer.ksanim centre frame (normal grip);
+  last frame = the bdb_mazda_miata_na1 fuck.ksanim end pose (right arm, fingers 4-6) mirrored to the left: q (x,y,z,w) ->
+  (x,-y,-z,w), checked on our steer anim L/R pairs; same driver rig (bone lengths match to 2 mm); our translations kept;
+  slerp, ease in-out. ext_config: [ANIMATION_...] FILE=horn_gesture.ksanim INPUT=HORN TIME=0.6 (Miata's keys); the Lua
+  section renamed [SCRIPT_OFF_HORN_LUA]. Backup ext_config.ini.BACKUP_before_horn_ksanim_*. Not seen in game.
