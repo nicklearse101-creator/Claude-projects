@@ -415,3 +415,14 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
   (x,-y,-z,w), checked on our steer anim L/R pairs; same driver rig (bone lengths match to 2 mm); our translations kept;
   slerp, ease in-out. ext_config: [ANIMATION_...] FILE=horn_gesture.ksanim INPUT=HORN TIME=0.6 (Miata's keys); the Lua
   section renamed [SCRIPT_OFF_HORN_LUA]. Backup ext_config.ini.BACKUP_before_horn_ksanim_*. Not seen in game.
+- 20:47 Nik: "works well" - horn ksanim confirmed in game.
+
+## 25 Nov 21:00 - 15" car: no backfire sound, flames per cylinder
+- Nik: the backfire sound hid too much of the engine; flames should come from one cylinder at a time, not 4 at once.
+- kk15m_flames_per_cyl.py -> escort15_v17: KK_flame_L1..3/R1..3 split per stack -> KK_flame_<L|R><stack 1-4>_<len 1-3>
+  (24 meshes, 6 faces each, faces to the nearest stack by y; same KK_flame material/flags; textures still 196).
+- exhaust_flames.lua: backfire AudioEvent pool + pop() removed (cockpit open-exhaust layer kept). Bursts (lift-off,
+  upshift, green limiter) now step through the Rover V8 firing order 1-8-4-3-6-5-7-2 (odd = left bank front-back, even =
+  right bank) every 20-70 ms; each cylinder pops with 45 % chance (60 % on the limiter) for 40-120 ms, random length.
+  Checked with a stubbed Lua run: single stacks light in sequence. Installed (backup
+  D:/ClaudeData/tmp/kadett/live15_backup_before_per_cyl_*). Not seen in game.
