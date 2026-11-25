@@ -62,7 +62,7 @@ def band_owned(car):
     if os.environ.get('PF_NOFBAND', '1') == '1':
         # ... and the lower quarter AHEAD of the arch (frontband_build.py, 25 Nov): same mesh, same cut on Y_TOP
         import frontband_build as FB
-        B = np.r_[B, FB.owned(car)]
+        B = np.r_[B, FB.owned(car, 'rear'), FB.owned(car, 'wing')]
     return B
 
 

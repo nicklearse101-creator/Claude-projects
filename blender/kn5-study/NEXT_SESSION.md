@@ -19,6 +19,20 @@
 - LEFT here: the ledge's rear end (Kunos's skin climbs 5 mm up the ledge's end ramp; our band does not: white slivers in
   close-up, 3-4 mm); the band's arch-top tip (1 mm2 sliver dropped from the mesh); the quarter now has ONE line (b0 /
   b1): check b1 above the body line by eye.
+- 25 Nov afternoon - AUDIT (`D:/ClaudeData/tmp/tailseam/audit.py`: every build's faces -> nearest Kunos triangle, area > 1 /
+  3 mm): the "tail lamp-top 7 mm" was the HATCH's vertices (corner box with the hatch: 94.3 %, max 3.4). Real misses:
+  front wing behind the arch, rear bumper end faces inside the arch (hidden, low priority), front bumper (by eye: blotchy
+  and streaky). FRONT BUMPER: spec lam 1e-5 (rows smoothed harder along the sweep: fewer blotches) + face columns by
+  arc length (94.1 -> 95.1 %); lengthwise streaks on the side REMAIN - tried and dropped (all worse): rows snapped onto
+  vertex-row profiles, a full loft through vertex rows (Catmull-Rom; Hermite with Kunos normals), fair columns, band
+  fairing, no PN lift. Needs a real method (ideas: the PN lift per row with crease-aware corner normals like
+  rearband corner_normals; or loft lines grouped consistently along the whole sweep).
+  WING BAND (`FB_SIDE=wing frontband_build.py`, `./regress.sh wingband`): the flat skin behind the front arch (raised band
+  + ledge the wing's band fits smoothed away), triangles picked by "on the flat profile" (8 mm; the arch flare stands
+  10-30 mm proud, same Kunos piece): its vertices 94.2 % within 1 mm (the wing build had 68.8 %, max 17). NOT YET USED:
+  with its triangles left out, the wing's arch detection (panel_fit arch0: arch edge / centre / lip from the region's
+  outline) sees the hole - sub-panels moved, r0:front:b0 0.95 -> 6.6 mm, FreeCAD hung meshing it (`WING_BAND=1
+  ./regress.sh wing` to try). Fix: detect the arch on the full piece, then leave the band out of the fits only.
 - AUDIT next (worst first): tail lamp-top edge (Kunos 7 mm from ours at y 778, x 416-629), rear / front bumper faces,
   tail plate panel, hatch; then whole-car assembly.
 

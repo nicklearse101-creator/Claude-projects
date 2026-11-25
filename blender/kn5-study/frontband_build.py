@@ -23,7 +23,10 @@ import panel_fit as PF, bumper_build as BB, rearband_build as RB
 # ('wing': the same profile mirrored - body line, cove, knee, ledge, tuck-under - between the arch and the door).
 # zc: the quarter / wing clip plane (the sill / door side is cut off there), keep = side of it that is this band's
 SIDES = dict(rear=dict(name='fband', zwin=(-1.2, -0.3), zc=-0.5, keep=-1.0, probe=(0.777, 0.55, -0.75)),
-             wing=dict(name='wband', zwin=(0.3, 1.3), zc=0.62, keep=1.0, probe=(0.777, 0.55, 0.75)))
+             wing=dict(name='wband', zwin=(0.3, 1.3), zc=0.62, keep=1.0, probe=(0.777, 0.55, 0.75), flat=(0.65, 0.78)))
+# 'flat' (wing): the side skin behind the front arch is ONE Kunos piece with the arch FLARE (15-30 mm proud, rows jump
+# out at z 0.80-0.86) - the band = only the triangles on the flat profile: every vertex within FB_FLAT_TOL of x(y),
+# the profile taken from Kunos's vertices in the clearly flat stretch z flat[0]..flat[1]
 SIDE = os.environ.get('FB_SIDE', 'rear')
 
 
@@ -39,6 +42,14 @@ def candidates(car, side=None):
     P0 = min(pcs[:5], key=lambda p: np.linalg.norm(V[p].mean(1) - probe, axis=1).min())
     T = V[P0]; c = T.mean(1)
     Q = P0[(c[:, 0] > 0) & (T[:, :, 1].min(1) < RB.Y_TOP - 1e-6) & (c[:, 2] > sd['zwin'][0]) & (c[:, 2] < sd['zwin'][1])]
+    if sd.get('flat'):
+        u = np.unique(Q); X = V[u]; m = (X[:, 2] > sd['flat'][0]) & (X[:, 2] < sd['flat'][1])
+        yb = np.round(X[m, 1] / 0.002); prof = {}
+        for k_, x_ in zip(yb, X[m, 0]): prof.setdefault(k_, []).append(x_)
+        ky = np.array(sorted(prof)); kx = np.array([np.median(prof[k_]) for k_ in ky])
+        xf = lambda y: np.interp(y / 0.002, ky, kx)
+        T = V[Q]; tol = float(os.environ.get('FB_FLAT_TOL', 8e-3))
+        Q = Q[(np.abs(T[:, :, 0] - xf(T[:, :, 1])) < tol).all(1)]
     comps = PF.components(V, Q)[0]
     B = min(comps, key=lambda k: np.linalg.norm(V[np.unique(k)] - np.array(sd['probe']), axis=1).min())
     _CAND[key] = (V, F, N, B)

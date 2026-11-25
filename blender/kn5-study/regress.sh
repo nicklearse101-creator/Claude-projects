@@ -38,13 +38,27 @@ if [ "$what" = door ] || [ "$what" = all ]; then
   PF_RETURNS=5 PF_RETURNS_ON='SUB1:r0:,SUB1:r1,SUB1:r2:,SUB1:r5' PF_IN="$(cygpath -w $R/door)" ./fcrun.sh panel_fit_freecad.py >> $R/door.log 2>&1
   echo "door: $(python score_faces.py $C $R/door GEO_extdoorL_SUB1 GEO_extdoorL_SUB0 mirrorL GEO_extglassL | tail -1)"
 fi
+if [ "$what" = wingband ] || [ "$what" = all ]; then
+  # the flat skin behind the front arch (frontband_build.py FB_SIDE=wing, 25 Nov): the raised band + ledge the wing's
+  # band fits smoothed away (its vertices 68.8 -> 94 % within 1 mm); the wing leaves it out (PF_NOBAND)
+  unset PF_CLIP PF_CLIP_EXACT PF_NOHATCH PF_NOBAND PF_NOROOF PF_MASTER
+  FB_SIDE=wing python frontband_build.py $C $R/wingband > $R/wingband.log 2>&1
+  PF_IN="$(cygpath -w $R/wingband)" ./fcrun.sh panel_fit_freecad.py >> $R/wingband.log 2>&1 && python pack_build.py $R/wingband $R/wingband/build.npz >> $R/wingband.log
+  echo "wingband: $(FB_SIDE=wing python frontband_score.py $C $R/wingband/build.npz | head -1)"
+fi
 if [ "$what" = wing ] || [ "$what" = all ]; then
   export PF_CLIP=0,1,0,2,0.62,2
+  # NOT YET (25 Nov): with the wing band's triangles left out (PF_NOBAND=1 PF_BAND_FOREIGN=1, PF_MASTER / PF_FOREIGN =
+  # wingband) the wing's arch detection (fit_arch: arch edge, centre, lip) sees the band's hole in its outline - the
+  # sub-panel split moved, r0:front:b0 went 0.95 -> 6.6 mm and its mesh hung FreeCAD. Fix the arch detection first.
+  FW=""
+  if [ "$WING_BAND" = 1 ]; then export PF_NOBAND=1 PF_BAND_FOREIGN=1; [ -f $R/wingband/build.npz ] && export PF_MASTER=$R/wingband/build.npz; [ -d $R/wingband/faces ] && FW="band=$(cygpath -w $R/wingband/faces)"; fi
   python panel_fit.py $C $R/wing GEO_body:arch0 'GEO_body:rall!0' > $R/wing.log 2>&1
-  PF_IN="$(cygpath -w $R/wing)" ./fcrun.sh panel_fit_freecad.py >> $R/wing.log 2>&1
+  PF_FOREIGN="$FW" PF_IN="$(cygpath -w $R/wing)" ./fcrun.sh panel_fit_freecad.py >> $R/wing.log 2>&1
   python fill_holes.py $C $R/wing GEO_body >> $R/wing.log 2>&1                 # safety net: fill uncovered areas
   PF_IN="$(cygpath -w $R/wing/fill)" ./fcrun.sh panel_fit_freecad.py >> $R/wing.log 2>&1 && python merge.py $R/wing >> $R/wing.log
   echo "wing: $(python score_faces.py $C $R/wing GEO_body | tail -1)"
+  unset PF_CLIP PF_NOBAND PF_BAND_FOREIGN PF_MASTER
 fi
 if [ "$what" = roof ] || [ "$what" = all ]; then
   unset PF_CLIP                                      # the wing step exports it
