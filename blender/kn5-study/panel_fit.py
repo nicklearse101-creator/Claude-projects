@@ -62,6 +62,9 @@ def diff2(n):
 
 # ---------- data ----------
 LAST_CAR = None                                  # the car of the last load_mesh (fit_panel's hatch snap needs it)
+_NOBAND = {}         # PF_NOBAND: the left-out band triangles (raw indices) + the raw vertex count (fit_arch_panel)
+
+
 def load_mesh(car_dir, name, raw=False):
     global LAST_CAR; LAST_CAR = car_dir
     kn5 = sorted(glob.glob(os.path.join(car_dir, '*.kn5')), key=os.path.getsize)[-1]
@@ -86,12 +89,13 @@ def load_mesh(car_dir, name, raw=False):
         import rearband_build as RBB_, bumper_build as BB_
         own = {tuple(sorted(t)) for t in RBB_.band_owned(car_dir)}
         m_ = np.array([tuple(sorted(t)) in own for t in F], bool)
+        _NOBAND.update(nraw=len(V), own=F[m_].copy())
         if m_.any():
             Vu, Fu, Nu = BB_.clip_tris(V, F[m_], N, np.array([0.0, RBB_.Y_TOP, 0.0]), np.array([0.0, -1.0, 0.0]), 0.0)
             F = np.r_[F[~m_], Fu.reshape(-1, 3) + len(V)]; V = np.r_[V, Vu.reshape(-1, 3)]; N = np.r_[N, Nu.reshape(-1, 3)]
     clip = os.environ.get('PF_CLIP')            # 'xmin,xmax,ymin,ymax,zmin,zmax' (AC metres): one panel of a shell
     if clip:
-        b = np.array([float(x) for x in clip.split(',')]).reshape(3, 2); c = V[F].mean(1)
+        b = np.array([float(x) for x in clip.split(',')]).reshape(3, 2); c = V[F].mean(1); _NOBAND['clip'] = b
         if os.environ.get('PF_CLIP_EXACT') == '1':
             # triangles cut EXACTLY on the box planes (new vertices on the cut, shared by both sides' triangles), so two
             # builds meeting at a box edge end on the same plane (by centroid each ended on Kunos's own triangle edges:
@@ -1197,8 +1201,18 @@ def fit_arch_panel(name, V, Fr, Nv, others=()):
     surface; (4) the lip as a strip in arch coordinates (arc length round the arch x distance out from the real
     edge) = side surface minus a drop profile, tangent to the side at the lip's outer edge; (5) the rest of the
     panel by the band method, with the lip area cut out of it"""
-    u = np.unique(Fr); fr = frame_of(V[u], Nv[u]); P = to_plane(V[u], fr)
-    _, wid = components(V, Fr); loops = boundary_loops(Fr, wid); rep = {w: i for i, w in enumerate(wid)}
+    # 25 Nov: with the lower bands left out (PF_NOBAND) the region has a hole where the wing band was: the arch is found
+    # on the WHOLE piece (the band's triangles put back, the straddlers' cut parts taken out); the fits still use Fr
+    Fa = Fr
+    if os.environ.get('PF_NOBAND') == '1' and _NOBAND.get('own') is not None:
+        nraw = _NOBAND['nraw']; Ob = _NOBAND['own']
+        cl = _NOBAND.get('clip')
+        if cl is not None:
+            cb = V[Ob].mean(1); Ob = Ob[((cb >= cl[:, 0]) & (cb <= cl[:, 1])).all(1)]
+        Fa = np.r_[Fr[(Fr < nraw).all(1)], Ob]
+        Fa = max(components(V, Fa)[0], key=len)
+    u = np.unique(Fa); fr = frame_of(V[u], Nv[u]); P = to_plane(V[u], fr)
+    _, wid = components(V, Fa); loops = boundary_loops(Fa, wid); rep = {w: i for i, w in enumerate(wid)}
     L2 = to_plane(V[[rep[w] for w in max(loops, key=len)]], fr)[:, :2]
     A = find_arch(L2)
     if A is None:

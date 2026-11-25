@@ -18,6 +18,7 @@ PARTS = {
     'sill': ['sill/panels_fit_mesh.npz'],
     'tail': ['tail/build.npz'],
     'rearband': ['rearband/build.npz'],
+    'frontband': ['frontband/build.npz'],
     'frontbumper': ['frontbumper/build.npz'],
     'rearbumper': ['rearbumper/build.npz'],
 }
