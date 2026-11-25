@@ -33,8 +33,8 @@ SPEC = dict(rear=dict(mesh='GEO_rearbumper', bands=[1, 12, 0, 21, 20, 0, 3], spi
             # front: GEO_frontbumper_SUB2 (the skin; SUB0 / SUB1 = the badge + slot inserts, later). bands=[]: every
             # piece through others() (faces / strips / wrap splits) - the per-piece baseline before any sweep
             front=dict(mesh='GEO_frontbumper_SUB2', bands=[0, 1, 13], spine_pair=(1, 14), anchor_band=0, name='fbump',
-                       centre_z=1.55, zdir=1, mm_per_col=5.0, bridge=0.15, ycols=(0,), trim_shrink=0.85,
-                       extra=['GEO_frontbumper_SUB0', 'GEO_frontbumper_SUB1'], pn=True, extend=0.12,
+                       centre_z=1.55, zdir=1, mm_per_col=5.0, bridge=0.15, trim_shrink=0.85,   # ycols=(0,) dropped 25 Nov (arc-length columns: 94.1 -> 95.1 %)
+                       extra=['GEO_frontbumper_SUB0', 'GEO_frontbumper_SUB1'], pn=True, extend=0.12, lam=1e-5,
                        # Kunos splits one surface into differently numbered pieces along the bumper: the lip r15
                        # carries on as r68 past x 676; r8 (the face's top, fading crease to r0) ends at x 674; r65 / r99
                        # (a 5 mm line beside the plate recess) and r75 are bits of the face
@@ -228,6 +228,232 @@ def station_rows(V, pcs, bands, Sp, arc, step, ncol, verbose=True, anchor_band=2
         print(f'stations: {len(rows)} ({partial} partial, towards the arch) of {len(rows) + len(skipped)} (arc {arcs[0]*1e3:.0f}..{arcs[-1]*1e3:.0f} mm'
               f' of {arc[-1]*1e3:.0f}); skipped at ' + ', '.join(f'{x*1e3:.0f}' for x in skipped[:12]) + (' ...' if len(skipped) > 12 else ''), flush=True)
     return np.array(rows), np.array(arcs)
+
+
+def vertex_rows3(V, F, Sp, arc, ratio=0.25, min_n=2):
+    """Kunos's vertex ROWS of a swept skin from its mesh topology (25 Nov, as rearband_build.vertex_rows_mutual but
+    flatness measured in 3D across the sweep - |d(y, d)| / ds - so rows on a near-horizontal top face link too):
+    each vertex's neighbour ahead / behind along the spine (ds > 3 mm, flattest), linked only when mutual.
+    Returns [(s (n,), X (n, 3))] sorted by s, left half only."""
+    import rearband_build as RB
+    kk = np.round(V / 1e-6).astype(np.int64); kid = {}
+    wid = np.array([kid.setdefault(tuple(k), i) for i, k in enumerate(kk)])
+    S = RB.to_sbd(Sp, arc, V); left = V[:, 0] > -1e-6
+    nb = {}
+    for f in wid[F]:
+        for a_, b_ in ((0, 1), (1, 2), (2, 0)):
+            a_, b_ = int(f[a_]), int(f[b_])
+            if left[a_] and left[b_] and a_ != b_: nb.setdefault(a_, set()).add(b_); nb.setdefault(b_, set()).add(a_)
+    def pick(v, sgn):
+        best = None
+        for n in nb.get(v, ()):
+            ds = (S[n, 0] - S[v, 0]) * sgn
+            if ds < 0.003: continue
+            r = np.hypot(S[n, 1] - S[v, 1], S[n, 2] - S[v, 2]) / ds
+            if r < ratio and (best is None or r < best[0]): best = (r, n)
+        return None if best is None else best[1]
+    ahead = {v: pick(v, 1) for v in nb}; behind = {v: pick(v, -1) for v in nb}
+    nxt = {v: n for v, n in ahead.items() if n is not None and behind.get(n) == v}
+    has_prev = set(nxt.values()); rows = []
+    for v in nb:
+        if v in has_prev: continue
+        ch = [v]
+        while ch[-1] in nxt: ch.append(nxt[ch[-1]])
+        if len(ch) >= min_n: rows.append((S[ch, 0], V[ch], np.array(ch)))
+    return rows
+
+
+def row_snap(V, F, Sp, arc, R, A, tol=3e-3, verbose=True):
+    """section rows R (stations A along the spine) put onto a SMOOTH profile through Kunos's vertex rows (25 Nov,
+    curves first, as the rear band): each vertex row one centripetal Catmull-Rom through its vertices along the spine;
+    at a station the rows present there (within tol of the section) ordered along the section, one Catmull-Rom
+    through them, and every section point between the first and last row moved to its nearest point on it. The
+    sections sampled Kunos's FACETS (low-poly skin, long flat triangles shaded smooth by its normals) and the PN lift
+    bulged between them: blotchy, streaky grey. Points outside the rows' span stay."""
+    import rearband_build as RB
+    rows = vertex_rows3(V, F, Sp, arc)
+    curves = []
+    for s, X, _ in rows:
+        o = np.argsort(s); s, X = s[o], X[o]
+        if len(s) >= 3:
+            C = RB.catmull_rom(np.c_[s, X], 12); C = C[np.argsort(C[:, 0])]; s, X = C[:, 0], C[:, 1:]
+        curves.append((s, X))
+    R = R.copy(); moved = []; skipped = []
+    for i, a in enumerate(A):
+        sec = R[i]
+        if np.isnan(sec).any(): continue
+        seg = np.linalg.norm(np.diff(sec, axis=0), axis=1); ta = np.r_[0, np.cumsum(seg)]
+        dense = np.concatenate([sec[k] + (sec[k + 1] - sec[k]) * np.linspace(0, 1, 20, endpoint=False)[:, None] for k in range(len(sec) - 1)] + [sec[-1:]])
+        tdense = np.concatenate([ta[k] + seg[k] * np.linspace(0, 1, 20, endpoint=False) for k in range(len(sec) - 1)] + [ta[-1:]])
+        pts = []
+        for s, X in curves:
+            if not (s[0] - 2e-3 <= a <= s[-1] + 2e-3): continue
+            q = np.array([np.interp(a, s, X[:, c]) for c in range(3)])
+            dd = np.linalg.norm(dense - q, axis=1); j = int(np.argmin(dd))
+            if dd[j] < tol: pts.append((tdense[j], q))
+        if len(pts) < 2: continue
+        pts.sort(key=lambda p: p[0])
+        keep = [pts[0]]
+        for p in pts[1:]:
+            if p[0] - keep[-1][0] > 3e-4: keep.append(p)
+        if len(keep) < 2: continue
+        Q = np.array([p[1] for p in keep]); tq = np.array([p[0] for p in keep])
+        C = RB.catmull_rom(Q, 24) if len(Q) >= 3 else Q[0] + (Q[1] - Q[0]) * np.linspace(0, 1, 25)[:, None]
+        for j in range(len(sec)):
+            if tq[0] - 1e-9 <= ta[j] <= tq[-1] + 1e-9:
+                dC = np.linalg.norm(C - sec[j], axis=1); k = int(np.argmin(dC))
+                # a section point sits ON Kunos's facets: the smooth profile differs by the facet sag only (< 2 mm);
+                # farther = the rows mis-ordered there (crossing rows on a fold): leave the point
+                if dC[k] < float(os.environ.get('BB_ROWS_CAP', 2.0)) * 1e-3:
+                    moved.append(dC[k]); R[i, j] = C[k]
+                else: skipped.append(dC[k])
+    if verbose and moved:
+        print(f'row snap: {len(rows)} vertex rows; {len(moved)} section points moved onto the row profiles, median {np.median(moved) * 1e3:.2f} max {np.max(moved) * 1e3:.2f} mm; {len(skipped)} left (profile > cap away)', flush=True)
+    return R
+
+
+NRM = None           # Kunos's vertex normals of the swept mesh (set by build for line_loft)
+
+
+def hermite_profile(Q, Ns, tdir, n_seg=30):
+    """a profile through the nodes Q as cubic Hermite segments whose tangents come from Kunos's NORMALS at the nodes
+    (the tangent = the chord direction made square to the node's normal, in the station plane); a node without a
+    normal (a sharp corner, the section's ends) takes one-sided chord tangents. Kunos's skin is low-poly, shaded smooth
+    by these normals: this is the surface its shading shows (the PN lift built it per triangle: blotches)."""
+    k = len(Q); out = []
+    chord = np.diff(Q, axis=0); L = np.linalg.norm(chord, axis=1)
+    def tang(i, side):
+        n = Ns[i]
+        if n is None or not np.isfinite(n).all() or np.linalg.norm(n) < 1e-9:
+            c = chord[i] if side > 0 else chord[i - 1]
+            return c / max(np.linalg.norm(c), 1e-12)
+        n = n - (n @ tdir) * tdir; n /= max(np.linalg.norm(n), 1e-12)
+        c = (Q[min(i + 1, k - 1)] - Q[max(i - 1, 0)])
+        m = c - (c @ n) * n; m /= max(np.linalg.norm(m), 1e-12); cu = c / max(np.linalg.norm(c), 1e-12)
+        # a normal that disagrees with the chords by > 20 deg belongs to something else (an opening's wall the
+        # sweep bridges, a crease vertex): chord tangent there (a 14 mm bulge across the plate recess otherwise)
+        return m if m @ cu > np.cos(np.radians(float(os.environ.get('BB_HERM_DEG', 20)))) else cu
+    for i in range(k - 1):
+        m0 = tang(i, 1) * L[i]; m1 = tang(i + 1, -1) * L[i]
+        u = np.linspace(0, 1, n_seg + 1)[:, None] if i == k - 2 else np.linspace(0, 1, n_seg, endpoint=False)[:, None]
+        h00 = 2 * u ** 3 - 3 * u ** 2 + 1; h10 = u ** 3 - 2 * u ** 2 + u; h01 = -2 * u ** 3 + 3 * u ** 2; h11 = u ** 3 - u ** 2
+        out.append(h00 * Q[i] + h10 * m0 + h01 * Q[i + 1] + h11 * m1)
+    return np.concatenate(out)
+
+
+def line_loft(V, F, Sp, arc, R, A, ncol, tol=1.5e-3, verbose=True):
+    """the swept bands rebuilt CURVES FIRST (25 Nov, the rear band's method): Kunos's vertex rows (vertex_rows3) in
+    spine coordinates (s, height y, outward d), each a Catmull-Rom through its vertices, held at its end values past
+    them; at every station the rows lying on the section (within tol) ordered along it, ONE centripetal Catmull-Rom
+    through them (plus the section's own end points where no row reaches them), each band resampled between its
+    crease points with its column count by arc length. The band boundaries = the section's crease points snapped to
+    the profile. Replaces the section points themselves (Kunos's facets) and the PN lift: blotchy, streaky grey."""
+    import rearband_build as RB
+    rows = vertex_rows3(V, F, Sp, arc)
+    # Kunos's normal at each row vertex (the mean over its welded copies that face its own side: a crease's two
+    # normals stay apart), as spine-frame components (n_y, n_d, n_s) so they ride along with the station frame
+    HERM = os.environ.get('BB_LOFT_HERM', '1') == '1'
+    lines = []
+    for s, X, ch in rows:
+        S = RB.to_sbd(Sp, arc, X); o = np.argsort(S[:, 0]); S = S[o]
+        nrm = NRM[ch[o]] if NRM is not None else np.zeros((len(S), 3))
+        P0, T0, O0 = RB.frame_at(Sp, arc, S[:, 0])
+        Nc = np.c_[nrm[:, 1], (nrm * O0).sum(1), (nrm * T0).sum(1)]
+        S = np.c_[S, Nc]
+        if len(S) >= 3:
+            C = RB.catmull_rom(S, 12); S = C[np.argsort(C[:, 0])]
+        lines.append(S)
+    up = np.array([0.0, 1.0, 0.0]); P_, T_, O_ = RB.frame_at(Sp, arc, A)
+    c0 = np.cumsum([0] + [n - 1 for n in ncol]); out = R.copy(); used = []
+    for i, a in enumerate(A):
+        sec = R[i]
+        if np.isnan(sec).any(): continue
+        seg = np.linalg.norm(np.diff(sec, axis=0), axis=1); ta = np.r_[0, np.cumsum(seg)]
+        k20 = np.linspace(0, 1, 20, endpoint=False)
+        dense = np.concatenate([sec[k] + (sec[k + 1] - sec[k]) * k20[:, None] for k in range(len(sec) - 1)] + [sec[-1:]])
+        tden = np.concatenate([ta[k] + seg[k] * k20 for k in range(len(sec) - 1)] + [ta[-1:]])
+        nodes = []
+        for S in lines:
+            if not (S[0, 0] - float(os.environ.get('BB_LOFT_HOLD', 0.005)) <= a <= S[-1, 0] + float(os.environ.get('BB_LOFT_HOLD', 0.005))): continue
+            y, d, ny, nd, ns = [np.interp(a, S[:, 0], S[:, c]) for c in range(1, 6)]
+            q = P_[i] + y * up + d * O_[i]; nq = ny * up + nd * O_[i] + ns * T_[i]
+            dd = np.linalg.norm(dense - q, axis=1); j = int(np.argmin(dd))
+            if dd[j] < tol: nodes.append((tden[j], q, nq))
+        for tq, q in ((0.0, sec[0]), (ta[-1], sec[-1])):          # the section's ends where no row reaches them
+            if not nodes or min(abs(n_[0] - tq) for n_ in nodes) > 2e-3: nodes.append((tq, q, None))
+        # the section's SHARP corners (a turn > 25 deg: the bottom lip's hook, folds) are nodes too: the spline
+        # rounded the lip's hook by 5 mm where no vertex row runs exactly on it
+        e1 = sec[1:-1] - sec[:-2]; e2 = sec[2:] - sec[1:-1]
+        cs = (e1 * e2).sum(1) / np.maximum(np.linalg.norm(e1, axis=1) * np.linalg.norm(e2, axis=1), 1e-12)
+        for j in np.nonzero(cs < np.cos(np.radians(float(os.environ.get('BB_LOFT_TURN', 25)))))[0] + 1:
+            nodes = [n_ for n_ in nodes if abs(n_[0] - ta[j]) > 1.5e-3] + [(ta[j], sec[j], None)]
+        nodes.sort(key=lambda n_: n_[0]); keep = [nodes[0]]
+        for n_ in nodes[1:]:
+            if n_[0] - keep[-1][0] > 5e-4: keep.append(n_)
+        used.append(len(keep))
+        Q = np.array([n_[1] for n_ in keep])
+        if HERM and NRM is not None and len(Q) >= 3:
+            C = hermite_profile(Q, [n_[2] for n_ in keep], T_[i])
+        else:
+            C = RB.catmull_rom(Q, 30) if len(Q) >= 3 else Q[0] + (Q[-1] - Q[0]) * np.linspace(0, 1, 31)[:, None]
+        cl = np.r_[0, np.cumsum(np.linalg.norm(np.diff(C, axis=0), axis=1))]
+        # band boundaries: the section's crease points -> nearest point of the profile (arc position on C)
+        def on_c(p): return cl[int(np.argmin(np.linalg.norm(C - p, axis=1)))]
+        bnd = [on_c(sec[c0[k]]) for k in range(len(ncol))] + [on_c(sec[-1])]
+        for k in range(len(ncol)):
+            tt = np.linspace(bnd[k], bnd[k + 1], ncol[k])
+            out[i, c0[k]:c0[k] + ncol[k]] = np.c_[[np.interp(tt, cl, C[:, c]) for c in range(3)]].T
+    if verbose:
+        mv = np.linalg.norm(out - R, axis=2)[~np.isnan(R[..., 0])]
+        print(f'line loft: {len(lines)} vertex rows; profile nodes per station median {np.median(used):.0f}; points moved median {np.median(mv) * 1e3:.2f} p95 {np.percentile(mv, 95) * 1e3:.2f} max {mv.max() * 1e3:.2f} mm', flush=True)
+    return out
+
+
+def band_fair(R, ncol, mu=None, verbose=True):
+    """each band's profile at each station faired BETWEEN its creases (25 Nov): the band's column points get a
+    second-difference fairing with both end points (the creases) held - a band is one smooth face between two lines,
+    so across it nothing crisp is lost. The PN-lifted section points kink 0.1-0.5 mm from column to column (Kunos's
+    facets): lengthwise streaks along the bumper in grey."""
+    mu = float(os.environ.get('BB_BANDFAIR', 3.0)) if mu is None else mu
+    R = R.copy(); c0 = np.cumsum([0] + [n - 1 for n in ncol]); mv = []
+    for k, n in enumerate(ncol):
+        if n < 5: continue
+        D = np.zeros((n - 2, n))
+        for r in range(n - 2): D[r, r:r + 3] = (1, -2, 1)
+        M = np.eye(n) + mu * D.T @ D
+        # hold the ends: rows 0 and n-1 replaced by identity constraints
+        M[0] = 0; M[0, 0] = 1; M[-1] = 0; M[-1, -1] = 1
+        Mi = np.linalg.inv(M)
+        for i in range(len(R)):
+            P = R[i, c0[k]:c0[k] + n]
+            if np.isnan(P).any(): continue
+            Q = Mi @ P; mv.append(np.linalg.norm(Q - P, axis=1)); R[i, c0[k]:c0[k] + n] = Q
+    if verbose and mv:
+        mv = np.concatenate(mv); print(f'band fair (mu {mu:g}): points moved median {np.median(mv) * 1e3:.3f} p95 {np.percentile(mv, 95) * 1e3:.3f} max {mv.max() * 1e3:.3f} mm', flush=True)
+    return R
+
+
+def fair_columns(Sp, arc, R, A, ds=None, verbose=True):
+    """every grid column (a line along the sweep: a crease, a band edge or a line on a face) as ONE fair curve
+    (25 Nov, curves first - the door way): the column's points in spine coordinates (height y, outward offset d) fitted
+    as y(s), d(s) with a control every ds along the sweep, then put back on their stations. The sections sample
+    Kunos's low-poly facets: each station's profile jitters by the facet chords (0.5-1.5 mm) - streaks and blotches
+    along the bumper in grey. Across the sweep nothing is smoothed: creases stay crisp."""
+    import rearband_build as RB
+    ds = ds or float(os.environ.get('BB_FAIR_DS', 0.08))
+    R = R.copy(); ok = ~np.isnan(R[..., 0]); up = np.array([0.0, 1.0, 0.0])
+    P_, T_, O_ = RB.frame_at(Sp, arc, A)
+    dom = [A.min() - 0.05, A.max() + 0.05]; n = int(np.clip((A.max() - A.min()) / ds, 4, 30)); mv = []
+    for j in range(R.shape[1]):
+        m = ok[:, j]
+        if m.sum() < 6: continue
+        y = R[m, j, 1]; d = ((R[m, j] - P_[m]) * O_[m]).sum(1); tg = ((R[m, j] - P_[m]) * T_[m]).sum(1)
+        fy = PF.fit_func(A[m], y, dom, tol=1e-4, nmax=n); fd = PF.fit_func(A[m], d, dom, tol=1e-4, nmax=n)
+        Q = P_[m] + PF.eval_func(fy, A[m])[:, None] * up + PF.eval_func(fd, A[m])[:, None] * O_[m] + tg[:, None] * T_[m]
+        mv.append(np.linalg.norm(Q - R[m, j], axis=1)); R[m, j] = Q
+    if verbose and mv:
+        mv = np.concatenate(mv); print(f'fair columns: {R.shape[1]} lines, {n} controls each; points moved median {np.median(mv) * 1e3:.2f} p95 {np.percentile(mv, 95) * 1e3:.2f} max {mv.max() * 1e3:.2f} mm', flush=True)
+    return R
 
 
 def pn_eval(P, Nt, uvw):
@@ -530,7 +756,7 @@ def build(car, out, which='rear'):
     import hatch_build as HB
     sp = SPEC[which]
     V, F, N = PF.load_mesh(car, sp['mesh']); pcs = pieces(V, F, N, sp)
-    global BRIDGE, YCOLS; BRIDGE = sp.get('bridge', 0.0); YCOLS = tuple(sp.get('ycols', ()))
+    global BRIDGE, YCOLS; BRIDGE = sp.get('bridge', 0.0); YCOLS = tuple(sp.get('ycols', ())) if os.environ.get('BB_YCOLS', '1') == '1' else ()
     bands = sp['bands']
     if not bands:
         res = others(V, F, N, pcs, [], sp['name'])
@@ -553,8 +779,21 @@ def build(car, out, which='rear'):
     ncol = [int(np.clip(round(x * 1e3 / sp['mm_per_col']) + 1, 3, 40)) for x in w]
     print('bands', bands, 'widths', [round(x * 1e3, 1) for x in w], 'columns', ncol, flush=True)
     R, A = station_rows(V, pcs, bands, Sp, arc, STEP, ncol, anchor_band=sp['anchor_band'])
-    if os.environ.get('BB_PN', '1' if sp.get('pn') else '0') == '1':
+    ROWS = os.environ.get('BB_ROWS', '1' if sp.get('rows') else '0') == '1'
+    FAIR = os.environ.get('BB_FAIR', '1' if sp.get('fair') else '0') == '1'
+    if os.environ.get('BB_DUMP'): np.savez(os.environ['BB_DUMP'], R=R, A=A, Sp=Sp, arc=arc)
+    LOFT = os.environ.get('BB_LOFT', '1' if sp.get('loft') else '0') == '1'
+    if LOFT:
+        global NRM; NRM = N
+        R = line_loft(V, np.vstack([pcs[b] for b in sorted(set(bands))]), Sp, arc, R, A, ncol)
+    elif FAIR:
+        R = fair_columns(Sp, arc, R, A)
+    elif ROWS:
+        R = row_snap(V, np.vstack([pcs[b] for b in sorted(set(bands))]), Sp, arc, R, A)
+    elif os.environ.get('BB_PN', '1' if sp.get('pn') else '0') == '1':
         R = pn_lift(V, np.vstack([pcs[b] for b in sorted(set(bands))]), N, R)
+    if os.environ.get('BB_BANDFAIR', str(sp.get('band_fair', ''))):
+        R = band_fair(R, ncol)
     if sp.get('trim_shrink'):
         # the stations past the point where a band starts to shrink (front: the side flare r5 cuts into the face
         # towards the corner, its rows crumpled the grid there) are dropped; the end faces take that part
@@ -588,7 +827,9 @@ def build(car, out, which='rear'):
         # in the lip 30 mm before the end, 19 Nov); they ride on as the last full row's profile with the face band
         keepc = np.zeros(R2.shape[1], bool); keepc[c0_[ab_]:c0_[ab_] + ncol[ab_]] = True
         R2[np.ix_(new, ~keepc)] = np.nan
-        if os.environ.get('BB_PN', '1' if sp.get('pn') else '0') == '1' and new.any():
+        if ROWS and new.any():
+            R2[new] = row_snap(V, np.vstack([pcs[b] for b in sorted(set(bands))]), Sp, arc, R2[new], A2[new])
+        elif os.environ.get('BB_PN', '1' if sp.get('pn') else '0') == '1' and new.any():
             R2[new] = pn_lift(V, np.vstack([pcs[b] for b in sorted(set(bands))]), N, R2[new])
         assert int((~new).sum()) == len(R), (int((~new).sum()), len(R)); R2[~new] = R
         nanf = np.isnan(R2[new][..., 0]).mean() if new.any() else 0
@@ -622,8 +863,10 @@ def build(car, out, which='rear'):
     keep = A > 1e-6
     A_ = np.r_[-A[keep][::-1], A]; R_ = np.r_[(R[keep] * MIR)[::-1], R]
     ab = sp['anchor_band']; anchor = int(np.cumsum([0] + [n - 1 for n in ncol])[ab] + ncol[ab] // 2)     # a point on the upper face
-    lam0 = None
-    if ext > 0:     # the smoothing strength from the main rows (the partial rows' noise would pull it to its floor)
+    # 25 Nov: the front bumper's rows smoothed harder along the sweep (lam 1e-5; the normal-residual search stopped at
+    # 1e-8): the PN-lifted sections' station-to-station jitter showed as blotches round the corner; same accuracy
+    lam0 = float(os.environ['BB_LAM']) if os.environ.get('BB_LAM') else sp.get('lam')
+    if ext > 0 and lam0 is None:     # the smoothing strength from the main rows (the partial rows' noise would pull it to its floor)
         km = np.abs(A_) <= A[N_MAIN - 1] + 1e-9
         lam0 = HB.smooth_rows_local(A_[km], R_[km], spacing=float(os.environ.get('BB_SPACING', 0.03)), col=anchor, nrm_rms=1e-4, nrm_p99=4e-4)[3]
     fsm, nrms, nmax_, lam = HB.smooth_rows_local(A_, R_, spacing=float(os.environ.get('BB_SPACING', 0.03)), col=anchor,
