@@ -19,36 +19,42 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import panel_fit as PF, bumper_build as BB, rearband_build as RB
 
-Z_CLIP = float(os.environ.get('FB_ZCLIP', -0.5))            # the quarter / sill clip
-PROBE = np.array([0.777, 0.55, -0.75])                      # on the flat face ahead of the arch, below the ledge's rear end
+# two such bands (25 Nov): the quarter's ahead of the rear arch ('rear') and the front wing's behind the front arch
+# ('wing': the same profile mirrored - body line, cove, knee, ledge, tuck-under - between the arch and the door).
+# zc: the quarter / wing clip plane (the sill / door side is cut off there), keep = side of it that is this band's
+SIDES = dict(rear=dict(name='fband', zwin=(-1.2, -0.3), zc=-0.5, keep=-1.0, probe=(0.777, 0.55, -0.75)),
+             wing=dict(name='wband', zwin=(0.3, 1.3), zc=0.62, keep=1.0, probe=(0.777, 0.55, 0.75)))
+SIDE = os.environ.get('FB_SIDE', 'rear')
 
 
 _CAND = {}
-def candidates(car):
+def candidates(car, side=None):
     """(V, F, N, B): raw hatch-free GEO_body (as rearband_build.candidates) and the front band's triangles: piece 0
     (the side skin) reaching below Y_TOP, centroid ahead of z -1.2, left side, the connected part round PROBE"""
-    if car in _CAND: return _CAND[car]
+    sd = SIDES[side or SIDE]; key = (car, side or SIDE)
+    if key in _CAND: return _CAND[key]
     V, F, N, _ = RB.candidates(car)
     pcs = PF.crease_pieces(V, F, N, deg=20.0)
     probe = np.array([0.55, 0.56, -2.085])
     P0 = min(pcs[:5], key=lambda p: np.linalg.norm(V[p].mean(1) - probe, axis=1).min())
     T = V[P0]; c = T.mean(1)
-    Q = P0[(c[:, 0] > 0) & (T[:, :, 1].min(1) < RB.Y_TOP - 1e-6) & (c[:, 2] > -1.2) & (c[:, 2] < -0.3)]
+    Q = P0[(c[:, 0] > 0) & (T[:, :, 1].min(1) < RB.Y_TOP - 1e-6) & (c[:, 2] > sd['zwin'][0]) & (c[:, 2] < sd['zwin'][1])]
     comps = PF.components(V, Q)[0]
-    B = min(comps, key=lambda k: np.linalg.norm(V[np.unique(k)] - PROBE, axis=1).min())
-    _CAND[car] = (V, F, N, B)
-    return _CAND[car]
+    B = min(comps, key=lambda k: np.linalg.norm(V[np.unique(k)] - np.array(sd['probe']), axis=1).min())
+    _CAND[key] = (V, F, N, B)
+    return _CAND[key]
 
 
-def owned(car):
-    return candidates(car)[3]
+def owned(car, side=None):
+    return candidates(car, side)[3]
 
 
 def region(car):
     """the band's triangles cut on y = Y_TOP (below kept) and z = Z_CLIP (behind kept): (V, F, N)"""
     V, F, N, B = candidates(car)
     Vb, Fb, Nb = BB.clip_tris(V, B, N, np.array([0.0, RB.Y_TOP, 0.0]), np.array([0.0, 1.0, 0.0]), 0.0)
-    Vb, Fb, Nb = BB.clip_tris(Vb, Fb, Nb, np.array([0.0, 0.0, Z_CLIP]), np.array([0.0, 0.0, 1.0]), 0.0)
+    sd = SIDES[SIDE]
+    Vb, Fb, Nb = BB.clip_tris(Vb, Fb, Nb, np.array([0.0, 0.0, sd['zc']]), np.array([0.0, 0.0, -sd['keep']]), 0.0)
     return Vb, Fb, Nb
 
 
@@ -81,13 +87,13 @@ def clean(E):
 def rows_of(car, verbose=True):
     """Kunos's vertex rows of the (uncut) band, each one fair curve: [(y_median, fx(z), fy(z), n, z range)]"""
     V, F, N, B = candidates(car)
-    Sp = np.c_[np.full(200, 0.78), np.zeros(200), np.linspace(-1.2, -0.3, 200)]
+    Sp = np.c_[np.full(200, 0.78), np.zeros(200), np.linspace(*SIDES[SIDE]['zwin'], 200)]
     arc = np.r_[0, np.cumsum(np.linalg.norm(np.diff(Sp, axis=0), axis=1))]
     rows = RB.vertex_rows_mutual(V, B, Sp, arc, min_n=2, top_y=9.0)
-    dom = [-1.2, -0.3]
+    dom = list(SIDES[SIDE]['zwin'])
     out = []
     for r in rows:
-        z = r[:, 0] - 1.2; x = r[:, 2] + 0.78; y = r[:, 1]
+        z = r[:, 0] + SIDES[SIDE]['zwin'][0]; x = r[:, 2] + 0.78; y = r[:, 1]
         if len(r) == 2 and np.ptp(x) > 1e-3: continue                     # a diagonal pair at the ledge's end: not a row
         if np.median(y) > RB.Y_TOP + 1e-3: continue
         n = int(np.clip(np.ptp(z) / 0.08, 1, 6))
@@ -127,7 +133,7 @@ def ev(f, z):
 def build(car, out):
     Vb, Fb, Nb = region(car)
     T = Vb[Fb]; A_ = np.linalg.norm(np.cross(T[:, 1] - T[:, 0], T[:, 2] - T[:, 0]), axis=1).sum() / 2
-    print(f'front band: {len(owned(car))} Kunos triangles -> {len(Fb)} after the cuts (y {RB.Y_TOP:.4f}, z {Z_CLIP}); area {A_ * 1e4:.0f} cm2; '
+    print(f'{SIDE} band: {len(owned(car))} Kunos triangles -> {len(Fb)} after the cuts (y {RB.Y_TOP:.4f}, z {SIDES[SIDE]['zc']}); area {A_ * 1e4:.0f} cm2; '
           f'y {Vb[:, 1].min():.3f}..{Vb[:, 1].max():.3f} z {Vb[:, 2].min():.3f}..{Vb[:, 2].max():.3f}', flush=True)
     R = rows_of(car)
     for _, fx, fy, n, zr in R:
@@ -163,7 +169,7 @@ def build(car, out):
         G.append(Gz)
     G = np.array(G)
     print(f'grid: {G.shape[0]} stations (z {z0:.3f}..{z1:.3f}) x {G.shape[1]} columns', flush=True)
-    res = [dict(name='fband:L', maxlen=float(os.environ.get('FB_MAXLEN', 6)), structured=False, grid=(G * 1000).tolist(),
+    res = [dict(name=SIDES[SIDE]['name'] + ':L', maxlen=float(os.environ.get('FB_MAXLEN', 6)), structured=False, grid=(G * 1000).tolist(),
                 trim=(E * 1000).tolist(), trim_any=True, holes=[(H * 1000).tolist() for H in HL], frame=[[0, 0, 0], [0, 0, 1], [0, 1, 0], [1.0, 0, 0]])]
     os.makedirs(out, exist_ok=True)
     json.dump(res, open(os.path.join(out, 'panels_fit.json'), 'w'))
