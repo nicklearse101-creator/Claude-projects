@@ -433,3 +433,5 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
 - Then: original ford_escort_mk2_tuned gets the same realistic curve - power_dtm.lut copied from the 15" acd
   (acd_patch.put_file; backup data.acd.BACKUP_20261125_2159; copy in export/power_dtm_realistic.lut). Original's ui_car.json
   untouched. Not driven yet.
+- 22:10 Nik: backfire sound back at half the old volume - pool restored (ext 1.8 -> 0.9, int 1.2 -> 0.6), a pop with 70 %
+  of the cylinder flames (min 70 ms apart). Backup D:/ClaudeData/tmp/kadett/exhaust_flames.lua.BACKUP_before_backfire_half_*.

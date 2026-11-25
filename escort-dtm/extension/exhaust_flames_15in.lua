@@ -8,7 +8,7 @@ local root = ac.findNodes("carRoot:" .. car.index)
 -- 25 Nov (Nik): one flame per cylinder - each of the 8 bonnet stacks has its own flame meshes KK_flame_<L|R><stack>_<len>
 -- (stack 1..4 front to back, len 1..3), so pops come from single cylinders in Rover V8 firing order 1-8-4-3-6-5-7-2
 -- (odd cylinders = left bank front to back, even = right bank), never a whole bank at once. Backfire sound removed
--- (Nik: it hid too much of the engine).
+-- (Nik: it hid too much of the engine); back at half volume 22:10.
 local FIRING = { 1, 8, 4, 3, 6, 5, 7, 2 }
 local STACK = {}                                   -- cylinder -> { length meshes 1..3 }
 local flameMeshes = {}
@@ -31,6 +31,16 @@ local function setColour(c)
   end
 end
 local BF_POS = vec3(0, 0.73, 1.31)                       -- between the bonnet stacks (car space)
+-- backfire pops with the flames: the car's own soundbank events, a small pool so pops can overlap.
+-- 25 Nov 22:10 (Nik): back in at HALF the old volume (was ext 1.8 / int 1.2)
+local bfExt, bfInt, bfi, lastPop = {}, {}, 1, 0
+for i = 1, 4 do
+  bfExt[i] = ac.AudioEvent("cars/:own/backfire_ext", true)
+  bfExt[i].volume = 0.9; bfExt[i].cameraInteriorMultiplier = 0; bfExt[i]:setPosition(BF_POS)
+  bfInt[i] = ac.AudioEvent("cars/:own/backfire_int", true)
+  bfInt[i].volume = 0.6; bfInt[i].cameraExteriorMultiplier = 0; bfInt[i].cameraTrackMultiplier = 0
+  bfInt[i].cameraInteriorMultiplier = 1; bfInt[i]:setPosition(BF_POS)
+end
 -- doorless cockpit (24 Nov): the exterior engine sound also plays quietly in the cockpit, from the bonnet stacks,
 -- so you hear the open exhaust directly as well as the soundbank's interior (closed-car) recording
 local OPEN_VOL = 0.35                                  -- was 0.45 (Nik: cockpit engine a touch quieter)
@@ -40,6 +50,12 @@ openExh.volume = OPEN_VOL
 openExh:setPosition(BF_POS)
 
 local clock = 0
+local function pop()
+  if clock - lastPop < 0.07 then return end
+  lastPop = clock
+  bfExt[bfi].pitch = 0.9 + math.random() * 0.25; bfExt[bfi]:start(); bfInt[bfi]:start()
+  bfi = bfi % 4 + 1
+end
 
 -- doorless car: keep the door nodes hidden (their animations would otherwise bring them back in game)
 local doors = root:findNodes("DOOR_L"):append(root:findNodes("DOOR_R"))
@@ -88,6 +104,7 @@ function script.update(dt)
       if math.random() < (greenBurst and 0.6 or 0.45) then
         life[c] = 0.04 + math.random() * 0.08
         len[c] = greenBurst and math.random(1, 2) or math.random(1, 3)
+        if math.random() < 0.7 then pop() end
       end
     end
   end
