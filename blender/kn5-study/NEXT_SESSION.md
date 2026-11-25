@@ -673,3 +673,13 @@ Full detail is in git history and `ACHIEVEMENTS_REPORT.md` section 7.
 - Groove ends r20/r21: corner fills clipped on the last-station plane, right = mirror, dense Coons sides (`dense`). Meets the end face exactly; groove bottom between the two fills still 0.35-0.7 mm.
 - Picture: images/rear_bumper_v2_grey.png. Close-up at the arch end shows REAL slits left: between the arch-edge return strips and the end face r0eL (white wedges, row 3 of the picture), plus a dark seam line along the lip. NEXT: those arch-end slits (ourholes.py-style check: our open edges where Kunos is closed, D:/ClaudeData/tmp/bumper/ourholes.py), then front bumper, then sills.
 - Long runs: always `timeout` + a Monitor watchdog (a FreeCAD run hung 15 min on a MEFISTO mesher failure unnoticed).
+
+## 25 Nov evening
+- Tail plate panel: arc-length columns up to 80 + lam 1e-5 (SPEC tail ncmax/lam): its lower round 3.0 -> 1.6 mm worst,
+  plate panel 89.1 -> 93.6 % within 1 mm. Same on the front bumper made it worse (95.1 -> 94.2): not used.
+- Front wing groove (the 'raised band'): really a groove 7.5 mm deep (upper ridge y 0.637, bottom 0.606, lower ridge
+  0.575). The wing's panel fit had it 3 mm shallow. The wing band (frontband_build.py, FB_SIDE=wing) now reaches up to
+  y 0.65 (FB_WING_YTOP; 0.655-0.67 pinch the outline into several loops) -> groove within 0.5 mm. assemble.py drops wing
+  triangles wholly inside the band's outline (side view) - wing box 95.8 % of Kunos vertices within 1 mm.
+- LEFT on the wing: the groove's chamfered front end by the arch is still the wing's soft surface; a faint seam along
+  the band's top edge.

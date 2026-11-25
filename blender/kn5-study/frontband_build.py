@@ -23,7 +23,9 @@ import panel_fit as PF, bumper_build as BB, rearband_build as RB
 # ('wing': the same profile mirrored - body line, cove, knee, ledge, tuck-under - between the arch and the door).
 # zc: the quarter / wing clip plane (the sill / door side is cut off there), keep = side of it that is this band's
 SIDES = dict(rear=dict(name='fband', zwin=(-1.2, -0.3), zc=-0.5, keep=-1.0, probe=(0.777, 0.55, -0.75)),
-             wing=dict(name='wband', zwin=(0.3, 1.3), zc=0.62, keep=1.0, probe=(0.777, 0.55, 0.75), flat=(0.65, 0.78)))
+             wing=dict(name='wband', zwin=(0.3, 1.3), zc=0.62, keep=1.0, probe=(0.777, 0.55, 0.75), flat=(0.65, 0.78), ytop=float(os.environ.get('FB_WING_YTOP', 0.65))))
+# ytop (wing, 25 Nov): the band reaches over the whole groove (upper ridge y 0.637, bottom 0.606, lower ridge 0.575: 7.5 mm
+# deep, its ridges 1-2 mm radius) - the wing's panel fit had it as one approxSurface 3 mm shallow, ridges 1.5 mm low
 # 'flat' (wing): the side skin behind the front arch is ONE Kunos piece with the arch FLARE (15-30 mm proud, rows jump
 # out at z 0.80-0.86) - the band = only the triangles on the flat profile: every vertex within FB_FLAT_TOL of x(y),
 # the profile taken from Kunos's vertices in the clearly flat stretch z flat[0]..flat[1]
@@ -41,7 +43,7 @@ def candidates(car, side=None):
     probe = np.array([0.55, 0.56, -2.085])
     P0 = min(pcs[:5], key=lambda p: np.linalg.norm(V[p].mean(1) - probe, axis=1).min())
     T = V[P0]; c = T.mean(1)
-    Q = P0[(c[:, 0] > 0) & (T[:, :, 1].min(1) < RB.Y_TOP - 1e-6) & (c[:, 2] > sd['zwin'][0]) & (c[:, 2] < sd['zwin'][1])]
+    Q = P0[(c[:, 0] > 0) & (T[:, :, 1].min(1) < sd.get('ytop', RB.Y_TOP) - 1e-6) & (c[:, 2] > sd['zwin'][0]) & (c[:, 2] < sd['zwin'][1])]
     if sd.get('flat'):
         u = np.unique(Q); X = V[u]; m = (X[:, 2] > sd['flat'][0]) & (X[:, 2] < sd['flat'][1])
         yb = np.round(X[m, 1] / 0.002); prof = {}
@@ -63,7 +65,7 @@ def owned(car, side=None):
 def region(car):
     """the band's triangles cut on y = Y_TOP (below kept) and z = Z_CLIP (behind kept): (V, F, N)"""
     V, F, N, B = candidates(car)
-    Vb, Fb, Nb = BB.clip_tris(V, B, N, np.array([0.0, RB.Y_TOP, 0.0]), np.array([0.0, 1.0, 0.0]), 0.0)
+    Vb, Fb, Nb = BB.clip_tris(V, B, N, np.array([0.0, SIDES[SIDE].get('ytop', RB.Y_TOP), 0.0]), np.array([0.0, 1.0, 0.0]), 0.0)
     sd = SIDES[SIDE]
     Vb, Fb, Nb = BB.clip_tris(Vb, Fb, Nb, np.array([0.0, 0.0, sd['zc']]), np.array([0.0, 0.0, -sd['keep']]), 0.0)
     return Vb, Fb, Nb
@@ -100,13 +102,15 @@ def rows_of(car, verbose=True):
     V, F, N, B = candidates(car)
     Sp = np.c_[np.full(200, 0.78), np.zeros(200), np.linspace(*SIDES[SIDE]['zwin'], 200)]
     arc = np.r_[0, np.cumsum(np.linalg.norm(np.diff(Sp, axis=0), axis=1))]
-    rows = RB.vertex_rows_mutual(V, B, Sp, arc, min_n=2, top_y=9.0)
+    yt0 = RB.Y_TOP; RB.Y_TOP = SIDES[SIDE].get('ytop', yt0)        # (it clamps rows at RB.Y_TOP)
+    try: rows = RB.vertex_rows_mutual(V, B, Sp, arc, min_n=2, top_y=9.0)
+    finally: RB.Y_TOP = yt0
     dom = list(SIDES[SIDE]['zwin'])
     out = []
     for r in rows:
         z = r[:, 0] + SIDES[SIDE]['zwin'][0]; x = r[:, 2] + 0.78; y = r[:, 1]
         if len(r) == 2 and np.ptp(x) > 1e-3: continue                     # a diagonal pair at the ledge's end: not a row
-        if np.median(y) > RB.Y_TOP + 1e-3: continue
+        if np.median(y) > SIDES[SIDE].get('ytop', RB.Y_TOP) + 1e-3: continue
         n = int(np.clip(np.ptp(z) / 0.08, 1, 6))
         if os.environ.get('FB_ROWFIT', 'interp') == 'interp' and len(r) >= 2:
             # through the row's vertices (straight between them, as Kunos's edges; ends held): the rows ARE straight
@@ -144,7 +148,7 @@ def ev(f, z):
 def build(car, out):
     Vb, Fb, Nb = region(car)
     T = Vb[Fb]; A_ = np.linalg.norm(np.cross(T[:, 1] - T[:, 0], T[:, 2] - T[:, 0]), axis=1).sum() / 2
-    print(f'{SIDE} band: {len(owned(car))} Kunos triangles -> {len(Fb)} after the cuts (y {RB.Y_TOP:.4f}, z {SIDES[SIDE]['zc']}); area {A_ * 1e4:.0f} cm2; '
+    print(f'{SIDE} band: {len(owned(car))} Kunos triangles -> {len(Fb)} after the cuts (y {SIDES[SIDE].get('ytop', RB.Y_TOP):.4f}, z {SIDES[SIDE]['zc']}); area {A_ * 1e4:.0f} cm2; '
           f'y {Vb[:, 1].min():.3f}..{Vb[:, 1].max():.3f} z {Vb[:, 2].min():.3f}..{Vb[:, 2].max():.3f}', flush=True)
     R = rows_of(car)
     for _, fx, fy, n, zr in R:
@@ -184,7 +188,7 @@ def build(car, out):
                 trim=(E * 1000).tolist(), trim_any=True, holes=[(H * 1000).tolist() for H in HL], frame=[[0, 0, 0], [0, 0, 1], [0, 1, 0], [1.0, 0, 0]])]
     os.makedirs(out, exist_ok=True)
     json.dump(res, open(os.path.join(out, 'panels_fit.json'), 'w'))
-    np.savez(os.path.join(out, 'band_grid.npz'), grid=G, outline=E)
+    np.savez(os.path.join(out, 'band_grid.npz'), grid=G, outline=E, **{f'hole{i}': H for i, H in enumerate(HL)})
     print('saved', os.path.join(out, 'panels_fit.json'))
 
 

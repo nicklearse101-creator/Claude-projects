@@ -19,6 +19,7 @@ PARTS = {
     'tail': ['tail/build.npz'],
     'rearband': ['rearband/build.npz'],
     'frontband': ['frontband/build.npz'],
+    'wingband': ['wingband/build.npz'],
     'frontbumper': ['frontbumper/build.npz'],
     'rearbumper': ['rearbumper/build.npz'],
 }
@@ -42,6 +43,16 @@ def load_any(p):
     return np.concatenate(Ps), np.concatenate(Fs), np.concatenate(Ns)
 
 
+def inside(poly, Q):
+    """points Q (k x 2) inside the closed polygon poly (n x 2): even-odd ray casting"""
+    a, b = poly, np.roll(poly, -1, axis=0); r = np.zeros(len(Q), bool)
+    for (x0, y0), (x1, y1) in zip(a, b):
+        c = (y0 > Q[:, 1]) != (y1 > Q[:, 1])
+        xi = x0 + (Q[:, 1] - y0) * (x1 - x0) / ((y1 - y0) if y1 != y0 else 1e-12)
+        r ^= c & (Q[:, 0] < xi)
+    return r
+
+
 def vnormals(P, F):
     n = np.zeros_like(P); t = np.cross(P[F[:, 1]] - P[F[:, 0]], P[F[:, 2]] - P[F[:, 0]])
     for c in range(3): np.add.at(n, F[:, c], t)
@@ -58,6 +69,15 @@ def main():
         if not got: print(f'{part:12s} MISSING'); continue
         P = np.concatenate([g[0] for g in got]); F = np.concatenate([g[1] + sum(len(h[0]) for h in got[:j]) for j, g in enumerate(got)])
         N = np.concatenate([g[2] for g in got])
+        if part == 'wing' and os.path.exists(os.path.join(R, 'wingband/band_grid.npz')) and os.path.exists(os.path.join(R, 'wingband/build.npz')):
+            # the wing band (frontband_build.py wing side, 25 Nov) replaces the wing's faces over its footprint: wing
+            # triangles whose centroid lies inside the band's outline (side view, z-y) and outside its holes are dropped
+            bg = np.load(os.path.join(R, 'wingband/band_grid.npz')); E = bg['outline']
+            # (only triangles wholly inside: on the edge the two overlap by part of a triangle - no sawtooth gap)
+            iv = inside(E[:, [2, 1]], P[:, [2, 1]]) & (P[:, 0] > 0.6)
+            for k in [k for k in bg.files if k.startswith('hole')]: iv &= ~inside(bg[k][:, [2, 1]], P[:, [2, 1]])
+            inn = iv[F].all(1)
+            F = F[~inn]; print(f'wing: {inn.sum()} triangles under the wing band dropped')
         if (np.linalg.norm(N, axis=1) < 0.5).any(): N = vnormals(P, F)
         left_only = P[:, 0].min() > -0.05
         if left_only:                                    # mirror: x -> -x, winding flipped
