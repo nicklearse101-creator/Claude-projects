@@ -61,3 +61,4 @@ Other confirmed write-ups in this repo: `tools/ac-wiper/` (wiper report + proven
 - [Watch long runs myself](preferences/feedback-watch-long-runs.md) — every long background run: timeout + Monitor for stall (log quiet 5 min) / errors / finish; Nik had to ask about a 15-min hang (17 Nov)
 - [Research agents on Sonnet](preferences/feedback-sonnet-for-research.md) — spawn research/search subagents with model "sonnet" (cheaper); Opus keeps judgement + code (Nik 18 Nov)
 - [Kit edge fixes: measure first](preferences/feedback-kit-edge-fixes.md) — small fit fixes should be quick: print the local vertices/gaps + toggle parts before changing anything; v43 recipe (Nik 23 Nov)
+- [AC: native way first](preferences/feedback-ac-native-first.md) — ksanim/ext_config + check how installed mods do it BEFORE Lua hacks (horn gesture, 25 Nov)
