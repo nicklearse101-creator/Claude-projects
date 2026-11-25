@@ -383,3 +383,13 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
   order); red crinkle = v8_red_d + v8_crinkle_nm, block = v8_crinkle_black, heads = v8_cast_alu, trumpets/lettering =
   NICK3_alloy, leads = KK_fog_lens_col (yellow), braid = v8_alu_d. LESSON: don't add textures to this kn5 - reuse existing.
   Installed. Not seen in game.
+
+## 25 Nov 08:00 - 15" car: horn = arm out of the window + middle finger
+- driver_70 rig: RIG_Arm/ForeArm/HAND_L etc, NO finger bones (hand = gripping fist). kk15l_finger.py -> escort15_v16:
+  KK_finger (glove-dark capsule, 18 x 80 mm, along AC +Z at the origin, kn5 active 0, bumperFrame_radiator - no new texture).
+- extension/horn_gesture.lua ([SCRIPT_...] in ext_config): while car.hornActive, eases (dt*10) the left upper arm toward
+  out-of-the-window (out 0.85, up 0.05, fwd 0.2) and the forearm up (up 0.92, out 0.25), rotating world matrices about the
+  joints and writing locals (world x parentWorld^-1); KK_finger placed 70 mm up from the wrist along the forearm with
+  mat4x4.look, shown when the pose is > 60 % up. Outward side = sign of (shoulder - car.position) . car.side.
+- Texture list unchanged (196). Installed (backup live15_backup_before_finger_*). NOT seen in game - bone axes/order of
+  AC's driver animation vs the car script are unverified.
