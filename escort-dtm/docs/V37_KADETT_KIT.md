@@ -393,3 +393,9 @@ tools/blender/kk_v50.py on the v49 blend -> escort_v50 vfd.blend, kk_v50_export.
   mat4x4.look, shown when the pose is > 60 % up. Outward side = sign of (shoulder - car.position) . car.side.
 - Texture list unchanged (196). Installed (backup live15_backup_before_finger_*). NOT seen in game - bone axes/order of
   AC's driver animation vs the car script are unverified.
+- 19:35 Nik: arm comes out but jittery/flickery/intermittent, no finger seen (it was buried 70 mm up the hand), hand open.
+  horn_gesture.lua v2: game-pose cache (each touched bone's local refreshed only when the game rewrites it - never
+  building on our own output); world maths from RIG_Clave_L world (never written) down Arm -> ForeArm -> ForeArm_END -> HAND;
+  the rig DOES have finger joints (HAND_Index/Middle/Ring/Pinkie1..6, thumbs HAND_L/R_Thumb): the left hand's middle joints
+  get identity rotation (straight) when the arm is > 50 % up, others keep the curled grip; restored on release. KK_finger
+  kept hidden (unused). Not seen in game.
