@@ -25,7 +25,11 @@ import panel_fit as PF, bumper_build as BB, rearband_build as RB
 SIDES = dict(rear=dict(name='fband', zwin=(-1.2, -0.3), zc=-0.5, keep=-1.0, probe=(0.777, 0.55, -0.75)),
              wing=dict(name='wband', zwin=(0.3, 1.3), zc=0.62, keep=1.0, probe=(0.777, 0.55, 0.75), flat=(0.65, 0.78), ytop=float(os.environ.get('FB_WING_YTOP', 0.65)),
                        wall=tuple(float(v) for v in (os.environ.get('FB_WALL') or '0.55,1.0,0.025').split(',')) if os.environ.get('FB_WALL', '0') != '0' else None,
-                       cut=[(0.555, 0.899), (0.5794, 0.899), (0.6044, 0.9017), (0.6086, 0.9059), (0.6351, 0.9566), (0.638, 0.962), (0.66, 0.97)]))
+                       end=dict(A=(0.9566, 0.6351), C=(0.9059, 0.6086), B=(0.8990, 0.5794))))
+# end (wing, 26 Nov): Kunos's groove END = three vertices (z, y): A the upper ridge's end, B the lower ridge's end, C the
+# groove bottom's end. The upper flank stops on C-A, the lower flank on B-C; the end face is the flat triangle A-B-C;
+# the outer skin (the wing's) starts on A-B. Band trimmed exactly on B-C-A, the end face built between the band's edge
+# and the wing's surface along A-B (assemble.py), the wing clipped exactly on A-B and the band's outline.
 # ytop (wing, 25 Nov): the band reaches over the whole groove (upper ridge y 0.637, bottom 0.606, lower ridge 0.575: 7.5 mm
 # deep, its ridges 1-2 mm radius) - the wing's panel fit had it as one approxSurface 3 mm shallow, ridges 1.5 mm low
 # 'flat' (wing): the side skin behind the front arch is ONE Kunos piece with the arch FLARE (15-30 mm proud, rows jump
@@ -93,7 +97,7 @@ def outline(Vb, Fb, holes=False):
     return clean(np.array([pos[int(w)] for w in L]))
 
 
-def clean(E):
+def clean(E, step=0.01):
     # the cuts leave points 0.1 mm apart (a self-touching wire in FreeCAD: trim invalid): merge points < 1 mm apart;
     # long chords (the cuts, 120 mm) densified every 10 mm so the (u, v) polyline follows the surface
     keep = [E[0]]
@@ -102,7 +106,7 @@ def clean(E):
     if np.linalg.norm(keep[-1] - keep[0]) < 1e-3: keep.pop()
     E = np.array(keep); out = []
     for a, b in zip(E, np.roll(E, -1, axis=0)):
-        k = max(1, int(np.ceil(np.linalg.norm(b - a) / 0.01)))
+        k = max(1, int(np.ceil(np.linalg.norm(b - a) / step)))
         out += [a + (b - a) * t for t in np.arange(k) / k]
     return np.array(out)
 
@@ -121,12 +125,24 @@ def rows_of(car, verbose=True):
         z = r[:, 0] + SIDES[SIDE]['zwin'][0]; x = r[:, 2] + 0.78; y = r[:, 1]
         if len(r) == 2 and np.ptp(x) > 1e-3: continue                     # a diagonal pair at the ledge's end: not a row
         if np.median(y) > SIDES[SIDE].get('ytop', RB.Y_TOP) + 1e-3: continue
+        if SIDES[SIDE].get('ytop') and os.environ.get('FB_TOPROW', '1') == '1' and np.median(y) > 0.641: continue   # (wing) above the ridge: the top row is Kunos's skin (below); vertex 'rows' there link two heights (0.650-0.676)   # (wing) a 'row' wandering in height (0.650-0.676: vertices of two heights linked) - not a row
         n = int(np.clip(np.ptp(z) / 0.08, 1, 6))
         if os.environ.get('FB_ROWFIT', 'interp') == 'interp' and len(r) >= 2:
             # through the row's vertices (straight between them, as Kunos's edges; ends held): the rows ARE straight
             # lines along the car except where the cove turns out into the arch edge over its last 17 mm (x 767 ->
             # 773) - a fair spline (and its outlier rejection) dropped that turn: 6 mm off
             o = np.argsort(z); zq, xq, yq = z[o], x[o], y[o]
+            if SIDES[SIDE].get('end') and os.environ.get('FB_END', '1') == '1':
+                # (wing) the groove's rows end ON the end line B-C-A: vertices past it are the end face's own corners
+                # (604: 905.2 mm, 1 mm proud) - in the row they kinked it (a streak down the flank)
+                past = end_past(zq, yq)
+                if past.any() and (~past).sum() >= 2: zq, xq, yq = zq[~past], xq[~past], yq[~past]
+            if SIDES[SIDE].get('ytop') and os.environ.get('FB_ROWEXT', '1') == '1' and 0.45 < np.median(y) < 0.574:
+                # (wing) a row stopping short of the band's front edge (below the lower ridge, near the arch): on over
+                # the band's OWN Kunos triangles at its height, 8 mm steps, until they end (carried flat it sat 1.4 mm in)
+                ze = np.arange(zq[-1] + 0.008, 1.1, 0.008); xe = x_on(V, B, np.full(len(ze), np.median(y)), ze)
+                k_ = np.argmax(~np.isfinite(xe)) if (~np.isfinite(xe)).any() else len(ze)
+                if k_: zq, xq, yq = np.r_[zq, ze[:k_]], np.r_[xq, xe[:k_]], np.r_[yq, np.full(k_, np.median(y))]
             if os.environ.get('FB_WALL_ROWS', '0') == '1' and SIDES[SIDE].get('wall') and np.median(y) > SIDES[SIDE]['wall'][0] + 0.03:
                 # past the row's front end: Kunos's own surface at the row's height (the groove's end wall, then the
                 # flare skin), every 8 mm up to the wall zone's end - the loft climbs the wall instead of carrying on
@@ -150,10 +166,51 @@ def rows_of(car, verbose=True):
             nn = int(os.environ.get('FB_ROWN', 0)) or int(np.clip(len(r), 4, 10))
             fx = PF.fit_func(z, x, dom, tol=0.1e-3, nmax=nn); fy = PF.fit_func(z, y, dom, tol=0.1e-3, nmax=nn)
         out.append((float(np.median(y)), fx, fy, len(r), (float(z.min()), float(z.max()))))
+    if SIDES[SIDE].get('ytop') and os.environ.get('FB_TOPROW', '1') == '1':
+        # (wing, 26 Nov) the top edge row: Kunos's own surface at y = ytop (big flat triangles above the ridge), every
+        # 10 mm over the ridge rows' length - the band's top edge then lies ON Kunos's skin
+        yt = SIDES[SIDE]['ytop']; zz = np.arange(SIDES[SIDE]['zwin'][0], SIDES[SIDE]['zwin'][1], 0.01)
+        xx = x_on(V, F, np.full(len(zz), yt), zz)
+        ok = np.isfinite(xx) & (xx > 0.7)
+        if ok.sum() >= 3:
+            out.append((yt, ('i', zz[ok], xx[ok]), ('c', yt), int(ok.sum()), (float(zz[ok].min()), float(zz[ok].max()))))
+            print(f'top row: Kunos skin at y {yt:.3f}, z {zz[ok].min():.2f}..{zz[ok].max():.2f}', flush=True)
     out.sort(key=lambda t: t[0])
     if verbose:
         print(f'rows: {len(out)} (' + ', '.join(f'{t[0] * 1e3:.0f}' for t in out) + ')', flush=True)
     return out
+
+
+def groove_end(E):
+    """the band outline (3D, m) cut exactly on the groove end B-C-A; returns dict(band=(z, y) polygon, wing=(z, y)
+    polygon the wing is clipped by (B-A straight instead of B-C-A), band3d=outline points with x to be set later)"""
+    sys.path.append(r'D:\ClaudeData\pylibs')
+    from shapely.geometry import Polygon
+    from shapely import make_valid
+    en = SIDES[SIDE]['end']; A, B, C = (np.array(en[k]) for k in 'ABC')
+    P = make_valid(Polygon(E[:, [2, 1]]))
+    # the strip over the groove (B.y up to the band's top), z 0.75..1.0, is the band's up to the end: Kunos's piece
+    # outline there is a ragged edge of whole triangles (the skin ahead filtered out triangle by triangle)
+    yt = E[:, 1].max()
+    P = P.union(Polygon([(0.75, B[1]), (1.0, B[1]), (1.0, yt), (0.75, yt)]))
+    def keep(front):
+        return Polygon([(-1, -1), (3, -1), (3, B[1]), *front, (A[0], 1), (-1, 1)])
+    Pb = P.intersection(keep([tuple(B), tuple(C), tuple(A)]))
+    Pw = P.intersection(keep([tuple(B), tuple(A)]))
+    big = lambda g: max(getattr(g, 'geoms', [g]), key=lambda q: q.area)
+    Pb, Pw = big(Pb), big(Pw)
+    zb, yb = np.array(Pb.exterior.coords).T
+    pts = np.c_[np.full(len(zb), 0.78), yb, zb][:-1]
+    print(f'groove end: band outline cut on B-C-A ({len(pts)} points), area {Pb.area * 1e4:.0f} cm2 (wing clip {Pw.area * 1e4:.0f})', flush=True)
+    return dict(band=np.array(Pb.exterior.coords), wing=np.array(Pw.exterior.coords), band3d=clean(pts, step=0.003))
+
+
+def end_past(z, y):
+    """(wing) points (z, y) ahead of the groove end line B-C-A (by more than 0.2 mm), within its height B.y..A.y"""
+    en = SIDES[SIDE]['end']; A, B, C = (np.array(en[k]) for k in 'ABC')
+    ys = np.array([B[1], C[1], A[1]]); zs = np.array([B[0], C[0], A[0]])
+    inside_h = (y >= B[1]) & (y <= A[1])
+    return inside_h & (z > np.interp(y, ys, zs) + 2e-4)
 
 
 def x_on(V, B, y, z):
@@ -188,29 +245,40 @@ def build(car, out):
         for f in (fx, fy):
             if isinstance(f, dict): f['dom_data'] = zr
     E = outline(Vb, Fb)
-    if SIDES[SIDE].get('cut') and os.environ.get('FB_CUT', '0') == '1':
-        # (wing, 26 Nov) the groove's front end: Kunos ends it on a clean line (lower flank at z 0.90, the upper flank
-        # on a diagonal up to the ridge's end at z 0.96 - the chamfer face ahead stays the wing's). The outline (taken
-        # wider: the skin ahead included) is clamped onto that line: no jagged edge of whole Kunos triangles
-        cy, cz = np.array(SIDES[SIDE]['cut']).T
-        zc = np.where(E[:, 1] >= cy[0], np.interp(E[:, 1], cy, cz), 9.0)
-        n_ = (E[:, 2] > zc).sum(); E = E.copy(); E[:, 2] = np.minimum(E[:, 2], zc); E = clean(E)
-        print(f'outline: {n_} points clamped onto the groove end line', flush=True)
+    END = None
+    if SIDES[SIDE].get('end') and os.environ.get('FB_END', '1') == '1':
+        END = groove_end(E)
+        E = END['band3d']
     # the ledge (its own Kunos pieces, the quarter's) sits in a hole of this mesh: cut it out, so the ledge's edge strips
     # meet this band's real edge (they ran past under it: white slivers at the ledge's rear end)
     HL = outline(Vb, Fb, holes=True) if os.environ.get('FB_HOLES', '1') == '1' else []
     print(f'outline {len(E)} points, {len(HL)} holes ' + str([len(h) for h in HL]), flush=True)
     z0, z1 = E[:, 2].min() - 0.03, E[:, 2].max() + 0.03                  # stations past the region both ends
-    zs = np.linspace(z0, z1, int(np.ceil((z1 - z0) / float(os.environ.get('FB_STEP', 0.02)))) + 1)
+    zs = np.linspace(z0, z1, int(np.ceil((z1 - z0) / float(os.environ.get('FB_STEP', 0.01 if SIDES[SIDE].get('ytop') else 0.02)))) + 1)
     prof = lambda z: np.array([[ev(fx, z)[0], ev(fy, z)[0], z] for _, fx, fy, _, _ in R])
     # columns per segment between rows (fixed for the grid), from the profile at the middle station
+    FLAT = []
     Pm = prof(0.5 * (z0 + z1)); seg = np.linalg.norm(np.diff(Pm, axis=0), axis=1)
     ncol = np.maximum(1, np.ceil(seg / float(os.environ.get('FB_DS', 0.006))).astype(int))
+    if SIDES[SIDE].get('ytop') and os.environ.get('FB_TOPROW', '1') == '1':
+        # (wing) the straight span above the ridge sampled as finely as the ridge (1.5 mm): coarse columns next to the
+        # ridge's 1-2 mm rows made the surface ring 1.4 mm proud there
+        # the groove's flanks too: each a flat Kunos facet between tight ridge / bottom rows (1-2 mm apart) - a long span
+        # (> 8 mm) with a tight row (< 4 mm) at both ends is straight and finely sampled (the curve rang 1.4 mm deep)
+        yq = np.array([r_[0] for r_ in R])
+        FLAT = [len(seg) - 1] + [k for k in range(1, len(seg) - 1) if yq[k] > 0.56 and seg[k] > 0.008 and seg[k - 1] < 0.006 and seg[k + 1] < 0.006]
+        for k in FLAT: ncol[k] = max(ncol[k], int(np.ceil(seg[k] / 0.0015)))
+        print('straight spans (rows): ' + ', '.join(f'{yq[k] * 1e3:.0f}-{yq[k + 1] * 1e3:.0f}' for k in FLAT), flush=True)
     EXT = float(os.environ.get('FB_EXT', 0.004))
     G = []
     for z in zs:
         Q = prof(z)
         C = RB.catmull_rom(Q, 24)                                         # 24 samples per segment, rows included
+        if SIDES[SIDE].get('ytop') and os.environ.get('FB_TOPROW', '1') == '1':
+            # (wing) ridge -> top row: Kunos's flat facet, a straight span (the curve through the tight ridge rows
+            # overshot it by 1.3 mm: a second ridge above the groove)
+            for k_ in FLAT:
+                C[24 * k_:24 * (k_ + 1) + 1] = Q[k_] + np.linspace(0, 1, 25)[:, None] * (Q[k_ + 1] - Q[k_])
         cols = []
         for k in range(len(Q) - 1):
             S = C[24 * k:24 * (k + 1) + 1]
@@ -224,12 +292,23 @@ def build(car, out):
         Gz = np.r_[[Gz[0] + tb / np.linalg.norm(tb) * EXT], Gz, [Gz[-1] + tt / np.linalg.norm(tt) * EXT]]
         G.append(Gz)
     G = np.array(G)
+    if END is not None:
+        # the trim points' x ON the grid surface (FreeCAD maps them to (u, v) by projection: 9 mm off in the groove they
+        # would slide along it)
+        ns, nc = G.shape[:2]; ii = np.arange(ns * nc).reshape(ns, nc)
+        TG = np.r_[np.c_[ii[:-1, :-1].ravel(), ii[1:, :-1].ravel(), ii[1:, 1:].ravel()], np.c_[ii[:-1, :-1].ravel(), ii[1:, 1:].ravel(), ii[:-1, 1:].ravel()]]
+        Vg = G.reshape(-1, 3); E = E.copy(); E[:, 0] = x_on(Vg, TG, E[:, 1], E[:, 2])
+        bad = ~np.isfinite(E[:, 0])
+        if bad.any():                                    # on the grid's very edge (rounding): the nearest grid point's x
+            from scipy.spatial import cKDTree
+            E[bad, 0] = Vg[cKDTree(Vg[:, 1:]).query(E[bad, 1:])[1], 0]
+            print(f'trim: {bad.sum()} points on the grid edge (nearest grid x), max off {np.abs(E[bad, 1:] - Vg[cKDTree(Vg[:, 1:]).query(E[bad, 1:])[1], 1:]).max() * 1e3:.1f} mm', flush=True)
     print(f'grid: {G.shape[0]} stations (z {z0:.3f}..{z1:.3f}) x {G.shape[1]} columns', flush=True)
     res = [dict(name=SIDES[SIDE]['name'] + ':L', maxlen=float(os.environ.get('FB_MAXLEN', 6)), structured=False, grid=(G * 1000).tolist(),
-                trim=(E * 1000).tolist(), trim_any=True, holes=[(H * 1000).tolist() for H in HL], frame=[[0, 0, 0], [0, 0, 1], [0, 1, 0], [1.0, 0, 0]])]
+                trim=(E * 1000).tolist(), trim_any=True, tess=float(os.environ.get('FB_TESS', 0.01 if SIDES[SIDE].get('ytop') else 0.05)), holes=[(H * 1000).tolist() for H in HL], frame=[[0, 0, 0], [0, 0, 1], [0, 1, 0], [1.0, 0, 0]])]
     os.makedirs(out, exist_ok=True)
     json.dump(res, open(os.path.join(out, 'panels_fit.json'), 'w'))
-    np.savez(os.path.join(out, 'band_grid.npz'), grid=G, outline=E, **{f'hole{i}': H for i, H in enumerate(HL)})
+    np.savez(os.path.join(out, 'band_grid.npz'), grid=G, outline=E, **({'end_band': END['band'], 'end_wing': END['wing'], 'end_ABC': np.array([SIDES[SIDE]['end'][k] for k in 'ABC'])} if END is not None else {}), **{f'hole{i}': H for i, H in enumerate(HL)})
     print('saved', os.path.join(out, 'panels_fit.json'))
 
 

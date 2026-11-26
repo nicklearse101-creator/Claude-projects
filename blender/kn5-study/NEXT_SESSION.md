@@ -690,3 +690,13 @@ Full detail is in git history and `ACHIEVEMENTS_REPORT.md` section 7.
   a diagonal to the ridge end (z 0.96), a flat chamfer face ahead. NEXT TRY (if wanted): the chamfer as its own ruled
   face between the band's cut edge and the chamfer's front edge, and the wing clipped exactly on that edge (not by
   whole triangles).
+- 26 Nov (later): the groove END done properly. Kunos's end = three vertices A (ridge end z 956.6 y 635.1), B (lower
+  ridge end 899.0 / 579.4), C (groove bottom end 905.9 / 608.6). frontband_build (wing): band outline cut EXACTLY on
+  B-C-A (shapely), trim points' x on the grid surface; row vertices past the end line dropped (they kinked the rows: a
+  streak); top row = Kunos's skin at y 0.65 (the old 'row 650' linked two heights: band 3.9 mm low at its top); spans
+  between tight rows (ridge -> top, both flanks) straight + 1.5 mm columns (the curve rang 1.4 mm); 10 mm stations;
+  B-rep tessellation 0.01 (scallops on the ridge were shading only). wingend.py (assemble.py): the wing clipped
+  EXACTLY on the band outline with B-A straight (crossing triangles split, no teeth); the end face = strip between the
+  band's edge B-C-A and the wing's skin on A-B; the wing feathered onto the band's edge (arch edge above y 0.40 + top
+  seam, z > 0.705) and onto Kunos's skin along A-B, normals blended where the band borders. Profiles within ~0.5 mm
+  (1.0 max), top seam invisible, end face crisp. Left: a faint light patch beside A; the wing's own crack at y ~0.69.

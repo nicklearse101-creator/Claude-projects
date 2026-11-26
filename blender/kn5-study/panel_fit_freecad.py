@@ -115,7 +115,7 @@ for p in res:
                         # the B-rep's own tessellation, its nodes' (u, v) and the EXACT surface normals there (normals
                         # averaged from the triangles shaded a fine crinkle over the whole face, 19 Nov)
                         fq_ = face if face.ShapeType == "Face" else max(face.Faces, key=lambda f_: f_.Area); print(p["name"], "B-rep", face.ShapeType, len(face.Faces), "faces", [round(f_.Area) for f_ in face.Faces], flush=True)   # a fixed trim can come back as a one-face compound (no getUVNodes: averaged normals crinkled)
-                        pts, fc = fq_.tessellate(0.05); uvn_ = fq_.getUVNodes()
+                        pts, fc = fq_.tessellate(float(p.get("tess") or os.environ.get("PF_TESS") or 0.05)); uvn_ = fq_.getUVNodes()
                         Pm_ = np.array([[q.x, q.y, q.z] for q in pts]); fc = np.array(fc, int)
                         # getUVNodes is NOT in the points' order (a trimmed face's nodes came back shuffled: 19 Nov):
                         # each point is matched to its node by position (srf.value at the node, 1e-4 mm)

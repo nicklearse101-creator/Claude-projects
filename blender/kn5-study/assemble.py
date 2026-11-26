@@ -74,10 +74,33 @@ def main():
             # triangles whose centroid lies inside the band's outline (side view, z-y) and outside its holes are dropped
             bg = np.load(os.path.join(R, 'wingband/band_grid.npz')); E = bg['outline']
             # (only triangles wholly inside: on the edge the two overlap by part of a triangle - no sawtooth gap)
-            iv = inside(E[:, [2, 1]], P[:, [2, 1]]) & (P[:, 0] > 0.6)
-            for k in [k for k in bg.files if k.startswith('hole')]: iv &= ~inside(bg[k][:, [2, 1]], P[:, [2, 1]])
-            inn = iv[F].all(1)
-            F = F[~inn]; print(f'wing: {inn.sum()} triangles under the wing band dropped')
+            if 'end_wing' in bg.files and os.environ.get('ASM_EXACT', '1') == '1':
+                # (26 Nov) exact: the wing cut ON the band's outline (B-A straight across the groove end), crossing
+                # triangles split there; the flat end face between the band's edge B-C-A and the wing's surface on A-B
+                import wingend as WE
+                Pb_, Fb_, _ = load_any(os.path.join(R, 'wingband/build.npz'))
+                if (np.linalg.norm(N, axis=1) < 0.5).any(): N = vnormals(P, F)
+                P, F, N, n_in, n_x = WE.clip_mesh(P, F, N, bg['end_wing'])
+                # the wing feathered onto the band's edge (their surfaces met 0.3-4 mm apart: a line along the seam)
+                A_, B_ = bg['end_ABC'][0], bg['end_ABC'][2]
+                Nb_ = load_any(os.path.join(R, 'wingband/build.npz'))[2]
+                Vk_, Fk_, _ = PF.load_mesh(car, 'GEO_body', raw=True); Fk_ = Fk_[(Vk_[Fk_][:, :, 0].min(1) > 0.7) & (Vk_[Fk_][:, :, 2].min(1) > 0.85) & (Vk_[Fk_][:, :, 2].max(1) < 1.05) & (Vk_[Fk_][:, :, 1].min(1) > 0.5)]
+                if (np.linalg.norm(Nb_, axis=1) < 0.5).any(): Nb_ = vnormals(Pb_, Fb_)
+                P0_ = P; P, n_f, dmax, _ = WE.feather(P, F, bg['end_wing'], Pb_, Fb_, skip_seg=(B_, A_), ymin=0.40, zmin=0.705, seg_target=(Vk_, Fk_))   # the arch edge above y 0.40 and the top seam (Kunos continuous across both); the door shut (z 0.70), the sill end and the lip's 25 mm step low down are left
+                mv = np.abs(P[:, 0] - P0_[:, 0]) > 0
+                if mv.any(): N[mv] = vnormals(P, F)[mv]
+                _, _, _, N = WE.feather(P0_, F, bg['end_wing'], Pb_, Fb_, skip_seg=(B_, A_), ymin=0.40, zmin=0.705, N=N, Nb=Nb_, seg_target=(Vk_, Fk_))
+                print(f'wing: {n_f} vertices feathered onto the band edge (steps up to {dmax * 1e3:.2f} mm closed)')
+                Pe, Fe, Ne, gap = WE.end_face(Pb_, Fb_, P, F, bg['end_ABC'])
+                print(f'wing: {n_in} triangles under the wing band dropped, {n_x} split on its outline; end face {len(Fe)} tris (band / wing x at B, A apart {gap[0]:.2f} / {gap[1]:.2f} mm)')
+                F = np.r_[F, Fe + len(P)]; P = np.r_[P, Pe]; N = np.r_[N, Ne]
+                E = None
+            if E is None: pass
+            else:
+             iv = inside(E[:, [2, 1]], P[:, [2, 1]]) & (P[:, 0] > 0.6)
+             for k in [k for k in bg.files if k.startswith('hole')]: iv &= ~inside(bg[k][:, [2, 1]], P[:, [2, 1]])
+             inn = iv[F].all(1)
+             F = F[~inn]; print(f'wing: {inn.sum()} triangles under the wing band dropped')
         if (np.linalg.norm(N, axis=1) < 0.5).any(): N = vnormals(P, F)
         left_only = P[:, 0].min() > -0.05
         if left_only:                                    # mirror: x -> -x, winding flipped
