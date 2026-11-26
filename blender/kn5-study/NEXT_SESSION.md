@@ -683,3 +683,10 @@ Full detail is in git history and `ACHIEVEMENTS_REPORT.md` section 7.
   triangles wholly inside the band's outline (side view) - wing box 95.8 % of Kunos vertices within 1 mm.
 - LEFT on the wing: the groove's chamfered front end by the arch is still the wing's soft surface; a faint seam along
   the band's top edge.
+- 26 Nov: the groove's FRONT END tried three ways, all worse, all left OFF (defaults reproduce the 25 Nov band exactly):
+  FB_WALL=1 + FB_WALL_ROWS=1 (rows run on over Kunos's skin ahead: the flare skin is lumpy -> a blob, 86.9 %);
+  FB_WALL=1 + FB_CUT=1 (outline from the wider skin clamped on the groove-end line: the trimmed face meshes coarse
+  and blotchy, the wing's teeth show along the cut). Kunos's end = the lower flank stops at z 0.90, the upper flank on
+  a diagonal to the ridge end (z 0.96), a flat chamfer face ahead. NEXT TRY (if wanted): the chamfer as its own ruled
+  face between the band's cut edge and the chamfer's front edge, and the wing clipped exactly on that edge (not by
+  whole triangles).

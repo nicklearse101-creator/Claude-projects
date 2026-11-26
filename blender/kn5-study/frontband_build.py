@@ -23,7 +23,9 @@ import panel_fit as PF, bumper_build as BB, rearband_build as RB
 # ('wing': the same profile mirrored - body line, cove, knee, ledge, tuck-under - between the arch and the door).
 # zc: the quarter / wing clip plane (the sill / door side is cut off there), keep = side of it that is this band's
 SIDES = dict(rear=dict(name='fband', zwin=(-1.2, -0.3), zc=-0.5, keep=-1.0, probe=(0.777, 0.55, -0.75)),
-             wing=dict(name='wband', zwin=(0.3, 1.3), zc=0.62, keep=1.0, probe=(0.777, 0.55, 0.75), flat=(0.65, 0.78), ytop=float(os.environ.get('FB_WING_YTOP', 0.65))))
+             wing=dict(name='wband', zwin=(0.3, 1.3), zc=0.62, keep=1.0, probe=(0.777, 0.55, 0.75), flat=(0.65, 0.78), ytop=float(os.environ.get('FB_WING_YTOP', 0.65)),
+                       wall=tuple(float(v) for v in (os.environ.get('FB_WALL') or '0.55,1.0,0.025').split(',')) if os.environ.get('FB_WALL', '0') != '0' else None,
+                       cut=[(0.555, 0.899), (0.5794, 0.899), (0.6044, 0.9017), (0.6086, 0.9059), (0.6351, 0.9566), (0.638, 0.962), (0.66, 0.97)]))
 # ytop (wing, 25 Nov): the band reaches over the whole groove (upper ridge y 0.637, bottom 0.606, lower ridge 0.575: 7.5 mm
 # deep, its ridges 1-2 mm radius) - the wing's panel fit had it as one approxSurface 3 mm shallow, ridges 1.5 mm low
 # 'flat' (wing): the side skin behind the front arch is ONE Kunos piece with the arch FLARE (15-30 mm proud, rows jump
@@ -33,10 +35,11 @@ SIDE = os.environ.get('FB_SIDE', 'rear')
 
 
 _CAND = {}
-def candidates(car, side=None):
+def candidates(car, side=None, nowall=False):
     """(V, F, N, B): raw hatch-free GEO_body (as rearband_build.candidates) and the front band's triangles: piece 0
     (the side skin) reaching below Y_TOP, centroid ahead of z -1.2, left side, the connected part round PROBE"""
-    sd = SIDES[side or SIDE]; key = (car, side or SIDE)
+    sd = dict(SIDES[side or SIDE]); key = (car, side or SIDE, nowall)
+    if nowall: sd['wall'] = None
     if key in _CAND: return _CAND[key]
     V, F, N, _ = RB.candidates(car)
     pcs = PF.crease_pieces(V, F, N, deg=20.0)
@@ -51,7 +54,14 @@ def candidates(car, side=None):
         ky = np.array(sorted(prof)); kx = np.array([np.median(prof[k_]) for k_ in ky])
         xf = lambda y: np.interp(y / 0.002, ky, kx)
         T = V[Q]; tol = float(os.environ.get('FB_FLAT_TOL', 8e-3))
-        Q = Q[(np.abs(T[:, :, 0] - xf(T[:, :, 1])) < tol).all(1)]
+        ok = (np.abs(T[:, :, 0] - xf(T[:, :, 1])) < tol).all(1)
+        if sd.get('wall'):
+            # the groove's END WALL (26 Nov): the groove stops at a wall facing back (z ~0.90-0.94) and the skin ahead
+            # of it is the arch flare's, up to 15 mm proud of the groove - take that skin in above the lip (y > y0, z <
+            # z1), so the groove's vertex rows run on up the wall onto it (the rows carried the groove straight on)
+            y0_, z1_, tol2 = sd['wall']
+            ok |= (T[:, :, 1].min(1) > y0_) & (T[:, :, 2].max(1) < z1_) & (np.abs(T[:, :, 0] - xf(T[:, :, 1])) < tol2).all(1)
+        Q = Q[ok]
     comps = PF.components(V, Q)[0]
     B = min(comps, key=lambda k: np.linalg.norm(V[np.unique(k)] - np.array(sd['probe']), axis=1).min())
     _CAND[key] = (V, F, N, B)
@@ -99,7 +109,7 @@ def clean(E):
 
 def rows_of(car, verbose=True):
     """Kunos's vertex rows of the (uncut) band, each one fair curve: [(y_median, fx(z), fy(z), n, z range)]"""
-    V, F, N, B = candidates(car)
+    V, F, N, B = candidates(car, nowall=True)            # rows from the band's own triangles only (not the skin ahead)
     Sp = np.c_[np.full(200, 0.78), np.zeros(200), np.linspace(*SIDES[SIDE]['zwin'], 200)]
     arc = np.r_[0, np.cumsum(np.linalg.norm(np.diff(Sp, axis=0), axis=1))]
     yt0 = RB.Y_TOP; RB.Y_TOP = SIDES[SIDE].get('ytop', yt0)        # (it clamps rows at RB.Y_TOP)
@@ -117,6 +127,15 @@ def rows_of(car, verbose=True):
             # lines along the car except where the cove turns out into the arch edge over its last 17 mm (x 767 ->
             # 773) - a fair spline (and its outlier rejection) dropped that turn: 6 mm off
             o = np.argsort(z); zq, xq, yq = z[o], x[o], y[o]
+            if os.environ.get('FB_WALL_ROWS', '0') == '1' and SIDES[SIDE].get('wall') and np.median(y) > SIDES[SIDE]['wall'][0] + 0.03:
+                # past the row's front end: Kunos's own surface at the row's height (the groove's end wall, then the
+                # flare skin), every 8 mm up to the wall zone's end - the loft climbs the wall instead of carrying on
+                ze = np.arange(zq[-1] + 0.008, SIDES[SIDE]['wall'][1], 0.008)
+                xe = x_on(V, B, np.full(len(ze), np.median(y)), ze)
+                ok_ = np.isfinite(xe)
+                if ok_.any():
+                    k_ = np.argmax(~ok_) if (~ok_).any() else len(ze)      # up to the first miss
+                    zq, xq, yq = np.r_[zq, ze[:k_]], np.r_[xq, xe[:k_]], np.r_[yq, np.full(k_, np.median(y))]
             if len(zq) >= 3 and os.environ.get('FB_ROWCR', '1') == '1':
                 # smooth THROUGH the vertices (centripetal Catmull-Rom in (z, x, y)): straight segments kinked the
                 # rows at every vertex - faint ripples in grey where neighbouring rows kink at different z
@@ -134,6 +153,20 @@ def rows_of(car, verbose=True):
     out.sort(key=lambda t: t[0])
     if verbose:
         print(f'rows: {len(out)} (' + ', '.join(f'{t[0] * 1e3:.0f}' for t in out) + ')', flush=True)
+    return out
+
+
+def x_on(V, B, y, z):
+    """x of the triangles B's surface at (y, z) (largest hit, the outer skin); nan where none covers the point"""
+    T = V[B]; out = np.full(len(y), np.nan)
+    for i, (yy, zz) in enumerate(zip(y, z)):
+        a, b_, c = T[:, 0], T[:, 1], T[:, 2]
+        d = (b_[:, 1] - c[:, 1]) * (a[:, 2] - c[:, 2]) + (c[:, 2] - b_[:, 2]) * (a[:, 1] - c[:, 1])
+        ok = np.abs(d) > 1e-14
+        l1 = ((b_[:, 1] - c[:, 1]) * (zz - c[:, 2]) + (c[:, 2] - b_[:, 2]) * (yy - c[:, 1])) / np.where(ok, d, 1)
+        l2 = ((c[:, 1] - a[:, 1]) * (zz - c[:, 2]) + (a[:, 2] - c[:, 2]) * (yy - c[:, 1])) / np.where(ok, d, 1)
+        l3 = 1 - l1 - l2; m = ok & (l1 >= 0) & (l2 >= 0) & (l3 >= 0)
+        if m.any(): out[i] = (l1 * a[:, 0] + l2 * b_[:, 0] + l3 * c[:, 0])[m].max()
     return out
 
 
@@ -155,6 +188,14 @@ def build(car, out):
         for f in (fx, fy):
             if isinstance(f, dict): f['dom_data'] = zr
     E = outline(Vb, Fb)
+    if SIDES[SIDE].get('cut') and os.environ.get('FB_CUT', '0') == '1':
+        # (wing, 26 Nov) the groove's front end: Kunos ends it on a clean line (lower flank at z 0.90, the upper flank
+        # on a diagonal up to the ridge's end at z 0.96 - the chamfer face ahead stays the wing's). The outline (taken
+        # wider: the skin ahead included) is clamped onto that line: no jagged edge of whole Kunos triangles
+        cy, cz = np.array(SIDES[SIDE]['cut']).T
+        zc = np.where(E[:, 1] >= cy[0], np.interp(E[:, 1], cy, cz), 9.0)
+        n_ = (E[:, 2] > zc).sum(); E = E.copy(); E[:, 2] = np.minimum(E[:, 2], zc); E = clean(E)
+        print(f'outline: {n_} points clamped onto the groove end line', flush=True)
     # the ledge (its own Kunos pieces, the quarter's) sits in a hole of this mesh: cut it out, so the ledge's edge strips
     # meet this band's real edge (they ran past under it: white slivers at the ledge's rear end)
     HL = outline(Vb, Fb, holes=True) if os.environ.get('FB_HOLES', '1') == '1' else []
