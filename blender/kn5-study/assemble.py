@@ -20,6 +20,9 @@ PARTS = {
     'rearband': ['rearband/build.npz'],
     'frontband': ['frontband/build.npz'],
     'wingband': ['wingband/build.npz'],
+    'flare': ['flare/build.npz'],
+    'wingskin': ['wingskin/build.npz'],
+    'shoulder': ['shoulder/build.npz'],
     'frontbumper': ['frontbumper/build.npz'],
     'rearbumper': ['rearbumper/build.npz'],
 }
@@ -95,6 +98,44 @@ def main():
                 print(f'wing: {n_in} triangles under the wing band dropped, {n_x} split on its outline; end face {len(Fe)} tris (band / wing x at B, A apart {gap[0]:.2f} / {gap[1]:.2f} mm)')
                 F = np.r_[F, Fe + len(P)]; P = np.r_[P, Pe]; N = np.r_[N, Ne]
                 E = None
+            if os.path.exists(os.path.join(R, 'flare/flare_grid.npz')) and os.path.exists(os.path.join(R, 'flare/build.npz')) and os.environ.get('ASM_FLARE', '1') == '1':
+                # (27 Nov) the arch flare (flare_build.py) replaces the wing's lip face: the wing cut EXACTLY on the
+                # flare's footprint (side view) and feathered onto its outer edge
+                import wingend as WE
+                foot = np.load(os.path.join(R, 'flare/flare_grid.npz'))['foot']
+                Pf_, Ff_, Nf_ = load_any(os.path.join(R, 'flare/build.npz'))
+                if (np.linalg.norm(Nf_, axis=1) < 0.5).any(): Nf_ = vnormals(Pf_, Ff_)
+                if (np.linalg.norm(N, axis=1) < 0.5).any(): N = vnormals(P, F)
+                P, F, N, n_in, n_x = WE.clip_mesh(P, F, N, foot, xmin=0.5)
+                P0_ = P; P, n_f, dmax, _ = WE.feather(P, F, foot, Pf_, Ff_, xmin=0.5)
+                mv = np.abs(P[:, 0] - P0_[:, 0]) > 0
+                if mv.any(): N[mv] = vnormals(P, F)[mv]
+                _, _, _, N = WE.feather(P0_, F, foot, Pf_, Ff_, xmin=0.5, N=N, Nb=Nf_)
+                print(f'wing: {n_in} triangles under the flare dropped, {n_x} split on its outline; {n_f} vertices feathered onto its edge (steps up to {dmax * 1e3:.2f} mm closed)')
+            if os.path.exists(os.path.join(R, 'shoulder/build.npz')) and os.environ.get('ASM_SHOULDER', '1') == '1':
+                # (27 Nov) the shoulder roll (shoulder_build.py): seen edge-on from the side, so ownership is in 3D: a wing
+                # triangle goes when its centroid's nearest shoulder grid point is inside the shoulder (not on its gap-side
+                # edge or its end stations) and within 8 mm (a 3 mm test on the corners left slivers along its edges)
+                from scipy.spatial import cKDTree
+                SGr = np.load(os.path.join(R, 'shoulder/shoulder_grid.npz'))['grid']; ns_, nc_ = SGr.shape[:2]
+                dd_, kk_ = cKDTree(SGr.reshape(-1, 3)).query(P[F].mean(1))
+                si_, cj_ = kk_ // nc_, kk_ % nc_
+                on = (dd_ < 8e-3) & (cj_ < nc_ - 1) & (si_ > 0) & (si_ < ns_ - 1)
+                F = F[~on]
+                print(f'wing: {on.sum()} triangles on the shoulder dropped')
+            if os.path.exists(os.path.join(R, 'wingskin/skin_grid.npz')) and os.path.exists(os.path.join(R, 'wingskin/build.npz')) and os.environ.get('ASM_SKIN', '1') == '1':
+                # (27 Nov) the wing's side skin (wingskin_build.py) replaces its side sub-panels: cut exactly on the skin's
+                # side-view outline, feathered onto its edge
+                import wingend as WE
+                poly = np.load(os.path.join(R, 'wingskin/skin_grid.npz'))['poly']
+                Ps_, Fs_, Ns_ = load_any(os.path.join(R, 'wingskin/build.npz'))
+                if (np.linalg.norm(Ns_, axis=1) < 0.5).any(): Ns_ = vnormals(Ps_, Fs_)
+                P, F, N, n_in, n_x = WE.clip_mesh(P, F, N, poly, xmin=0.5)
+                P0_ = P; P, n_f, dmax, _ = WE.feather(P, F, poly, Ps_, Fs_, xmin=0.5)
+                mv = np.abs(P[:, 0] - P0_[:, 0]) > 0
+                if mv.any(): N[mv] = vnormals(P, F)[mv]
+                _, _, _, N = WE.feather(P0_, F, poly, Ps_, Fs_, xmin=0.5, N=N, Nb=Ns_)
+                print(f'wing: {n_in} triangles under the skin dropped, {n_x} split on its outline; {n_f} vertices feathered onto its edge (steps up to {dmax * 1e3:.2f} mm closed)')
             if E is None: pass
             else:
              iv = inside(E[:, [2, 1]], P[:, [2, 1]]) & (P[:, 0] > 0.6)

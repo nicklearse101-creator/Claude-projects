@@ -199,6 +199,13 @@ def groove_end(E):
     Pw = P.intersection(keep([tuple(B), tuple(A)]))
     big = lambda g: max(getattr(g, 'geoms', [g]), key=lambda q: q.area)
     Pb, Pw = big(Pb), big(Pw)
+    if os.environ.get('FB_FLARE') and os.path.exists(os.environ['FB_FLARE']):
+        # (27 Nov) the arch FLARE (flare_build.py) owns its outer round: the band's Kunos piece reached over it to the
+        # round's foot (row out0). The band's outline minus the flare's footprint (side view): its front edge is then the
+        # flare's outer row exactly. (Clipping the triangles instead left slivers that broke the boundary loops.)
+        foot = make_valid(Polygon(np.load(os.environ['FB_FLARE'])['foot']))
+        a0 = Pb.area; Pb = big(Pb.difference(foot))
+        print(f'flare footprint cut out of the band outline: area {a0 * 1e4:.1f} -> {Pb.area * 1e4:.1f} cm2', flush=True)
     zb, yb = np.array(Pb.exterior.coords).T
     pts = np.c_[np.full(len(zb), 0.78), yb, zb][:-1]
     print(f'groove end: band outline cut on B-C-A ({len(pts)} points), area {Pb.area * 1e4:.0f} cm2 (wing clip {Pw.area * 1e4:.0f})', flush=True)

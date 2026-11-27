@@ -1,4 +1,42 @@
-# Next session: Blender Work / AE86 replica (handover, 2026-11-25)
+# Next session: Blender Work / AE86 replica (handover, 2026-11-27)
+
+**Start here (27 Nov): the FRONT WING rebuilt curves-first** (it was the car's worst part: the 10 Nov panel fit, sub-panels
+split on a line 80 mm above the arch = the "crack at y 0.69", soft rounded flare, fit p95 up to 6.6 mm). Now four builds
+(regress order: flare -> shoulder -> wingband -> wingskin -> wing; assemble.py clips the old wing under all of them):
+- `flare_build.py` (+ `flare_score.py`, `./regress.sh flare`): Kunos's arch flare = edge, inner round (3 rows ~3.7 mm
+  apart: a corner vertex + a holding row each side), straight wall, outer round (3 rows) -> skin. Arch coordinates (a
+  along a Catmull-Rom through the edge vertices, d in along stations turned onto Kunos's own column directions - at the
+  rear they follow the body's horizontal lines, 11 deg off the edge normal), rows = ranks in topological column chains
+  (shortest outward edge; at the front the rounds dive into the bumper-line corner), extra crease vertices to the nearest
+  row level. Profile = the rows' facet polygon with its corners rounded (quadratic, arms shared by turn: continuous where
+  the corner moves from row to row). Kunos flare vertices median 0.01, 98-99 % within 1 mm. Runs a 0.006..0.805 (front
+  corner on the bumper line .. the ledge at y 0.2452).
+- `shoulder_build.py` (`./regress.sh shoulder`): the wing's top roll: rows by normal tilt 30/51/66/74/79/84/89 deg (some
+  partial) + piece 0's top boundary (the fold's return row into the bonnet gap, and behind z 0.72 the edge out to the
+  door); stations along z >= 3 mm apart, columns 0.3 turn + 0.7 arc length (closer columns / stations made FreeCAD's
+  interpolating surface ring: slivers). 97-98 % of its Kunos vertices within 1 mm.
+- `wingskin_build.py` (`./regress.sh wingskin`): the side skin between shoulder, door edge, band, flare and ledge (Kunos:
+  a sparse triangle net, no rows): ONE height field x(z, y), cubic B-spline 29x9, fitted to Kunos's vertices + the
+  neighbours' edge columns (weight 25) + Kunos's INTERPOLATED NORMAL FIELD (weight 2). Through the vertices alone it was
+  lumpy (isophotes wobble): Kunos's sparse vertex heights wobble, its normal field is fair; the two disagree by up to
+  ~2 mm (normals win -> isophotes like Kunos's, vertices median 0.11 / max 2 mm). Judge with isophote stripes (WS_ZEBRA=1).
+- wing band: `FB_FLARE` cuts the flare's footprint out of its outline (shapely on the outline, not triangle clipping:
+  that left slivers and broke the boundary loops). Band + flare cover the band's Kunos vertices 96.4 % (band alone 93.9).
+- assemble.py: old wing clipped exactly on the flare footprint and the skin outline (side view) + feathered; under the
+  shoulder (edge-on from the side) by grid ownership (nearest shoulder grid point inside, within 8 mm).
+- Whole car GEO_body 94.2 / 98.6 % within 1 / 3 mm (v5 92.5). Pictures (local): D:/ClaudeData/tmp/flare/wing_v16.png,
+  wing_v14.png (top views), grid*.png; flare study D:/ClaudeData/tmp/flare, skin D:/ClaudeData/tmp/skin.
+- LEFT on the wing (worst first): (1) the FRONT REGION ahead of the arch (z 1.40-1.88): the flare's front end ends as
+  a blunt block (Kunos ramps the top face down forward into the wing front), the ledge above the bumper line (y 0.565-
+  0.607) and the front corner fan (z > 1.70) are still old faces (front:b0 p95 6.6 mm), a seam at the skin's front edge
+  z 1.70; (2) the BOTTOM below the flare's end: Kunos = a horizontal ledge at y 0.241 (piece 7, z 0.57-0.81) + a lower
+  panel flush with the flare's top face (rows at y 0.2345 / 0.189 / 0.1845, x 712 / 692 / 690) - old leftovers there are
+  a mess; (3) a small crease where the shoulder's top boundary turns out to the door (z 0.72); (4) the skin strip between
+  the flare and the groove end (B-A) is fine but check; (5) the flare's body-crease band at the rear (Kunos's normals there
+  ignore an 8 mm facet drop: our geometry follows its vertices - shading differs slightly, known).
+- Then: front bumper streaks, GEO_hood_SUB2 (55 %), audit.
+
+## Handover 2026-11-25
 
 **Start here (25 Nov):**
 - Rear band knee: the three REAL Kunos knee rows (ranked by height per station; the topology rows cross-linked at a mesh

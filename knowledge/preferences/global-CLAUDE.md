@@ -4,6 +4,12 @@
 - Use plugin skills and tools only when the task actually needs them, and ask me for confirmation first (which plugin and why). If a plugin the task needs has a connection that needs signing in or fails to connect, tell me rather than silently working around it.
 - When a task would go better with a plugin I don't have, suggest it (search my plugin catalog and show the install card). Never install one without my yes.
 
+# Quality (every task, no exceptions)
+
+- **A shit job is unacceptable.** Do it properly the first time: understand the real problem (measure it, look at the actual data/geometry) before changing anything, then build the fix from that understanding. No blind trial-and-error, no quick workarounds that leave visible faults.
+- Check the result yourself, closely, before reporting it done. If something is still wrong, keep fixing it; never offer to "leave it" or call a fault "only visible close up".
+- Report honestly: say plainly what is still not right, and never present a worse or half-finished result as done.
+
 # Assetto Corsa car modding
 
 - Before car-mod work (wipers, animations, kn5/ksanim), read `D:\AC_Wiper_Project\` (also copied in `D:\SteamLibrary\steamapps\common\assettocorsa\Claude outputs\`) — start with `AC_Wiper_Project_Report.md` (successes, failures, lessons) and `ac_wiper_toolkit\TOOLS.md` (the proven tools, also zipped as `ac_wiper_toolkit.zip`). Keep wipers one solid piece; the user sets sweep angles after checking in-game.

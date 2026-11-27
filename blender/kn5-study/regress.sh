@@ -27,6 +27,8 @@
 # Front band (25 Nov): the lower quarter ahead of the rear arch built curves first (frontband_build.py: Kunos's straight vertex rows -> Catmull-Rom through their vertices -> per-station profiles -> one grid trimmed on Kunos's outline); the quarter leaves it out (PF_NOBAND) and its strips there take the band's real edges (PF_BAND_FOREIGN). Kunos vertices ahead of the arch 94.0 % within 1 mm (was 90.2), no hole-fill patches; quarter 83.4 / 100.0 % (was 80.6 / 97.9).
 # Partial lines (25 Nov): a short line (PF_LINE_SPAN) merges into its nearest full line beyond its ends instead of being extrapolated (it swung 370 mm: the quarter's side face b1 lay up to 13 mm OUTSIDE the car over the rear corner, a third of it > 3 mm off); quarter area 80.6 / 97.9 (was 78.4 / 97.9), b1 now 0 points > 3 mm.
 # Knee rows (24 Nov late): the three real Kunos knee rows ranked by height per station (no 2B-A guess): one soft knee line by eye; sweep+end 93.3 % within 1 mm (was 95.9: a few arch-lip vertices at s end).
+# Arch flare (flare_build.py, 27 Nov): Kunos flare vertices median 0.01, 81.5 / 98.8 % within 0.3 / 1 mm; wing band + flare on the band's
+#   Kunos vertices 96.4 % within 1 mm (band alone was 93.9); whole car GEO_body 94.5 / 98.7 % (v5 92.5 / 98.6).
 # Rear lower band (rearband_build.py, 24 Nov; quarter + tail with PF_NOBAND): band left 98.4 % (sweep 100 %, centre 92.5 %); quarter area 78.4 / 97.9 (its own Kunos vertices 92.6 % within 1 mm, was 92.0); tail 94.7 % (was 93.6 on the same vertices); others unchanged.
 set -e
 cd "$(dirname "$0")"
@@ -38,13 +40,38 @@ if [ "$what" = door ] || [ "$what" = all ]; then
   PF_RETURNS=5 PF_RETURNS_ON='SUB1:r0:,SUB1:r1,SUB1:r2:,SUB1:r5' PF_IN="$(cygpath -w $R/door)" ./fcrun.sh panel_fit_freecad.py >> $R/door.log 2>&1
   echo "door: $(python score_faces.py $C $R/door GEO_extdoorL_SUB1 GEO_extdoorL_SUB0 mirrorL GEO_extglassL | tail -1)"
 fi
+if [ "$what" = flare ] || [ "$what" = all ]; then
+  # the front arch's FLARE (flare_build.py, 27 Nov): Kunos's rows round the arch (edge, inner round x3, outer round x3),
+  # per station their facet polygon with its corners rounded -> one structured grid; owns the edge -> outer round
+  # (the wing is clipped on its footprint at assembly, the wing band's outline stops at its outer row: FB_FLARE)
+  unset PF_CLIP PF_CLIP_EXACT PF_NOHATCH PF_NOBAND PF_NOROOF PF_MASTER
+  python flare_build.py $C $R/flare > $R/flare.log 2>&1
+  PF_IN="$(cygpath -w $R/flare)" ./fcrun.sh panel_fit_freecad.py >> $R/flare.log 2>&1 && python pack_build.py $R/flare $R/flare/build.npz >> $R/flare.log
+  echo "$(python flare_score.py $C $R/flare/build.npz)"
+fi
+if [ "$what" = shoulder ] || [ "$what" = all ]; then
+  # the wing's shoulder roll (shoulder_build.py, 27 Nov): Kunos's rows along the wing's top (normal 30 -> 89 deg), station
+  # loft along z, columns at fixed fractions of the turn
+  python shoulder_build.py $C $R/shoulder > $R/shoulder.log 2>&1
+  PF_IN="$(cygpath -w $R/shoulder)" ./fcrun.sh panel_fit_freecad.py >> $R/shoulder.log 2>&1 && python pack_build.py $R/shoulder $R/shoulder/build.npz >> $R/shoulder.log
+  grep -E "^row|^grid" $R/shoulder.log | tr '
+' ' ' | sed 's/^/shoulder: /'; echo
+fi
 if [ "$what" = wingband ] || [ "$what" = all ]; then
   # the flat skin behind the front arch (frontband_build.py FB_SIDE=wing, 25 Nov): the raised band + ledge the wing's
   # band fits smoothed away (its vertices 68.8 -> 94 % within 1 mm); the wing leaves it out (PF_NOBAND)
   unset PF_CLIP PF_CLIP_EXACT PF_NOHATCH PF_NOBAND PF_NOROOF PF_MASTER
-  FB_SIDE=wing python frontband_build.py $C $R/wingband > $R/wingband.log 2>&1
+  FBF=""; [ -f $R/flare/flare_grid.npz ] && FBF=$R/flare/flare_grid.npz          # the flare's footprint cut out (27 Nov)
+  FB_FLARE=$FBF FB_SIDE=wing python frontband_build.py $C $R/wingband > $R/wingband.log 2>&1
   PF_IN="$(cygpath -w $R/wingband)" ./fcrun.sh panel_fit_freecad.py >> $R/wingband.log 2>&1 && python pack_build.py $R/wingband $R/wingband/build.npz >> $R/wingband.log
   echo "wingband: $(FB_SIDE=wing python frontband_score.py $C $R/wingband/build.npz | head -1)"
+fi
+if [ "$what" = wingskin ] || [ "$what" = all ]; then
+  # the wing's side skin (wingskin_build.py, 27 Nov): one height field x(z, y) fitted to Kunos's skin vertices + its
+  # interpolated normal field, edge data from the flare / band / shoulder (needs those built first)
+  python wingskin_build.py $C $R $R/wingskin > $R/wingskin.log 2>&1
+  PF_IN="$(cygpath -w $R/wingskin)" ./fcrun.sh panel_fit_freecad.py >> $R/wingskin.log 2>&1 && python pack_build.py $R/wingskin $R/wingskin/build.npz >> $R/wingskin.log
+  grep -E "^height" $R/wingskin.log | sed 's/^/wingskin: /'
 fi
 if [ "$what" = wing ] || [ "$what" = all ]; then
   export PF_CLIP=0,1,0,2,0.62,2

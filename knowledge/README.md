@@ -15,6 +15,7 @@ Other confirmed write-ups in this repo: `tools/ac-wiper/` (wiper report + proven
 `docs/Blender_3D_Modelling_Guide.md`, `docs/reports/`.
 
 ## Index
+- [No shit jobs - any task](preferences/feedback-no-shit-jobs.md) — Nik 26 Nov: a shit job is unacceptable; understand + measure first, fix properly first time, verify closely, never offer to leave a fault (also in global CLAUDE.md)
 - [NEVER write to C:, not even temp](preferences/feedback-no-c-drive-scratch.md) — the app's scratchpad is on C:; use D:/ClaudeData/tmp, tell subagents too (Nik furious 2026-11-10); 12 Nov: I may keep his apps updated myself, installs on D: (skin gen = D:\Rattys4SkinGenerator)
 - [Name: Nik](preferences/user-name-nik.md) — spell the user's name NIK, never "Nick"
 - [Plugins: only when needed, ask first](preferences/feedback-plugins-ask-first.md) — use plugin skills/tools/MCP only when needed and confirm with Nik before using one (2026-10-05)
